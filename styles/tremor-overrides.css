@@ -1,0 +1,214 @@
+/* Tremor Charts Color Overrides */
+/* Fix pour les problèmes de couleurs dans les graphiques Tremor */
+
+/* Force les couleurs du DonutChart */
+.recharts-pie-sector path {
+  stroke: white !important;
+  stroke-width: 2px !important;
+}
+
+/* Couleurs explicites pour chaque secteur */
+.recharts-pie .recharts-pie-sector:nth-child(1) path {
+  fill: #3b82f6 !important; /* blue-500 */
+}
+
+.recharts-pie .recharts-pie-sector:nth-child(2) path {
+  fill: #06b6d4 !important; /* cyan-500 */
+}
+
+.recharts-pie .recharts-pie-sector:nth-child(3) path {
+  fill: #6366f1 !important; /* indigo-500 */
+}
+
+.recharts-pie .recharts-pie-sector:nth-child(4) path {
+  fill: #8b5cf6 !important; /* violet-500 */
+}
+
+.recharts-pie .recharts-pie-sector:nth-child(5) path {
+  fill: #d946ef !important; /* fuchsia-500 */
+}
+
+.recharts-pie .recharts-pie-sector:nth-child(6) path {
+  fill: #f43f5e !important; /* rose-500 */
+}
+
+.recharts-pie .recharts-pie-sector:nth-child(7) path {
+  fill: #f97316 !important; /* orange-500 */
+}
+
+/* Fix pour les tooltips */
+.recharts-tooltip-wrapper {
+  z-index: 1000 !important;
+}
+
+.recharts-default-tooltip {
+  background-color: white !important;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 6px !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1) !important;
+}
+
+.recharts-tooltip-label {
+  color: #374151 !important;
+  font-weight: 600 !important;
+}
+
+.recharts-tooltip-item {
+  color: #6b7280 !important;
+}
+
+/* Fix pour le label central */
+.recharts-pie-label-text {
+  fill: #111827 !important;
+  font-weight: 600 !important;
+  font-size: 1.5rem !important;
+}
+
+/* S'assurer que les secteurs sont visibles */
+.recharts-surface {
+  background: transparent !important;
+}
+
+/* Dark mode support */
+.dark .recharts-default-tooltip {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+}
+
+.dark .recharts-tooltip-label {
+  color: #f3f4f6 !important;
+}
+
+.dark .recharts-tooltip-item {
+  color: #d1d5db !important;
+}
+
+.dark .recharts-pie-label-text {
+  fill: #f9fafb !important;
+}
+
+/* Force override des variables CSS problématiques */
+[data-tremor-component="donut-chart"] {
+  --tremor-color-blue-500: #3b82f6 !important;
+  --tremor-color-cyan-500: #06b6d4 !important;
+  --tremor-color-indigo-500: #6366f1 !important;
+  --tremor-color-violet-500: #8b5cf6 !important;
+  --tremor-color-fuchsia-500: #d946ef !important;
+  --tremor-color-rose-500: #f43f5e !important;
+  --tremor-color-orange-500: #f97316 !important;
+}
+
+/* Reset des styles qui pourraient affecter les graphiques */
+svg.recharts-surface * {
+  fill-opacity: 1 !important;
+  stroke-opacity: 1 !important;
+}
+
+/* S'assurer que les paths des secteurs ne sont pas affectés par des filtres CSS */
+.recharts-pie-sector {
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Fix pour les problèmes de rendu SVG */
+svg {
+  color-interpolation: auto !important;
+  color-interpolation-filters: auto !important;
+}
+
+/* Force la visibilité des secteurs */
+.recharts-layer.recharts-pie {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* S'assurer que le container n'applique pas de blend mode */
+[class*="tremor"] {
+  mix-blend-mode: normal !important;
+}
+
+/* Reset complet pour les graphiques Tremor */
+.tremor-DonutChart-root {
+  background: transparent !important;
+  color: inherit !important;
+}
+
+/* S'assurer que les TremorCard respectent le thème du site */
+[class*="tremor-Card-root"] {
+  background-color: inherit !important;
+  background: inherit !important;
+}
+
+
+/* Force les couleurs de base de Tailwind */
+.recharts-sector[fill*="blue"] { fill: #3b82f6 !important; }
+.recharts-sector[fill*="cyan"] { fill: #06b6d4 !important; }
+.recharts-sector[fill*="indigo"] { fill: #6366f1 !important; }
+.recharts-sector[fill*="violet"] { fill: #8b5cf6 !important; }
+.recharts-sector[fill*="fuchsia"] { fill: #d946ef !important; }
+.recharts-sector[fill*="rose"] { fill: #f43f5e !important; }
+.recharts-sector[fill*="orange"] { fill: #f97316 !important; }
+
+/* Force les couleurs Tremor par index */
+.recharts-layer.recharts-pie-sector:nth-child(1) path { fill: #3b82f6 !important; }
+.recharts-layer.recharts-pie-sector:nth-child(2) path { fill: #06b6d4 !important; }
+.recharts-layer.recharts-pie-sector:nth-child(3) path { fill: #6366f1 !important; }
+.recharts-layer.recharts-pie-sector:nth-child(4) path { fill: #8b5cf6 !important; }
+.recharts-layer.recharts-pie-sector:nth-child(5) path { fill: #ec4899 !important; }
+.recharts-layer.recharts-pie-sector:nth-child(6) path { fill: #f43f5e !important; }
+.recharts-layer.recharts-pie-sector:nth-child(7) path { fill: #f97316 !important; }
+
+/* Force white text for AreaChart axis labels */
+.recharts-cartesian-axis-tick-value {
+  fill: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Ensure all chart text is visible */
+.recharts-xAxis .recharts-text,
+.recharts-yAxis .recharts-text,
+.recharts-cartesian-axis-tick text {
+  fill: #f3f4f6 !important;
+}
+
+/* Light theme support */
+.light .recharts-cartesian-axis-tick-value,
+.light .recharts-xAxis .recharts-text,
+.light .recharts-yAxis .recharts-text,
+.light .recharts-cartesian-axis-tick text {
+  fill: #374151 !important;
+}
+
+/* Fix spécifique pour Tremor DonutChart */
+[class*="DonutChart"] .recharts-pie-sector path {
+  stroke: white !important;
+  stroke-width: 2 !important;
+  opacity: 1 !important;
+}
+
+/* Override des couleurs noires */
+.recharts-pie-sector path[fill="#000"],
+.recharts-pie-sector path[fill="#000000"],
+.recharts-pie-sector path[fill="black"],
+.recharts-pie-sector path[fill="rgb(0,0,0)"],
+.recharts-pie-sector path[fill="rgb(0, 0, 0)"] {
+  fill: #3b82f6 !important;
+}
+
+/* S'assurer que les couleurs Tremor sont correctement définies */
+:root {
+  --tremor-brand-faint: #eff6ff;
+  --tremor-brand-muted: #dbeafe;
+  --tremor-brand-subtle: #bfdbfe;
+  --tremor-brand-DEFAULT: #3b82f6;
+  --tremor-brand-emphasis: #2563eb;
+  --tremor-brand-inverted: #ffffff;
+  
+  /* Couleurs des graphiques */
+  --tremor-content-color-blue: #3b82f6;
+  --tremor-content-color-cyan: #06b6d4;
+  --tremor-content-color-indigo: #6366f1;
+  --tremor-content-color-violet: #8b5cf6;
+  --tremor-content-color-purple: #9333ea;
+  --tremor-content-color-pink: #ec4899;
+  --tremor-content-color-orange: #f97316;
+}

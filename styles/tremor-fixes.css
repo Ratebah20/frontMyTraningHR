@@ -1,0 +1,99 @@
+/* Tremor Charts Color Fixes */
+/* This file ensures Tremor charts display correctly with proper colors */
+
+/* Override Tremor color variables to ensure visibility */
+:root {
+  /* Tremor color palette */
+  --tremor-color-slate-50: #f8fafc;
+  --tremor-color-slate-100: #f1f5f9;
+  --tremor-color-slate-200: #e2e8f0;
+  --tremor-color-slate-300: #cbd5e1;
+  --tremor-color-slate-400: #94a3b8;
+  --tremor-color-slate-500: #64748b;
+  --tremor-color-slate-600: #475569;
+  --tremor-color-slate-700: #334155;
+  --tremor-color-slate-800: #1e293b;
+  --tremor-color-slate-900: #0f172a;
+  
+  /* Chart colors */
+  --tremor-color-blue-500: #3b82f6;
+  --tremor-color-cyan-500: #06b6d4;
+  --tremor-color-indigo-500: #6366f1;
+  --tremor-color-violet-500: #8b5cf6;
+  --tremor-color-fuchsia-500: #d946ef;
+  --tremor-color-rose-500: #f43f5e;
+  --tremor-color-orange-500: #f97316;
+  --tremor-color-amber-500: #f59e0b;
+  --tremor-color-emerald-500: #10b981;
+  --tremor-color-teal-500: #14b8a6;
+  
+  /* Background colors */
+  --tremor-background-default: #ffffff;
+  --tremor-background-subtle: #f9fafb;
+  --tremor-background-emphasis: #f3f4f6;
+  
+  /* Text colors */
+  --tremor-content-default: #1f2937;
+  --tremor-content-subtle: #6b7280;
+  --tremor-content-emphasis: #111827;
+}
+
+/* DonutChart specific fixes */
+.recharts-pie .recharts-pie-sector {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+.recharts-surface {
+  background: transparent !important;
+}
+
+/* Ensure proper chart container background */
+[class*="tremor-DonutChart"] {
+  background: transparent !important;
+}
+
+/* Fix text visibility in charts */
+.recharts-text,
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text {
+  fill: var(--tremor-content-default) !important;
+}
+
+/* Fix tooltip styling */
+.recharts-tooltip-wrapper {
+  .recharts-default-tooltip {
+    background: var(--tremor-background-default) !important;
+    border: 1px solid var(--tremor-border-default) !important;
+    border-radius: 0.375rem !important;
+    
+    .recharts-tooltip-label {
+      color: var(--tremor-content-emphasis) !important;
+    }
+    
+    .recharts-tooltip-item {
+      color: var(--tremor-content-default) !important;
+    }
+  }
+}
+
+/* Ensure Tremor Card backgrounds match the site theme */
+[class*="tremor-Card"] {
+  background: transparent !important;
+  border: 1px solid rgba(229, 231, 235, 0.2) !important;
+}
+
+/* Fix for dark mode if needed */
+.dark {
+  --tremor-background-default: #111827;
+  --tremor-background-subtle: #1f2937;
+  --tremor-background-emphasis: #374151;
+  --tremor-content-default: #f9fafb;
+  --tremor-content-subtle: #d1d5db;
+  --tremor-content-emphasis: #ffffff;
+  
+  [class*="tremor-Card"] {
+    background: var(--tremor-background-default) !important;
+    border: 1px solid #374151 !important;
+  }
+}

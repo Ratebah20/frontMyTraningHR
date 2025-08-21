@@ -38,6 +38,7 @@ import {
 } from '@phosphor-icons/react';
 import { collaborateursService } from '@/lib/services';
 import { Collaborateur, SessionFormation } from '@/lib/types';
+import { StatutUtils } from '@/lib/utils/statut.utils';
 
 interface Props {
   params: {
@@ -138,33 +139,17 @@ export default function CollaborateurDetailPage({ params }: Props) {
     );
   }
 
-  const getStatusColor = (statut: string) => {
-    switch (statut) {
-      case 'complete': return 'green';
-      case 'en_cours': return 'blue';
-      case 'inscrit': return 'yellow';
-      case 'annule': return 'red';
-      default: return 'gray';
-    }
-  };
-
-  const getStatusLabel = (statut: string) => {
-    switch (statut) {
-      case 'complete': return 'Terminé';
-      case 'en_cours': return 'En cours';
-      case 'inscrit': return 'Inscrit';
-      case 'annule': return 'Annulé';
-      default: return statut;
-    }
-  };
+  // Utilisation des méthodes de StatutUtils pour la cohérence
+  const getStatusColor = (statut: string) => StatutUtils.getStatusColor(statut);
+  const getStatusLabel = (statut: string) => StatutUtils.getStatusLabel(statut);
 
   // Calcul des statistiques (s'assurer que formations est un tableau)
   const formationsArray = Array.isArray(formations) ? formations : [];
   const stats = {
     totalFormations: formationsArray.length,
-    completees: formationsArray.filter(f => f.statut === 'complete').length,
-    enCours: formationsArray.filter(f => f.statut === 'en_cours').length,
-    inscrites: formationsArray.filter(f => f.statut === 'inscrit').length,
+    completees: formationsArray.filter(f => StatutUtils.isComplete(f.statut)).length,
+    enCours: formationsArray.filter(f => StatutUtils.isEnCours(f.statut)).length,
+    inscrites: formationsArray.filter(f => StatutUtils.isInscrit(f.statut)).length,
     heuresTotal: formationsArray.reduce((acc, f) => {
       if (f.uniteDuree === 'heures') return acc + (f.dureeReelle || f.dureePrevue || 0);
       if (f.uniteDuree === 'jours') return acc + ((f.dureeReelle || f.dureePrevue || 0) * 8);

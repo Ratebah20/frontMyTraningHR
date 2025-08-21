@@ -15,8 +15,8 @@ export const statsService = {
   },
 
   // Récupérer le tableau de bord complet
-  async getDashboard(): Promise<any> {
-    const response = await api.get('/reports/dashboard');
+  async getDashboard(params?: { periode?: string; annee?: number }): Promise<any> {
+    const response = await api.get('/reports/dashboard', { params });
     return response.data;
   },
 

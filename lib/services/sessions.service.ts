@@ -1,6 +1,8 @@
 import api from '../api';
 import { 
-  SessionFormation, 
+  SessionFormation,
+  SessionFormationResponse,
+  SessionPaginatedResponse, 
   SessionFilters, 
   CreateSessionDto, 
   UpdateSessionDto, 
@@ -32,13 +34,13 @@ export const sessionsService = {
   },
 
   // Récupérer le planning des sessions
-  async getPlanning(filters?: SessionFilters): Promise<SessionFormation[]> {
+  async getPlanning(filters?: SessionFilters): Promise<SessionPaginatedResponse> {
     const response = await api.get('/sessions/planning', { params: filters });
     return response.data;
   },
 
   // Récupérer les sessions d'un collaborateur
-  async getCollaborateurSessions(collaborateurId: number, filters?: SessionFilters): Promise<SessionFormation[]> {
+  async getCollaborateurSessions(collaborateurId: number, filters?: SessionFilters): Promise<SessionPaginatedResponse> {
     const response = await api.get(`/sessions/collaborateur/${collaborateurId}`, { params: filters });
     return response.data;
   },

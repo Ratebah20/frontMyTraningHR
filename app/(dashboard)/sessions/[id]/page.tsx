@@ -46,6 +46,7 @@ import {
 } from '@phosphor-icons/react';
 import { sessionsService } from '@/lib/services';
 import { SessionFormation } from '@/lib/types';
+import { StatutUtils } from '@/lib/utils/statut.utils';
 
 interface Props {
   params: {
@@ -138,8 +139,14 @@ export default function SessionDetailPage({ params }: Props) {
     );
   }
 
-  const config = statusConfig[session.statut] || statusConfig['inscrit'];
-  const StatusIcon = config.icon;
+  // Déterminer l'icône et la couleur selon le statut
+  const StatusIcon = StatutUtils.isComplete(session.statut) ? Certificate :
+                     StatutUtils.isEnCours(session.statut) ? Hourglass :
+                     StatutUtils.isInscrit(session.statut) ? CalendarCheck :
+                     StatutUtils.isAnnule(session.statut) ? CalendarX : CalendarCheck;
+  
+  const statusColor = StatutUtils.getStatusColor(session.statut);
+  const statusLabel = StatutUtils.getStatusLabel(session.statut);
 
   return (
     <Container size="xl">
@@ -167,7 +174,7 @@ export default function SessionDetailPage({ params }: Props) {
               <PencilSimple size={20} />
             </ActionIcon>
           </Tooltip>
-          {session.statut !== 'annule' && session.statut !== 'ANNULE' && (
+          {!StatutUtils.isAnnule(session.statut) && (
             <Button
               color="red"
               variant="light"
@@ -188,10 +195,10 @@ export default function SessionDetailPage({ params }: Props) {
               <Badge
                 size="lg"
                 leftSection={<StatusIcon size={16} />}
-                color={config.color}
+                color={statusColor}
                 variant="light"
               >
-                {config.label}
+                {statusLabel}
               </Badge>
               {session.note !== null && session.note !== undefined && (
                 <Group gap="xs">
@@ -417,7 +424,7 @@ export default function SessionDetailPage({ params }: Props) {
                 >
                   Modifier la session
                 </Button>
-                {session.statut !== 'annule' && session.statut !== 'ANNULE' && (
+                {!StatutUtils.isAnnule(session.statut) && (
                   <Button
                     fullWidth
                     variant="light"

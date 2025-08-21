@@ -67,6 +67,35 @@ export interface CategorieFormation {
   actif: boolean;
 }
 
+// Type pour les données de session retournées par l'API
+export interface SessionFormationResponse {
+  id: number;
+  collaborateur?: {
+    id: number;
+    nom: string;
+    prenom: string;
+    email: string;
+    departement: string;
+  };
+  formation?: {
+    id: number;
+    code: string;
+    nom: string;
+    categorie: string;
+    type: string;
+    dureeHeures: number;
+  };
+  dateImport: string;
+  dateDebut?: string;
+  dateFin?: string;
+  statut?: string;
+  note?: number;
+  commentaire?: string;
+  dureeHeures?: number;
+  dateCreation: string;
+  dateModification: string;
+}
+
 export interface SessionFormation {
   id: number;
   collaborateurId: number;
@@ -186,9 +215,24 @@ export interface PaginationMeta {
   hasPrevious: boolean;
 }
 
+// Meta données spécifiques pour les sessions
+export interface SessionPaginationMeta {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  itemsPerPage: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 export interface PaginatedResponse<T> {
   data: T[];
   meta: PaginationMeta;
+}
+
+export interface SessionPaginatedResponse {
+  data: SessionFormationResponse[];
+  meta: SessionPaginationMeta;
 }
 
 // Types pour les rapports et statistiques

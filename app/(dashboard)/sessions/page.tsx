@@ -58,7 +58,8 @@ import {
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
-import { SessionFormation, SessionFilters } from '@/lib/types';
+import { StatutUtils } from '@/lib/utils/statut.utils';
+import { SessionFormationResponse, SessionFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
 // Couleurs par statut
@@ -104,7 +105,7 @@ export default function SessionsPage() {
   const router = useRouter();
   
   // États
-  const [sessions, setSessions] = useState<SessionFormation[]>([]);
+  const [sessions, setSessions] = useState<SessionFormationResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -141,14 +142,11 @@ export default function SessionsPage() {
       
       const response = await sessionsService.getPlanning(filters);
       
-      if (Array.isArray(response)) {
-        setSessions(response);
-        setTotal(response.length);
-        setTotalPages(Math.ceil(response.length / limit));
-      } else if (response.data) {
+      // Le backend retourne toujours un objet avec data et meta
+      if (response && response.data) {
         setSessions(response.data);
-        setTotal(response.meta?.total || response.total || 0);
-        setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || response.total || 0) / limit));
+        setTotal(response.meta?.totalItems || 0);
+        setTotalPages(response.meta?.totalPages || 1);
       } else {
         setSessions([]);
         setTotal(0);
@@ -158,6 +156,8 @@ export default function SessionsPage() {
       console.error('Erreur lors du chargement des sessions:', err);
       setError(err.message || 'Erreur lors du chargement des sessions');
       setSessions([]);
+      setTotal(0);
+      setTotalPages(0);
     } finally {
       setIsLoading(false);
     }
@@ -209,12 +209,12 @@ export default function SessionsPage() {
     loadSessions();
   };
 
-  // Calculer les statistiques
+  // Calculer les statistiques en utilisant StatutUtils
   const stats = {
-    inscrites: sessions.filter(s => s.statut === 'inscrit' || s.statut === 'INSCRIT').length,
-    enCours: sessions.filter(s => s.statut === 'en_cours' || s.statut === 'EN_COURS').length,
-    terminees: sessions.filter(s => s.statut === 'complete' || s.statut === 'TERMINE' || s.statut === 'COMPLETE').length,
-    annulees: sessions.filter(s => s.statut === 'annule' || s.statut === 'ANNULE').length,
+    inscrites: sessions.filter(s => StatutUtils.isInscrit(s.statut)).length,
+    enCours: sessions.filter(s => StatutUtils.isEnCours(s.statut)).length,
+    terminees: sessions.filter(s => StatutUtils.isComplete(s.statut)).length,
+    annulees: sessions.filter(s => StatutUtils.isAnnule(s.statut)).length,
   };
 
   return (
@@ -228,7 +228,7 @@ export default function SessionsPage() {
               <Title order={1}>Gestion des Sessions</Title>
             </Group>
             <Text size="lg" c="dimmed" mt="xs">
-              Suivez les inscriptions et sessions de formation
+              {total > 0 ? `${total} sessions de formation` : 'Suivez les inscriptions et sessions de formation'}
             </Text>
           </div>
           <Group>
@@ -384,7 +384,12 @@ export default function SessionsPage() {
         <>
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
             {sessions.map((session) => {
-              const StatusIcon = statusIcons[session.statut] || CalendarCheck;
+              // Déterminer l'icône selon le statut
+              const StatusIcon = StatutUtils.isComplete(session.statut) ? CheckCircle :
+                                StatutUtils.isEnCours(session.statut) ? Clock :
+                                StatutUtils.isInscrit(session.statut) ? CalendarCheck :
+                                StatutUtils.isAnnule(session.statut) ? XCircle : CalendarCheck;
+              
               return (
                 <Paper
                   key={session.id}
@@ -408,10 +413,10 @@ export default function SessionsPage() {
                   <Group justify="space-between" mb="md">
                     <Badge
                       leftSection={<StatusIcon size={14} />}
-                      color={statusColors[session.statut] || 'gray'}
+                      color={StatutUtils.getStatusColor(session.statut)}
                       variant="light"
                     >
-                      {statusLabels[session.statut] || session.statut}
+                      {StatutUtils.getStatusLabel(session.statut)}
                     </Badge>
                     <Menu withinPortal position="bottom-end" shadow="sm">
                       <Menu.Target>
@@ -447,15 +452,15 @@ export default function SessionsPage() {
                   {/* Collaborateur */}
                   <Group gap="xs" mb="sm">
                     <Avatar size="sm" radius="xl" color="blue">
-                      {session.collaborateur?.nomComplet?.split(' ').map(n => n[0]).join('') || 'NA'}
+                      {session.collaborateur ? `${session.collaborateur.prenom?.[0] || ''}${session.collaborateur.nom?.[0] || ''}` : 'NA'}
                     </Avatar>
                     <div style={{ flex: 1 }}>
                       <Text size="sm" fw={500} lineClamp={1}>
-                        {session.collaborateur?.nomComplet || 'Collaborateur inconnu'}
+                        {session.collaborateur ? `${session.collaborateur.prenom} ${session.collaborateur.nom}` : 'Collaborateur inconnu'}
                       </Text>
                       {session.collaborateur?.departement && (
                         <Text size="xs" c="dimmed">
-                          {session.collaborateur.departement.nomDepartement}
+                          {session.collaborateur.departement}
                         </Text>
                       )}
                     </div>
@@ -468,12 +473,12 @@ export default function SessionsPage() {
                     <Group gap="xs">
                       <BookOpen size={16} color="#868E96" />
                       <Text size="sm" fw={500} lineClamp={2}>
-                        {session.formation?.nomFormation || 'Formation inconnue'}
+                        {session.formation?.nom || 'Formation inconnue'}
                       </Text>
                     </Group>
-                    {session.formation?.codeFormation && (
+                    {session.formation?.code && (
                       <Text size="xs" c="dimmed" ml={20}>
-                        {session.formation.codeFormation}
+                        {session.formation.code}
                       </Text>
                     )}
                   </Stack>
@@ -483,32 +488,34 @@ export default function SessionsPage() {
                     <Group gap="xs">
                       <Calendar size={16} color="#868E96" />
                       <Text size="xs" c="dimmed">
-                        Du {new Date(session.dateDebut).toLocaleDateString('fr-FR')}
+                        {session.dateDebut 
+                          ? `Du ${new Date(session.dateDebut).toLocaleDateString('fr-FR')}` 
+                          : 'Date non définie'}
                         {session.dateFin && ` au ${new Date(session.dateFin).toLocaleDateString('fr-FR')}`}
                       </Text>
                     </Group>
-                    {session.dureeReelle && (
+                    {(session.dureeHeures || session.formation?.dureeHeures) && (
                       <Group gap="xs">
                         <Clock size={16} color="#868E96" />
                         <Text size="xs" c="dimmed">
-                          {session.dureeReelle} {session.uniteDuree || 'heures'}
+                          {session.dureeHeures || session.formation?.dureeHeures} heures
                         </Text>
                       </Group>
                     )}
                   </Stack>
 
-                  {/* Organisme */}
-                  {session.organisme && (
+                  {/* Catégorie de formation */}
+                  {session.formation?.categorie && (
                     <Group gap="xs" mb="md">
                       <Building size={16} color="#868E96" />
                       <Text size="xs" c="dimmed">
-                        {session.organisme.nomOrganisme}
+                        {session.formation.categorie}
                       </Text>
                     </Group>
                   )}
 
                   {/* Note si complété */}
-                  {(session.statut === 'complete' || session.statut === 'TERMINE') && session.note !== null && (
+                  {StatutUtils.isComplete(session.statut) && session.note !== null && (
                     <Box>
                       <Text size="xs" c="dimmed" mb={4}>Note obtenue</Text>
                       <Progress

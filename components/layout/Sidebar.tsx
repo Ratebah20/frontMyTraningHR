@@ -52,6 +52,7 @@ import {
   ChartLineUp,
   User as UserIcon,
   SignOut as SignOutIcon,
+  Wallet,
 } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { spotlight } from '@mantine/spotlight';
@@ -109,6 +110,17 @@ const navigationItems: NavigationItem[] = [
       { label: 'Planning', href: '/sessions' },
       { label: 'Calendrier', href: '/sessions/calendar' },
       { label: 'Inscriptions', href: '/sessions/inscriptions' },
+    ]
+  },
+  { 
+    icon: Wallet, 
+    label: 'Budget', 
+    href: '/budget',
+    color: 'grape',
+    subItems: [
+      { label: 'Vue d\'ensemble', href: '/budget' },
+      { label: 'Dashboard KPIs', href: '/budget/dashboard' },
+      { label: 'Analytics Avancés', href: '/budget/analytics' },
     ]
   },
   { 

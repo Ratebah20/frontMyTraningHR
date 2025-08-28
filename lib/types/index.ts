@@ -11,7 +11,9 @@ export interface User {
 
 export interface Collaborateur {
   id: number;
+  matricule?: string;
   idExterne?: string;
+  workerSubType?: string;
   nom: string;
   prenom: string;
   nomComplet: string;
@@ -27,6 +29,7 @@ export interface Collaborateur {
   departement?: Departement;
   contrat?: TypeContrat;
   sessions?: SessionFormation[];
+  nombreFormations?: number;
 }
 
 export interface Departement {
@@ -290,7 +293,8 @@ export interface CollaborateurFilters {
   departementId?: number;
   managerId?: number;
   contratId?: number;
-  actif?: boolean;
+  actif?: boolean | string;
+  includeInactive?: boolean;
   page?: number;
   limit?: number;
   sortBy?: string;

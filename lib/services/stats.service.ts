@@ -20,6 +20,26 @@ export const statsService = {
     return response.data;
   },
 
+  // ==================== NOUVEAUX ENDPOINTS DASHBOARD ====================
+  
+  // Récupérer le résumé du dashboard
+  async getDashboardSummary(): Promise<any> {
+    const response = await api.get('/stats/dashboard-summary');
+    return response.data;
+  },
+
+  // Récupérer les données des graphiques
+  async getDashboardCharts(): Promise<any> {
+    const response = await api.get('/stats/dashboard-charts');
+    return response.data;
+  },
+
+  // Récupérer les alertes et notifications
+  async getDashboardAlerts(): Promise<any> {
+    const response = await api.get('/stats/dashboard-alerts');
+    return response.data;
+  },
+
   // Récupérer les top formations
   async getTopFormations(limit: number = 10): Promise<FormationStats[]> {
     const response = await api.get('/stats/top-formations', {

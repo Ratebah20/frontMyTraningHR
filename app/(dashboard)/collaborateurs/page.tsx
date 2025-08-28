@@ -46,7 +46,7 @@ import {
   UserMinus,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
-import { collaborateursService } from '@/lib/services';
+import { collaborateursService, commonService } from '@/lib/services';
 import { Collaborateur, CollaborateurFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
@@ -57,6 +57,8 @@ export default function CollaborateursPage() {
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [globalStats, setGlobalStats] = useState<any>(null);
+  const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
   
   // Filtres et pagination
   const [search, setSearch] = useState('');
@@ -75,13 +77,31 @@ export default function CollaborateursPage() {
     setError(null);
     
     try {
-      const filters: CollaborateurFilters = {
-        search: debouncedSearch,
-        departementId: departmentFilter ? parseInt(departmentFilter) : undefined,
-        actif: statusFilter === 'actif' ? true : statusFilter === 'inactif' ? false : undefined,
+      // Construire les filtres en fonction du backend
+      const filters: any = {
         page,
         limit,
       };
+      
+      // Ajouter la recherche seulement si elle n'est pas vide
+      if (debouncedSearch && debouncedSearch.trim()) {
+        filters.search = debouncedSearch.trim();
+      }
+      
+      // Ajouter le filtre département
+      if (departmentFilter) {
+        filters.departementId = parseInt(departmentFilter);
+      }
+      
+      // Gérer le filtre de statut avec le nouveau paramètre actif
+      if (statusFilter === 'actif') {
+        // Envoyer comme chaîne pour que axios le transmette correctement
+        filters.actif = 'true' as any;
+      } else if (statusFilter === 'inactif') {
+        // Envoyer comme chaîne pour que axios le transmette correctement  
+        filters.actif = 'false' as any;
+      }
+      // Pour 'tous', on n'envoie pas de paramètre actif
       
       const response = await collaborateursService.getCollaborateurs(filters);
       
@@ -89,10 +109,16 @@ export default function CollaborateursPage() {
         setCollaborateurs(response.data);
         setTotal(response.meta?.total || response.total || 0);
         setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || response.total || 0) / limit));
+        
+        // Utiliser les stats globales du backend si disponibles
+        if (response.stats) {
+          setGlobalStats(response.stats);
+        }
       } else {
         setCollaborateurs([]);
         setTotal(0);
         setTotalPages(0);
+        setGlobalStats(null);
       }
     } catch (err: any) {
       console.error('Erreur lors du chargement des collaborateurs:', err);
@@ -102,6 +128,26 @@ export default function CollaborateursPage() {
       setIsLoading(false);
     }
   };
+
+  // Charger les départements au montage
+  useEffect(() => {
+    const loadDepartements = async () => {
+      try {
+        const deps = await commonService.getDepartements();
+        const departmentsList = deps.map(d => ({
+          value: d.id.toString(),
+          label: d.nomDepartement,
+        }));
+        setDepartements([
+          { value: '', label: 'Tous les départements' },
+          ...departmentsList
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des départements:', error);
+      }
+    };
+    loadDepartements();
+  }, []);
 
   // Charger les collaborateurs au montage et quand les filtres changent
   useEffect(() => {
@@ -153,8 +199,13 @@ export default function CollaborateursPage() {
     loadCollaborateurs();
   };
 
-  // Calculer les statistiques
-  const stats = {
+  // Utiliser les statistiques globales du backend ou calculer localement
+  const stats = globalStats ? {
+    total: globalStats.total || (globalStats.totalActifs + globalStats.totalInactifs) || total,
+    actifs: globalStats.totalActifs || 0,
+    inactifs: globalStats.totalInactifs || 0,
+    departements: globalStats.totalDepartements || 0,
+  } : {
     total: total,
     actifs: collaborateurs.filter(c => c.actif).length,
     inactifs: collaborateurs.filter(c => !c.actif).length,
@@ -169,11 +220,20 @@ export default function CollaborateursPage() {
             {collaborateur.nomComplet?.split(' ').map(n => n[0]).join('') || 'NA'}
           </Avatar>
           <div>
-            <Text size="sm" fw={500}>
-              {collaborateur.nomComplet}
-            </Text>
+            <Group gap="xs">
+              <Text size="sm" fw={500}>
+                {collaborateur.nomComplet}
+              </Text>
+              {!collaborateur.idExterne && (
+                <Tooltip label="ID externe manquant - À ajouter dès que disponible">
+                  <Badge color="orange" variant="light" size="xs">
+                    ID externe manquant
+                  </Badge>
+                </Tooltip>
+              )}
+            </Group>
             <Text size="xs" c="dimmed">
-              {collaborateur.idExterne}
+              {collaborateur.matricule || collaborateur.idExterne || 'Aucun identifiant'}
             </Text>
           </div>
         </Group>
@@ -367,10 +427,11 @@ export default function CollaborateursPage() {
           <FunnelSimple size={20} />
           <Text fw={600}>Filtres et Recherche</Text>
         </Group>
-        <Grid>
+        <Grid align="flex-end">
           <Grid.Col span={{ base: 12, sm: 6 }}>
             <TextInput
-              placeholder="Rechercher par nom, prénom, email..."
+              label=" "
+              placeholder="Rechercher par nom, prénom, matricule..."
               leftSection={<MagnifyingGlass size={16} />}
               value={search}
               onChange={(event) => setSearch(event.currentTarget.value)}
@@ -378,19 +439,17 @@ export default function CollaborateursPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Département"
-              data={[
-                { value: '', label: 'Tous les départements' },
-                // TODO: Charger dynamiquement les départements
-              ]}
+              placeholder="Tous les départements"
+              data={departements}
               value={departmentFilter}
               onChange={(value) => setDepartmentFilter(value || '')}
               clearable
+              searchable
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Statut"
+              placeholder="Tous les statuts"
               data={[
                 { value: '', label: 'Tous' },
                 { value: 'actif', label: 'Actifs seulement' },
@@ -419,7 +478,7 @@ export default function CollaborateursPage() {
               <Table verticalSpacing="sm">
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Collaborateur</Table.Th>
+                    <Table.Th>Collaborateur / Matricule</Table.Th>
                     <Table.Th>Département</Table.Th>
                     <Table.Th>Manager</Table.Th>
                     <Table.Th>Formations</Table.Th>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { 
   Container, 
   Title, 
@@ -16,10 +16,15 @@ import {
   Paper,
   Skeleton,
   Box,
+  Alert,
+  Center,
+  SimpleGrid,
+  RingProgress,
+  Divider,
+  Tooltip,
+  Table,
 } from '@mantine/core';
-import { gsap } from 'gsap';
-import { motion } from 'framer-motion';
-import { Card as TremorCard, Grid as TremorGrid, Flex, AreaChart, DonutChart } from '@tremor/react';
+import { AreaChart, DonutChart, BarChart } from '@tremor/react';
 import { 
   Users, 
   GraduationCap, 
@@ -27,223 +32,631 @@ import {
   CheckCircle,
   ArrowUpRight,
   Clock,
+  Warning,
+  ChartLine,
+  TrendUp,
+  WarningCircle,
+  Info,
+  ArrowClockwise,
+  Buildings,
+  BookOpen,
+  XCircle,
+  UserPlus,
+  Package,
+  Tag,
 } from '@phosphor-icons/react';
-import { mockData, mockServices } from '@/lib/mock-data';
+import { statsService } from '@/lib/services';
+import { notifications } from '@mantine/notifications';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLDivElement[]>([]);
-  const [loading, setLoading] = useState(false);
-  
-  const kpiData = [
-    {
-      title: "Collaborateurs",
-      value: mockData.collaborateurs.length,
-      icon: Users,
-      color: "blue",
-      progress: 75,
-      subtitle: `${mockData.collaborateurs.length} actifs`,
-      metric: "75%",
-      metricLabel: "Taux de participation",
-    },
-    {
-      title: "Formations", 
-      value: mockData.formations.length,
-      icon: GraduationCap,
-      color: "grape",
-      progress: 60,
-      subtitle: `${mockData.sessions.length} sessions`,
-      metric: mockData.sessions.length.toString(),
-      metricLabel: "Sessions actives",
-    },
-    {
-      title: "Inscriptions",
-      value: mockData.kpi.heuresFormation,
-      icon: Calendar,
-      color: "orange", 
-      progress: 80,
-      subtitle: "Heures de formation",
-      metric: "80%",
-      metricLabel: "Objectif atteint",
-    },
-    {
-      title: "Budget",
-      value: `${mockData.kpi.budget.toLocaleString('fr-FR')}€`,
-      icon: CheckCircle,
-      color: "green",
-      progress: 65,
-      subtitle: "Budget formation",
-      metric: "65%",
-      metricLabel: "Budget utilisé",
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [summary, setSummary] = useState<any>(null);
+  const [charts, setCharts] = useState<any>(null);
+  const [alerts, setAlerts] = useState<any>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+
+  // Charger les données du dashboard
+  const loadDashboardData = async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    else setRefreshing(true);
+    
+    try {
+      const [summaryData, chartsData, alertsData] = await Promise.all([
+        statsService.getDashboardSummary(),
+        statsService.getDashboardCharts(),
+        statsService.getDashboardAlerts()
+      ]);
+      
+      setSummary(summaryData);
+      setCharts(chartsData);
+      setAlerts(alertsData);
+      setLastUpdate(new Date());
+    } catch (error) {
+      console.error('Erreur lors du chargement du dashboard:', error);
+      notifications.show({
+        title: 'Erreur',
+        message: 'Impossible de charger les données du dashboard',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-  ];
-  
-  const chartData = [
-    { month: 'Jan', inscriptions: 45 },
-    { month: 'Fév', inscriptions: 52 },
-    { month: 'Mar', inscriptions: 48 },
-    { month: 'Avr', inscriptions: 61 },
-    { month: 'Mai', inscriptions: 55 },
-    { month: 'Juin', inscriptions: 67 },
-  ];
-  
-  const donutData = [
-    { name: 'IT', value: 40 },
-    { name: 'RH', value: 30 },
-    { name: 'Finance', value: 20 },
-    { name: 'Marketing', value: 10 },
-  ];
+  };
 
   useEffect(() => {
-    if (cardsRef.current.length > 0) {
-      gsap.fromTo(cardsRef.current,
-        { opacity: 0, y: 50, scale: 0.9 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.6, stagger: 0.1, ease: "power3.out" }
-      );
-    }
+    loadDashboardData();
+    // Rafraîchissement automatique toutes les 5 minutes
+    const interval = setInterval(() => loadDashboardData(false), 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  return (
-    <Container size="xl" ref={containerRef}>
-      <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-        <Group justify="space-between" mb="xl">
+  // Formater la date de dernière mise à jour
+  const formatLastUpdate = () => {
+    if (!alerts?.derniereMAJ?.date) return "Jamais";
+    const date = new Date(alerts.derniereMAJ.date);
+    return date.toLocaleDateString('fr-FR', { 
+      day: 'numeric', 
+      month: 'short', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  // Définition des 15 KPIs
+  const kpiCards = summary ? [
+    // Ligne 1 : Collaborateurs
+    {
+      title: "Total collaborateurs",
+      value: summary.totalCollaborateurs || 0,
+      subtitle: `${summary.collaborateursActifs || 0} actifs`,
+      icon: Users,
+      color: "blue",
+      progress: summary.collaborateursActifs && summary.totalCollaborateurs 
+        ? Math.round((summary.collaborateursActifs / summary.totalCollaborateurs) * 100) 
+        : 0,
+    },
+    {
+      title: "Taux de participation",
+      value: `${summary.tauxParticipation || 0}%`,
+      subtitle: `${summary.collaborateursAvecFormation || 0} formés`,
+      icon: ChartLine,
+      color: "teal",
+      progress: summary.tauxParticipation || 0,
+    },
+    {
+      title: "Nouveaux collaborateurs",
+      value: summary.nouveauxCollaborateurs || 0,
+      subtitle: "30 derniers jours",
+      icon: UserPlus,
+      color: "cyan",
+    },
+    
+    // Ligne 2 : Formations
+    {
+      title: "Total formations",
+      value: summary.totalFormations || 0,
+      subtitle: `${summary.formationsActives || 0} actives`,
+      icon: BookOpen,
+      color: "violet",
+      progress: summary.formationsActives && summary.totalFormations
+        ? Math.round((summary.formationsActives / summary.totalFormations) * 100)
+        : 0,
+    },
+    {
+      title: "Catégories",
+      value: summary.nombreCategories || 0,
+      subtitle: "Types de formation",
+      icon: Tag,
+      color: "grape",
+    },
+    {
+      title: "Organismes",
+      value: summary.nombreOrganismes || 0,
+      subtitle: "Prestataires",
+      icon: Buildings,
+      color: "indigo",
+    },
+    
+    // Ligne 3 : Sessions
+    {
+      title: "Sessions en cours",
+      value: summary.sessionsEnCours || 0,
+      subtitle: "Actuellement",
+      icon: ChartLine,
+      color: "green",
+      highlight: true,
+    },
+    {
+      title: "Sessions planifiées",
+      value: summary.sessionsPlanifiees || 0,
+      subtitle: "À venir",
+      icon: Calendar,
+      color: "blue",
+    },
+    {
+      title: "Sessions terminées",
+      value: summary.sessionsTerminees || 0,
+      subtitle: "Complétées",
+      icon: CheckCircle,
+      color: "teal",
+    },
+    
+    // Ligne 4 : Métriques
+    {
+      title: "Heures totales",
+      value: summary.heuresFormationTotal?.toLocaleString() || 0,
+      subtitle: "Cumulées",
+      icon: Clock,
+      color: "orange",
+    },
+    {
+      title: "Heures ce mois",
+      value: summary.heuresFormationMois || 0,
+      subtitle: `${summary.sessionsMois || 0} sessions`,
+      icon: Clock,
+      color: "yellow",
+    },
+    {
+      title: "Départements",
+      value: summary.nombreDepartements || 0,
+      subtitle: "Services actifs",
+      icon: Buildings,
+      color: "pink",
+    },
+    
+    // Ligne 5 : Performance
+    {
+      title: "Taux complétion mois",
+      value: `${summary.tauxCompletion || 0}%`,
+      subtitle: `${summary.sessionsTermineesMois || 0}/${summary.sessionsMois || 0}`,
+      icon: TrendUp,
+      color: "green",
+      progress: summary.tauxCompletion || 0,
+    },
+    {
+      title: "Taux complétion global",
+      value: `${summary.tauxCompletionGlobal || 0}%`,
+      subtitle: "Toutes sessions",
+      icon: CheckCircle,
+      color: "lime",
+      progress: summary.tauxCompletionGlobal || 0,
+    },
+    {
+      title: "Taux annulation",
+      value: `${summary.tauxAnnulation || 0}%`,
+      subtitle: `${summary.sessionsAnnulees || 0} annulées`,
+      icon: XCircle,
+      color: summary.tauxAnnulation > 10 ? "red" : "gray",
+      progress: summary.tauxAnnulation || 0,
+    },
+  ] : [];
+
+  if (loading) {
+    return (
+      <Container size="xl">
+        <Stack gap="xl">
           <div>
             <Title order={1}>Tableau de bord</Title>
-            <Text size="lg" c="dimmed">Vue d'ensemble de vos formations</Text>
+            <Text size="lg" c="dimmed">Chargement des données...</Text>
           </div>
-          <Badge size="lg" variant="light" color="blue">Données de démonstration</Badge>
-        </Group>
-      </motion.div>
-
-      <Grid gutter="lg" mb="xl">
-        {kpiData.map((kpi, index) => (
-          <Grid.Col key={index} span={{ base: 12, sm: 6, lg: 3 }}>
-            <motion.div
-              ref={el => { if (el) cardsRef.current[index] = el as HTMLDivElement; }}
-              whileHover={{ scale: 1.02 }}
-              transition={{ type: "spring", stiffness: 300 }}
-              style={{ height: '220px' }}
-            >
-              <Card shadow="sm" radius="md" withBorder className="hover:shadow-lg transition-shadow" h="100%" p="md">
-                <Stack h="100%" justify="space-between" gap="sm">
-                  <div>
-                    <Group justify="space-between" mb="sm">
-                      <ThemeIcon size={40} radius="md" variant="light" color={kpi.color}>
-                        <kpi.icon size={24} weight="duotone" />
-                      </ThemeIcon>
-                    </Group>
-                    
-                    <Text size="xs" c="dimmed" fw={600} tt="uppercase" mb={4}>
-                      {kpi.title}
-                    </Text>
-                    
-                    <Box>
-                      <Text size="2rem" fw={700} lh={1}>{kpi.value}</Text>
-                      <Text size="xs" c="dimmed" fw={500} mt={4}>{kpi.subtitle}</Text>
-                    </Box>
-                  </div>
-                  
-                  <Stack gap={6}>
-                    <Group justify="space-between">
-                      <Text size="xs" c="dimmed">{kpi.metricLabel}</Text>
-                      <Text size="xs" fw={600} color={kpi.color}>{kpi.metric}</Text>
-                    </Group>
-                    <Progress value={kpi.progress} color={kpi.color} size="xs" radius="xl" animated />
-                  </Stack>
-                </Stack>
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="lg">
+            {[...Array(15)].map((_, i) => (
+              <Card key={i} shadow="sm" radius="md" withBorder>
+                <Skeleton height={120} />
               </Card>
-            </motion.div>
-          </Grid.Col>
-        ))}
-      </Grid>
+            ))}
+          </SimpleGrid>
+        </Stack>
+      </Container>
+    );
+  }
 
-      <TremorGrid numItemsSm={1} numItemsLg={2} className="gap-6 mb-6">
-        <TremorCard className="hover:shadow-lg transition-shadow">
-          <Flex justifyContent="between" alignItems="center" className="mb-4">
-            <div>
-              <Title order={3}>Évolution des inscriptions</Title>
-              <Text size="sm" c="dimmed">6 derniers mois</Text>
-            </div>
-          </Flex>
-          <AreaChart
-            className="h-72"
-            data={chartData}
-            index="month"
-            categories={["inscriptions"]}
-            colors={["indigo"]}
-            valueFormatter={(value) => `${value}`}
-            showAnimation={true}
-            showLegend={false}
-            showGridLines={true}
-            curveType="monotone"
-          />
-        </TremorCard>
-
-        <TremorCard className="hover:shadow-lg transition-shadow">
-          <Flex justifyContent="between" alignItems="center" className="mb-4">
-            <div>
-              <Title order={3}>Répartition par département</Title>
-              <Text size="sm" c="dimmed">Taux de participation</Text>
-            </div>
-          </Flex>
-          <DonutChart
-            className="h-64"
-            data={donutData}
-            category="value"
-            index="name"
-            valueFormatter={(value) => `${value}%`}
-            colors={["blue", "cyan", "indigo", "violet"]}
-            showAnimation={true}
-            label={`${mockData.kpi.tauxParticipation}%`}
-          />
-        </TremorCard>
-      </TremorGrid>
-
-      <Paper shadow="sm" radius="md" p="lg" withBorder className="hover:shadow-lg transition-shadow">
-        <Group justify="space-between" mb="md">
-          <div>
-            <Title order={3}>Sessions récentes</Title>
-            <Text size="sm" c="dimmed">{mockData.sessions.length} sessions actives</Text>
-          </div>
-          <Button variant="subtle" size="sm" rightSection={<ArrowUpRight size={14} />}>
-            Voir toutes les sessions
+  return (
+    <Container size="xl">
+      <Group justify="space-between" mb="xl">
+        <div>
+          <Title order={1}>Tableau de bord</Title>
+          <Text size="lg" c="dimmed">Vue d'ensemble avec 15 KPIs essentiels</Text>
+        </div>
+        <Group>
+          {alerts?.derniereMAJ && (
+            <Badge size="lg" variant="light" color="blue" leftSection={<Info size={14} />}>
+              Dernière synchro : {formatLastUpdate()}
+            </Badge>
+          )}
+          <Button 
+            variant="light" 
+            size="sm" 
+            onClick={() => loadDashboardData(false)}
+            loading={refreshing}
+            leftSection={<ArrowClockwise size={16} />}
+          >
+            Actualiser
           </Button>
         </Group>
-        <Stack gap="md">
-          {mockData.sessions.map((session, index) => (
-            <motion.div key={index} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}>
-              <Paper p="md" withBorder className="hover:shadow-sm transition-all hover:border-blue-300">
+      </Group>
+
+      {/* 15 KPIs Cards */}
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="md" mb="xl">
+        {kpiCards.map((kpi, index) => (
+          <Card 
+            key={index}
+            shadow="sm" 
+            radius="md" 
+            withBorder 
+            p="md"
+            bg={kpi.highlight ? 'var(--mantine-color-blue-0)' : undefined}
+          >
+            <Group justify="space-between" mb="xs">
+              <ThemeIcon size={32} radius="md" variant="light" color={kpi.color}>
+                <kpi.icon size={18} weight="duotone" />
+              </ThemeIcon>
+              {kpi.progress !== undefined && (
+                <RingProgress
+                  size={40}
+                  thickness={3}
+                  roundCaps
+                  sections={[{ value: kpi.progress, color: kpi.color }]}
+                />
+              )}
+            </Group>
+            
+            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+              {kpi.title}
+            </Text>
+            
+            <Text size="xl" fw={700}>
+              {kpi.value}
+            </Text>
+            
+            <Text size="xs" c="dimmed">
+              {kpi.subtitle}
+            </Text>
+          </Card>
+        ))}
+      </SimpleGrid>
+
+      <Divider my="xl" />
+
+      {/* Graphiques avec couleurs corrigées */}
+      <Grid gutter="lg" mb="xl">
+        {/* Évolution mensuelle */}
+        <Grid.Col span={{ base: 12, lg: 7 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={3}>Évolution des sessions</Title>
+                <Text size="sm" c="dimmed">12 derniers mois</Text>
+              </div>
+            </Group>
+            {charts?.evolutionMensuelle && charts.evolutionMensuelle.length > 0 ? (
+              <Stack gap="md">
+                {/* Graphique simplifié avec barres */}
+                <SimpleGrid cols={12} spacing="xs">
+                  {charts.evolutionMensuelle.map((item: any, idx: number) => (
+                    <div key={idx}>
+                      <Tooltip label={`${item.month}: ${item.sessions} sessions`}>
+                        <Box>
+                          <Box
+                            h={100}
+                            bg="gray.1"
+                            style={{ 
+                              position: 'relative',
+                              borderRadius: '4px',
+                              overflow: 'hidden'
+                            }}
+                          >
+                            <Box
+                              bg="blue.5"
+                              style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                width: '100%',
+                                height: `${Math.min((item.sessions / Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))) * 100, 100)}%`,
+                                transition: 'height 0.3s ease',
+                              }}
+                            />
+                          </Box>
+                          <Text size="xs" ta="center" mt={4} c="dark">
+                            {item.month.split(' ')[0]}
+                          </Text>
+                          <Text size="xs" ta="center" fw={600}>
+                            {item.sessions}
+                          </Text>
+                        </Box>
+                      </Tooltip>
+                    </div>
+                  ))}
+                </SimpleGrid>
+                <Group justify="space-between">
+                  <Text size="xs" c="dimmed">Min: {Math.min(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
+                  <Text size="xs" c="dimmed">Max: {Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
+                  <Text size="xs" c="dimmed">Moy: {Math.round(charts.evolutionMensuelle.reduce((sum: number, d: any) => sum + d.sessions, 0) / charts.evolutionMensuelle.length)}</Text>
+                </Group>
+              </Stack>
+            ) : (
+              <Center h={200}>
+                <Text c="dimmed">Aucune donnée disponible</Text>
+              </Center>
+            )}
+          </Paper>
+        </Grid.Col>
+
+        {/* Répartition par département avec légende */}
+        <Grid.Col span={{ base: 12, lg: 5 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={3}>Répartition par département</Title>
+                <Text size="sm" c="dimmed">Collaborateurs formés par service</Text>
+              </div>
+            </Group>
+            {charts?.repartitionDepartements && charts.repartitionDepartements.length > 0 ? (
+              <Stack gap="md">
+                {/* Stats globales */}
+                <Group justify="center" gap="xl">
+                  <Stack align="center" gap={0}>
+                    <Text size="2rem" fw={700} c="blue">
+                      {charts.repartitionDepartements.reduce((sum: number, d: any) => sum + d.value, 0)}
+                    </Text>
+                    <Text size="xs" c="dimmed">Total formés</Text>
+                  </Stack>
+                  <Stack align="center" gap={0}>
+                    <Text size="2rem" fw={700} c="teal">
+                      {charts.repartitionDepartements.length}
+                    </Text>
+                    <Text size="xs" c="dimmed">Départements</Text>
+                  </Stack>
+                </Group>
+                
+                <Divider />
+                
+                {/* Liste des départements avec barres de progression */}
+                <Stack gap="xs">
+                  {charts.repartitionDepartements.slice(0, 8).map((dept: any, idx: number) => {
+                    const maxValue = Math.max(...charts.repartitionDepartements.map((d: any) => d.value));
+                    const percentage = Math.round((dept.value / maxValue) * 100);
+                    const colors = ["blue", "violet", "grape", "pink", "orange", "teal", "cyan", "indigo"];
+                    
+                    return (
+                      <Box key={idx}>
+                        <Group justify="space-between" mb={4}>
+                          <Group gap="xs">
+                            <Badge size="sm" variant="light" color={colors[idx % colors.length]}>
+                              #{idx + 1}
+                            </Badge>
+                            <Text size="sm" fw={500}>
+                              {dept.name}
+                            </Text>
+                          </Group>
+                          <Group gap="xs">
+                            <Text size="sm" fw={600}>
+                              {dept.value}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              ({percentage}%)
+                            </Text>
+                          </Group>
+                        </Group>
+                        <Progress 
+                          value={percentage} 
+                          size="md" 
+                          radius="xl"
+                          color={colors[idx % colors.length]}
+                          animated
+                        />
+                      </Box>
+                    );
+                  })}
+                </Stack>
+                
+                {charts.repartitionDepartements.length > 8 && (
+                  <Text size="xs" c="dimmed" ta="center">
+                    +{charts.repartitionDepartements.length - 8} autres départements
+                  </Text>
+                )}
+              </Stack>
+            ) : (
+              <Center h={200}>
+                <Text c="dimmed">Aucune donnée disponible</Text>
+              </Center>
+            )}
+          </Paper>
+        </Grid.Col>
+      </Grid>
+
+      {/* Top formations avec couleurs visibles */}
+      <Grid gutter="lg" mb="xl">
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={3}>Top 5 formations</Title>
+                <Text size="sm" c="dimmed">Les plus populaires</Text>
+              </div>
+              <Button 
+                variant="subtle" 
+                size="sm" 
+                rightSection={<ArrowUpRight size={14} />}
+                onClick={() => router.push('/formations')}
+              >
+                Voir toutes
+              </Button>
+            </Group>
+            {charts?.topFormations && charts.topFormations.length > 0 ? (
+              <Table>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Formation</Table.Th>
+                    <Table.Th>Catégorie</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Inscriptions</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {charts.topFormations.map((formation: any, idx: number) => (
+                    <Table.Tr key={idx}>
+                      <Table.Td>
+                        <Group gap="xs">
+                          <Badge size="sm" variant="filled" color={["blue", "violet", "grape", "pink", "orange"][idx]}>
+                            #{idx + 1}
+                          </Badge>
+                          <Text size="sm" fw={500} lineClamp={1}>
+                            {formation.name}
+                          </Text>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge size="xs" variant="light" color="gray">
+                          {formation.categorie || 'Non catégorisé'}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td style={{ textAlign: 'right' }}>
+                        <Group justify="flex-end" gap="xs">
+                          <Text size="sm" fw={600}>
+                            {formation.value}
+                          </Text>
+                          <Progress 
+                            value={(formation.value / charts.topFormations[0].value) * 100} 
+                            size="sm" 
+                            style={{ width: 60 }}
+                            color={["blue", "violet", "grape", "pink", "orange"][idx]}
+                          />
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+            ) : (
+              <Center h={200}>
+                <Text c="dimmed">Aucune formation disponible</Text>
+              </Center>
+            )}
+          </Paper>
+        </Grid.Col>
+
+        {/* Alertes corrigées */}
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder>
+            <Group justify="space-between" mb="md">
+              <div>
+                <Title order={3}>Alertes & Notifications</Title>
+                <Text size="sm" c="dimmed">Points d'attention</Text>
+              </div>
+            </Group>
+            <Stack gap="md">
+              {alerts?.alertes && (
+                <>
+                  {alerts.alertes.collaborateursSansFormation > 0 && (
+                    <Alert 
+                      icon={<WarningCircle size={16} />} 
+                      color="orange"
+                      variant="light"
+                      styles={{ root: { cursor: 'pointer' } }}
+                      onClick={() => router.push('/collaborateurs')}
+                    >
+                      <Text fw={500}>{alerts.alertes.collaborateursSansFormation} collaborateurs sans formation</Text>
+                      <Text size="xs">Cliquez pour voir la liste</Text>
+                    </Alert>
+                  )}
+                  
+                  {alerts.alertes.sessionsLongues > 0 && (
+                    <Alert 
+                      icon={<Warning size={16} />} 
+                      color="yellow"
+                      variant="light"
+                    >
+                      <Text fw={500}>{alerts.alertes.sessionsLongues} sessions en cours depuis +30 jours</Text>
+                      <Text size="xs">Vérifier leur progression</Text>
+                    </Alert>
+                  )}
+                  
+                  {alerts.alertes.formationsSansSession > 0 && (
+                    <Alert 
+                      icon={<Info size={16} />} 
+                      color="blue"
+                      variant="light"
+                    >
+                      <Text fw={500}>{alerts.alertes.formationsSansSession} formations sans sessions</Text>
+                      <Text size="xs">Formations jamais dispensées</Text>
+                    </Alert>
+                  )}
+                  
+                  {alerts.alertes.nouvellesInscriptions > 0 && (
+                    <Alert 
+                      icon={<CheckCircle size={16} />} 
+                      color="green"
+                      variant="light"
+                    >
+                      <Text fw={500}>{alerts.alertes.nouvellesInscriptions} nouvelles inscriptions</Text>
+                      <Text size="xs">Ces 30 derniers jours</Text>
+                    </Alert>
+                  )}
+                </>
+              )}
+            </Stack>
+          </Paper>
+        </Grid.Col>
+      </Grid>
+
+      {/* Sessions à venir */}
+      {alerts?.sessionsAVenir && alerts.sessionsAVenir.length > 0 && (
+        <Paper shadow="sm" radius="md" p="lg" withBorder>
+          <Group justify="space-between" mb="md">
+            <div>
+              <Title order={3}>Sessions à venir</Title>
+              <Text size="sm" c="dimmed">Prochains 7 jours</Text>
+            </div>
+            <Button 
+              variant="subtle" 
+              size="sm" 
+              rightSection={<ArrowUpRight size={14} />}
+              onClick={() => router.push('/sessions/calendar')}
+            >
+              Voir le calendrier
+            </Button>
+          </Group>
+          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+            {alerts.sessionsAVenir.slice(0, 6).map((session: any) => (
+              <Paper key={session.id} p="sm" withBorder radius="md">
                 <Group justify="space-between" align="flex-start">
                   <div style={{ flex: 1 }}>
-                    <Group gap="xs" mb="xs">
-                      <Text fw={600} size="sm">
-                        {mockData.formations.find(f => f.id === session.formation_id)?.titre}
-                      </Text>
-                      <Badge size="xs" color="blue" variant="light">Planifiée</Badge>
-                    </Group>
-                    <Group gap="lg">
-                      <Group gap={4}>
-                        <ThemeIcon size="xs" variant="transparent" color="blue">
-                          <Users size={14} />
-                        </ThemeIcon>
-                        <Text size="xs" c="dimmed">{session.inscrits} / {session.places} inscrits</Text>
-                      </Group>
-                      <Group gap={4}>
-                        <ThemeIcon size="xs" variant="transparent" color="orange">
-                          <Calendar size={14} />
-                        </ThemeIcon>
-                        <Text size="xs" c="dimmed">
-                          {new Date(session.date_debut).toLocaleDateString('fr-FR')}
-                        </Text>
-                      </Group>
+                    <Text fw={600} size="sm" lineClamp={1}>
+                      {session.formation}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      {session.collaborateur}
+                    </Text>
+                    <Group gap="xs" mt={4}>
+                      <Badge size="xs" variant="light" color="blue">
+                        {new Date(session.dateDebut).toLocaleDateString('fr-FR')}
+                      </Badge>
+                      {session.departement && (
+                        <Badge size="xs" variant="light" color="gray">
+                          {session.departement}
+                        </Badge>
+                      )}
                     </Group>
                   </div>
+                  <Button 
+                    size="xs" 
+                    variant="subtle"
+                    compact
+                    onClick={() => router.push(`/sessions/${session.id}`)}
+                  >
+                    Voir
+                  </Button>
                 </Group>
               </Paper>
-            </motion.div>
-          ))}
-        </Stack>
-      </Paper>
+            ))}
+          </SimpleGrid>
+        </Paper>
+      )}
     </Container>
   );
 }

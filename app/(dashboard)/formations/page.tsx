@@ -49,7 +49,7 @@ import {
   FunnelSimple,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
-import { formationsService } from '@/lib/services';
+import { formationsService, commonService } from '@/lib/services';
 import { Formation, FormationFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
@@ -89,11 +89,25 @@ export default function FormationsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // États pour les listes dynamiques
+  const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
+  const [typesFormation, setTypesFormation] = useState<{ value: string; label: string }[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingTypes, setLoadingTypes] = useState(true);
+  
+  // États pour les statistiques globales
+  const [globalStats, setGlobalStats] = useState({
+    totalFormations: 0,
+    totalActives: 0,
+    totalInactives: 0,
+    totalCategories: 0
+  });
+  
   // Filtres et pagination
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
-  const [showInactive, setShowInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>(''); // Changé de showInactive à statusFilter
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -107,16 +121,26 @@ export default function FormationsPage() {
     setError(null);
     
     try {
-      const filters: FormationFilters = {
+      // Construire les filtres selon le statusFilter
+      const filters: any = {
         search: debouncedSearch,
         categorieId: categoryFilter ? parseInt(categoryFilter) : undefined,
         typeFormation: typeFilter || undefined,
-        includeInactive: showInactive,
         page,
         limit,
         sortBy: 'nomFormation',
         order: 'asc',
       };
+      
+      // Gérer le filtre de statut comme pour les collaborateurs
+      if (statusFilter === 'actif') {
+        // Envoyer comme chaîne pour que axios le transmette correctement
+        filters.actif = 'true' as any;
+      } else if (statusFilter === 'inactif') {
+        // Envoyer comme chaîne pour que axios le transmette correctement  
+        filters.actif = 'false' as any;
+      }
+      // Pour '' (tous), on n'envoie pas de paramètre actif
       
       const response = await formationsService.getFormations(filters);
       
@@ -124,6 +148,27 @@ export default function FormationsPage() {
         setFormations(response.data);
         setTotal(response.meta?.total || response.total || 0);
         setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || response.total || 0) / limit));
+        
+        // Si c'est le premier chargement sans filtre, utiliser ces stats pour les globales
+        if (statusFilter === '' && !categoryFilter && !typeFilter && !debouncedSearch && page === 1) {
+          // Puisque sans filtre on récupère tout, on peut utiliser le total de la méta
+          const totalFromMeta = response.meta?.total || response.total || response.data.length;
+          // Et toutes les formations visibles sont actives (car par défaut on ne voit que les actives)
+          const activesCount = totalFromMeta; // Car par défaut, on ne montre que les actives
+          
+          console.log('Mise à jour des stats depuis la réponse principale:', {
+            total: totalFromMeta,
+            actives: activesCount,
+            dataLength: response.data.length
+          });
+          
+          setGlobalStats(prev => ({
+            ...prev,
+            totalFormations: totalFromMeta,
+            totalActives: activesCount,
+            totalInactives: 0 // On ne connaît pas le nombre d'inactives sans les récupérer
+          }));
+        }
       } else {
         setFormations([]);
         setTotal(0);
@@ -141,12 +186,12 @@ export default function FormationsPage() {
   // Charger les formations au montage et quand les filtres changent
   useEffect(() => {
     loadFormations();
-  }, [debouncedSearch, categoryFilter, typeFilter, showInactive, page]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, categoryFilter, typeFilter, showInactive]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/formations/${id}`);
@@ -182,7 +227,108 @@ export default function FormationsPage() {
 
   const handleRefresh = () => {
     loadFormations();
+    loadGlobalStats();
   };
+
+  // Charger les statistiques globales
+  const loadGlobalStats = async () => {
+    try {
+      // D'abord, récupérer les formations actives (comportement par défaut)
+      const activeResponse = await formationsService.getFormations({ 
+        limit: 1,
+        page: 1
+        // Sans paramètre, on récupère seulement les actives
+      });
+      
+      // Ensuite, récupérer SEULEMENT les inactives
+      const inactiveResponse = await formationsService.getFormations({ 
+        limit: 1,
+        page: 1,
+        actif: 'false' as any // Récupérer seulement les inactives
+      });
+      
+      const totalActives = activeResponse.meta?.total || 0;
+      const totalInactives = inactiveResponse.meta?.total || 0;
+      const totalAll = totalActives + totalInactives;
+      
+      console.log('Stats calculées:', {
+        actives: totalActives,
+        inactives: totalInactives,
+        total: totalAll
+      });
+      
+      setGlobalStats(prev => ({
+        totalFormations: totalAll,
+        totalActives: totalActives,
+        totalInactives: totalInactives,
+        totalCategories: prev.totalCategories // Garder le nombre de catégories
+      }));
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des statistiques:', error);
+    }
+  };
+
+  // Charger les catégories
+  const loadCategories = async () => {
+    setLoadingCategories(true);
+    try {
+      const cats = await commonService.getCategoriesFormation();
+      if (Array.isArray(cats) && cats.length > 0) {
+        const categoriesList = cats.map(c => ({
+          value: c.id.toString(),
+          label: c.nomCategorie,
+        }));
+        setCategories([
+          { value: '', label: 'Toutes les catégories' },
+          ...categoriesList
+        ]);
+        
+        // Mettre à jour les stats avec le bon nombre de catégories
+        setGlobalStats(prev => ({
+          ...prev,
+          totalCategories: categoriesList.length
+        }));
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des catégories:', error);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Charger les types de formation
+  const loadTypesFormation = async () => {
+    setLoadingTypes(true);
+    try {
+      const types = await commonService.getTypesFormation();
+      if (Array.isArray(types) && types.length > 0) {
+        const typesList = types.map(t => ({
+          value: t,
+          label: t,
+        }));
+        setTypesFormation([
+          { value: '', label: 'Tous les types' },
+          ...typesList
+        ]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des types:', error);
+    } finally {
+      setLoadingTypes(false);
+    }
+  };
+
+  // Charger les catégories et types au montage
+  useEffect(() => {
+    loadCategories();
+    loadTypesFormation();
+    // Charger aussi les stats au démarrage avec un délai plus long
+    setTimeout(() => {
+      console.log('Chargement des stats globales...');
+      loadGlobalStats();
+    }, 1500); // Délai plus long pour s'assurer que l'API est prête
+  }, []);
 
   return (
     <Container size="xl">
@@ -200,7 +346,16 @@ export default function FormationsPage() {
           </div>
           <Group>
             <Tooltip label="Rafraîchir">
-              <ActionIcon variant="light" size="lg" onClick={handleRefresh}>
+              <ActionIcon 
+                variant="light" 
+                size="lg" 
+                onClick={() => {
+                  handleRefresh();
+                  loadCategories();
+                  loadTypesFormation();
+                  loadGlobalStats();
+                }}
+              >
                 <ArrowsClockwise size={20} />
               </ActionIcon>
             </Tooltip>
@@ -223,7 +378,7 @@ export default function FormationsPage() {
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Total Formations
                   </Text>
-                  <Text size="xl" fw={700}>{total}</Text>
+                  <Text size="xl" fw={700}>{globalStats.totalFormations || total}</Text>
                 </div>
                 <BookOpen size={24} color="#228BE6" />
               </Group>
@@ -237,7 +392,7 @@ export default function FormationsPage() {
                     Formations Actives
                   </Text>
                   <Text size="xl" fw={700} c="green">
-                    {formations.filter(f => f.actif).length}
+                    {globalStats.totalActives}
                   </Text>
                 </div>
                 <CheckCircle size={24} color="#40C057" />
@@ -252,7 +407,7 @@ export default function FormationsPage() {
                     Catégories
                   </Text>
                   <Text size="xl" fw={700}>
-                    {[...new Set(formations.map(f => getCategoryName(f.categorie)))].filter(c => c).length}
+                    {globalStats.totalCategories}
                   </Text>
                 </div>
                 <Tag size={24} color="#7950F2" />
@@ -294,43 +449,39 @@ export default function FormationsPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Catégorie"
-              data={[
-                { value: '', label: 'Toutes les catégories' },
-                { value: '1', label: 'Bureautique' },
-                { value: '2', label: 'Informatique' },
-                { value: '3', label: 'Management' },
-                { value: '4', label: 'Sécurité' },
-                { value: '5', label: 'Langues' },
-              ]}
+              placeholder={loadingCategories ? "Chargement..." : "Catégorie"}
+              data={categories}
               value={categoryFilter}
               onChange={(value) => setCategoryFilter(value || '')}
               clearable
+              disabled={loadingCategories}
+              searchable
+              nothingFoundMessage="Aucune catégorie trouvée"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Type de formation"
-              data={[
-                { value: '', label: 'Tous les types' },
-                { value: 'Présentiel', label: 'Présentiel' },
-                { value: 'Distanciel', label: 'Distanciel' },
-                { value: 'E-learning', label: 'E-learning' },
-                { value: 'Mixte', label: 'Mixte' },
-              ]}
+              placeholder={loadingTypes ? "Chargement..." : "Type de formation"}
+              data={typesFormation}
               value={typeFilter}
               onChange={(value) => setTypeFilter(value || '')}
               clearable
+              disabled={loadingTypes}
+              searchable
+              nothingFoundMessage="Aucun type trouvé"
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 2 }}>
-            <Button
-              variant={showInactive ? 'filled' : 'light'}
-              onClick={() => setShowInactive(!showInactive)}
-              fullWidth
-            >
-              {showInactive ? 'Toutes' : 'Actives seulement'}
-            </Button>
+            <Select
+              placeholder="Statut"
+              data={[
+                { value: '', label: 'Toutes' },
+                { value: 'actif', label: 'Actives seulement' },
+                { value: 'inactif', label: 'Inactives seulement' },
+              ]}
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value || '')}
+            />
           </Grid.Col>
         </Grid>
       </Paper>

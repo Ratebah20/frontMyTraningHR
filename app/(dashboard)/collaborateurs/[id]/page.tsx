@@ -50,6 +50,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
   const router = useRouter();
   const [collaborateur, setCollaborateur] = useState<Collaborateur | null>(null);
   const [formations, setFormations] = useState<SessionFormation[]>([]);
+  const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,19 +60,28 @@ export default function CollaborateurDetailPage({ params }: Props) {
       setError(null);
       
       try {
-        // Charger le collaborateur
+        // Charger le collaborateur avec les stats intégrées
         const collabData = await collaborateursService.getCollaborateur(parseInt(params.id));
         setCollaborateur(collabData);
         
-        // Charger ses formations
+        // Si les stats sont dans collabData, les utiliser
+        if (collabData.stats) {
+          setStats(collabData.stats);
+        }
+        
+        // Charger ses formations avec l'historique complet et les stats détaillées
         try {
           const formationsData = await collaborateursService.getCollaborateurFormations(parseInt(params.id));
-          // S'assurer que c'est un tableau
-          if (Array.isArray(formationsData)) {
+          // Le backend retourne maintenant {collaborateur, stats, data}
+          if (formationsData && typeof formationsData === 'object') {
+            if ('data' in formationsData) {
+              setFormations(Array.isArray(formationsData.data) ? formationsData.data : []);
+            }
+            if ('stats' in formationsData) {
+              setStats(formationsData.stats); // Utiliser les stats du endpoint formations
+            }
+          } else if (Array.isArray(formationsData)) {
             setFormations(formationsData);
-          } else if (formationsData && typeof formationsData === 'object' && 'data' in formationsData) {
-            // Si c'est un objet avec une propriété data
-            setFormations(Array.isArray(formationsData.data) ? formationsData.data : []);
           } else {
             setFormations([]);
           }
@@ -143,21 +153,17 @@ export default function CollaborateurDetailPage({ params }: Props) {
   const getStatusColor = (statut: string) => StatutUtils.getStatusColor(statut);
   const getStatusLabel = (statut: string) => StatutUtils.getStatusLabel(statut);
 
-  // Calcul des statistiques (s'assurer que formations est un tableau)
+  // S'assurer que formations est un tableau
   const formationsArray = Array.isArray(formations) ? formations : [];
-  const stats = {
+  
+  // Utiliser les stats du backend si disponibles, sinon calculer localement
+  const displayStats = stats || {
     totalFormations: formationsArray.length,
-    completees: formationsArray.filter(f => StatutUtils.isComplete(f.statut)).length,
-    enCours: formationsArray.filter(f => StatutUtils.isEnCours(f.statut)).length,
-    inscrites: formationsArray.filter(f => StatutUtils.isInscrit(f.statut)).length,
-    heuresTotal: formationsArray.reduce((acc, f) => {
-      if (f.uniteDuree === 'heures') return acc + (f.dureeReelle || f.dureePrevue || 0);
-      if (f.uniteDuree === 'jours') return acc + ((f.dureeReelle || f.dureePrevue || 0) * 8);
-      return acc;
-    }, 0),
-    moyenneNote: formationsArray
-      .filter(f => f.note !== null && f.note !== undefined)
-      .reduce((acc, f, _, arr) => acc + (f.note || 0) / arr.length, 0),
+    formationsTerminees: 0,
+    formationsEnCours: 0,
+    formationsInscrites: 0,
+    totalHeures: 0,
+    moyenneNote: 0,
   };
 
   return (
@@ -241,7 +247,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Total
                 </Text>
-                <Text size="xl" fw={700}>{stats.totalFormations}</Text>
+                <Text size="xl" fw={700}>{displayStats.totalFormations}</Text>
               </div>
               <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                 <BookOpen size={20} />
@@ -257,7 +263,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Terminées
                 </Text>
-                <Text size="xl" fw={700} c="green">{stats.completees}</Text>
+                <Text size="xl" fw={700} c="green">{displayStats.formationsTerminees}</Text>
               </div>
               <ThemeIcon size="lg" radius="md" variant="light" color="green">
                 <CheckCircle size={20} />
@@ -273,7 +279,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   En cours
                 </Text>
-                <Text size="xl" fw={700} c="blue">{stats.enCours}</Text>
+                <Text size="xl" fw={700} c="blue">{displayStats.formationsEnCours}</Text>
               </div>
               <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                 <Clock size={20} />
@@ -289,7 +295,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Inscrites
                 </Text>
-                <Text size="xl" fw={700} c="yellow">{stats.inscrites}</Text>
+                <Text size="xl" fw={700} c="yellow">{displayStats.formationsInscrites}</Text>
               </div>
               <ThemeIcon size="lg" radius="md" variant="light" color="yellow">
                 <Calendar size={20} />
@@ -305,28 +311,10 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Heures
                 </Text>
-                <Text size="xl" fw={700}>{stats.heuresTotal}h</Text>
+                <Text size="xl" fw={700}>{displayStats.totalHeures ? `${displayStats.totalHeures}h` : '0h'}</Text>
               </div>
               <ThemeIcon size="lg" radius="md" variant="light" color="violet">
                 <Clock size={20} />
-              </ThemeIcon>
-            </Group>
-          </Card>
-        </Grid.Col>
-        
-        <Grid.Col span={{ base: 12, sm: 6, md: 2 }}>
-          <Card withBorder p="md" radius="md">
-            <Group justify="space-between">
-              <div>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Note moy.
-                </Text>
-                <Text size="xl" fw={700}>
-                  {stats.moyenneNote > 0 ? `${stats.moyenneNote.toFixed(1)}/100` : '-'}
-                </Text>
-              </div>
-              <ThemeIcon size="lg" radius="md" variant="light" color="orange">
-                <Star size={20} />
               </ThemeIcon>
             </Group>
           </Card>
@@ -357,55 +345,51 @@ export default function CollaborateurDetailPage({ params }: Props) {
                   <Table.Th>Date fin</Table.Th>
                   <Table.Th>Durée</Table.Th>
                   <Table.Th>Statut</Table.Th>
-                  <Table.Th>Note</Table.Th>
                   <Table.Th>Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {formationsArray.map((formation) => (
-                  <Table.Tr key={formation.id}>
+                {formationsArray.map((session) => (
+                  <Table.Tr key={session.id}>
                     <Table.Td>
-                      <Text fw={500}>{formation.formation?.nomFormation}</Text>
+                      <Text fw={500}>
+                        {session.formation?.nomFormation || session.formation?.nom || '-'}
+                      </Text>
                     </Table.Td>
                     <Table.Td>
                       <Badge variant="light" size="sm">
-                        {typeof formation.formation?.categorie === 'string' 
-                          ? formation.formation.categorie 
-                          : formation.formation?.categorie?.nomCategorie || 'Non catégorisé'}
+                        {typeof session.formation?.categorie === 'string' 
+                          ? session.formation.categorie 
+                          : session.formation?.categorie?.nomCategorie || 'Non catégorisé'}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      {formation.dateDebut 
-                        ? new Date(formation.dateDebut).toLocaleDateString('fr-FR')
+                      {session.dateDebut 
+                        ? new Date(session.dateDebut).toLocaleDateString('fr-FR')
                         : '-'}
                     </Table.Td>
                     <Table.Td>
-                      {formation.dateFin 
-                        ? new Date(formation.dateFin).toLocaleDateString('fr-FR')
+                      {session.dateFin 
+                        ? new Date(session.dateFin).toLocaleDateString('fr-FR')
                         : '-'}
                     </Table.Td>
                     <Table.Td>
-                      {formation.dureeReelle || formation.dureePrevue || '-'} {formation.uniteDuree}
+                      {session.dureeReelle || session.dureePrevue || '-'} {session.uniteDuree || ''}
                     </Table.Td>
                     <Table.Td>
                       <Badge
-                        color={getStatusColor(formation.statut)}
+                        color={getStatusColor(session.statut)}
                         variant="light"
                         size="sm"
                       >
-                        {getStatusLabel(formation.statut)}
+                        {getStatusLabel(session.statut)}
                       </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      {formation.note !== null && formation.note !== undefined 
-                        ? `${formation.note}/100` 
-                        : '-'}
                     </Table.Td>
                     <Table.Td>
                       <Button
                         variant="subtle"
                         size="xs"
-                        onClick={() => router.push(`/sessions/${formation.id}`)}
+                        onClick={() => router.push(`/sessions/${session.id}`)}
                       >
                         Voir
                       </Button>

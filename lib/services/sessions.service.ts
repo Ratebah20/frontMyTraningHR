@@ -10,6 +10,18 @@ import {
 } from '../types';
 
 export const sessionsService = {
+  // Récupérer les statistiques globales
+  async getGlobalStats(): Promise<{
+    total: number;
+    inscrites: number;
+    enCours: number;
+    terminees: number;
+    annulees: number;
+  }> {
+    const response = await api.get('/sessions/stats');
+    return response.data;
+  },
+
   // Récupérer une session par ID
   async getSession(id: number): Promise<SessionFormation> {
     const response = await api.get(`/sessions/${id}`);

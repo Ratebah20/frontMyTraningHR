@@ -29,6 +29,7 @@ import {
   ThemeIcon,
   Progress,
   Divider,
+  Modal,
 } from '@mantine/core';
 // import { DatePickerInput } from '@mantine/dates'; // Module non installé
 import { notifications } from '@mantine/notifications';
@@ -55,6 +56,8 @@ import {
   UserCheck,
   Building,
   Hourglass,
+  List,
+  CalendarBlank,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
@@ -71,8 +74,12 @@ const statusColors: Record<string, string> = {
   'complete': 'green',
   'TERMINE': 'green',
   'COMPLETE': 'green',
+  'Terminé': 'green',
+  'terminé': 'green',
   'annule': 'red',
   'ANNULE': 'red',
+  'Annulé': 'red',
+  'annulé': 'red',
 };
 
 // Labels des statuts
@@ -84,8 +91,12 @@ const statusLabels: Record<string, string> = {
   'complete': 'Terminé',
   'TERMINE': 'Terminé',
   'COMPLETE': 'Terminé',
+  'Terminé': 'Terminé',
+  'terminé': 'Terminé',
   'annule': 'Annulé',
   'ANNULE': 'Annulé',
+  'Annulé': 'Annulé',
+  'annulé': 'Annulé',
 };
 
 // Icônes par statut
@@ -97,8 +108,12 @@ const statusIcons: Record<string, any> = {
   'complete': Certificate,
   'TERMINE': Certificate,
   'COMPLETE': Certificate,
+  'Terminé': Certificate,
+  'terminé': Certificate,
   'annule': CalendarX,
   'ANNULE': CalendarX,
+  'Annulé': CalendarX,
+  'annulé': CalendarX,
 };
 
 export default function SessionsPage() {
@@ -108,6 +123,16 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionFormationResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  
+  // Statistiques globales
+  const [globalStats, setGlobalStats] = useState({
+    total: 0,
+    inscrites: 0,
+    enCours: 0,
+    terminees: 0,
+    annulees: 0,
+  });
   
   // Filtres et pagination
   const [search, setSearch] = useState('');
@@ -122,6 +147,16 @@ export default function SessionsPage() {
   const [limit] = useState(20);
   
   const debouncedSearch = useDebounce(search, 500);
+
+  // Charger les statistiques globales
+  const loadGlobalStats = async () => {
+    try {
+      const stats = await sessionsService.getGlobalStats();
+      setGlobalStats(stats);
+    } catch (err) {
+      console.error('Erreur lors du chargement des statistiques:', err);
+    }
+  };
 
   // Charger les sessions
   const loadSessions = async () => {
@@ -163,6 +198,11 @@ export default function SessionsPage() {
     }
   };
 
+  // Charger les données au montage
+  useEffect(() => {
+    loadGlobalStats();
+  }, []);
+
   // Charger les sessions au montage et quand les filtres changent
   useEffect(() => {
     loadSessions();
@@ -195,6 +235,7 @@ export default function SessionsPage() {
         icon: <CheckCircle size={20} />,
       });
       loadSessions();
+      loadGlobalStats();
     } catch (err: any) {
       notifications.show({
         title: 'Erreur',
@@ -207,14 +248,19 @@ export default function SessionsPage() {
 
   const handleRefresh = () => {
     loadSessions();
+    loadGlobalStats();
   };
 
-  // Calculer les statistiques en utilisant StatutUtils
-  const stats = {
-    inscrites: sessions.filter(s => StatutUtils.isInscrit(s.statut)).length,
-    enCours: sessions.filter(s => StatutUtils.isEnCours(s.statut)).length,
-    terminees: sessions.filter(s => StatutUtils.isComplete(s.statut)).length,
-    annulees: sessions.filter(s => StatutUtils.isAnnule(s.statut)).length,
+  // Fonction pour normaliser et obtenir le statut
+  const getStatusInfo = (statut: string | undefined) => {
+    if (!statut) return { color: 'gray', label: 'Non défini', icon: CalendarCheck };
+    
+    // Chercher dans les configurations
+    const color = statusColors[statut] || 'gray';
+    const label = statusLabels[statut] || statut;
+    const Icon = statusIcons[statut] || CalendarCheck;
+    
+    return { color, label, Icon };
   };
 
   return (
@@ -228,10 +274,19 @@ export default function SessionsPage() {
               <Title order={1}>Gestion des Sessions</Title>
             </Group>
             <Text size="lg" c="dimmed" mt="xs">
-              {total > 0 ? `${total} sessions de formation` : 'Suivez les inscriptions et sessions de formation'}
+              Vue d'ensemble de toutes les sessions de formation
             </Text>
           </div>
           <Group>
+            <Tooltip label="Basculer l'affichage">
+              <ActionIcon 
+                variant="light" 
+                size="lg" 
+                onClick={() => setViewMode(viewMode === 'cards' ? 'list' : 'cards')}
+              >
+                {viewMode === 'cards' ? <List size={20} /> : <CalendarBlank size={20} />}
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label="Rafraîchir">
               <ActionIcon variant="light" size="lg" onClick={handleRefresh}>
                 <ArrowsClockwise size={20} />
@@ -247,16 +302,19 @@ export default function SessionsPage() {
           </Group>
         </Flex>
 
-        {/* Statistiques rapides */}
+        {/* Statistiques globales (de toute la base de données) */}
         <Grid mt="lg">
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Inscrites
                   </Text>
-                  <Text size="xl" fw={700} c="blue">{stats.inscrites}</Text>
+                  <Text size="xl" fw={700} c="blue">{globalStats.inscrites}</Text>
+                  <Text size="xs" c="dimmed">
+                    sur {globalStats.total} sessions
+                  </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                   <CalendarCheck size={20} />
@@ -264,14 +322,17 @@ export default function SessionsPage() {
               </Group>
             </Paper>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     En cours
                   </Text>
-                  <Text size="xl" fw={700} c="yellow">{stats.enCours}</Text>
+                  <Text size="xl" fw={700} c="yellow">{globalStats.enCours}</Text>
+                  <Text size="xs" c="dimmed">
+                    formations actives
+                  </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="yellow">
                   <Hourglass size={20} />
@@ -279,14 +340,21 @@ export default function SessionsPage() {
               </Group>
             </Paper>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Terminées
                   </Text>
-                  <Text size="xl" fw={700} c="green">{stats.terminees}</Text>
+                  <Text size="xl" fw={700} c="green">{globalStats.terminees}</Text>
+                  <Progress 
+                    value={(globalStats.terminees / (globalStats.total || 1)) * 100} 
+                    size="xs" 
+                    radius="xl" 
+                    mt={4}
+                    color="green"
+                  />
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="green">
                   <Certificate size={20} />
@@ -294,14 +362,17 @@ export default function SessionsPage() {
               </Group>
             </Paper>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Annulées
                   </Text>
-                  <Text size="xl" fw={700} c="red">{stats.annulees}</Text>
+                  <Text size="xl" fw={700} c="red">{globalStats.annulees}</Text>
+                  <Text size="xs" c="dimmed">
+                    sessions annulées
+                  </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="red">
                   <CalendarX size={20} />
@@ -359,14 +430,12 @@ export default function SessionsPage() {
             </Group>
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
-            <Button
-              fullWidth
-              variant="light"
-              leftSection={<Calendar size={16} />}
-              onClick={() => router.push('/sessions/calendar')}
-            >
-              Vue calendrier
-            </Button>
+            <Text size="sm" c="dimmed" mb={4}>
+              Affichage : {sessions.length} résultats sur cette page
+            </Text>
+            <Text size="xs" c="dimmed">
+              Total dans la base : {globalStats.total} sessions
+            </Text>
           </Grid.Col>
         </Grid>
       </Paper>
@@ -382,163 +451,172 @@ export default function SessionsPage() {
         </Alert>
       ) : sessions.length > 0 ? (
         <>
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
-            {sessions.map((session) => {
-              // Déterminer l'icône selon le statut
-              const StatusIcon = StatutUtils.isComplete(session.statut) ? CheckCircle :
-                                StatutUtils.isEnCours(session.statut) ? Clock :
-                                StatutUtils.isInscrit(session.statut) ? CalendarCheck :
-                                StatutUtils.isAnnule(session.statut) ? XCircle : CalendarCheck;
-              
-              return (
-                <Paper
-                  key={session.id}
-                  radius="md"
-                  withBorder
-                  p="lg"
-                  style={{
-                    transition: 'all 0.2s',
-                    cursor: 'pointer',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-4px)';
-                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '';
-                  }}
-                >
-                  {/* Header */}
-                  <Group justify="space-between" mb="md">
-                    <Badge
-                      leftSection={<StatusIcon size={14} />}
-                      color={StatutUtils.getStatusColor(session.statut)}
-                      variant="light"
-                    >
-                      {StatutUtils.getStatusLabel(session.statut)}
-                    </Badge>
-                    <Menu withinPortal position="bottom-end" shadow="sm">
-                      <Menu.Target>
-                        <ActionIcon variant="subtle" color="gray" size="sm">
-                          <DotsThreeVertical size={16} />
-                        </ActionIcon>
-                      </Menu.Target>
-                      <Menu.Dropdown>
-                        <Menu.Item
-                          leftSection={<Eye size={14} />}
-                          onClick={() => handleViewDetails(session.id)}
-                        >
-                          Voir détails
-                        </Menu.Item>
-                        <Menu.Item
-                          leftSection={<PencilSimple size={14} />}
-                          onClick={() => handleEdit(session.id)}
-                        >
-                          Modifier
-                        </Menu.Item>
-                        <Menu.Divider />
-                        <Menu.Item
-                          color="red"
-                          leftSection={<XCircle size={14} />}
-                          onClick={() => handleCancel(session.id)}
-                        >
-                          Annuler
-                        </Menu.Item>
-                      </Menu.Dropdown>
-                    </Menu>
-                  </Group>
+          {viewMode === 'cards' ? (
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
+              {sessions.map((session) => {
+                const statusInfo = getStatusInfo(session.statut);
+                const StatusIcon = statusInfo.Icon;
+                
+                return (
+                  <Paper
+                    key={session.id}
+                    radius="md"
+                    withBorder
+                    p="lg"
+                    style={{
+                      transition: 'all 0.2s',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '';
+                    }}
+                  >
+                    {/* Header */}
+                    <Group justify="space-between" mb="md">
+                      <Badge
+                        leftSection={<StatusIcon size={14} />}
+                        color={statusInfo.color}
+                        variant="light"
+                      >
+                        {statusInfo.label}
+                      </Badge>
+                      <Menu withinPortal position="bottom-end" shadow="sm">
+                        <Menu.Target>
+                          <ActionIcon variant="subtle" color="gray" size="sm">
+                            <DotsThreeVertical size={16} />
+                          </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                          <Menu.Item
+                            leftSection={<Eye size={14} />}
+                            onClick={() => handleViewDetails(session.id)}
+                          >
+                            Voir détails
+                          </Menu.Item>
+                          <Menu.Item
+                            leftSection={<PencilSimple size={14} />}
+                            onClick={() => handleEdit(session.id)}
+                          >
+                            Modifier
+                          </Menu.Item>
+                          <Menu.Divider />
+                          <Menu.Item
+                            color="red"
+                            leftSection={<XCircle size={14} />}
+                            onClick={() => handleCancel(session.id)}
+                          >
+                            Annuler
+                          </Menu.Item>
+                        </Menu.Dropdown>
+                      </Menu>
+                    </Group>
 
-                  {/* Collaborateur */}
-                  <Group gap="xs" mb="sm">
-                    <Avatar size="sm" radius="xl" color="blue">
-                      {session.collaborateur ? `${session.collaborateur.prenom?.[0] || ''}${session.collaborateur.nom?.[0] || ''}` : 'NA'}
-                    </Avatar>
-                    <div style={{ flex: 1 }}>
-                      <Text size="sm" fw={500} lineClamp={1}>
-                        {session.collaborateur ? `${session.collaborateur.prenom} ${session.collaborateur.nom}` : 'Collaborateur inconnu'}
-                      </Text>
-                      {session.collaborateur?.departement && (
-                        <Text size="xs" c="dimmed">
-                          {session.collaborateur.departement}
+                    {/* Collaborateur */}
+                    <Group gap="xs" mb="sm">
+                      <Avatar size="sm" radius="xl" color="blue">
+                        {session.collaborateur ? `${session.collaborateur.prenom?.[0] || ''}${session.collaborateur.nom?.[0] || ''}` : 'NA'}
+                      </Avatar>
+                      <div style={{ flex: 1 }}>
+                        <Text size="sm" fw={500} lineClamp={1}>
+                          {session.collaborateur ? `${session.collaborateur.prenom} ${session.collaborateur.nom}` : 'Collaborateur inconnu'}
+                        </Text>
+                        {session.collaborateur?.departement && (
+                          <Text size="xs" c="dimmed">
+                            {session.collaborateur.departement}
+                          </Text>
+                        )}
+                      </div>
+                    </Group>
+
+                    <Divider my="sm" />
+
+                    {/* Formation */}
+                    <Stack gap="xs" mb="md">
+                      <Group gap="xs">
+                        <BookOpen size={16} color="#868E96" />
+                        <Text size="sm" fw={500} lineClamp={2}>
+                          {session.formation?.nom || 'Formation inconnue'}
+                        </Text>
+                      </Group>
+                      {session.formation?.code && (
+                        <Text size="xs" c="dimmed" ml={20}>
+                          {session.formation.code}
                         </Text>
                       )}
-                    </div>
-                  </Group>
+                    </Stack>
 
-                  <Divider my="sm" />
-
-                  {/* Formation */}
-                  <Stack gap="xs" mb="md">
-                    <Group gap="xs">
-                      <BookOpen size={16} color="#868E96" />
-                      <Text size="sm" fw={500} lineClamp={2}>
-                        {session.formation?.nom || 'Formation inconnue'}
-                      </Text>
-                    </Group>
-                    {session.formation?.code && (
-                      <Text size="xs" c="dimmed" ml={20}>
-                        {session.formation.code}
-                      </Text>
-                    )}
-                  </Stack>
-
-                  {/* Dates */}
-                  <Stack gap="xs" mb="md">
-                    <Group gap="xs">
-                      <Calendar size={16} color="#868E96" />
-                      <Text size="xs" c="dimmed">
-                        {session.dateDebut 
-                          ? `Du ${new Date(session.dateDebut).toLocaleDateString('fr-FR')}` 
-                          : 'Date non définie'}
-                        {session.dateFin && ` au ${new Date(session.dateFin).toLocaleDateString('fr-FR')}`}
-                      </Text>
-                    </Group>
-                    {(session.dureeHeures || session.formation?.dureeHeures) && (
+                    {/* Dates */}
+                    <Stack gap="xs" mb="md">
                       <Group gap="xs">
-                        <Clock size={16} color="#868E96" />
+                        <Calendar size={16} color="#868E96" />
                         <Text size="xs" c="dimmed">
-                          {session.dureeHeures || session.formation?.dureeHeures} heures
+                          {session.dateDebut 
+                            ? `Du ${new Date(session.dateDebut).toLocaleDateString('fr-FR')}` 
+                            : 'Date non définie'}
+                          {session.dateFin && ` au ${new Date(session.dateFin).toLocaleDateString('fr-FR')}`}
+                        </Text>
+                      </Group>
+                      {(session.dureeHeures || session.formation?.dureeHeures) && (
+                        <Group gap="xs">
+                          <Clock size={16} color="#868E96" />
+                          <Text size="xs" c="dimmed">
+                            {session.dureeHeures || session.formation?.dureeHeures} heures
+                          </Text>
+                        </Group>
+                      )}
+                    </Stack>
+
+                    {/* Catégorie de formation */}
+                    {session.formation?.categorie && (
+                      <Group gap="xs" mb="md">
+                        <Building size={16} color="#868E96" />
+                        <Text size="xs" c="dimmed">
+                          {session.formation.categorie}
                         </Text>
                       </Group>
                     )}
-                  </Stack>
 
-                  {/* Catégorie de formation */}
-                  {session.formation?.categorie && (
-                    <Group gap="xs" mb="md">
-                      <Building size={16} color="#868E96" />
-                      <Text size="xs" c="dimmed">
-                        {session.formation.categorie}
-                      </Text>
-                    </Group>
-                  )}
-
-                  {/* Note si complété */}
-                  {StatutUtils.isComplete(session.statut) && session.note !== null && (
-                    <Box>
-                      <Text size="xs" c="dimmed" mb={4}>Note obtenue</Text>
-                      <Progress
-                        value={session.note}
-                        color={session.note >= 80 ? 'green' : session.note >= 60 ? 'yellow' : 'red'}
-                        size="sm"
-                        radius="sm"
-                      />
-                      <Text size="xs" c="dimmed" mt={2} ta="right">
-                        {session.note}/100
-                      </Text>
-                    </Box>
-                  )}
-                </Paper>
-              );
-            })}
-          </SimpleGrid>
+                    {/* Note si complété */}
+                    {(statusInfo.label === 'Terminé' || session.statut === 'complete') && session.note !== null && session.note !== undefined && (
+                      <Box>
+                        <Text size="xs" c="dimmed" mb={4}>Note obtenue</Text>
+                        <Progress
+                          value={session.note}
+                          color={session.note >= 80 ? 'green' : session.note >= 60 ? 'yellow' : 'red'}
+                          size="sm"
+                          radius="sm"
+                        />
+                        <Text size="xs" c="dimmed" mt={2} ta="right">
+                          {session.note}/100
+                        </Text>
+                      </Box>
+                    )}
+                  </Paper>
+                );
+              })}
+            </SimpleGrid>
+          ) : (
+            // Vue liste (à implémenter si besoin)
+            <Paper shadow="xs" p="lg" radius="md" mb="xl">
+              <Center py="xl">
+                <Stack align="center">
+                  <List size={48} color="#868E96" />
+                  <Text size="lg" fw={500} c="dimmed">Vue liste en cours de développement</Text>
+                </Stack>
+              </Center>
+            </Paper>
+          )}
 
           {/* Pagination */}
           <Paper shadow="xs" p="lg" radius="md">
             <Group justify="space-between" align="center">
               <Text size="sm" c="dimmed">
-                Affichage de {((page - 1) * limit) + 1} à {Math.min(page * limit, total)} sur {total} sessions
+                Page {page} sur {totalPages} • Affichage de {((page - 1) * limit) + 1} à {Math.min(page * limit, total)} sur {total} résultats filtrés
               </Text>
               <Pagination
                 value={page}

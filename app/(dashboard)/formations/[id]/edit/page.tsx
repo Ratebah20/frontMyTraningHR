@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import {
   Container,
   Title,
@@ -21,6 +21,8 @@ import {
   Paper,
   ActionIcon,
   Tooltip,
+  Loader,
+  Center,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -34,13 +36,20 @@ import {
   Info,
   BookOpen,
   ArrowsClockwise,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { formationsService, commonService } from '@/lib/services';
-import { CreateFormationDto } from '@/lib/types';
+import { UpdateFormationDto, Formation } from '@/lib/types';
 
-export default function NewFormationPage() {
+export default function EditFormationPage() {
   const router = useRouter();
+  const params = useParams();
+  const formationId = Number(params.id);
+  
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [formation, setFormation] = useState<Formation | null>(null);
+  
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [typesFormation, setTypesFormation] = useState<string[]>([]);
@@ -48,7 +57,7 @@ export default function NewFormationPage() {
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
   const [loadingUnites, setLoadingUnites] = useState(true);
   
-  const form = useForm<CreateFormationDto & { tarifHT?: number }>({
+  const form = useForm<UpdateFormationDto & { tarifHT?: number }>({
     initialValues: {
       codeFormation: '',
       nomFormation: '',
@@ -64,7 +73,6 @@ export default function NewFormationPage() {
         if (!value) return 'Code formation requis';
         if (value.length < 3) return 'Le code doit contenir au moins 3 caractères';
         if (value.length > 50) return 'Le code ne doit pas dépasser 50 caractères';
-        // Validation du format : lettres, chiffres, tirets et underscores uniquement
         if (!/^[A-Z0-9_-]+$/i.test(value)) {
           return 'Le code doit contenir uniquement des lettres, chiffres, tirets et underscores';
         }
@@ -91,24 +99,19 @@ export default function NewFormationPage() {
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
-      console.log('Chargement des catégories...');
       const cats = await commonService.getCategoriesFormation();
-      console.log('Catégories reçues:', cats);
       
       if (Array.isArray(cats) && cats.length > 0) {
         const categoriesList = cats.map(c => ({
           value: c.id.toString(),
           label: c.nomCategorie,
         }));
-        console.log('Catégories formatées:', categoriesList);
         setCategories(categoriesList);
       } else {
-        console.warn('Aucune catégorie reçue ou format invalide');
         setCategories([]);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des catégories:', error);
-      // Ne pas utiliser de fallback, afficher un message d'erreur à la place
       notifications.show({
         title: 'Attention',
         message: 'Impossible de charger les catégories. Vérifiez votre connexion.',
@@ -125,12 +128,9 @@ export default function NewFormationPage() {
   const loadTypesFormation = async () => {
     setLoadingTypes(true);
     try {
-      console.log('Chargement des types de formation...');
       const types = await commonService.getTypesFormation();
-      console.log('Types de formation reçus:', types);
       
       if (Array.isArray(types)) {
-        // Ajouter des types par défaut s'ils n'existent pas déjà
         const defaultTypes = [
           'Présentiel',
           'Distanciel',
@@ -149,7 +149,6 @@ export default function NewFormationPage() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des types de formation:', error);
-      // Utiliser les types par défaut en cas d'erreur
       setTypesFormation([
         'Présentiel',
         'Distanciel',
@@ -168,12 +167,9 @@ export default function NewFormationPage() {
   const loadUnitesDuree = async () => {
     setLoadingUnites(true);
     try {
-      console.log('Chargement des unités de durée...');
       const unites = await commonService.getUnitesDuree();
-      console.log('Unités de durée reçues:', unites);
       
       if (Array.isArray(unites)) {
-        // Ajouter des unités par défaut s'ils n'existent pas déjà
         const defaultUnites = [
           'Heures',
           'Jours',
@@ -189,19 +185,51 @@ export default function NewFormationPage() {
       }
     } catch (error) {
       console.error('Erreur lors du chargement des unités de durée:', error);
-      // Utiliser les unités par défaut en cas d'erreur
       setUnitesDuree(['Heures', 'Jours', 'Semaines', 'Mois']);
     } finally {
       setLoadingUnites(false);
     }
   };
 
-  // Charger les catégories, types et unités au montage
+  // Charger la formation existante
+  const loadFormation = async () => {
+    try {
+      setIsLoading(true);
+      const data = await formationsService.getFormation(formationId);
+      setFormation(data);
+      
+      // Pré-remplir le formulaire avec les données existantes
+      form.setValues({
+        codeFormation: data.codeFormation || '',
+        nomFormation: data.nomFormation || '',
+        categorieId: data.categorie?.id?.toString(),
+        typeFormation: data.typeFormation || '',
+        dureePrevue: data.dureePrevue,
+        uniteDuree: data.uniteDuree || 'Heures',
+        tarifHT: data.tarifHT,
+        actif: data.actif !== false,
+      });
+    } catch (error) {
+      console.error('Erreur lors du chargement de la formation:', error);
+      notifications.show({
+        title: 'Erreur',
+        message: 'Impossible de charger les données de la formation',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+      router.push('/formations');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Charger toutes les données au montage
   useEffect(() => {
     loadCategories();
     loadTypesFormation();
     loadUnitesDuree();
-  }, []);
+    loadFormation();
+  }, [formationId]);
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
@@ -213,18 +241,18 @@ export default function NewFormationPage() {
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
       };
       
-      const formation = await formationsService.createFormation(formData);
+      await formationsService.updateFormation(formationId, formData);
       
       notifications.show({
         title: 'Succès',
-        message: 'La formation a été créée avec succès',
+        message: 'La formation a été mise à jour avec succès',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
       
-      router.push(`/formations/${formation.id}`);
+      router.push(`/formations/${formationId}`);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Erreur lors de la création de la formation';
+      const errorMessage = error.response?.data?.message || 'Erreur lors de la mise à jour de la formation';
       
       notifications.show({
         title: 'Erreur',
@@ -237,12 +265,34 @@ export default function NewFormationPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <Container size="lg">
+        <Center h={400}>
+          <Loader size="lg" />
+        </Center>
+      </Container>
+    );
+  }
+
+  if (!formation) {
+    return (
+      <Container size="lg">
+        <Alert color="red" title="Erreur" icon={<Warning size={20} />}>
+          Formation introuvable
+        </Alert>
+      </Container>
+    );
+  }
+
   return (
     <Container size="lg">
       <Group justify="space-between" mb="xl">
         <div>
-          <Title order={2}>Nouvelle formation</Title>
-          <Text c="dimmed" mt="xs">Créez une nouvelle formation dans le catalogue</Text>
+          <Title order={2}>Modifier la formation</Title>
+          <Text c="dimmed" mt="xs">
+            Modification de : {formation.nomFormation}
+          </Text>
         </div>
         <Button
           variant="subtle"
@@ -272,7 +322,6 @@ export default function NewFormationPage() {
                     description="Code unique (lettres, chiffres, tirets)"
                     {...form.getInputProps('codeFormation')}
                     onBlur={(e) => {
-                      // Convertir automatiquement en majuscules
                       const value = e.currentTarget.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
                       form.setFieldValue('codeFormation', value);
                     }}
@@ -429,6 +478,31 @@ export default function NewFormationPage() {
             />
           </Card>
 
+          {/* Statistiques de la formation (info seulement) */}
+          {formation.stats && (
+            <Card shadow="sm" p="lg" radius="md" withBorder>
+              <Text fw={600} mb="md">Informations actuelles</Text>
+              <Grid gutter="md">
+                <Grid.Col span={{ base: 6, md: 3 }}>
+                  <Text size="sm" c="dimmed">Sessions totales</Text>
+                  <Text fw={600}>{formation.stats.nombreSessions || 0}</Text>
+                </Grid.Col>
+                <Grid.Col span={{ base: 6, md: 3 }}>
+                  <Text size="sm" c="dimmed">Participants</Text>
+                  <Text fw={600}>{formation.stats.nombreParticipants || 0}</Text>
+                </Grid.Col>
+                <Grid.Col span={{ base: 6, md: 3 }}>
+                  <Text size="sm" c="dimmed">Taux de complétion</Text>
+                  <Text fw={600}>{formation.stats.tauxCompletion || 0}%</Text>
+                </Grid.Col>
+                <Grid.Col span={{ base: 6, md: 3 }}>
+                  <Text size="sm" c="dimmed">Heures totales</Text>
+                  <Text fw={600}>{formation.stats.heuresTotales || 0}h</Text>
+                </Grid.Col>
+              </Grid>
+            </Card>
+          )}
+
           {/* Actions */}
           <Group justify="flex-end">
             <Button 
@@ -444,7 +518,7 @@ export default function NewFormationPage() {
               size="md"
               leftSection={<CheckCircle size={20} />}
             >
-              Créer la formation
+              Enregistrer les modifications
             </Button>
           </Group>
         </Stack>

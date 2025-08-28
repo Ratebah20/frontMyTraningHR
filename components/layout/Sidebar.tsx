@@ -134,8 +134,12 @@ const navigationItems: NavigationItem[] = [
     label: 'KPIs', 
     href: '/kpi',
     color: 'red',
+    badge: 3,
     subItems: [
-      { label: 'Dashboard', href: '/kpi' },
+      { label: 'Centre KPIs', href: '/kpi' },
+      { label: 'Formations', href: '/kpi/formations' },
+      { label: 'Collaborateurs', href: '/kpi/collaborateurs' },
+      { label: 'Performance', href: '/kpi/performance' },
       { label: 'Rapports', href: '/kpi/reports' },
       { label: 'Statistiques', href: '/kpi/stats' },
     ]

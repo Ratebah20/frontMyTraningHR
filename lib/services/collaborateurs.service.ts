@@ -10,7 +10,9 @@ import {
 export const collaborateursService = {
   // Créer un nouveau collaborateur
   async createCollaborateur(data: {
-    idExterne: string;
+    matricule?: string;
+    idExterne?: string;
+    workerSubType?: string;
     nom: string;
     prenom: string;
     genre?: string;
@@ -26,7 +28,29 @@ export const collaborateursService = {
 
   // Récupérer la liste des collaborateurs avec pagination et filtres
   async getCollaborateurs(filters?: CollaborateurFilters): Promise<PaginatedResponse<Collaborateur>> {
-    const response = await api.get('/collaborateurs', { params: filters });
+    // Créer une copie des filtres pour éviter de modifier l'original
+    const params: any = { ...filters };
+    
+    // S'assurer que actif est envoyé comme string si défini
+    if (params.actif !== undefined) {
+      params.actif = String(params.actif);
+    }
+    
+    const response = await api.get('/collaborateurs', { 
+      params,
+      // Forcer axios à ne pas filtrer les valeurs false
+      paramsSerializer: {
+        serialize: (params: any) => {
+          const searchParams = new URLSearchParams();
+          Object.keys(params).forEach(key => {
+            if (params[key] !== undefined && params[key] !== null) {
+              searchParams.append(key, params[key]);
+            }
+          });
+          return searchParams.toString();
+        }
+      }
+    });
     return response.data;
   },
 

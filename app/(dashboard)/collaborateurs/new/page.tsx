@@ -15,38 +15,69 @@ import {
   Alert,
   Loader,
   Center,
+  Switch,
+  Divider,
+  Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { ArrowLeft, Check, X, Warning, CheckCircle } from '@phosphor-icons/react';
+import { 
+  ArrowLeft, 
+  Check, 
+  X, 
+  Warning, 
+  CheckCircle,
+  User,
+  Building,
+  IdentificationCard,
+  Info,
+} from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
-import { collaborateursService } from '@/lib/services';
+import { collaborateursService, commonService } from '@/lib/services';
 
 export default function CollaborateurNewPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
   const [managers, setManagers] = useState<{ value: string; label: string }[]>([]);
+  const [typeContrats, setTypeContrats] = useState<{ value: string; label: string }[]>([]);
+  const [workerSubTypes, setWorkerSubTypes] = useState<string[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   const form = useForm({
     initialValues: {
+      matricule: '',
       idExterne: '',
+      workerSubType: '',
       nom: '',
       prenom: '',
       genre: '',
       departementId: '',
       managerId: '',
-      typeUtilisateur: 'STANDARD',
+      contratId: '',
       actif: true,
     },
     validate: {
-      idExterne: (value) => {
-        if (!value) return 'L\'identifiant est requis';
-        if (!/^[A-Z0-9]+$/.test(value)) return 'L\'identifiant doit contenir uniquement des lettres majuscules et des chiffres';
+      nom: (value) => (!value?.trim() ? 'Le nom est requis' : null),
+      prenom: (value) => (!value?.trim() ? 'Le prénom est requis' : null),
+      genre: (value) => (!value ? 'Le genre est requis' : null),
+      departementId: (value) => (!value ? 'Le département est requis' : null),
+      managerId: (value) => (!value ? 'Le manager est requis' : null),
+      contratId: (value) => (!value ? 'Le type de contrat est requis' : null),
+      matricule: (value) => {
+        if (!value?.trim()) return 'Le matricule est requis';
+        if (value.length > 20) return 'Le matricule ne peut pas dépasser 20 caractères';
         return null;
       },
-      nom: (value) => (!value ? 'Le nom est requis' : null),
-      prenom: (value) => (!value ? 'Le prénom est requis' : null),
+      idExterne: (value) => {
+        // ID externe optionnel - sera fourni lors de l'import OLU
+        if (!value?.trim()) return null;
+        if (value.length > 50) return 'L\'ID externe ne peut pas dépasser 50 caractères';
+        return null;
+      },
+      workerSubType: (value) => {
+        // Sous-type de contrat optionnel
+        return null;
+      },
     },
   });
 
@@ -54,30 +85,59 @@ export default function CollaborateurNewPage() {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
-        // Charger les départements depuis l'API
-        // Pour le moment, on utilise des données statiques
-        // TODO: Créer un endpoint pour récupérer les départements
-        setDepartements([
-          { value: '1', label: 'Commercial' },
-          { value: '2', label: 'IT' },
-          { value: '3', label: 'RH' },
-          { value: '4', label: 'Finance' },
-          { value: '5', label: 'Marketing' },
-          { value: '6', label: 'Production' },
+        // Charger les listes depuis les endpoints dédiés
+        const [departementsData, contratsData] = await Promise.all([
+          commonService.getDepartements(),
+          commonService.getTypesContrats(),
         ]);
+        
+        // Formater les départements pour le select
+        if (departementsData) {
+          const departmentsList = departementsData.map(d => ({
+            value: d.id.toString(),
+            label: d.nomDepartement,
+          }));
+          setDepartements(departmentsList);
+        }
+        
+        // Formater les types de contrats pour le select
+        if (contratsData) {
+          const contratsList = contratsData.map(c => ({
+            value: c.id.toString(),
+            label: c.typeContrat,
+          }));
+          setTypeContrats(contratsList);
+        }
 
-        // Charger les managers potentiels
+        // Charger les managers potentiels et les sous-types de contrats existants
         try {
           const response = await collaborateursService.getCollaborateurs({
             limit: 100,
             actif: true,
           });
           
-          const managersList = (response.data || []).map(c => ({
-            value: c.id.toString(),
-            label: c.nomComplet,
-          }));
-          setManagers(managersList);
+          if (response.data) {
+            const managersList = response.data.map(c => ({
+              value: c.id.toString(),
+              label: c.nomComplet || `${c.nom} ${c.prenom}`,
+            }));
+            setManagers(managersList);
+            
+            // Extraire les sous-types de contrats uniques existants
+            const uniqueSubTypes = new Set<string>();
+            response.data.forEach(c => {
+              if (c.workerSubType) {
+                uniqueSubTypes.add(c.workerSubType);
+              }
+            });
+            
+            // Ajouter des sous-types communs
+            ['Employee FT', 'Employee PT', 'VIE', 'Trainee', 'Contractor', 'Intern'].forEach(type => {
+              uniqueSubTypes.add(type);
+            });
+            
+            setWorkerSubTypes(Array.from(uniqueSubTypes).sort());
+          }
         } catch (error) {
           console.error('Erreur lors du chargement des managers:', error);
         }
@@ -95,27 +155,45 @@ export default function CollaborateurNewPage() {
     setIsSubmitting(true);
     
     try {
-      const dataToSend = {
-        idExterne: values.idExterne,
+      // Préparer les données pour l'envoi
+      const dataToSend: any = {
+        matricule: values.matricule || undefined,
+        idExterne: values.idExterne || undefined,
+        workerSubType: values.workerSubType || undefined,
         nom: values.nom,
         prenom: values.prenom,
         genre: values.genre || undefined,
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
-        typeUtilisateur: values.typeUtilisateur,
+        contratId: values.contratId ? parseInt(values.contratId) : undefined,
         actif: values.actif,
       };
       
-      await collaborateursService.createCollaborateur(dataToSend);
+      // Retirer les champs undefined
+      Object.keys(dataToSend).forEach(key => {
+        if (dataToSend[key] === undefined) {
+          delete dataToSend[key];
+        }
+      });
+      
+      const result = await collaborateursService.createCollaborateur(dataToSend);
       
       notifications.show({
         title: 'Succès',
-        message: 'Collaborateur créé avec succès',
+        message: values.idExterne 
+          ? 'Collaborateur créé avec succès' 
+          : 'Collaborateur créé avec succès. N\'oubliez pas d\'ajouter l\'ID externe dès qu\'il sera disponible.',
         color: 'green',
         icon: <CheckCircle size={20} />,
+        autoClose: values.idExterne ? 5000 : false, // Message permanent si pas d'ID externe
       });
       
-      router.push('/collaborateurs');
+      // Rediriger vers la page de détail du nouveau collaborateur
+      if (result?.collaborateur?.id) {
+        router.push(`/collaborateurs/${result.collaborateur.id}`);
+      } else {
+        router.push('/collaborateurs');
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Une erreur est survenue lors de la création';
       
@@ -139,115 +217,178 @@ export default function CollaborateurNewPage() {
   }
 
   return (
-    <Container size="md">
+    <Container size="lg">
+      {/* En-tête */}
       <Group mb="xl">
         <Button
           variant="subtle"
           leftSection={<ArrowLeft size={16} />}
-          onClick={() => router.back()}
+          onClick={() => router.push('/collaborateurs')}
         >
           Retour
         </Button>
         <Title order={1}>Nouveau collaborateur</Title>
       </Group>
 
-      <Paper shadow="sm" radius="md" p="xl" withBorder>
+      {/* Message d'information sur l'ID externe */}
+      <Alert 
+        icon={<Warning size={16} />} 
+        color="orange" 
+        variant="light"
+        mb="xl"
+      >
+        <Text fw={600} mb="xs">Information importante sur l'ID externe</Text>
+        <Text size="sm">
+          L'ID externe peut être laissé vide lors de la création, mais <strong>ATTENTION</strong> : 
+          vous devez <strong>impérativement ajouter l'ID externe AVANT</strong> d'importer le fichier OLU 
+          quand le collaborateur suivra sa première formation. 
+        </Text>
+        <Text size="sm" mt="xs">
+          <strong>Rappel :</strong> L'ID externe doit être saisi manuellement dans le système avant l'import OLU, 
+          sinon l'import échouera pour ce collaborateur.
+        </Text>
+      </Alert>
+
+      <Paper shadow="xs" radius="md" p="xl" withBorder>
         <form onSubmit={form.onSubmit(handleSubmit)}>
-          <Stack gap="md">
-            <TextInput
-              label="Identifiant collaborateur"
-              placeholder="Ex: COL001"
-              required
-              description="Lettres majuscules et chiffres uniquement"
-              {...form.getInputProps('idExterne')}
-            />
-            
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <TextInput
-                  label="Nom"
-                  placeholder="Nom de famille"
-                  required
-                  {...form.getInputProps('nom')}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <TextInput
-                  label="Prénom"
-                  placeholder="Prénom"
-                  required
-                  {...form.getInputProps('prenom')}
-                />
-              </Grid.Col>
-            </Grid>
+          <Stack gap="lg">
+            {/* Informations personnelles */}
+            <div>
+              <Group gap="xs" mb="md">
+                <User size={20} />
+                <Text fw={600}>Informations personnelles</Text>
+              </Group>
+              <Grid gutter="md">
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <TextInput
+                    label="Nom"
+                    placeholder="Nom du collaborateur"
+                    required
+                    {...form.getInputProps('nom')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <TextInput
+                    label="Prénom"
+                    placeholder="Prénom du collaborateur"
+                    required
+                    {...form.getInputProps('prenom')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                  <TextInput
+                    label="Matricule RH"
+                    placeholder="Ex: 00017336"
+                    required
+                    {...form.getInputProps('matricule')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                  <TextInput
+                    label="ID Externe (OLU)"
+                    placeholder="À ajouter avant import OLU"
+                    {...form.getInputProps('idExterne')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                  <Select
+                    label="Genre"
+                    placeholder="Sélectionner le genre"
+                    required
+                    data={[
+                      { value: 'M', label: 'Masculin' },
+                      { value: 'F', label: 'Féminin' },
+                      { value: 'Autre', label: 'Autre' },
+                    ]}
+                    {...form.getInputProps('genre')}
+                  />
+                </Grid.Col>
+              </Grid>
+            </div>
 
-            <Select
-              label="Genre"
-              placeholder="Sélectionner le genre"
-              data={[
-                { value: 'M', label: 'Masculin' },
-                { value: 'F', label: 'Féminin' },
-                { value: 'Autre', label: 'Autre' },
-              ]}
-              clearable
-              {...form.getInputProps('genre')}
-            />
+            <Divider />
 
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Select
-                  label="Département"
-                  placeholder="Sélectionner le département"
-                  data={departements}
-                  searchable
-                  clearable
-                  {...form.getInputProps('departementId')}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Select
-                  label="Manager"
-                  placeholder="Sélectionner le manager"
-                  data={managers}
-                  searchable
-                  clearable
-                  {...form.getInputProps('managerId')}
-                />
-              </Grid.Col>
-            </Grid>
+            {/* Informations professionnelles */}
+            <div>
+              <Group gap="xs" mb="md">
+                <Building size={20} />
+                <Text fw={600}>Informations professionnelles</Text>
+              </Group>
+              <Grid gutter="md">
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Département"
+                    placeholder="Sélectionner le département"
+                    required
+                    data={departements}
+                    searchable
+                    {...form.getInputProps('departementId')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Manager"
+                    placeholder="Sélectionner le manager"
+                    required
+                    data={managers}
+                    searchable
+                    {...form.getInputProps('managerId')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Type de contrat"
+                    placeholder="Sélectionner le type de contrat"
+                    required
+                    data={typeContrats}
+                    searchable
+                    {...form.getInputProps('contratId')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Sous-type de contrat"
+                    placeholder="Ex: Employee FT, VIE, Trainee"
+                    description="Optionnel - Sélectionner ou créer"
+                    data={workerSubTypes}
+                    searchable
+                    creatable
+                    getCreateLabel={(query) => `+ Créer "${query}"`}
+                    onCreate={(query) => {
+                      const newItem = query;
+                      setWorkerSubTypes((current) => [...current, newItem]);
+                      return newItem;
+                    }}
+                    clearable
+                    {...form.getInputProps('workerSubType')}
+                  />
+                </Grid.Col>
+              </Grid>
+            </div>
 
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Select
-                  label="Type d'utilisateur"
-                  placeholder="Sélectionner le type"
-                  data={[
-                    { value: 'STANDARD', label: 'Standard' },
-                    { value: 'MANAGER', label: 'Manager' },
-                    { value: 'ADMIN', label: 'Administrateur' },
-                  ]}
-                  {...form.getInputProps('typeUtilisateur')}
-                />
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Select
-                  label="Statut"
-                  placeholder="Sélectionner le statut"
-                  data={[
-                    { value: 'true', label: 'Actif' },
-                    { value: 'false', label: 'Inactif' },
-                  ]}
-                  value={form.values.actif.toString()}
-                  onChange={(value) => form.setFieldValue('actif', value === 'true')}
-                />
-              </Grid.Col>
-            </Grid>
+            <Divider />
 
+            {/* Statut */}
+            <div>
+              <Group gap="xs" mb="md">
+                <IdentificationCard size={20} />
+                <Text fw={600}>Statut</Text>
+              </Group>
+              <Switch
+                label={form.values.actif ? 'Collaborateur actif' : 'Collaborateur inactif'}
+                checked={form.values.actif}
+                {...form.getInputProps('actif')}
+                size="md"
+                description="Les nouveaux collaborateurs sont généralement créés comme actifs"
+              />
+            </div>
+
+            {/* Boutons d'action */}
             <Group justify="flex-end" mt="xl">
               <Button
                 variant="subtle"
                 leftSection={<X size={16} />}
-                onClick={() => router.back()}
+                onClick={() => router.push('/collaborateurs')}
                 disabled={isSubmitting}
               >
                 Annuler
@@ -257,7 +398,7 @@ export default function CollaborateurNewPage() {
                 leftSection={<Check size={16} />}
                 loading={isSubmitting}
               >
-                Créer
+                Créer le collaborateur
               </Button>
             </Group>
           </Stack>

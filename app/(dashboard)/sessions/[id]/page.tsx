@@ -22,6 +22,9 @@ import {
   Progress,
   ActionIcon,
   Tooltip,
+  Table,
+  Box,
+  Flex,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -43,9 +46,26 @@ import {
   Star,
   FileText,
   UserCheck,
+  Hash,
+  Tag,
+  MapPin,
+  Phone,
+  Envelope,
+  UsersThree,
+  Briefcase,
+  IdentificationCard,
+  GenderIntersex,
+  Database,
+  Package,
+  Timer,
+  Receipt,
+  Percent,
+  Wallet,
+  CalendarPlus,
+  Info,
 } from '@phosphor-icons/react';
 import { sessionsService } from '@/lib/services';
-import { SessionFormation } from '@/lib/types';
+import { SessionFormationResponse } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 
 interface Props {
@@ -69,7 +89,7 @@ const statusConfig = {
 
 export default function SessionDetailPage({ params }: Props) {
   const router = useRouter();
-  const [session, setSession] = useState<SessionFormation | null>(null);
+  const [session, setSession] = useState<SessionFormationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
@@ -148,6 +168,10 @@ export default function SessionDetailPage({ params }: Props) {
   const statusColor = StatutUtils.getStatusColor(session.statut);
   const statusLabel = StatutUtils.getStatusLabel(session.statut);
 
+  // Calculer le coût total
+  const coutTotal = (session.tarifHT || 0) + (session.fraisAnnexes || 0);
+  const coutTTC = session.tarifTTC || (coutTotal * (1 + (session.tva || 0) / 100));
+
   return (
     <Container size="xl">
       <Group justify="space-between" mb="xl">
@@ -209,110 +233,276 @@ export default function SessionDetailPage({ params }: Props) {
             </Group>
 
             <Stack gap="lg">
-              {/* Collaborateur */}
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light" color="blue">
-                  <User size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" c="dimmed">Collaborateur</Text>
-                  <Text fw={500} size="lg">
-                    {session.collaborateur?.nomComplet || 'Non renseigné'}
-                  </Text>
-                  {session.collaborateur?.departement && (
-                    <Text size="sm" c="dimmed">
-                      {session.collaborateur.departement.nomDepartement}
-                    </Text>
-                  )}
-                </div>
-              </Group>
-
-              <Divider />
-
-              {/* Formation */}
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light" color="violet">
-                  <BookOpen size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" c="dimmed">Formation</Text>
-                  <Text fw={500} size="lg">
-                    {session.formation?.nomFormation || 'Non renseignée'}
-                  </Text>
-                  {session.formation?.codeFormation && (
-                    <Text size="sm" c="dimmed">
-                      Code: {session.formation.codeFormation}
-                    </Text>
-                  )}
-                </div>
-              </Group>
-
-              <Divider />
-
-              {/* Dates */}
-              <Group>
-                <ThemeIcon size="lg" radius="md" variant="light" color="green">
-                  <Calendar size={20} />
-                </ThemeIcon>
-                <div>
-                  <Text size="sm" c="dimmed">Période</Text>
-                  <Text fw={500}>
-                    Du {new Date(session.dateDebut).toLocaleDateString('fr-FR')}
-                    {session.dateFin && ` au ${new Date(session.dateFin).toLocaleDateString('fr-FR')}`}
-                  </Text>
-                </div>
-              </Group>
-
-              {/* Durée */}
-              {(session.dureePrevue || session.dureeReelle) && (
-                <>
-                  <Divider />
-                  <Group>
-                    <ThemeIcon size="lg" radius="md" variant="light" color="orange">
-                      <Clock size={20} />
-                    </ThemeIcon>
-                    <div>
-                      <Text size="sm" c="dimmed">Durée</Text>
-                      <Group gap="lg">
-                        {session.dureePrevue && (
-                          <div>
-                            <Text size="xs" c="dimmed">Prévue</Text>
-                            <Text fw={500}>
-                              {session.dureePrevue} {session.uniteDuree || 'heures'}
-                            </Text>
-                          </div>
-                        )}
-                        {session.dureeReelle && (
-                          <div>
-                            <Text size="xs" c="dimmed">Réelle</Text>
-                            <Text fw={500}>
-                              {session.dureeReelle} {session.uniteDuree || 'heures'}
-                            </Text>
-                          </div>
-                        )}
+              {/* Collaborateur avec plus d'infos */}
+              <Box>
+                <Group mb="md">
+                  <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                    <User size={20} />
+                  </ThemeIcon>
+                  <Text fw={600} size="lg">Informations du collaborateur</Text>
+                </Group>
+                
+                <Grid>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Stack gap="xs">
+                      <Group gap="xs">
+                        <UserCheck size={16} color="#868E96" />
+                        <Text size="sm">
+                          <Text span c="dimmed" size="xs">Nom complet:</Text> {session.collaborateur?.prenom} {session.collaborateur?.nom}
+                        </Text>
                       </Group>
-                    </div>
-                  </Group>
-                </>
-              )}
+                      
+                      {session.collaborateur?.matricule && (
+                        <Group gap="xs">
+                          <IdentificationCard size={16} color="#868E96" />
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Matricule:</Text> {session.collaborateur.matricule}
+                          </Text>
+                        </Group>
+                      )}
+                      
+                      {session.collaborateur?.email && (
+                        <Group gap="xs">
+                          <Envelope size={16} color="#868E96" />
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Email:</Text> {session.collaborateur.email}
+                          </Text>
+                        </Group>
+                      )}
+                    </Stack>
+                  </Grid.Col>
+                  
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Stack gap="xs">
+                      <Group gap="xs">
+                        <Building size={16} color="#868E96" />
+                        <Text size="sm">
+                          <Text span c="dimmed" size="xs">Département:</Text> {session.collaborateur?.departement || 'Non défini'}
+                        </Text>
+                      </Group>
+                      
+                      {session.collaborateur?.workerSubType && (
+                        <Group gap="xs">
+                          <Briefcase size={16} color="#868E96" />
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Type contrat:</Text> {session.collaborateur.workerSubType}
+                          </Text>
+                        </Group>
+                      )}
+                      
+                      {session.collaborateur?.manager && (
+                        <Group gap="xs">
+                          <UsersThree size={16} color="#868E96" />
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Manager:</Text> {session.collaborateur.manager.prenom} {session.collaborateur.manager.nom}
+                          </Text>
+                        </Group>
+                      )}
+                      
+                      {session.collaborateur?.genre && (
+                        <Group gap="xs">
+                          <GenderIntersex size={16} color="#868E96" />
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Genre:</Text> {session.collaborateur.genre}
+                          </Text>
+                        </Group>
+                      )}
+                    </Stack>
+                  </Grid.Col>
+                </Grid>
+              </Box>
+
+              <Divider />
+
+              {/* Formation avec plus d'infos */}
+              <Box>
+                <Group mb="md">
+                  <ThemeIcon size="lg" radius="md" variant="light" color="violet">
+                    <BookOpen size={20} />
+                  </ThemeIcon>
+                  <Text fw={600} size="lg">Informations de la formation</Text>
+                </Group>
+                
+                <Grid>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Stack gap="xs">
+                      <Text size="sm">
+                        <Text span c="dimmed" size="xs">Nom:</Text> {session.formation?.nom || 'Non renseignée'}
+                      </Text>
+                      <Text size="sm">
+                        <Text span c="dimmed" size="xs">Code:</Text> {session.formation?.code || 'N/A'}
+                      </Text>
+                      <Text size="sm">
+                        <Text span c="dimmed" size="xs">Catégorie:</Text> {session.formation?.categorie || 'Non définie'}
+                      </Text>
+                    </Stack>
+                  </Grid.Col>
+                  
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Stack gap="xs">
+                      {session.formation?.type && (
+                        <Text size="sm">
+                          <Text span c="dimmed" size="xs">Type:</Text> {session.formation.type}
+                        </Text>
+                      )}
+                      <Text size="sm">
+                        <Text span c="dimmed" size="xs">Durée prévue:</Text> {session.formation?.dureeHeures || 0} heures
+                      </Text>
+                      {session.formation?.tarifHT && (
+                        <Text size="sm">
+                          <Text span c="dimmed" size="xs">Tarif catalogue:</Text> {session.formation.tarifHT.toLocaleString('fr-FR')} € HT
+                        </Text>
+                      )}
+                    </Stack>
+                  </Grid.Col>
+                </Grid>
+              </Box>
+
+              <Divider />
+
+              {/* Dates et durées */}
+              <Box>
+                <Group mb="md">
+                  <ThemeIcon size="lg" radius="md" variant="light" color="green">
+                    <Calendar size={20} />
+                  </ThemeIcon>
+                  <Text fw={600} size="lg">Dates et durées</Text>
+                </Group>
+                
+                <Grid>
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Stack gap="xs">
+                      <Text size="sm">
+                        <Text span c="dimmed" size="xs">Date début:</Text> {session.dateDebut ? new Date(session.dateDebut).toLocaleDateString('fr-FR') : 'Non définie'}
+                      </Text>
+                      <Text size="sm">
+                        <Text span c="dimmed" size="xs">Date fin:</Text> {session.dateFin ? new Date(session.dateFin).toLocaleDateString('fr-FR') : 'Non définie'}
+                      </Text>
+                    </Stack>
+                  </Grid.Col>
+                  
+                  <Grid.Col span={{ base: 12, sm: 6 }}>
+                    <Stack gap="xs">
+                      {session.dureePrevue && (
+                        <Text size="sm">
+                          <Text span c="dimmed" size="xs">Durée prévue:</Text> {session.dureePrevue} {session.uniteDuree || 'heures'}
+                        </Text>
+                      )}
+                      {session.dureeHeures && (
+                        <Text size="sm">
+                          <Text span c="dimmed" size="xs">Durée réelle:</Text> {session.dureeHeures} {session.uniteDuree || 'heures'}
+                        </Text>
+                      )}
+                    </Stack>
+                  </Grid.Col>
+                </Grid>
+              </Box>
 
               {/* Organisme */}
               {session.organisme && (
                 <>
                   <Divider />
-                  <Group>
-                    <ThemeIcon size="lg" radius="md" variant="light" color="cyan">
-                      <Building size={20} />
-                    </ThemeIcon>
-                    <div>
-                      <Text size="sm" c="dimmed">Organisme</Text>
-                      <Text fw={500}>{session.organisme.nomOrganisme}</Text>
-                    </div>
-                  </Group>
+                  <Box>
+                    <Group mb="md">
+                      <ThemeIcon size="lg" radius="md" variant="light" color="cyan">
+                        <Building size={20} />
+                      </ThemeIcon>
+                      <Text fw={600} size="lg">Organisme de formation</Text>
+                    </Group>
+                    
+                    <Grid>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <Stack gap="xs">
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Nom:</Text> {session.organisme.nom}
+                          </Text>
+                          {session.organisme.type && (
+                            <Text size="sm">
+                              <Text span c="dimmed" size="xs">Type:</Text> {session.organisme.type}
+                            </Text>
+                          )}
+                        </Stack>
+                      </Grid.Col>
+                      
+                      {session.organisme.contact && (
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <Text size="sm">
+                            <Text span c="dimmed" size="xs">Contact:</Text> {session.organisme.contact}
+                          </Text>
+                        </Grid.Col>
+                      )}
+                    </Grid>
+                  </Box>
                 </>
               )}
             </Stack>
           </Paper>
+
+          {/* Informations budgétaires */}
+          {(session.tarifHT || session.tarifTTC || session.fraisAnnexes) && (
+            <Paper shadow="xs" p="lg" radius="md" withBorder mb="lg">
+              <Group mb="md">
+                <CurrencyDollar size={20} />
+                <Text fw={600} size="lg">Informations budgétaires</Text>
+              </Group>
+              
+              <Table>
+                <Table.Tbody>
+                  {session.tarifHT && (
+                    <Table.Tr>
+                      <Table.Td>
+                        <Text size="sm" c="dimmed">Tarif HT</Text>
+                      </Table.Td>
+                      <Table.Td align="right">
+                        <Text fw={500}>{session.tarifHT.toLocaleString('fr-FR')} €</Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                  
+                  {session.fraisAnnexes && session.fraisAnnexes > 0 && (
+                    <Table.Tr>
+                      <Table.Td>
+                        <Text size="sm" c="dimmed">Frais annexes</Text>
+                      </Table.Td>
+                      <Table.Td align="right">
+                        <Text fw={500}>{session.fraisAnnexes.toLocaleString('fr-FR')} €</Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                  
+                  {session.tva && (
+                    <Table.Tr>
+                      <Table.Td>
+                        <Text size="sm" c="dimmed">TVA ({session.tva}%)</Text>
+                      </Table.Td>
+                      <Table.Td align="right">
+                        <Text fw={500}>{((coutTotal * session.tva) / 100).toLocaleString('fr-FR')} €</Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                  
+                  {session.tarifTTC && (
+                    <Table.Tr>
+                      <Table.Td>
+                        <Text fw={600}>Total TTC</Text>
+                      </Table.Td>
+                      <Table.Td align="right">
+                        <Text fw={700} size="lg" c="green">
+                          {coutTTC.toLocaleString('fr-FR')} €
+                        </Text>
+                      </Table.Td>
+                    </Table.Tr>
+                  )}
+                </Table.Tbody>
+              </Table>
+              
+              {session.budgetImpute && (
+                <Alert icon={<CheckCircle size={16} />} color="green" variant="light" mt="md">
+                  Budget imputé le {session.dateImputation ? new Date(session.dateImputation).toLocaleDateString('fr-FR') : 'N/A'}
+                </Alert>
+              )}
+            </Paper>
+          )}
 
           {/* Commentaire */}
           {session.commentaire && (
@@ -355,57 +545,98 @@ export default function SessionDetailPage({ params }: Props) {
               </Card>
             )}
 
-            {/* Coût */}
-            {session.tarifHT && (
-              <Card shadow="xs" radius="md" withBorder>
-                <Group justify="space-between">
-                  <div>
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                      Coût formation
+            {/* Statistiques rapides */}
+            <Card shadow="xs" radius="md" withBorder>
+              <Text fw={600} mb="md">Récapitulatif</Text>
+              <Stack gap="sm">
+                <Flex justify="space-between">
+                  <Group gap="xs">
+                    <Hash size={16} color="#868E96" />
+                    <Text size="sm" c="dimmed">ID Session</Text>
+                  </Group>
+                  <Text size="sm" fw={500}>{session.id}</Text>
+                </Flex>
+                
+                {session.idImportOLU && (
+                  <Flex justify="space-between">
+                    <Group gap="xs">
+                      <Tag size={16} color="#868E96" />
+                      <Text size="sm" c="dimmed">ID OLU</Text>
+                    </Group>
+                    <Text size="sm" fw={500}>{session.idImportOLU}</Text>
+                  </Flex>
+                )}
+                
+                <Flex justify="space-between">
+                  <Group gap="xs">
+                    <Timer size={16} color="#868E96" />
+                    <Text size="sm" c="dimmed">Durée totale</Text>
+                  </Group>
+                  <Text size="sm" fw={500}>
+                    {session.dureeHeures || session.dureePrevue || session.formation?.dureeHeures || 0}h
+                  </Text>
+                </Flex>
+                
+                {coutTotal > 0 && (
+                  <Flex justify="space-between">
+                    <Group gap="xs">
+                      <Wallet size={16} color="#868E96" />
+                      <Text size="sm" c="dimmed">Coût total</Text>
+                    </Group>
+                    <Text size="sm" fw={500} c="green">
+                      {coutTTC.toLocaleString('fr-FR')} €
                     </Text>
-                    <Text size="xl" fw={700}>
-                      {session.tarifHT.toLocaleString('fr-FR')} €
-                    </Text>
-                    <Text size="xs" c="dimmed">Hors taxes</Text>
-                  </div>
-                  <ThemeIcon size="xl" radius="md" variant="light" color="green">
-                    <CurrencyDollar size={24} />
-                  </ThemeIcon>
-                </Group>
-              </Card>
-            )}
+                  </Flex>
+                )}
+              </Stack>
+            </Card>
 
             {/* Informations système */}
             <Card shadow="xs" radius="md" withBorder>
-              <Text fw={600} mb="md">Informations système</Text>
+              <Text fw={600} mb="md">Traçabilité</Text>
               <Stack gap="xs">
                 {session.sourceImport && (
                   <div>
-                    <Text size="xs" c="dimmed">Source d'import</Text>
-                    <Text size="sm">{session.sourceImport}</Text>
+                    <Group gap="xs">
+                      <Database size={14} color="#868E96" />
+                      <Text size="xs" c="dimmed">Source d'import</Text>
+                    </Group>
+                    <Text size="sm" ml={18}>{session.sourceImport}</Text>
                   </div>
                 )}
+                
                 {session.dateImport && (
                   <div>
-                    <Text size="xs" c="dimmed">Date d'import</Text>
-                    <Text size="sm">
+                    <Group gap="xs">
+                      <Package size={14} color="#868E96" />
+                      <Text size="xs" c="dimmed">Date d'import</Text>
+                    </Group>
+                    <Text size="sm" ml={18}>
                       {new Date(session.dateImport).toLocaleString('fr-FR')}
                     </Text>
                   </div>
                 )}
+                
                 {session.dateCreation && (
                   <div>
-                    <Text size="xs" c="dimmed">Date de création</Text>
-                    <Text size="sm">
+                    <Group gap="xs">
+                      <CalendarPlus size={14} color="#868E96" />
+                      <Text size="xs" c="dimmed">Date de création</Text>
+                    </Group>
+                    <Text size="sm" ml={18}>
                       {new Date(session.dateCreation).toLocaleString('fr-FR')}
                     </Text>
                   </div>
                 )}
-                {session.dateMiseAJour && (
+                
+                {session.dateModification && (
                   <div>
-                    <Text size="xs" c="dimmed">Dernière modification</Text>
-                    <Text size="sm">
-                      {new Date(session.dateMiseAJour).toLocaleString('fr-FR')}
+                    <Group gap="xs">
+                      <Clock size={14} color="#868E96" />
+                      <Text size="xs" c="dimmed">Dernière modification</Text>
+                    </Group>
+                    <Text size="sm" ml={18}>
+                      {new Date(session.dateModification).toLocaleString('fr-FR')}
                     </Text>
                   </div>
                 )}
@@ -415,7 +646,7 @@ export default function SessionDetailPage({ params }: Props) {
             {/* Actions */}
             <Card shadow="xs" radius="md" withBorder>
               <Stack gap="sm">
-                <Text fw={600}>Actions</Text>
+                <Text fw={600}>Actions disponibles</Text>
                 <Button
                   fullWidth
                   variant="light"
@@ -424,6 +655,29 @@ export default function SessionDetailPage({ params }: Props) {
                 >
                   Modifier la session
                 </Button>
+                
+                <Button
+                  fullWidth
+                  variant="light"
+                  color="violet"
+                  leftSection={<User size={16} />}
+                  onClick={() => router.push(`/collaborateurs/${session.collaborateur?.id}`)}
+                  disabled={!session.collaborateur?.id}
+                >
+                  Voir le collaborateur
+                </Button>
+                
+                <Button
+                  fullWidth
+                  variant="light"
+                  color="indigo"
+                  leftSection={<BookOpen size={16} />}
+                  onClick={() => router.push(`/formations/${session.formation?.id}`)}
+                  disabled={!session.formation?.id}
+                >
+                  Voir la formation
+                </Button>
+                
                 {!StatutUtils.isAnnule(session.statut) && (
                   <Button
                     fullWidth

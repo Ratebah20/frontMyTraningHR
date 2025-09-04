@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Paper,
@@ -50,10 +50,18 @@ export default function LoginPage() {
   const [isLogging, setIsLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // États pour les animations de l'ours
+  const [bearImage, setBearImage] = useState('/img/watch_bear_0.png');
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [hideAnimationFrame, setHideAnimationFrame] = useState(0);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
+  
   // Refs pour animations GSAP
   const formRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
+  const bearContainerRef = useRef<HTMLDivElement>(null);
 
   const form = useForm({
     initialValues: {
@@ -77,6 +85,58 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, router]);
 
+  // Fonction pour suivre la position du curseur dans le champ email
+  const handleEmailInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    form.getInputProps('email').onChange(e);
+    
+    if (!isPasswordFocused) {
+      const inputLength = e.target.value.length;
+      const maxLength = 40; // Longueur max approximative d'un email
+      const imageIndex = Math.min(Math.floor((inputLength / maxLength) * 20), 20);
+      setBearImage(`/img/watch_bear_${imageIndex}.png`);
+    }
+  }, [form, isPasswordFocused]);
+
+  // Animation de cache-yeux pour le password
+  const handlePasswordFocus = useCallback(() => {
+    setIsPasswordFocused(true);
+    let frame = 0;
+    const animationInterval = setInterval(() => {
+      if (frame <= 5) {
+        setBearImage(`/img/hide_bear_${frame}.png`);
+        setHideAnimationFrame(frame);
+        frame++;
+      } else {
+        clearInterval(animationInterval);
+      }
+    }, 50); // Animation rapide
+  }, []);
+
+  const handlePasswordBlur = useCallback(() => {
+    setIsPasswordFocused(false);
+    // Animation inverse pour revenir à l'état initial
+    let frame = 5;
+    const animationInterval = setInterval(() => {
+      if (frame >= 0) {
+        setBearImage(`/img/hide_bear_${frame}.png`);
+        setHideAnimationFrame(frame);
+        frame--;
+      } else {
+        setBearImage('/img/watch_bear_0.png');
+        clearInterval(animationInterval);
+      }
+    }, 50);
+  }, []);
+
+  const handleEmailFocus = useCallback(() => {
+    if (!isPasswordFocused) {
+      const currentLength = form.values.email.length;
+      const maxLength = 40;
+      const imageIndex = Math.min(Math.floor((currentLength / maxLength) * 20), 20);
+      setBearImage(`/img/watch_bear_${imageIndex}.png`);
+    }
+  }, [form.values.email, isPasswordFocused]);
+
   // Animations au montage
   useEffect(() => {
     const tl = gsap.timeline();
@@ -95,6 +155,15 @@ export default function LoginPage() {
         { opacity: 0, scale: 0.9 },
         { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.7)" },
         "-=0.4"
+      );
+    }
+
+    // Animation de l'ours
+    if (bearContainerRef.current) {
+      tl.fromTo(bearContainerRef.current,
+        { opacity: 0, y: -30, rotate: -10 },
+        { opacity: 1, y: 0, rotate: 0, duration: 0.8, ease: "bounce.out" },
+        "-=0.5"
       );
     }
 
@@ -261,14 +330,28 @@ export default function LoginPage() {
           </div>
 
           {/* Section droite - Formulaire */}
-          <div>
+          <div className="relative pt-24">
             <Paper 
               ref={formRef}
               radius="lg" 
               p={40} 
               shadow="xl"
-              className="backdrop-blur-sm bg-white/90"
+              className="backdrop-blur-sm bg-white/90 relative"
             >
+              {/* Ours animé */}
+              <div 
+                ref={bearContainerRef}
+                className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-32 h-32 z-20"
+              >
+                <img 
+                  src={bearImage} 
+                  alt="Bear mascot" 
+                  className="w-full h-full object-contain transition-all duration-100"
+                  style={{
+                    filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))'
+                  }}
+                />
+              </div>
               <Title order={2} ta="center" mb="md">
                 Connexion
               </Title>
@@ -285,6 +368,7 @@ export default function LoginPage() {
                   )}
                   
                   <TextInput
+                    ref={emailInputRef}
                     label="Email"
                     placeholder="votre.email@example.com"
                     required
@@ -292,11 +376,14 @@ export default function LoginPage() {
                     autoComplete="email"
                     leftSection={<User size={16} />}
                     {...form.getInputProps('email')}
+                    onChange={handleEmailInput}
+                    onFocus={handleEmailFocus}
                     size="md"
                     disabled={isLogging}
                   />
 
                   <PasswordInput
+                    ref={passwordInputRef}
                     label="Mot de passe"
                     placeholder="Votre mot de passe"
                     required
@@ -305,6 +392,8 @@ export default function LoginPage() {
                     visible={showPassword}
                     onVisibilityChange={setShowPassword}
                     {...form.getInputProps('password')}
+                    onFocus={handlePasswordFocus}
+                    onBlur={handlePasswordBlur}
                     size="md"
                     disabled={isLogging}
                   />

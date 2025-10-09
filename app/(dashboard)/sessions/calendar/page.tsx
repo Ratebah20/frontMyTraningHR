@@ -40,16 +40,16 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { fr } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { sessionsService } from '@/lib/services';
-import { SessionFormationResponse } from '@/lib/types';
+import { SessionFormationResponse, GroupedSession } from '@/lib/types';
 import { notifications } from '@mantine/notifications';
 
 export default function SessionsCalendarPage() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [sessions, setSessions] = useState<SessionFormationResponse[]>([]);
+  const [sessions, setSessions] = useState<GroupedSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSessions, setSelectedSessions] = useState<SessionFormationResponse[]>([]);
+  const [selectedSessions, setSelectedSessions] = useState<GroupedSession[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('');
 
@@ -65,17 +65,16 @@ export default function SessionsCalendarPage() {
   const loadSessions = async () => {
     setIsLoading(true);
     try {
-      const response = await sessionsService.getPlanning({
+      const response = await sessionsService.getGroupedSessions({
         dateDebut: format(dateRange.start, 'yyyy-MM-dd'),
         dateFin: format(dateRange.end, 'yyyy-MM-dd'),
         limit: 2000,
       });
-      
+
       if (response && response.data) {
-        // Filtrer uniquement les sessions actives
+        // Filtrer les sessions avec au moins un participant non annulé
         const activeSessions = response.data.filter(s => {
-          const status = s.statut?.toLowerCase();
-          return status === 'inscrit' || status === 'en_cours' || status === 'complete' || status === 'termine' || status === 'terminé';
+          return s.stats.total - s.stats.annule > 0;
         });
         setSessions(activeSessions);
       }
@@ -103,13 +102,13 @@ export default function SessionsCalendarPage() {
 
   // Grouper les sessions par jour
   const sessionsByDay = useMemo(() => {
-    const grouped: Record<string, SessionFormationResponse[]> = {};
-    
+    const grouped: Record<string, GroupedSession[]> = {};
+
     sessions.forEach(session => {
       if (session.dateDebut) {
         const startDate = parseISO(session.dateDebut.toString());
         const endDate = session.dateFin ? parseISO(session.dateFin.toString()) : startDate;
-        
+
         // Ajouter la session pour chaque jour de la formation
         let currentDay = new Date(startDate);
         while (currentDay <= endDate) {
@@ -118,14 +117,14 @@ export default function SessionsCalendarPage() {
             grouped[dateKey] = [];
           }
           // Éviter les doublons
-          if (!grouped[dateKey].find(s => s.id === session.id)) {
+          if (!grouped[dateKey].find(s => s.groupKey === session.groupKey)) {
             grouped[dateKey].push(session);
           }
           currentDay.setDate(currentDay.getDate() + 1);
         }
       }
     });
-    
+
     return grouped;
   }, [sessions]);
 
@@ -133,9 +132,11 @@ export default function SessionsCalendarPage() {
   const departments = useMemo(() => {
     const deptSet = new Set<string>();
     sessions.forEach(session => {
-      if (session.collaborateur?.departement) {
-        deptSet.add(session.collaborateur.departement);
-      }
+      session.participants?.forEach(participant => {
+        if (participant.departement) {
+          deptSet.add(participant.departement);
+        }
+      });
     });
     return Array.from(deptSet).sort();
   }, [sessions]);
@@ -154,12 +155,12 @@ export default function SessionsCalendarPage() {
       return false;
     });
     
-    // Compter les collaborateurs uniques en formation ce mois
+    // Compter les participants uniques en formation ce mois
     const uniqueCollaborateurs = new Set();
     sessionsInMonth.forEach(session => {
-      if (session.collaborateur?.id) {
-        uniqueCollaborateurs.add(session.collaborateur.id);
-      }
+      session.participants?.forEach(participant => {
+        uniqueCollaborateurs.add(participant.collaborateurId);
+      });
     });
     
     return {
@@ -194,23 +195,31 @@ export default function SessionsCalendarPage() {
   };
 
   // Grouper les sessions par département pour un jour donné
-  const getSessionsByDepartment = (sessions: SessionFormationResponse[]) => {
-    const grouped: Record<string, SessionFormationResponse[]> = {};
+  const getSessionsByDepartment = (sessions: GroupedSession[]) => {
+    const grouped: Record<string, GroupedSession[]> = {};
     sessions.forEach(session => {
-      const dept = session.collaborateur?.departement || 'Non défini';
-      if (!grouped[dept]) {
-        grouped[dept] = [];
-      }
-      grouped[dept].push(session);
+      // Regrouper par département des participants
+      const deptSet = new Set<string>();
+      session.participants?.forEach(p => {
+        if (p.departement) deptSet.add(p.departement);
+      });
+
+      // Ajouter la session à chaque département concerné
+      deptSet.forEach(dept => {
+        if (!grouped[dept]) {
+          grouped[dept] = [];
+        }
+        grouped[dept].push(session);
+      });
     });
     return grouped;
   };
 
   // Grouper les sessions par formation pour un jour donné
-  const getSessionsByFormation = (sessions: SessionFormationResponse[]) => {
-    const grouped: Record<string, SessionFormationResponse[]> = {};
+  const getSessionsByFormation = (sessions: GroupedSession[]) => {
+    const grouped: Record<string, GroupedSession[]> = {};
     sessions.forEach(session => {
-      const formation = session.formation?.nom || 'Formation inconnue';
+      const formation = session.formationNom || 'Formation inconnue';
       if (!grouped[formation]) {
         grouped[formation] = [];
       }
@@ -403,10 +412,10 @@ export default function SessionsCalendarPage() {
                             {filteredSessions.length} session{filteredSessions.length > 1 ? 's' : ''}
                           </Badge>
                           
-                          {/* Afficher les 2 premières formations */}
+                          {/* Afficher les 2 premières sessions */}
                           {filteredSessions.slice(0, 2).map((session, idx) => (
-                            <Text key={`${session.id}-${idx}`} size="xs" c="dimmed" truncate>
-                              {session.collaborateur?.prenom} {session.collaborateur?.nom}
+                            <Text key={`${session.groupKey}-${idx}`} size="xs" c="dimmed" truncate>
+                              {session.formationNom} ({session.stats.total})
                             </Text>
                           ))}
                           
@@ -458,40 +467,69 @@ export default function SessionsCalendarPage() {
               <Tabs.Panel value="list">
                 <Stack gap="sm">
                   {selectedSessions.map(session => (
-                    <Paper key={session.id} p="sm" radius="md" withBorder>
-                      <Group justify="space-between">
-                        <Group>
-                          <Avatar radius="xl" color="blue" size="md">
-                            {session.collaborateur?.prenom?.[0]}{session.collaborateur?.nom?.[0]}
-                          </Avatar>
-                          <div>
+                    <Paper key={session.groupKey} p="sm" radius="md" withBorder>
+                      <Group justify="space-between" align="flex-start">
+                        <div style={{ flex: 1 }}>
+                          <Group gap="sm" mb="xs">
+                            <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                              <CalendarIcon size={20} />
+                            </ThemeIcon>
+                            <div>
+                              <Text size="sm" fw={600}>
+                                {session.formationNom}
+                              </Text>
+                              <Group gap="xs" mt={2}>
+                                <Badge size="xs" variant="light">
+                                  {session.categorie || 'Non catégorisée'}
+                                </Badge>
+                                {session.organisme && (
+                                  <Text size="xs" c="dimmed">
+                                    {session.organisme}
+                                  </Text>
+                                )}
+                              </Group>
+                            </div>
+                          </Group>
+
+                          <Group gap="xs" mb="xs">
+                            <ThemeIcon size="xs" variant="light" color="gray">
+                              <Users size={12} />
+                            </ThemeIcon>
                             <Text size="sm" fw={500}>
-                              {session.collaborateur?.prenom} {session.collaborateur?.nom}
+                              {session.stats.total} participant{session.stats.total > 1 ? 's' : ''}
                             </Text>
-                            <Group gap="xs">
-                              <Badge size="xs" variant="light">
-                                {session.collaborateur?.departement}
+                            {session.stats.inscrit > 0 && (
+                              <Badge size="xs" color="blue" variant="light">
+                                {session.stats.inscrit} inscrit{session.stats.inscrit > 1 ? 's' : ''}
                               </Badge>
-                              <Text size="xs" c="dimmed">
-                                {session.formation?.nom}
-                              </Text>
-                            </Group>
-                            <Group gap="xs" mt={4}>
-                              <ThemeIcon size="xs" variant="light" color="gray">
-                                <Clock size={12} />
-                              </ThemeIcon>
-                              <Text size="xs" c="dimmed">
-                                {session.dateDebut && format(parseISO(session.dateDebut.toString()), 'd MMM', { locale: fr })}
-                                {session.dateFin && ` - ${format(parseISO(session.dateFin.toString()), 'd MMM yyyy', { locale: fr })}`}
-                                {session.formation?.dureeHeures && ` (${session.formation.dureeHeures}h)`}
-                              </Text>
-                            </Group>
-                          </div>
-                        </Group>
+                            )}
+                            {session.stats.enCours > 0 && (
+                              <Badge size="xs" color="yellow" variant="light">
+                                {session.stats.enCours} en cours
+                              </Badge>
+                            )}
+                            {session.stats.complete > 0 && (
+                              <Badge size="xs" color="green" variant="light">
+                                {session.stats.complete} terminé{session.stats.complete > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </Group>
+
+                          <Group gap="xs">
+                            <ThemeIcon size="xs" variant="light" color="gray">
+                              <Clock size={12} />
+                            </ThemeIcon>
+                            <Text size="xs" c="dimmed">
+                              {session.dateDebut && format(parseISO(session.dateDebut.toString()), 'd MMM', { locale: fr })}
+                              {session.dateFin && ` - ${format(parseISO(session.dateFin.toString()), 'd MMM yyyy', { locale: fr })}`}
+                              {session.dureeHeures && ` (${session.dureeHeures}h)`}
+                            </Text>
+                          </Group>
+                        </div>
                         <Button
                           size="xs"
                           variant="light"
-                          onClick={() => router.push(`/sessions/${session.id}`)}
+                          onClick={() => router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey)}`)}
                         >
                           Détails
                         </Button>
@@ -508,18 +546,23 @@ export default function SessionsCalendarPage() {
                       <Group justify="space-between" mb="xs">
                         <Text fw={500}>{dept}</Text>
                         <Badge color="blue">
-                          {deptSessions.length} personne{deptSessions.length > 1 ? 's' : ''}
+                          {deptSessions.length} session{deptSessions.length > 1 ? 's' : ''}
                         </Badge>
                       </Group>
                       <Stack gap="xs">
                         {deptSessions.map(session => (
-                          <Group key={session.id} justify="space-between">
-                            <Text size="sm">
-                              {session.collaborateur?.prenom} {session.collaborateur?.nom}
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              {session.formation?.nom}
-                            </Text>
+                          <Group key={session.groupKey} justify="space-between" align="flex-start">
+                            <div style={{ flex: 1 }}>
+                              <Text size="sm" fw={500}>
+                                {session.formationNom}
+                              </Text>
+                              <Group gap="xs" mt={2}>
+                                <Users size={14} />
+                                <Text size="xs" c="dimmed">
+                                  {session.stats.total} participant{session.stats.total > 1 ? 's' : ''}
+                                </Text>
+                              </Group>
+                            </div>
                           </Group>
                         ))}
                       </Stack>

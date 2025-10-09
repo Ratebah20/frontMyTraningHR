@@ -23,8 +23,11 @@ export const statsService = {
   // ==================== NOUVEAUX ENDPOINTS DASHBOARD ====================
   
   // Récupérer le résumé du dashboard
-  async getDashboardSummary(): Promise<any> {
-    const response = await api.get('/stats/dashboard-summary');
+  async getDashboardSummary(periode?: 'annee' | 'mois', date?: string): Promise<any> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (date) params.date = date;
+    const response = await api.get('/stats/dashboard-summary', { params });
     return response.data;
   },
 

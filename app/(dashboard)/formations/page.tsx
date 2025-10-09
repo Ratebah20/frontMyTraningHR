@@ -26,6 +26,7 @@ import {
   Grid,
   Tooltip,
   Skeleton,
+  Table,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -47,6 +48,8 @@ import {
   ChartBar,
   ArrowsClockwise,
   FunnelSimple,
+  List,
+  SquaresFour,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { formationsService, commonService } from '@/lib/services';
@@ -88,6 +91,7 @@ export default function FormationsPage() {
   const [formations, setFormations] = useState<Formation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   
   // États pour les listes dynamiques
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
@@ -345,6 +349,15 @@ export default function FormationsPage() {
             </Text>
           </div>
           <Group>
+            <Tooltip label={viewMode === 'cards' ? 'Affichage liste' : 'Affichage cartes'}>
+              <ActionIcon
+                variant="light"
+                size="lg"
+                onClick={() => setViewMode(viewMode === 'cards' ? 'list' : 'cards')}
+              >
+                {viewMode === 'cards' ? <List size={20} /> : <SquaresFour size={20} />}
+              </ActionIcon>
+            </Tooltip>
             <Tooltip label="Rafraîchir">
               <ActionIcon 
                 variant="light" 
@@ -504,7 +517,8 @@ export default function FormationsPage() {
         </Alert>
       ) : formations.length > 0 ? (
         <>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="xl" mb="xl">
+          {viewMode === 'cards' ? (
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="xl" mb="xl">
             {formations.map((formation) => (
               <Paper
                 key={formation.id}
@@ -579,13 +593,10 @@ export default function FormationsPage() {
 
                 {/* Contenu principal */}
                 <Box p="md" pt="xs">
-                  {/* Titre et code */}
+                  {/* Titre */}
                   <Box mb="md">
                     <Text fw={600} size="md" lineClamp={2} style={{ minHeight: '48px' }}>
                       {formation.nomFormation || formation.titre}
-                    </Text>
-                    <Text size="xs" c="dimmed" mt={4}>
-                      {formation.codeFormation}
                     </Text>
                   </Box>
 
@@ -667,6 +678,162 @@ export default function FormationsPage() {
               </Paper>
             ))}
           </SimpleGrid>
+          ) : (
+            // Vue liste
+            <Paper shadow="xs" p="md" radius="md" mb="xl">
+              <Table highlightOnHover verticalSpacing="md">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Formation</Table.Th>
+                    <Table.Th>Catégorie / Type</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Durée</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Sessions</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Participants</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Statut</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {formations.map((formation) => (
+                    <Table.Tr
+                      key={formation.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => handleViewDetails(formation.id)}
+                    >
+                      <Table.Td>
+                        <Box
+                          style={{
+                            borderLeft: `4px solid var(--mantine-color-${categoryColors[getCategoryName(formation.categorie)] || 'blue'}-5)`,
+                            paddingLeft: '12px',
+                          }}
+                        >
+                          <Text size="sm" fw={600} lineClamp={2}>
+                            {formation.nomFormation || formation.titre}
+                          </Text>
+                        </Box>
+                      </Table.Td>
+
+                      <Table.Td>
+                        <Stack gap={4}>
+                          {getCategoryName(formation.categorie) && (
+                            <Badge
+                              variant="light"
+                              color={categoryColors[getCategoryName(formation.categorie)] || 'gray'}
+                              size="sm"
+                            >
+                              {getCategoryName(formation.categorie)}
+                            </Badge>
+                          )}
+                          {formation.typeFormation && (
+                            <Badge
+                              variant="outline"
+                              color={typeColors[formation.typeFormation] || 'gray'}
+                              size="xs"
+                            >
+                              {formation.typeFormation}
+                            </Badge>
+                          )}
+                        </Stack>
+                      </Table.Td>
+
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        <Group gap={4} justify="center">
+                          <Clock size={16} color="var(--mantine-color-blue-6)" />
+                          <Text size="sm" fw={500}>
+                            {formation.dureePrevue || 0}
+                            {formation.uniteDuree?.toLowerCase() === 'heures' ? 'h' : formation.uniteDuree || 'h'}
+                          </Text>
+                        </Group>
+                      </Table.Td>
+
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        <Group gap={4} justify="center">
+                          <Calendar size={16} color="var(--mantine-color-green-6)" />
+                          <Text size="sm" fw={500}>
+                            {formation.nombreSessions || formation._count?.sessions || 0}
+                          </Text>
+                        </Group>
+                      </Table.Td>
+
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        <Group gap={4} justify="center">
+                          <Users size={16} color="var(--mantine-color-violet-6)" />
+                          <Text size="sm" fw={500}>
+                            {formation.nombreParticipants || 0}
+                          </Text>
+                        </Group>
+                      </Table.Td>
+
+                      <Table.Td style={{ textAlign: 'center' }}>
+                        <Badge
+                          size="sm"
+                          variant="dot"
+                          color={formation.actif ? 'green' : 'red'}
+                        >
+                          {formation.actif ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </Table.Td>
+
+                      <Table.Td style={{ textAlign: 'right' }}>
+                        <Group gap="xs" justify="flex-end">
+                          <Tooltip label="Voir détails">
+                            <ActionIcon
+                              variant="light"
+                              color="blue"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewDetails(formation.id);
+                              }}
+                            >
+                              <Eye size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Modifier">
+                            <ActionIcon
+                              variant="light"
+                              color="gray"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEdit(formation.id);
+                              }}
+                            >
+                              <PencilSimple size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                          <Tooltip label="Supprimer">
+                            <ActionIcon
+                              variant="light"
+                              color="red"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(formation.id, formation.nomFormation || formation.titre || '');
+                              }}
+                            >
+                              <Trash size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  ))}
+                </Table.Tbody>
+              </Table>
+
+              {formations.length === 0 && (
+                <Center h={200}>
+                  <Stack align="center">
+                    <List size={48} color="#868E96" />
+                    <Text size="lg" fw={500} c="dimmed">
+                      Aucune formation à afficher
+                    </Text>
+                  </Stack>
+                </Center>
+              )}
+            </Paper>
+          )}
 
           {/* Pagination */}
           <Paper shadow="xs" p="lg" radius="md">

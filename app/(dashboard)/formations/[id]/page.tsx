@@ -442,46 +442,138 @@ export default function FormationDetailPage({ params }: Props) {
                   </Center>
                 ) : (
                   <Stack gap="md">
-                    {formation.sessionsRecentes?.map((session: any) => (
-                      <Paper key={session.id} p="md" withBorder>
-                        <Group justify="space-between">
-                          <div>
-                            <Group gap="sm">
-                              <Text fw={500}>{session.collaborateur.nomComplet}</Text>
-                              <Badge size="sm" variant="light">
-                                {session.collaborateur.departement}
-                              </Badge>
-                            </Group>
-                            <Group gap="xs" mt="xs">
-                              <Text size="sm" c="dimmed">
-                                Du {formatDate(session.dateDebut)} au {formatDate(session.dateFin)}
-                              </Text>
-                              <Text size="sm" c="dimmed">•</Text>
-                              <Text size="sm" c="dimmed">
-                                {session.organisme}
-                              </Text>
-                              {session.tarifHT && (
-                                <>
-                                  <Text size="sm" c="dimmed">•</Text>
+                    {/* Grouper les sessions par date/organisme */}
+                    {(() => {
+                      // Grouper les sessions récentes
+                      const groupedSessions = new Map<string, any[]>();
+
+                      formation.sessionsRecentes?.forEach((session: any) => {
+                        const dateDebut = session.dateDebut || 'sans_date';
+                        const dateFin = session.dateFin || 'sans_date';
+                        const organisme = session.organisme || 'sans_organisme';
+                        const key = `${dateDebut}_${dateFin}_${organisme}`;
+
+                        if (!groupedSessions.has(key)) {
+                          groupedSessions.set(key, []);
+                        }
+                        groupedSessions.get(key)?.push(session);
+                      });
+
+                      // Convertir en array et trier par date
+                      const sessionsArray = Array.from(groupedSessions.entries())
+                        .map(([key, sessions]) => {
+                          const firstSession = sessions[0];
+                          // Calculer les stats
+                          const stats = {
+                            total: sessions.length,
+                            inscrit: sessions.filter(s => ['inscrit', 'INSCRIT', 'Inscrit'].includes(s.statut)).length,
+                            enCours: sessions.filter(s => ['en_cours', 'EN_COURS', 'En cours'].includes(s.statut)).length,
+                            complete: sessions.filter(s => ['complete', 'COMPLETE', 'TERMINE', 'Terminé', 'terminé'].includes(s.statut)).length,
+                            annule: sessions.filter(s => ['annule', 'ANNULE', 'Annulé', 'annulé'].includes(s.statut)).length,
+                          };
+
+                          // Déterminer le statut dominant
+                          let statutDominant = 'En cours';
+                          let color = 'yellow';
+                          if (stats.complete > stats.total / 2) {
+                            statutDominant = 'Majoritairement terminée';
+                            color = 'green';
+                          } else if (stats.annule === stats.total) {
+                            statutDominant = 'Annulée';
+                            color = 'red';
+                          } else if (stats.inscrit > 0) {
+                            statutDominant = 'Inscriptions ouvertes';
+                            color = 'blue';
+                          }
+
+                          return {
+                            key,
+                            dateDebut: firstSession.dateDebut,
+                            dateFin: firstSession.dateFin,
+                            organisme: firstSession.organisme,
+                            tarifHT: firstSession.tarifHT,
+                            stats,
+                            statutDominant,
+                            color,
+                            sessions
+                          };
+                        })
+                        .sort((a, b) => {
+                          if (!a.dateDebut) return 1;
+                          if (!b.dateDebut) return -1;
+                          return new Date(b.dateDebut).getTime() - new Date(a.dateDebut).getTime();
+                        });
+
+                      return sessionsArray.map((groupedSession) => (
+                        <Paper key={groupedSession.key} p="md" withBorder>
+                          <Group justify="space-between" align="flex-start">
+                            <div style={{ flex: 1 }}>
+                              <Group gap="sm" mb="xs">
+                                <Calendar size={20} style={{ color: 'var(--mantine-color-blue-6)' }} />
+                                <Text fw={500}>Session de formation</Text>
+                              </Group>
+
+                              <Group gap="xs" mb="sm">
+                                {groupedSession.dateDebut ? (
                                   <Text size="sm" c="dimmed">
-                                    {formatCurrency(session.tarifHT)}
+                                    Du {formatDate(groupedSession.dateDebut)} au {formatDate(groupedSession.dateFin)}
                                   </Text>
-                                </>
-                              )}
-                            </Group>
-                          </div>
-                          <Badge color={getStatutColor(session.statut)}>
-                            {session.statut}
-                          </Badge>
-                        </Group>
-                      </Paper>
-                    ))}
-                    {total > formation.sessionsRecentes?.length && (
-                      <Button 
-                        variant="subtle" 
+                                ) : (
+                                  <Text size="sm" c="dimmed">Date non définie</Text>
+                                )}
+                                {groupedSession.organisme && (
+                                  <>
+                                    <Text size="sm" c="dimmed">•</Text>
+                                    <Text size="sm" c="dimmed">
+                                      {groupedSession.organisme}
+                                    </Text>
+                                  </>
+                                )}
+                                {groupedSession.tarifHT && (
+                                  <>
+                                    <Text size="sm" c="dimmed">•</Text>
+                                    <Text size="sm" c="dimmed">
+                                      {formatCurrency(groupedSession.tarifHT)}
+                                    </Text>
+                                  </>
+                                )}
+                              </Group>
+
+                              <Group gap="xs">
+                                <Users size={16} style={{ color: 'var(--mantine-color-violet-6)' }} />
+                                <Text size="sm" fw={500}>
+                                  {groupedSession.stats.total} participant{groupedSession.stats.total > 1 ? 's' : ''}
+                                </Text>
+                                {groupedSession.stats.inscrit > 0 && (
+                                  <Badge size="xs" color="blue" variant="light">
+                                    {groupedSession.stats.inscrit} inscrit{groupedSession.stats.inscrit > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                                {groupedSession.stats.enCours > 0 && (
+                                  <Badge size="xs" color="yellow" variant="light">
+                                    {groupedSession.stats.enCours} en cours
+                                  </Badge>
+                                )}
+                                {groupedSession.stats.complete > 0 && (
+                                  <Badge size="xs" color="green" variant="light">
+                                    {groupedSession.stats.complete} terminé{groupedSession.stats.complete > 1 ? 's' : ''}
+                                  </Badge>
+                                )}
+                              </Group>
+                            </div>
+                            <Badge color={groupedSession.color} size="md">
+                              {groupedSession.statutDominant}
+                            </Badge>
+                          </Group>
+                        </Paper>
+                      ));
+                    })()}
+                    {total > 0 && (
+                      <Button
+                        variant="subtle"
                         onClick={() => router.push(`/formations/${params.id}/sessions`)}
                       >
-                        Voir toutes les {total} sessions
+                        Voir toutes les sessions
                       </Button>
                     )}
                   </Stack>

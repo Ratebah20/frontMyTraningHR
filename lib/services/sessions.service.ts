@@ -1,12 +1,13 @@
 import api from '../api';
-import { 
+import {
   SessionFormation,
   SessionFormationResponse,
-  SessionPaginatedResponse, 
-  SessionFilters, 
-  CreateSessionDto, 
-  UpdateSessionDto, 
-  PaginatedResponse 
+  SessionPaginatedResponse,
+  SessionFilters,
+  CreateSessionDto,
+  UpdateSessionDto,
+  PaginatedResponse,
+  GroupedSessionPaginatedResponse
 } from '../types';
 
 export const sessionsService = {
@@ -48,6 +49,12 @@ export const sessionsService = {
   // Récupérer le planning des sessions
   async getPlanning(filters?: SessionFilters): Promise<SessionPaginatedResponse> {
     const response = await api.get('/sessions/planning', { params: filters });
+    return response.data;
+  },
+
+  // Récupérer les sessions groupées par formation
+  async getGroupedSessions(filters?: SessionFilters): Promise<GroupedSessionPaginatedResponse> {
+    const response = await api.get('/sessions/grouped', { params: filters });
     return response.data;
   },
 

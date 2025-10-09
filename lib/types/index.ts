@@ -238,6 +238,52 @@ export interface SessionPaginatedResponse {
   meta: SessionPaginationMeta;
 }
 
+// Types pour les sessions groupées
+export interface GroupedSessionParticipant {
+  sessionId: number;
+  collaborateurId: number;
+  nom: string;
+  prenom: string;
+  email: string;
+  departement: string;
+  matricule?: string;
+  statut: string;
+  dateDebut?: string;
+  dateFin?: string;
+  note?: number;
+  commentaire?: string;
+}
+
+export interface GroupedSessionStats {
+  total: number;
+  inscrit: number;
+  enCours: number;
+  complete: number;
+  annule: number;
+}
+
+export interface GroupedSession {
+  groupKey: string;
+  formationId: number;
+  formationNom: string;
+  formationCode: string;
+  categorie?: string;
+  typeFormation?: string;
+  dureeHeures?: number;
+  dateDebut?: string;
+  dateFin?: string;
+  organisme?: string;
+  stats: GroupedSessionStats;
+  participants: GroupedSessionParticipant[];
+  tarifHT?: number;
+  coutTotal?: number;
+}
+
+export interface GroupedSessionPaginatedResponse {
+  data: GroupedSession[];
+  meta: SessionPaginationMeta;
+}
+
 // Types pour les rapports et statistiques
 
 export interface DashboardStats {

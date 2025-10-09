@@ -48,6 +48,7 @@ import {
 import { statsService } from '@/lib/services';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
+import { PeriodSelector } from '@/components/PeriodSelector';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -58,14 +59,18 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<any>(null);
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
+  // États pour le sélecteur de période
+  const [periode, setPeriode] = useState<'annee' | 'mois'>('annee');
+  const [date, setDate] = useState(new Date().getFullYear().toString());
+
   // Charger les données du dashboard
   const loadDashboardData = async (showLoader = true) => {
     if (showLoader) setLoading(true);
     else setRefreshing(true);
-    
+
     try {
       const [summaryData, chartsData, alertsData] = await Promise.all([
-        statsService.getDashboardSummary(),
+        statsService.getDashboardSummary(periode, date),
         statsService.getDashboardCharts(),
         statsService.getDashboardAlerts()
       ]);
@@ -90,6 +95,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadDashboardData();
+  }, [periode, date]); // Recharger quand la période change
+
+  useEffect(() => {
     // Rafraîchissement automatique toutes les 5 minutes
     const interval = setInterval(() => loadDashboardData(false), 5 * 60 * 1000);
     return () => clearInterval(interval);
@@ -107,62 +115,42 @@ export default function DashboardPage() {
     });
   };
 
-  // Définition des 15 KPIs
+  // Définition des 12 KPIs optimisés
   const kpiCards = summary ? [
-    // Ligne 1 : Collaborateurs
+    // Ligne 1 : Vue d'ensemble (4 KPIs)
     {
       title: "Total collaborateurs",
       value: summary.totalCollaborateurs || 0,
       subtitle: `${summary.collaborateursActifs || 0} actifs`,
       icon: Users,
       color: "blue",
-      progress: summary.collaborateursActifs && summary.totalCollaborateurs 
-        ? Math.round((summary.collaborateursActifs / summary.totalCollaborateurs) * 100) 
-        : 0,
     },
     {
       title: "Taux de participation",
       value: `${summary.tauxParticipation || 0}%`,
-      subtitle: `${summary.collaborateursAvecFormation || 0} formés`,
+      subtitle: "Collaborateurs formés",
       icon: ChartLine,
       color: "teal",
       progress: summary.tauxParticipation || 0,
     },
     {
-      title: "Nouveaux collaborateurs",
-      value: summary.nouveauxCollaborateurs || 0,
-      subtitle: "30 derniers jours",
-      icon: UserPlus,
+      title: "Budget utilisé",
+      value: `${summary.tauxBudget || 0}%`,
+      subtitle: `${(summary.budgetUtilise / 1000).toFixed(0)}k€ / ${(summary.budgetPrevu / 1000).toFixed(0)}k€`,
+      icon: Package,
+      color: summary.tauxBudget > 90 ? "red" : summary.tauxBudget > 75 ? "orange" : "green",
+      progress: summary.tauxBudget || 0,
+    },
+    {
+      title: "Taux d'assiduité",
+      value: `${summary.tauxAssiduite || 0}%`,
+      subtitle: "Sessions honorées",
+      icon: CheckCircle,
       color: "cyan",
+      progress: summary.tauxAssiduite || 0,
     },
-    
-    // Ligne 2 : Formations
-    {
-      title: "Total formations",
-      value: summary.totalFormations || 0,
-      subtitle: `${summary.formationsActives || 0} actives`,
-      icon: BookOpen,
-      color: "violet",
-      progress: summary.formationsActives && summary.totalFormations
-        ? Math.round((summary.formationsActives / summary.totalFormations) * 100)
-        : 0,
-    },
-    {
-      title: "Catégories",
-      value: summary.nombreCategories || 0,
-      subtitle: "Types de formation",
-      icon: Tag,
-      color: "grape",
-    },
-    {
-      title: "Organismes",
-      value: summary.nombreOrganismes || 0,
-      subtitle: "Prestataires",
-      icon: Buildings,
-      color: "indigo",
-    },
-    
-    // Ligne 3 : Sessions
+
+    // Ligne 2 : Sessions actives (3 KPIs)
     {
       title: "Sessions en cours",
       value: summary.sessionsEnCours || 0,
@@ -181,58 +169,50 @@ export default function DashboardPage() {
     {
       title: "Sessions terminées",
       value: summary.sessionsTerminees || 0,
-      subtitle: "Complétées",
+      subtitle: periode === 'mois' ? 'Ce mois' : 'Cette année',
       icon: CheckCircle,
       color: "teal",
     },
-    
-    // Ligne 4 : Métriques
+
+    // Ligne 3 : Performance & Qualité (3 KPIs)
     {
-      title: "Heures totales",
-      value: summary.heuresFormationTotal?.toLocaleString() || 0,
-      subtitle: "Cumulées",
-      icon: Clock,
-      color: "orange",
-    },
-    {
-      title: "Heures ce mois",
-      value: summary.heuresFormationMois || 0,
-      subtitle: `${summary.sessionsMois || 0} sessions`,
-      icon: Clock,
-      color: "yellow",
-    },
-    {
-      title: "Départements",
-      value: summary.nombreDepartements || 0,
-      subtitle: "Services actifs",
-      icon: Buildings,
-      color: "pink",
-    },
-    
-    // Ligne 5 : Performance
-    {
-      title: "Taux complétion mois",
-      value: `${summary.tauxCompletion || 0}%`,
-      subtitle: `${summary.sessionsTermineesMois || 0}/${summary.sessionsMois || 0}`,
-      icon: TrendUp,
-      color: "green",
-      progress: summary.tauxCompletion || 0,
-    },
-    {
-      title: "Taux complétion global",
-      value: `${summary.tauxCompletionGlobal || 0}%`,
-      subtitle: "Toutes sessions",
-      icon: CheckCircle,
-      color: "lime",
-      progress: summary.tauxCompletionGlobal || 0,
+      title: "Formations obligatoires",
+      value: `${summary.tauxObligatoires || 0}%`,
+      subtitle: `${summary.formationsObligatoiresCompletees || 0}/${summary.formationsObligatoiresTotal || 0}`,
+      icon: WarningCircle,
+      color: summary.tauxObligatoires < 100 ? "red" : "green",
+      progress: summary.tauxObligatoires || 0,
     },
     {
       title: "Taux annulation",
       value: `${summary.tauxAnnulation || 0}%`,
-      subtitle: `${summary.sessionsAnnulees || 0} annulées`,
+      subtitle: "À minimiser",
       icon: XCircle,
       color: summary.tauxAnnulation > 10 ? "red" : "gray",
       progress: summary.tauxAnnulation || 0,
+    },
+    {
+      title: "Temps moyen complétion",
+      value: `${summary.tempsMoyenCompletion || 0}j`,
+      subtitle: "De début à fin",
+      icon: Clock,
+      color: "violet",
+    },
+
+    // Ligne 4 : Volumétrie (2 KPIs)
+    {
+      title: "Heures formation",
+      value: summary.heuresFormationPeriode || 0,
+      subtitle: periode === 'mois' ? 'Ce mois' : 'Cette année',
+      icon: Clock,
+      color: "orange",
+    },
+    {
+      title: "Départements actifs",
+      value: summary.nombreDepartements || 0,
+      subtitle: "Services",
+      icon: Buildings,
+      color: "pink",
     },
   ] : [];
 
@@ -244,8 +224,8 @@ export default function DashboardPage() {
             <Title order={1}>Tableau de bord</Title>
             <Text size="lg" c="dimmed">Chargement des données...</Text>
           </div>
-          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="lg">
-            {[...Array(15)].map((_, i) => (
+          <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg">
+            {[...Array(12)].map((_, i) => (
               <Card key={i} shadow="sm" radius="md" withBorder>
                 <Skeleton height={120} />
               </Card>
@@ -258,31 +238,45 @@ export default function DashboardPage() {
 
   return (
     <Container size="xl">
-      <Group justify="space-between" mb="xl">
-        <div>
-          <Title order={1}>Tableau de bord</Title>
-          <Text size="lg" c="dimmed">Vue d'ensemble avec 15 KPIs essentiels</Text>
-        </div>
-        <Group>
-          {alerts?.derniereMAJ && (
-            <Badge size="lg" variant="light" color="blue" leftSection={<Info size={14} />}>
-              Dernière synchro : {formatLastUpdate()}
-            </Badge>
-          )}
-          <Button 
-            variant="light" 
-            size="sm" 
-            onClick={() => loadDashboardData(false)}
-            loading={refreshing}
-            leftSection={<ArrowClockwise size={16} />}
-          >
-            Actualiser
-          </Button>
+      <Stack gap="lg" mb="xl">
+        <Group justify="space-between">
+          <div>
+            <Title order={1}>Tableau de bord</Title>
+            <Text size="lg" c="dimmed">Vue d'ensemble avec 12 KPIs optimisés</Text>
+          </div>
+          <Group>
+            {alerts?.derniereMAJ && (
+              <Badge size="lg" variant="light" color="blue" leftSection={<Info size={14} />}>
+                Dernière synchro : {formatLastUpdate()}
+              </Badge>
+            )}
+            <Button
+              variant="light"
+              size="sm"
+              onClick={() => loadDashboardData(false)}
+              loading={refreshing}
+              leftSection={<ArrowClockwise size={16} />}
+            >
+              Actualiser
+            </Button>
+          </Group>
         </Group>
-      </Group>
 
-      {/* 15 KPIs Cards */}
-      <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="md" mb="xl">
+        {/* Sélecteur de période */}
+        <Paper shadow="sm" radius="md" p="md" withBorder>
+          <PeriodSelector
+            periode={periode}
+            date={date}
+            onChange={(newPeriode, newDate) => {
+              setPeriode(newPeriode);
+              setDate(newDate);
+            }}
+          />
+        </Paper>
+      </Stack>
+
+      {/* 12 KPIs Cards */}
+      <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md" mb="xl">
         {kpiCards.map((kpi, index) => (
           <Card 
             key={index}

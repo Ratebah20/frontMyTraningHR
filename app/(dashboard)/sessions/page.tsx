@@ -30,6 +30,7 @@ import {
   Progress,
   Divider,
   Modal,
+  Table,
 } from '@mantine/core';
 // import { DatePickerInput } from '@mantine/dates'; // Module non installé
 import { notifications } from '@mantine/notifications';
@@ -62,7 +63,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
 import { StatutUtils } from '@/lib/utils/statut.utils';
-import { SessionFormationResponse, SessionFilters } from '@/lib/types';
+import { SessionFormationResponse, SessionFilters, GroupedSession } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
 // Couleurs par statut
@@ -120,7 +121,7 @@ export default function SessionsPage() {
   const router = useRouter();
   
   // États
-  const [sessions, setSessions] = useState<SessionFormationResponse[]>([]);
+  const [sessions, setSessions] = useState<GroupedSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
@@ -162,7 +163,7 @@ export default function SessionsPage() {
   const loadSessions = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
       const filters: SessionFilters = {
         search: debouncedSearch,
@@ -174,9 +175,9 @@ export default function SessionsPage() {
         page,
         limit,
       };
-      
-      const response = await sessionsService.getPlanning(filters);
-      
+
+      const response = await sessionsService.getGroupedSessions(filters);
+
       // Le backend retourne toujours un objet avec data et meta
       if (response && response.data) {
         setSessions(response.data);
@@ -213,37 +214,12 @@ export default function SessionsPage() {
     setPage(1);
   }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter]);
 
-  const handleViewDetails = (id: number) => {
-    router.push(`/sessions/${id}`);
+  const handleViewDetails = (groupKey: string) => {
+    router.push(`/sessions/grouped/${encodeURIComponent(groupKey)}`);
   };
 
-  const handleEdit = (id: number) => {
-    router.push(`/sessions/${id}/edit`);
-  };
-
-  const handleCancel = async (id: number) => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler cette session ?')) {
-      return;
-    }
-    
-    try {
-      await sessionsService.cancelSession(id);
-      notifications.show({
-        title: 'Succès',
-        message: 'Session annulée avec succès',
-        color: 'green',
-        icon: <CheckCircle size={20} />,
-      });
-      loadSessions();
-      loadGlobalStats();
-    } catch (err: any) {
-      notifications.show({
-        title: 'Erreur',
-        message: err.message || 'Erreur lors de l\'annulation',
-        color: 'red',
-        icon: <Warning size={20} />,
-      });
-    }
+  const handleViewFormation = (formationId: number) => {
+    router.push(`/formations/${formationId}`);
   };
 
   const handleRefresh = () => {
@@ -251,16 +227,13 @@ export default function SessionsPage() {
     loadGlobalStats();
   };
 
-  // Fonction pour normaliser et obtenir le statut
-  const getStatusInfo = (statut: string | undefined) => {
-    if (!statut) return { color: 'gray', label: 'Non défini', icon: CalendarCheck };
-    
-    // Chercher dans les configurations
-    const color = statusColors[statut] || 'gray';
-    const label = statusLabels[statut] || statut;
-    const Icon = statusIcons[statut] || CalendarCheck;
-    
-    return { color, label, Icon };
+  // Fonction pour obtenir le statut dominant d'une session groupée
+  const getDominantStatus = (stats: any) => {
+    if (stats.complete > stats.total / 2) return { color: 'green', label: 'Majoritairement terminé', icon: Certificate };
+    if (stats.enCours > 0) return { color: 'yellow', label: 'En cours', icon: Hourglass };
+    if (stats.inscrit > 0) return { color: 'blue', label: 'Inscriptions ouvertes', icon: CalendarCheck };
+    if (stats.annule === stats.total) return { color: 'red', label: 'Annulée', icon: CalendarX };
+    return { color: 'gray', label: 'Non défini', icon: CalendarCheck };
   };
 
   return (
@@ -454,12 +427,12 @@ export default function SessionsPage() {
           {viewMode === 'cards' ? (
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg" mb="xl">
               {sessions.map((session) => {
-                const statusInfo = getStatusInfo(session.statut);
-                const StatusIcon = statusInfo.Icon;
-                
+                const statusInfo = getDominantStatus(session.stats);
+                const StatusIcon = statusInfo.icon;
+
                 return (
                   <Paper
-                    key={session.id}
+                    key={session.groupKey}
                     radius="md"
                     withBorder
                     p="lg"
@@ -475,6 +448,7 @@ export default function SessionsPage() {
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = '';
                     }}
+                    onClick={() => handleViewDetails(session.groupKey)}
                   >
                     {/* Header */}
                     <Group justify="space-between" mb="md">
@@ -487,113 +461,131 @@ export default function SessionsPage() {
                       </Badge>
                       <Menu withinPortal position="bottom-end" shadow="sm">
                         <Menu.Target>
-                          <ActionIcon variant="subtle" color="gray" size="sm">
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <DotsThreeVertical size={16} />
                           </ActionIcon>
                         </Menu.Target>
                         <Menu.Dropdown>
                           <Menu.Item
                             leftSection={<Eye size={14} />}
-                            onClick={() => handleViewDetails(session.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(session.groupKey);
+                            }}
                           >
-                            Voir détails
+                            Voir les participants
                           </Menu.Item>
                           <Menu.Item
-                            leftSection={<PencilSimple size={14} />}
-                            onClick={() => handleEdit(session.id)}
+                            leftSection={<BookOpen size={14} />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewFormation(session.formationId);
+                            }}
                           >
-                            Modifier
-                          </Menu.Item>
-                          <Menu.Divider />
-                          <Menu.Item
-                            color="red"
-                            leftSection={<XCircle size={14} />}
-                            onClick={() => handleCancel(session.id)}
-                          >
-                            Annuler
+                            Voir la formation
                           </Menu.Item>
                         </Menu.Dropdown>
                       </Menu>
                     </Group>
 
-                    {/* Collaborateur */}
-                    <Group gap="xs" mb="sm">
-                      <Avatar size="sm" radius="xl" color="blue">
-                        {session.collaborateur ? `${session.collaborateur.prenom?.[0] || ''}${session.collaborateur.nom?.[0] || ''}` : 'NA'}
-                      </Avatar>
-                      <div style={{ flex: 1 }}>
-                        <Text size="sm" fw={500} lineClamp={1}>
-                          {session.collaborateur ? `${session.collaborateur.prenom} ${session.collaborateur.nom}` : 'Collaborateur inconnu'}
+                    {/* Nom de la formation */}
+                    <Stack gap="xs" mb="md">
+                      <Group gap="xs">
+                        <BookOpen size={20} color="#228BE6" />
+                        <Text size="md" fw={600} lineClamp={2}>
+                          {session.formationNom}
                         </Text>
-                        {session.collaborateur?.departement && (
-                          <Text size="xs" c="dimmed">
-                            {session.collaborateur.departement}
-                          </Text>
-                        )}
-                      </div>
-                    </Group>
+                      </Group>
+                      {session.formationCode && (
+                        <Text size="xs" c="dimmed" ml={28}>
+                          Code: {session.formationCode}
+                        </Text>
+                      )}
+                      {session.categorie && (
+                        <Badge variant="dot" color="gray" size="sm">
+                          {session.categorie}
+                        </Badge>
+                      )}
+                    </Stack>
 
                     <Divider my="sm" />
 
-                    {/* Formation */}
-                    <Stack gap="xs" mb="md">
-                      <Group gap="xs">
-                        <BookOpen size={16} color="#868E96" />
-                        <Text size="sm" fw={500} lineClamp={2}>
-                          {session.formation?.nom || 'Formation inconnue'}
+                    {/* Participants */}
+                    <Group gap="xs" mb="md">
+                      <Users size={18} color="#868E96" />
+                      <div style={{ flex: 1 }}>
+                        <Text size="sm" fw={500}>
+                          {session.stats.total} participant{session.stats.total > 1 ? 's' : ''}
                         </Text>
-                      </Group>
-                      {session.formation?.code && (
-                        <Text size="xs" c="dimmed" ml={20}>
-                          {session.formation.code}
-                        </Text>
-                      )}
-                    </Stack>
+                        <Group gap="xs" mt={2}>
+                          {session.stats.inscrit > 0 && (
+                            <Badge size="xs" color="blue" variant="light">
+                              {session.stats.inscrit} inscrit{session.stats.inscrit > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                          {session.stats.enCours > 0 && (
+                            <Badge size="xs" color="yellow" variant="light">
+                              {session.stats.enCours} en cours
+                            </Badge>
+                          )}
+                          {session.stats.complete > 0 && (
+                            <Badge size="xs" color="green" variant="light">
+                              {session.stats.complete} terminé{session.stats.complete > 1 ? 's' : ''}
+                            </Badge>
+                          )}
+                        </Group>
+                      </div>
+                    </Group>
 
                     {/* Dates */}
-                    <Stack gap="xs" mb="md">
-                      <Group gap="xs">
-                        <Calendar size={16} color="#868E96" />
-                        <Text size="xs" c="dimmed">
-                          {session.dateDebut 
-                            ? `Du ${new Date(session.dateDebut).toLocaleDateString('fr-FR')}` 
-                            : 'Date non définie'}
-                          {session.dateFin && ` au ${new Date(session.dateFin).toLocaleDateString('fr-FR')}`}
-                        </Text>
-                      </Group>
-                      {(session.dureeHeures || session.formation?.dureeHeures) && (
+                    {(session.dateDebut || session.dateFin) && (
+                      <Stack gap="xs" mb="md">
                         <Group gap="xs">
-                          <Clock size={16} color="#868E96" />
+                          <Calendar size={16} color="#868E96" />
                           <Text size="xs" c="dimmed">
-                            {session.dureeHeures || session.formation?.dureeHeures} heures
+                            {session.dateDebut
+                              ? `Du ${new Date(session.dateDebut).toLocaleDateString('fr-FR')}`
+                              : 'Date non définie'}
+                            {session.dateFin && ` au ${new Date(session.dateFin).toLocaleDateString('fr-FR')}`}
                           </Text>
                         </Group>
-                      )}
-                    </Stack>
+                      </Stack>
+                    )}
 
-                    {/* Catégorie de formation */}
-                    {session.formation?.categorie && (
+                    {/* Durée */}
+                    {session.dureeHeures && (
                       <Group gap="xs" mb="md">
-                        <Building size={16} color="#868E96" />
+                        <Clock size={16} color="#868E96" />
                         <Text size="xs" c="dimmed">
-                          {session.formation.categorie}
+                          {session.dureeHeures} heures
                         </Text>
                       </Group>
                     )}
 
-                    {/* Note si complété */}
-                    {(statusInfo.label === 'Terminé' || session.statut === 'complete') && session.note !== null && session.note !== undefined && (
-                      <Box>
-                        <Text size="xs" c="dimmed" mb={4}>Note obtenue</Text>
-                        <Progress
-                          value={session.note}
-                          color={session.note >= 80 ? 'green' : session.note >= 60 ? 'yellow' : 'red'}
-                          size="sm"
-                          radius="sm"
-                        />
-                        <Text size="xs" c="dimmed" mt={2} ta="right">
-                          {session.note}/100
+                    {/* Organisme */}
+                    {session.organisme && (
+                      <Group gap="xs" mb="md">
+                        <Building size={16} color="#868E96" />
+                        <Text size="xs" c="dimmed" lineClamp={1}>
+                          {session.organisme}
                         </Text>
+                      </Group>
+                    )}
+
+                    {/* Coût */}
+                    {session.coutTotal && (
+                      <Box mt="md" pt="md" style={{ borderTop: '1px solid #E9ECEF' }}>
+                        <Group justify="space-between">
+                          <Text size="xs" c="dimmed">Coût total estimé</Text>
+                          <Text size="sm" fw={600} c="blue">
+                            {session.coutTotal.toFixed(2)} €
+                          </Text>
+                        </Group>
                       </Box>
                     )}
                   </Paper>
@@ -601,14 +593,219 @@ export default function SessionsPage() {
               })}
             </SimpleGrid>
           ) : (
-            // Vue liste (à implémenter si besoin)
-            <Paper shadow="xs" p="lg" radius="md" mb="xl">
-              <Center py="xl">
-                <Stack align="center">
-                  <List size={48} color="#868E96" />
-                  <Text size="lg" fw={500} c="dimmed">Vue liste en cours de développement</Text>
-                </Stack>
-              </Center>
+            // Vue liste
+            <Paper shadow="xs" p="md" radius="md" mb="xl">
+              <Table highlightOnHover verticalSpacing="md">
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Formation</Table.Th>
+                    <Table.Th>Dates</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Participants</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Statuts</Table.Th>
+                    <Table.Th style={{ textAlign: 'center' }}>Durée</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Coût</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {sessions.map((session) => {
+                    const statusInfo = getDominantStatus(session.stats);
+                    const StatusIcon = statusInfo.icon;
+
+                    return (
+                      <Table.Tr
+                        key={session.groupKey}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => handleViewDetails(session.groupKey)}
+                      >
+                        <Table.Td>
+                          <div>
+                            <Group gap="xs" mb={4}>
+                              <BookOpen size={16} color="#228BE6" />
+                              <Text size="sm" fw={600} lineClamp={1}>
+                                {session.formationNom}
+                              </Text>
+                            </Group>
+                            <Text size="xs" c="dimmed" ml={20}>
+                              {session.formationCode}
+                            </Text>
+                            {session.categorie && (
+                              <Badge variant="dot" color="gray" size="xs" mt={4}>
+                                {session.categorie}
+                              </Badge>
+                            )}
+                          </div>
+                        </Table.Td>
+
+                        <Table.Td>
+                          {session.dateDebut || session.dateFin ? (
+                            <div>
+                              <Group gap={4}>
+                                <Calendar size={14} color="#868E96" />
+                                <Text size="xs">
+                                  {session.dateDebut
+                                    ? new Date(session.dateDebut).toLocaleDateString('fr-FR', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                      })
+                                    : '-'}
+                                </Text>
+                              </Group>
+                              {session.dateFin && (
+                                <Text size="xs" c="dimmed" mt={2}>
+                                  au {new Date(session.dateFin).toLocaleDateString('fr-FR', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                  })}
+                                </Text>
+                              )}
+                            </div>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              Non planifiée
+                            </Text>
+                          )}
+                        </Table.Td>
+
+                        <Table.Td>
+                          <Stack gap={4} align="center">
+                            <Group gap="xs">
+                              <Users size={16} color="#868E96" />
+                              <Text size="sm" fw={600}>
+                                {session.stats.total}
+                              </Text>
+                            </Group>
+                            {session.organisme && (
+                              <Text size="xs" c="dimmed" lineClamp={1}>
+                                {session.organisme}
+                              </Text>
+                            )}
+                          </Stack>
+                        </Table.Td>
+
+                        <Table.Td>
+                          <Stack gap={4} align="center">
+                            <Badge
+                              leftSection={<StatusIcon size={12} />}
+                              color={statusInfo.color}
+                              variant="light"
+                              size="sm"
+                            >
+                              {statusInfo.label}
+                            </Badge>
+                            <Group gap={4} justify="center">
+                              {session.stats.inscrit > 0 && (
+                                <Tooltip label={`${session.stats.inscrit} inscrit(s)`}>
+                                  <Badge size="xs" color="blue" variant="dot">
+                                    {session.stats.inscrit}
+                                  </Badge>
+                                </Tooltip>
+                              )}
+                              {session.stats.enCours > 0 && (
+                                <Tooltip label={`${session.stats.enCours} en cours`}>
+                                  <Badge size="xs" color="yellow" variant="dot">
+                                    {session.stats.enCours}
+                                  </Badge>
+                                </Tooltip>
+                              )}
+                              {session.stats.complete > 0 && (
+                                <Tooltip label={`${session.stats.complete} terminé(s)`}>
+                                  <Badge size="xs" color="green" variant="dot">
+                                    {session.stats.complete}
+                                  </Badge>
+                                </Tooltip>
+                              )}
+                              {session.stats.annule > 0 && (
+                                <Tooltip label={`${session.stats.annule} annulé(s)`}>
+                                  <Badge size="xs" color="red" variant="dot">
+                                    {session.stats.annule}
+                                  </Badge>
+                                </Tooltip>
+                              )}
+                            </Group>
+                          </Stack>
+                        </Table.Td>
+
+                        <Table.Td style={{ textAlign: 'center' }}>
+                          {session.dureeHeures ? (
+                            <Group gap={4} justify="center">
+                              <Clock size={14} color="#868E96" />
+                              <Text size="sm">{session.dureeHeures}h</Text>
+                            </Group>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              -
+                            </Text>
+                          )}
+                        </Table.Td>
+
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          {session.coutTotal ? (
+                            <div>
+                              <Text size="sm" fw={600} c="blue">
+                                {session.coutTotal.toFixed(0)} €
+                              </Text>
+                              {session.tarifHT && (
+                                <Text size="xs" c="dimmed">
+                                  {session.tarifHT.toFixed(0)} € / pers.
+                                </Text>
+                              )}
+                            </div>
+                          ) : (
+                            <Text size="xs" c="dimmed">
+                              -
+                            </Text>
+                          )}
+                        </Table.Td>
+
+                        <Table.Td style={{ textAlign: 'right' }}>
+                          <Group gap="xs" justify="flex-end">
+                            <Tooltip label="Voir les participants">
+                              <ActionIcon
+                                variant="light"
+                                color="blue"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewDetails(session.groupKey);
+                                }}
+                              >
+                                <Eye size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label="Voir la formation">
+                              <ActionIcon
+                                variant="light"
+                                color="gray"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewFormation(session.formationId);
+                                }}
+                              >
+                                <BookOpen size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                          </Group>
+                        </Table.Td>
+                      </Table.Tr>
+                    );
+                  })}
+                </Table.Tbody>
+              </Table>
+
+              {sessions.length === 0 && (
+                <Center h={200}>
+                  <Stack align="center">
+                    <List size={48} color="#868E96" />
+                    <Text size="lg" fw={500} c="dimmed">
+                      Aucune session à afficher
+                    </Text>
+                  </Stack>
+                </Center>
+              )}
             </Paper>
           )}
 

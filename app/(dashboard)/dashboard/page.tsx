@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { 
   Container, 
   Title, 
@@ -40,7 +40,6 @@ import {
   ArrowClockwise,
   Buildings,
   BookOpen,
-  XCircle,
   UserPlus,
   Package,
   Tag,
@@ -64,23 +63,25 @@ export default function DashboardPage() {
   const [date, setDate] = useState(new Date().getFullYear().toString());
 
   // Charger les données du dashboard
-  const loadDashboardData = async (showLoader = true) => {
+  const loadDashboardData = useCallback(async (showLoader = true) => {
+    console.log('🔄 Chargement dashboard avec:', { periode, date });
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
     try {
       const [summaryData, chartsData, alertsData] = await Promise.all([
         statsService.getDashboardSummary(periode, date),
-        statsService.getDashboardCharts(),
-        statsService.getDashboardAlerts()
+        statsService.getDashboardCharts(periode, date),
+        statsService.getDashboardAlerts(periode, date)
       ]);
-      
+
+      console.log('✅ Données chargées:', { summaryData, chartsData, alertsData });
       setSummary(summaryData);
       setCharts(chartsData);
       setAlerts(alertsData);
       setLastUpdate(new Date());
     } catch (error) {
-      console.error('Erreur lors du chargement du dashboard:', error);
+      console.error('❌ Erreur lors du chargement du dashboard:', error);
       notifications.show({
         title: 'Erreur',
         message: 'Impossible de charger les données du dashboard',
@@ -91,17 +92,17 @@ export default function DashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [periode, date]); // Dépend de periode et date
 
   useEffect(() => {
     loadDashboardData();
-  }, [periode, date]); // Recharger quand la période change
+  }, [loadDashboardData]); // Recharger quand loadDashboardData change (donc quand periode ou date change)
 
   useEffect(() => {
     // Rafraîchissement automatique toutes les 5 minutes
     const interval = setInterval(() => loadDashboardData(false), 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadDashboardData]); // Dépend de loadDashboardData pour toujours utiliser les valeurs actuelles
 
   // Formater la date de dernière mise à jour
   const formatLastUpdate = () => {
@@ -115,9 +116,9 @@ export default function DashboardPage() {
     });
   };
 
-  // Définition des 12 KPIs optimisés
+  // Définition des 8 KPIs optimisés
   const kpiCards = summary ? [
-    // Ligne 1 : Vue d'ensemble (4 KPIs)
+    // Ligne 1 : Vue d'ensemble (2 KPIs)
     {
       title: "Total collaborateurs",
       value: summary.totalCollaborateurs || 0,
@@ -126,28 +127,12 @@ export default function DashboardPage() {
       color: "blue",
     },
     {
-      title: "Taux de participation",
-      value: `${summary.tauxParticipation || 0}%`,
-      subtitle: "Collaborateurs formés",
-      icon: ChartLine,
-      color: "teal",
-      progress: summary.tauxParticipation || 0,
-    },
-    {
       title: "Budget utilisé",
       value: `${summary.tauxBudget || 0}%`,
       subtitle: `${(summary.budgetUtilise / 1000).toFixed(0)}k€ / ${(summary.budgetPrevu / 1000).toFixed(0)}k€`,
       icon: Package,
       color: summary.tauxBudget > 90 ? "red" : summary.tauxBudget > 75 ? "orange" : "green",
       progress: summary.tauxBudget || 0,
-    },
-    {
-      title: "Taux d'assiduité",
-      value: `${summary.tauxAssiduite || 0}%`,
-      subtitle: "Sessions honorées",
-      icon: CheckCircle,
-      color: "cyan",
-      progress: summary.tauxAssiduite || 0,
     },
 
     // Ligne 2 : Sessions actives (3 KPIs)
@@ -174,7 +159,7 @@ export default function DashboardPage() {
       color: "teal",
     },
 
-    // Ligne 3 : Performance & Qualité (3 KPIs)
+    // Ligne 3 : Performance & Qualité (1 KPI)
     {
       title: "Formations obligatoires",
       value: `${summary.tauxObligatoires || 0}%`,
@@ -182,21 +167,6 @@ export default function DashboardPage() {
       icon: WarningCircle,
       color: summary.tauxObligatoires < 100 ? "red" : "green",
       progress: summary.tauxObligatoires || 0,
-    },
-    {
-      title: "Taux annulation",
-      value: `${summary.tauxAnnulation || 0}%`,
-      subtitle: "À minimiser",
-      icon: XCircle,
-      color: summary.tauxAnnulation > 10 ? "red" : "gray",
-      progress: summary.tauxAnnulation || 0,
-    },
-    {
-      title: "Temps moyen complétion",
-      value: `${summary.tempsMoyenCompletion || 0}j`,
-      subtitle: "De début à fin",
-      icon: Clock,
-      color: "violet",
     },
 
     // Ligne 4 : Volumétrie (2 KPIs)
@@ -225,7 +195,7 @@ export default function DashboardPage() {
             <Text size="lg" c="dimmed">Chargement des données...</Text>
           </div>
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg">
-            {[...Array(12)].map((_, i) => (
+            {[...Array(8)].map((_, i) => (
               <Card key={i} shadow="sm" radius="md" withBorder>
                 <Skeleton height={120} />
               </Card>
@@ -242,7 +212,7 @@ export default function DashboardPage() {
         <Group justify="space-between">
           <div>
             <Title order={1}>Tableau de bord</Title>
-            <Text size="lg" c="dimmed">Vue d'ensemble avec 12 KPIs optimisés</Text>
+            <Text size="lg" c="dimmed">Vue d'ensemble avec 8 KPIs optimisés</Text>
           </div>
           <Group>
             {alerts?.derniereMAJ && (
@@ -317,16 +287,21 @@ export default function DashboardPage() {
 
       <Divider my="xl" />
 
-      {/* Graphiques avec couleurs corrigées */}
-      <Grid gutter="lg" mb="xl">
+      {/* Section Analytics - Ligne 1 */}
+      <Grid gutter="lg" mb="lg">
         {/* Évolution mensuelle */}
-        <Grid.Col span={{ base: 12, lg: 7 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
             <Group justify="space-between" mb="md">
-              <div>
-                <Title order={3}>Évolution des sessions</Title>
-                <Text size="sm" c="dimmed">12 derniers mois</Text>
-              </div>
+              <Group gap="xs">
+                <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                  <ChartLine size={20} weight="duotone" />
+                </ThemeIcon>
+                <div>
+                  <Title order={3}>Évolution des sessions</Title>
+                  <Text size="sm" c="dimmed">12 derniers mois</Text>
+                </div>
+              </Group>
             </Group>
             {charts?.evolutionMensuelle && charts.evolutionMensuelle.length > 0 ? (
               <Stack gap="md">
@@ -381,14 +356,132 @@ export default function DashboardPage() {
           </Paper>
         </Grid.Col>
 
-        {/* Répartition par département avec légende */}
-        <Grid.Col span={{ base: 12, lg: 5 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+        {/* Alertes & Notifications */}
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
             <Group justify="space-between" mb="md">
-              <div>
-                <Title order={3}>Répartition par département</Title>
-                <Text size="sm" c="dimmed">Collaborateurs formés par service</Text>
-              </div>
+              <Group gap="xs">
+                <ThemeIcon size={36} radius="md" variant="light" color="orange">
+                  <Warning size={20} weight="duotone" />
+                </ThemeIcon>
+                <div>
+                  <Title order={3}>Alertes & Notifications</Title>
+                  <Text size="sm" c="dimmed">Points d'attention</Text>
+                </div>
+              </Group>
+            </Group>
+            <Stack gap="md">
+              {alerts?.alertes && (
+                <>
+                  {alerts.alertes.collaborateursSansFormation > 0 && (
+                    <Alert
+                      icon={<WarningCircle size={16} />}
+                      color="orange"
+                      variant="light"
+                      styles={{ root: { cursor: 'pointer' } }}
+                      onClick={() => router.push('/collaborateurs')}
+                    >
+                      <Group justify="space-between">
+                        <div>
+                          <Text fw={500} size="sm">{alerts.alertes.collaborateursSansFormation} collaborateurs sans formation</Text>
+                          <Text size="xs" c="dimmed">Cliquez pour voir la liste</Text>
+                        </div>
+                        <Badge size="lg" color="orange" variant="filled">
+                          {alerts.alertes.collaborateursSansFormation}
+                        </Badge>
+                      </Group>
+                    </Alert>
+                  )}
+
+                  {alerts.alertes.sessionsLongues > 0 && (
+                    <Alert
+                      icon={<Clock size={16} />}
+                      color="yellow"
+                      variant="light"
+                    >
+                      <Group justify="space-between">
+                        <div>
+                          <Text fw={500} size="sm">{alerts.alertes.sessionsLongues} sessions en cours depuis +30 jours</Text>
+                          <Text size="xs" c="dimmed">Vérifier leur progression</Text>
+                        </div>
+                        <Badge size="lg" color="yellow" variant="filled">
+                          {alerts.alertes.sessionsLongues}
+                        </Badge>
+                      </Group>
+                    </Alert>
+                  )}
+
+                  {alerts.alertes.formationsSansSession > 0 && (
+                    <Alert
+                      icon={<Info size={16} />}
+                      color="blue"
+                      variant="light"
+                    >
+                      <Group justify="space-between">
+                        <div>
+                          <Text fw={500} size="sm">{alerts.alertes.formationsSansSession} formations sans sessions</Text>
+                          <Text size="xs" c="dimmed">Formations jamais dispensées</Text>
+                        </div>
+                        <Badge size="lg" color="blue" variant="filled">
+                          {alerts.alertes.formationsSansSession}
+                        </Badge>
+                      </Group>
+                    </Alert>
+                  )}
+
+                  {alerts.alertes.nouvellesInscriptions > 0 && (
+                    <Alert
+                      icon={<CheckCircle size={16} />}
+                      color="green"
+                      variant="light"
+                    >
+                      <Group justify="space-between">
+                        <div>
+                          <Text fw={500} size="sm">{alerts.alertes.nouvellesInscriptions} nouvelles inscriptions</Text>
+                          <Text size="xs" c="dimmed">Ces 30 derniers jours</Text>
+                        </div>
+                        <Badge size="lg" color="green" variant="filled">
+                          {alerts.alertes.nouvellesInscriptions}
+                        </Badge>
+                      </Group>
+                    </Alert>
+                  )}
+
+                  {!alerts.alertes.collaborateursSansFormation &&
+                   !alerts.alertes.sessionsLongues &&
+                   !alerts.alertes.formationsSansSession &&
+                   !alerts.alertes.nouvellesInscriptions && (
+                    <Center h={200}>
+                      <Stack align="center" gap="xs">
+                        <ThemeIcon size={60} radius="xl" variant="light" color="green">
+                          <CheckCircle size={30} weight="duotone" />
+                        </ThemeIcon>
+                        <Text size="sm" c="dimmed">Aucune alerte</Text>
+                      </Stack>
+                    </Center>
+                  )}
+                </>
+              )}
+            </Stack>
+          </Paper>
+        </Grid.Col>
+      </Grid>
+
+      {/* Section Analytics - Ligne 2 */}
+      <Grid gutter="lg" mb="xl">
+        {/* Répartition par département */}
+        <Grid.Col span={{ base: 12, lg: 6 }}>
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
+            <Group justify="space-between" mb="md">
+              <Group gap="xs">
+                <ThemeIcon size={36} radius="md" variant="light" color="teal">
+                  <Buildings size={20} weight="duotone" />
+                </ThemeIcon>
+                <div>
+                  <Title order={3}>Répartition par département</Title>
+                  <Text size="sm" c="dimmed">Collaborateurs formés par service</Text>
+                </div>
+              </Group>
             </Group>
             {charts?.repartitionDepartements && charts.repartitionDepartements.length > 0 ? (
               <Stack gap="md">
@@ -462,20 +555,23 @@ export default function DashboardPage() {
             )}
           </Paper>
         </Grid.Col>
-      </Grid>
 
-      {/* Top formations avec couleurs visibles */}
-      <Grid gutter="lg" mb="xl">
+        {/* Top formations */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
             <Group justify="space-between" mb="md">
-              <div>
-                <Title order={3}>Top 5 formations</Title>
-                <Text size="sm" c="dimmed">Les plus populaires</Text>
-              </div>
-              <Button 
-                variant="subtle" 
-                size="sm" 
+              <Group gap="xs">
+                <ThemeIcon size={36} radius="md" variant="light" color="violet">
+                  <BookOpen size={20} weight="duotone" />
+                </ThemeIcon>
+                <div>
+                  <Title order={3}>Top 5 formations</Title>
+                  <Text size="sm" c="dimmed">Les plus populaires</Text>
+                </div>
+              </Group>
+              <Button
+                variant="subtle"
+                size="sm"
                 rightSection={<ArrowUpRight size={14} />}
                 onClick={() => router.push('/formations')}
               >
@@ -533,82 +629,24 @@ export default function DashboardPage() {
             )}
           </Paper>
         </Grid.Col>
-
-        {/* Alertes corrigées */}
-        <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder>
-            <Group justify="space-between" mb="md">
-              <div>
-                <Title order={3}>Alertes & Notifications</Title>
-                <Text size="sm" c="dimmed">Points d'attention</Text>
-              </div>
-            </Group>
-            <Stack gap="md">
-              {alerts?.alertes && (
-                <>
-                  {alerts.alertes.collaborateursSansFormation > 0 && (
-                    <Alert 
-                      icon={<WarningCircle size={16} />} 
-                      color="orange"
-                      variant="light"
-                      styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/collaborateurs')}
-                    >
-                      <Text fw={500}>{alerts.alertes.collaborateursSansFormation} collaborateurs sans formation</Text>
-                      <Text size="xs">Cliquez pour voir la liste</Text>
-                    </Alert>
-                  )}
-                  
-                  {alerts.alertes.sessionsLongues > 0 && (
-                    <Alert 
-                      icon={<Warning size={16} />} 
-                      color="yellow"
-                      variant="light"
-                    >
-                      <Text fw={500}>{alerts.alertes.sessionsLongues} sessions en cours depuis +30 jours</Text>
-                      <Text size="xs">Vérifier leur progression</Text>
-                    </Alert>
-                  )}
-                  
-                  {alerts.alertes.formationsSansSession > 0 && (
-                    <Alert 
-                      icon={<Info size={16} />} 
-                      color="blue"
-                      variant="light"
-                    >
-                      <Text fw={500}>{alerts.alertes.formationsSansSession} formations sans sessions</Text>
-                      <Text size="xs">Formations jamais dispensées</Text>
-                    </Alert>
-                  )}
-                  
-                  {alerts.alertes.nouvellesInscriptions > 0 && (
-                    <Alert 
-                      icon={<CheckCircle size={16} />} 
-                      color="green"
-                      variant="light"
-                    >
-                      <Text fw={500}>{alerts.alertes.nouvellesInscriptions} nouvelles inscriptions</Text>
-                      <Text size="xs">Ces 30 derniers jours</Text>
-                    </Alert>
-                  )}
-                </>
-              )}
-            </Stack>
-          </Paper>
-        </Grid.Col>
       </Grid>
 
       {/* Sessions à venir */}
       {alerts?.sessionsAVenir && alerts.sessionsAVenir.length > 0 && (
-        <Paper shadow="sm" radius="md" p="lg" withBorder>
+        <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
           <Group justify="space-between" mb="md">
-            <div>
-              <Title order={3}>Sessions à venir</Title>
-              <Text size="sm" c="dimmed">Prochains 7 jours</Text>
-            </div>
-            <Button 
-              variant="subtle" 
-              size="sm" 
+            <Group gap="xs">
+              <ThemeIcon size={36} radius="md" variant="light" color="indigo">
+                <Calendar size={20} weight="duotone" />
+              </ThemeIcon>
+              <div>
+                <Title order={3}>Sessions à venir</Title>
+                <Text size="sm" c="dimmed">Prochains 7 jours</Text>
+              </div>
+            </Group>
+            <Button
+              variant="subtle"
+              size="sm"
               rightSection={<ArrowUpRight size={14} />}
               onClick={() => router.push('/sessions/calendar')}
             >

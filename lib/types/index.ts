@@ -39,6 +39,28 @@ export interface Departement {
   actif: boolean;
 }
 
+export interface DepartementDetail extends Departement {
+  nombreCollaborateurs: number;
+  nombreCollaborateursActifs: number;
+}
+
+export interface CreateDepartementDto {
+  nomDepartement: string;
+  codeDepartement?: string;
+  actif?: boolean;
+}
+
+export interface UpdateDepartementDto {
+  nomDepartement?: string;
+  codeDepartement?: string;
+  actif?: boolean;
+}
+
+export interface DepartementFilters {
+  includeInactive?: boolean;
+  search?: string;
+}
+
 export interface TypeContrat {
   id: number;
   typeContrat: string;
@@ -441,4 +463,119 @@ export interface TimelineData {
   date: string;
   value: number;
   label?: string;
+}
+
+// Types pour la gestion des managers
+
+export interface ManagerStats {
+  id: number;
+  nomComplet: string;
+  departementId?: number;
+  departementNom?: string;
+  nombreSubordonnesDirects: number;
+  nombreSubordonnesTotal: number;
+  formationsEnCours: number;
+  formationsTerminees: number;
+  formationsPlanifiees: number;
+  totalHeuresFormation: number;
+  actif: boolean;
+  email?: string;
+  matricule?: string;
+}
+
+export interface ManagerListResponse {
+  data: ManagerStats[];
+  stats: {
+    totalManagers: number;
+    totalSubordonnes: number;
+    moyenneEquipeSize: number;
+  };
+}
+
+export interface TeamMember {
+  id: number;
+  nomComplet: string;
+  matricule?: string;
+  idExterne?: string;
+  departement?: {
+    id: number;
+    nomDepartement: string;
+  };
+  manager?: {
+    id: number;
+    nomComplet: string;
+  };
+  isDirect: boolean;
+  level: number;
+  nombreFormations: number;
+  actif: boolean;
+  subordonnes?: TeamMember[];
+}
+
+export interface TeamDetails {
+  manager: {
+    id: number;
+    nomComplet: string;
+    matricule?: string;
+    departement?: {
+      id: number;
+      nomDepartement: string;
+    };
+  };
+  membres: TeamMember[];
+  stats: {
+    nombreTotal: number;
+    nombreDirects: number;
+    nombreIndirects: number;
+    formationsEnCours: number;
+    formationsTerminees: number;
+    totalHeures: number;
+  };
+}
+
+export interface HierarchyNode {
+  id: number;
+  nomComplet: string;
+  matricule?: string;
+  titre?: string;
+  departement?: {
+    id: number;
+    nomDepartement: string;
+  };
+  managerId?: number;
+  nombreSubordonnes: number;
+  actif: boolean;
+  children: HierarchyNode[];
+  isManager: boolean;
+  level: number;
+}
+
+export interface OrganizationHierarchy {
+  roots: HierarchyNode[];
+  stats: {
+    totalCollaborateurs: number;
+    totalManagers: number;
+    profondeurMax: number;
+    moyenneSubordonnesParManager: number;
+  };
+}
+
+export interface AssignManagerRequest {
+  managerId?: number | null;
+}
+
+export interface AssignManagerResponse {
+  message: string;
+  collaborateur: {
+    id: number;
+    nomComplet: string;
+    manager?: {
+      id: number;
+      nomComplet: string;
+    } | null;
+  };
+  ancienManager?: {
+    id: number;
+    nomComplet: string;
+  } | null;
 }

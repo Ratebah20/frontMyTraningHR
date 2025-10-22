@@ -76,9 +76,9 @@ const navigationItems: NavigationItem[] = [
     href: '/dashboard',
     color: 'blue'
   },
-  { 
-    icon: UsersThree, 
-    label: 'Collaborateurs', 
+  {
+    icon: UsersThree,
+    label: 'Collaborateurs',
     href: '/collaborateurs',
     badge: 245,
     color: 'teal',
@@ -86,6 +86,8 @@ const navigationItems: NavigationItem[] = [
       { label: 'Liste', href: '/collaborateurs' },
       { label: 'Nouveau', href: '/collaborateurs/new' },
       { label: 'Import', href: '/collaborateurs/import' },
+      { label: 'Managers', href: '/managers' },
+      { label: 'Départements', href: '/collaborateurs/departements' },
     ]
   },
   { 

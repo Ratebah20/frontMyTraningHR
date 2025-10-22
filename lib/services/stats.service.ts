@@ -32,14 +32,20 @@ export const statsService = {
   },
 
   // Récupérer les données des graphiques
-  async getDashboardCharts(): Promise<any> {
-    const response = await api.get('/stats/dashboard-charts');
+  async getDashboardCharts(periode?: 'annee' | 'mois', date?: string): Promise<any> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (date) params.date = date;
+    const response = await api.get('/stats/dashboard-charts', { params });
     return response.data;
   },
 
   // Récupérer les alertes et notifications
-  async getDashboardAlerts(): Promise<any> {
-    const response = await api.get('/stats/dashboard-alerts');
+  async getDashboardAlerts(periode?: 'annee' | 'mois', date?: string): Promise<any> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (date) params.date = date;
+    const response = await api.get('/stats/dashboard-alerts', { params });
     return response.data;
   },
 

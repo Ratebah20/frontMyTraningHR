@@ -131,9 +131,23 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-    
+
+    // 🔍 DEBUG: Log de TOUTES les erreurs HTTP
+    if (error.response) {
+      console.error(`🚨 ERREUR ${error.response.status} DÉTECTÉE`);
+      console.error('URL appelée:', originalRequest.url);
+      console.error('Méthode:', originalRequest.method);
+      console.error('Response data:', error.response?.data);
+    }
+
     // Si erreur 401 et qu'on a un refresh token
     if (error.response?.status === 401 && !originalRequest._retry) {
+      // 🔍 DEBUG: Log détaillé de l'erreur 401
+      console.error('🚨 ERREUR 401 - Tentative de refresh du token');
+      console.error('URL appelée:', originalRequest.url);
+      console.error('Méthode:', originalRequest.method);
+      console.error('Response data:', error.response?.data);
+
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -143,13 +157,28 @@ api.interceptors.response.use(
           return Promise.reject(err);
         });
       }
-      
+
       originalRequest._retry = true;
       isRefreshing = true;
-      
+
       const tokens = getTokens();
-      
+
+      // 🔍 DEBUG: Vérifier l'état des tokens
+      console.error('État des tokens:', {
+        hasAccessToken: !!tokens?.accessToken,
+        hasRefreshToken: !!tokens?.refreshToken,
+        accessTokenLength: tokens?.accessToken?.length || 0,
+        refreshTokenLength: tokens?.refreshToken?.length || 0
+      });
+
       if (!tokens?.refreshToken) {
+        console.error('❌ PAS DE REFRESH TOKEN - DÉCONNEXION FORCÉE');
+        console.error('LocalStorage accessToken:', localStorage.getItem('accessToken'));
+        console.error('LocalStorage refreshToken:', localStorage.getItem('refreshToken'));
+
+        // 🔍 ALERT pour bloquer la redirection et voir les logs
+        alert('ERREUR: Pas de refresh token trouvé! Vérifiez la console (F12) avant de cliquer OK');
+
         clearTokens();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -158,28 +187,38 @@ api.interceptors.response.use(
       }
       
       try {
+        console.log('🔄 Tentative de refresh du token...');
         const response = await axios.post(`${API_URL}/auth/refresh`, {
           refreshToken: tokens.refreshToken,
         });
-        
+
+        console.log('✅ Refresh réussi!');
         const { accessToken, refreshToken } = response.data;
         saveTokens({ accessToken, refreshToken });
-        
+
         processQueue(null, accessToken);
-        
+
         if (originalRequest.headers) {
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
         }
-        
+
         return api(originalRequest);
-      } catch (refreshError) {
+      } catch (refreshError: any) {
+        // 🔍 DEBUG: Log détaillé de l'échec du refresh
+        console.error('❌ ÉCHEC DU REFRESH TOKEN');
+        console.error('Erreur de refresh:', refreshError.response?.status, refreshError.response?.data);
+        console.error('Message:', refreshError.message);
+
+        // 🔍 ALERT pour bloquer la redirection et voir les logs
+        alert(`ERREUR: Le refresh du token a échoué!\nStatus: ${refreshError.response?.status}\nMessage: ${refreshError.response?.data?.message || refreshError.message}\n\nVérifiez la console (F12) avant de cliquer OK`);
+
         processQueue(refreshError, null);
         clearTokens();
-        
+
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
         }
-        
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

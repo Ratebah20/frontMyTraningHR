@@ -53,6 +53,7 @@ import {
   User as UserIcon,
   SignOut as SignOutIcon,
   Wallet,
+  ListChecks,
 } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { spotlight } from '@mantine/spotlight';
@@ -102,9 +103,9 @@ const navigationItems: NavigationItem[] = [
       { label: 'Obligatoires', href: '/formations/obligatoires' },
     ]
   },
-  { 
-    icon: Calendar, 
-    label: 'Sessions', 
+  {
+    icon: Calendar,
+    label: 'Sessions',
     href: '/sessions',
     badge: 12,
     color: 'orange',
@@ -114,9 +115,15 @@ const navigationItems: NavigationItem[] = [
       { label: 'Inscriptions', href: '/sessions/inscriptions' },
     ]
   },
-  { 
-    icon: Wallet, 
-    label: 'Budget', 
+  {
+    icon: ListChecks,
+    label: 'Templates Tâches',
+    href: '/templates',
+    color: 'indigo'
+  },
+  {
+    icon: Wallet,
+    label: 'Budget',
     href: '/budget',
     color: 'grape',
     subItems: [

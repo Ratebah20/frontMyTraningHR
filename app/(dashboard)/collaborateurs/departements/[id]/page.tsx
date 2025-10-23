@@ -35,10 +35,14 @@ import {
   Eye,
   DotsThreeVertical,
   UserCircle,
+  Plus,
+  TreeStructure,
 } from '@phosphor-icons/react';
 import { departementsService } from '@/lib/services';
 import { DepartementDetail, Collaborateur } from '@/lib/types';
 import { DepartementFormModal } from '@/components/departements/DepartementFormModal';
+import { DepartementBreadcrumb } from '@/components/departements/DepartementBreadcrumb';
+import { TypeBadge } from '@/components/departements/TypeBadge';
 
 export default function DepartementDetailPage() {
   const router = useRouter();
@@ -51,6 +55,7 @@ export default function DepartementDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [modalOpened, setModalOpened] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreatingEquipe, setIsCreatingEquipe] = useState(false);
 
   // Charger les données
   const loadData = async () => {
@@ -80,21 +85,34 @@ export default function DepartementDetailPage() {
     loadData();
   }, [departementId]);
 
-  // Soumettre le formulaire d'édition
+  // Soumettre le formulaire (création d'équipe ou édition)
   const handleSubmit = async (values: any) => {
     setIsSubmitting(true);
     try {
-      await departementsService.update(departementId, values);
-      notifications.show({
-        title: 'Succès',
-        message: 'Département mis à jour avec succès',
-        color: 'green',
-        icon: <CheckCircle size={20} />,
-      });
+      if (isCreatingEquipe) {
+        // Créer une nouvelle équipe sous ce département
+        await departementsService.create(values);
+        notifications.show({
+          title: 'Succès',
+          message: 'Équipe créée avec succès',
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      } else {
+        // Mettre à jour le département actuel
+        await departementsService.update(departementId, values);
+        notifications.show({
+          title: 'Succès',
+          message: 'Département mis à jour avec succès',
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      }
       setModalOpened(false);
+      setIsCreatingEquipe(false);
       loadData();
     } catch (error: any) {
-      console.error('Erreur lors de la mise à jour:', error);
+      console.error('Erreur lors de la soumission:', error);
       const message = error.response?.data?.message || error.message || 'Une erreur est survenue';
       notifications.show({
         title: 'Erreur',
@@ -119,20 +137,6 @@ export default function DepartementDetailPage() {
     return null;
   }
 
-  const breadcrumbItems = [
-    { title: 'Collaborateurs', href: '/collaborateurs' },
-    { title: 'Départements', href: '/collaborateurs/departements' },
-    { title: departement.nomDepartement, href: '#' },
-  ].map((item, index) => (
-    <Anchor
-      key={index}
-      onClick={() => item.href !== '#' && router.push(item.href)}
-      c={item.href === '#' ? 'dimmed' : undefined}
-    >
-      {item.title}
-    </Anchor>
-  ));
-
   return (
     <Container size="xl" py="xl">
       <Stack gap="lg">
@@ -145,17 +149,22 @@ export default function DepartementDetailPage() {
           >
             <ArrowLeft size={20} />
           </ActionIcon>
-          <Breadcrumbs>{breadcrumbItems}</Breadcrumbs>
+          <DepartementBreadcrumb departementId={departementId} />
         </Group>
 
         {/* En-tête avec infos du département */}
         <Paper p="xl" withBorder>
           <Group justify="space-between" align="flex-start">
             <Group align="flex-start" gap="lg">
-              <Buildings size={48} weight="duotone" className="text-blue-500" />
+              {departement.type === 'EQUIPE' ? (
+                <Users size={48} weight="duotone" className="text-green-500" />
+              ) : (
+                <Buildings size={48} weight="duotone" className="text-blue-500" />
+              )}
               <div>
                 <Group gap="sm" align="center">
                   <Title order={2}>{departement.nomDepartement}</Title>
+                  <TypeBadge type={departement.type} />
                   <Badge color={departement.actif ? 'green' : 'gray'} variant="light" size="lg">
                     {departement.actif ? 'Actif' : 'Inactif'}
                   </Badge>
@@ -165,21 +174,41 @@ export default function DepartementDetailPage() {
                     Code: {departement.codeDepartement}
                   </Text>
                 )}
+                {departement.cheminComplet && (
+                  <Text c="dimmed" size="sm" mt={4}>
+                    Chemin: {departement.cheminComplet}
+                  </Text>
+                )}
               </div>
             </Group>
 
-            <Button
-              leftSection={<PencilSimple size={18} />}
-              variant="light"
-              onClick={() => setModalOpened(true)}
-            >
-              Modifier
-            </Button>
+            <Group>
+              <Button
+                leftSection={<PencilSimple size={18} />}
+                variant="light"
+                onClick={() => {
+                  setIsCreatingEquipe(false);
+                  setModalOpened(true);
+                }}
+              >
+                Modifier
+              </Button>
+              <Button
+                leftSection={<Plus size={18} />}
+                color="green"
+                onClick={() => {
+                  setIsCreatingEquipe(true);
+                  setModalOpened(true);
+                }}
+              >
+                Ajouter une équipe
+              </Button>
+            </Group>
           </Group>
         </Paper>
 
         {/* Statistiques */}
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="lg">
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">
           <Card shadow="sm" padding="lg" withBorder>
             <Group justify="space-between">
               <div>
@@ -221,7 +250,78 @@ export default function DepartementDetailPage() {
               <XCircle size={32} className="text-gray-400" weight="duotone" />
             </Group>
           </Card>
+
+          <Card shadow="sm" padding="lg" withBorder>
+            <Group justify="space-between">
+              <div>
+                <Text size="sm" c="dimmed" fw={500}>
+                  Sous-{departement.type === 'EQUIPE' ? 'équipes' : 'départements'}
+                </Text>
+                <Text size="xl" fw={700} mt="xs" c="blue">
+                  {departement.nombreSousDepartements || 0}
+                </Text>
+              </div>
+              <TreeStructure size={32} className="text-blue-500" weight="duotone" />
+            </Group>
+          </Card>
         </SimpleGrid>
+
+        {/* Sous-départements/équipes */}
+        {departement.sousDepartements && departement.sousDepartements.length > 0 && (
+          <Paper withBorder>
+            <Group p="md" justify="space-between">
+              <Title order={3} size="h4">
+                <Group gap="xs">
+                  <TreeStructure size={24} />
+                  Sous-{departement.type === 'EQUIPE' ? 'équipes' : 'départements'}
+                </Group>
+              </Title>
+              <Text c="dimmed" size="sm">
+                {departement.sousDepartements.length} élément(s)
+              </Text>
+            </Group>
+
+            <Table highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Nom</Table.Th>
+                  <Table.Th>Type</Table.Th>
+                  <Table.Th>Statut</Table.Th>
+                  <Table.Th style={{ width: 80 }}>Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {departement.sousDepartements.map((subDept) => (
+                  <Table.Tr key={subDept.id}>
+                    <Table.Td>
+                      <Text fw={500} size="sm">
+                        {subDept.nomDepartement}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <TypeBadge type={subDept.type} size="xs" />
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge color={subDept.actif ? 'green' : 'gray'} variant="light" size="sm">
+                        {subDept.actif ? 'Actif' : 'Inactif'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Tooltip label="Voir les détails">
+                        <ActionIcon
+                          variant="subtle"
+                          onClick={() => router.push(`/collaborateurs/departements/${subDept.id}`)}
+                        >
+                          <Eye size={18} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Paper>
+        )}
 
         {/* Liste des collaborateurs */}
         <Paper withBorder>
@@ -316,13 +416,18 @@ export default function DepartementDetailPage() {
         </Paper>
       </Stack>
 
-      {/* Modal d'édition */}
+      {/* Modal d'édition/création */}
       <DepartementFormModal
         opened={modalOpened}
-        onClose={() => setModalOpened(false)}
+        onClose={() => {
+          setModalOpened(false);
+          setIsCreatingEquipe(false);
+        }}
         onSubmit={handleSubmit}
-        departement={departement}
+        departement={isCreatingEquipe ? null : departement}
         isSubmitting={isSubmitting}
+        initialType={isCreatingEquipe ? 'EQUIPE' : undefined}
+        initialParentId={isCreatingEquipe ? departementId : undefined}
       />
     </Container>
   );

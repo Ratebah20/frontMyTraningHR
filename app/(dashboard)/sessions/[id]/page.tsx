@@ -67,6 +67,7 @@ import {
 import { sessionsService } from '@/lib/services';
 import { SessionFormationResponse } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
+import { TodoList } from '@/components/session-todos/TodoList';
 
 interface Props {
   params: {
@@ -97,9 +98,16 @@ export default function SessionDetailPage({ params }: Props) {
   const loadSession = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      const data = await sessionsService.getSession(parseInt(params.id));
+      const sessionId = parseInt(params.id);
+
+      // Vérifier que l'ID est valide
+      if (isNaN(sessionId)) {
+        throw new Error('ID de session invalide');
+      }
+
+      const data = await sessionsService.getSession(sessionId);
       setSession(data);
     } catch (err: any) {
       console.error('Erreur lors du chargement de la session:', err);
@@ -692,6 +700,14 @@ export default function SessionDetailPage({ params }: Props) {
               </Stack>
             </Card>
           </Stack>
+        </Grid.Col>
+
+        {/* Checklist de préparation (Todos) - Full width */}
+        <Grid.Col span={12}>
+          <TodoList
+            sessionId={session.id}
+            typeFormation={session.formation?.type}
+          />
         </Grid.Col>
       </Grid>
     </Container>

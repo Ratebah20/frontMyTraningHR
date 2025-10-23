@@ -36,29 +36,78 @@ export interface Departement {
   id: number;
   nomDepartement: string;
   codeDepartement?: string;
+  type: string; // "DEPARTEMENT" ou "EQUIPE"
+  parentId?: number | null;
+  parent?: {
+    id: number;
+    nomDepartement: string;
+    type: string;
+  } | null;
   actif: boolean;
 }
 
 export interface DepartementDetail extends Departement {
   nombreCollaborateurs: number;
   nombreCollaborateursActifs: number;
+  nombreSousDepartements?: number;
+  cheminComplet?: string; // ex: "Marketing > Digital > SEO"
+  sousDepartements?: Array<{
+    id: number;
+    nomDepartement: string;
+    type: string;
+    actif: boolean;
+  }>;
 }
 
 export interface CreateDepartementDto {
   nomDepartement: string;
   codeDepartement?: string;
+  type?: string; // "DEPARTEMENT" ou "EQUIPE"
+  parentId?: number;
   actif?: boolean;
 }
 
 export interface UpdateDepartementDto {
   nomDepartement?: string;
   codeDepartement?: string;
+  type?: string; // "DEPARTEMENT" ou "EQUIPE"
+  parentId?: number;
   actif?: boolean;
 }
 
 export interface DepartementFilters {
   includeInactive?: boolean;
   search?: string;
+  type?: 'DEPARTEMENT' | 'EQUIPE' | 'ALL';
+  parentId?: number;
+}
+
+// Types pour la hiérarchie
+export interface HierarchyNode {
+  id: number;
+  nomDepartement: string;
+  codeDepartement: string | null;
+  type: string;
+  parentId: number | null;
+  actif: boolean;
+  nombreCollaborateurs: number;
+  children: HierarchyNode[];
+}
+
+export interface HierarchyData {
+  nodes: HierarchyNode[];
+  totalCount: number;
+}
+
+export interface PathNode {
+  id: number;
+  nomDepartement: string;
+  type: string;
+}
+
+export interface FullPath {
+  path: string;
+  nodes: PathNode[];
 }
 
 export interface TypeContrat {
@@ -578,4 +627,82 @@ export interface AssignManagerResponse {
     id: number;
     nomComplet: string;
   } | null;
+}
+
+// ==================== TYPES POUR LES TODOS DE SESSION ====================
+
+export interface GroupedSessionTodo {
+  id: number;
+  groupKey: string;
+  titre: string;
+  description?: string;
+  isCompleted: boolean;
+  priorite: 'bas' | 'normal' | 'haut';
+  categorie?: 'doc_admin' | 'equipement' | 'logistique' | 'budget' | 'communication' | 'autre';
+  dateEcheance?: string;
+  ordre: number;
+  dateCreation: string;
+  dateModification: string;
+  dateCompletion?: string;
+  creeParUserId?: number;
+}
+
+export interface CreateSessionTodoDto {
+  titre: string;
+  description?: string;
+  priorite?: 'bas' | 'normal' | 'haut';
+  categorie?: string;
+  dateEcheance?: string;
+  ordre?: number;
+  isCompleted?: boolean;
+}
+
+export interface UpdateSessionTodoDto {
+  titre?: string;
+  description?: string;
+  priorite?: 'bas' | 'normal' | 'haut';
+  categorie?: string;
+  dateEcheance?: string;
+  ordre?: number;
+  isCompleted?: boolean;
+}
+
+export interface TodoOrderItem {
+  id: number;
+  ordre: number;
+}
+
+export interface ReorderTodosDto {
+  todos: TodoOrderItem[];
+}
+
+export interface TodoTemplateItem {
+  titre: string;
+  description?: string;
+  priorite: 'bas' | 'normal' | 'haut';
+  categorie?: string;
+  ordre: number;
+}
+
+export interface TodoTemplate {
+  id: number;
+  nom: string;
+  description?: string;
+  typeFormation?: 'externe' | 'interne' | 'elearning';
+  items: TodoTemplateItem[];
+  actif: boolean;
+  dateCreation: string;
+  dateModification: string;
+}
+
+export interface TodoStats {
+  total: number;
+  completed: number;
+  pending: number;
+  progress: number;
+}
+
+export interface SessionWithTodos extends SessionFormation {
+  todos?: SessionTodo[];
+  todosStats?: TodoStats;
 }

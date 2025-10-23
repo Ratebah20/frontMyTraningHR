@@ -5,7 +5,9 @@ import {
   CreateDepartementDto,
   UpdateDepartementDto,
   DepartementFilters,
-  Collaborateur
+  Collaborateur,
+  HierarchyData,
+  FullPath
 } from '../types';
 
 export const departementsService = {
@@ -66,6 +68,34 @@ export const departementsService = {
    */
   async countCollaborateurs(id: number): Promise<{ total: number; actifs: number }> {
     const response = await api.get(`/departements/${id}/collaborateurs/count`);
+    return response.data;
+  },
+
+  /**
+   * Récupérer l'arbre hiérarchique complet
+   */
+  async getHierarchy(includeInactive: boolean = false): Promise<HierarchyData> {
+    const response = await api.get('/departements/hierarchy/tree', {
+      params: { includeInactive }
+    });
+    return response.data;
+  },
+
+  /**
+   * Récupérer les sous-départements/équipes directs
+   */
+  async getChildren(id: number, includeInactive: boolean = false): Promise<Departement[]> {
+    const response = await api.get(`/departements/${id}/children`, {
+      params: { includeInactive }
+    });
+    return response.data;
+  },
+
+  /**
+   * Récupérer le chemin hiérarchique complet (breadcrumb)
+   */
+  async getFullPath(id: number): Promise<FullPath> {
+    const response = await api.get(`/departements/${id}/path`);
     return response.data;
   },
 };

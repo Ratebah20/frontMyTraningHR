@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Text, Badge, Group, ActionIcon, Menu, Stack, Divider, Tooltip } from '@mantine/core';
+import { Card, Text, Badge, Group, ActionIcon, Menu, Stack, Divider, Tooltip, Anchor } from '@mantine/core';
 import { DepartementDetail } from '@/lib/types';
 import {
   DotsThreeVertical,
@@ -8,9 +8,12 @@ import {
   Trash,
   Eye,
   Users,
-  Buildings
+  Buildings,
+  ArrowRight,
+  TreeStructure
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
+import { TypeBadge } from './TypeBadge';
 
 interface DepartementCardProps {
   departement: DepartementDetail;
@@ -32,7 +35,11 @@ export function DepartementCard({ departement, onEdit, onDelete }: DepartementCa
       <Card.Section inheritPadding py="md">
         <Group justify="space-between" align="flex-start">
           <Group gap="xs">
-            <Buildings size={24} weight="duotone" className="text-blue-500" />
+            {departement.type === 'EQUIPE' ? (
+              <Users size={24} weight="duotone" className="text-green-500" />
+            ) : (
+              <Buildings size={24} weight="duotone" className="text-blue-500" />
+            )}
             <Stack gap={0}>
               <Text fw={600} size="lg">
                 {departement.nomDepartement}
@@ -46,6 +53,7 @@ export function DepartementCard({ departement, onEdit, onDelete }: DepartementCa
           </Group>
 
           <Group gap="xs">
+            <TypeBadge type={departement.type} />
             <Badge color={departement.actif ? 'green' : 'gray'} variant="light">
               {departement.actif ? 'Actif' : 'Inactif'}
             </Badge>
@@ -100,6 +108,43 @@ export function DepartementCard({ departement, onEdit, onDelete }: DepartementCa
       <Divider my="sm" />
 
       <Stack gap="xs">
+        {/* Parent */}
+        {departement.parent && (
+          <Group justify="space-between">
+            <Group gap="xs">
+              <ArrowRight size={18} className="text-gray-500" />
+              <Text size="sm" c="dimmed">
+                Parent
+              </Text>
+            </Group>
+            <Anchor
+              size="sm"
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                router.push(`/collaborateurs/departements/${departement.parent?.id}`);
+              }}
+            >
+              {departement.parent.nomDepartement}
+            </Anchor>
+          </Group>
+        )}
+
+        {/* Sous-départements/équipes */}
+        {departement.nombreSousDepartements !== undefined && departement.nombreSousDepartements > 0 && (
+          <Group justify="space-between">
+            <Group gap="xs">
+              <TreeStructure size={18} className="text-gray-500" />
+              <Text size="sm" c="dimmed">
+                Sous-{departement.type === 'EQUIPE' ? 'équipes' : 'départements'}
+              </Text>
+            </Group>
+            <Badge variant="light" color="blue">
+              {departement.nombreSousDepartements}
+            </Badge>
+          </Group>
+        )}
+
+        {/* Collaborateurs */}
         <Group justify="space-between">
           <Group gap="xs">
             <Users size={18} className="text-gray-500" />

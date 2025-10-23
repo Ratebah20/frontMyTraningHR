@@ -22,6 +22,7 @@ import {
   Alert,
   ThemeIcon,
   Divider,
+  Tabs,
 } from '@mantine/core';
 import {
   ArrowLeft,
@@ -39,10 +40,12 @@ import {
   CalendarX,
   DotsThreeVertical,
   Warning,
+  ListChecks,
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
 import { sessionsService } from '@/lib/services';
 import { GroupedSession } from '@/lib/types';
+import { TodoList } from '@/components/session-todos/TodoList';
 
 interface Props {
   params: {
@@ -345,101 +348,114 @@ export default function GroupedSessionDetailPage({ params }: Props) {
         </Grid>
       </Paper>
 
-      {/* Liste des participants */}
+      {/* Tabs: Participants et Checklist */}
       <Paper shadow="xs" p="xl" radius="md">
-        <Title order={2} mb="lg">
-          Liste des participants ({session.participants.length})
-        </Title>
+        <Tabs defaultValue="participants">
+          <Tabs.List>
+            <Tabs.Tab value="participants" leftSection={<Users size={16} />}>
+              Participants ({session.participants.length})
+            </Tabs.Tab>
+            <Tabs.Tab value="checklist" leftSection={<ListChecks size={16} />}>
+              Checklist de préparation
+            </Tabs.Tab>
+          </Tabs.List>
 
-        <Table highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Collaborateur</Table.Th>
-              <Table.Th>Département</Table.Th>
-              <Table.Th>Statut</Table.Th>
-              <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {session.participants.map((participant) => {
-              const StatusIcon = statusIcons[participant.statut] || CalendarCheck;
-              const statusColor = statusColors[participant.statut] || 'gray';
-
-              return (
-                <Table.Tr key={participant.sessionId}>
-                  <Table.Td>
-                    <Group gap="sm">
-                      <Avatar size="sm" radius="xl" color="blue">
-                        {participant.prenom[0]}{participant.nom[0]}
-                      </Avatar>
-                      <div>
-                        <Text size="sm" fw={500}>
-                          {participant.prenom} {participant.nom}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          {participant.email}
-                        </Text>
-                      </div>
-                    </Group>
-                  </Table.Td>
-                  <Table.Td>
-                    <Text size="sm">{participant.departement}</Text>
-                  </Table.Td>
-                  <Table.Td>
-                    <Badge
-                      leftSection={<StatusIcon size={12} />}
-                      color={statusColor}
-                      variant="light"
-                    >
-                      {participant.statut}
-                    </Badge>
-                  </Table.Td>
-                  <Table.Td>
-                    <Group gap="xs" justify="flex-end">
-                      <ActionIcon
-                        variant="subtle"
-                        color="blue"
-                        onClick={() => handleViewCollaborateur(participant.collaborateurId)}
-                      >
-                        <Eye size={18} />
-                      </ActionIcon>
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        onClick={() => handleEditSession(participant.sessionId)}
-                      >
-                        <PencilSimple size={18} />
-                      </ActionIcon>
-                      {participant.statut !== 'annule' && participant.statut !== 'ANNULE' && (
-                        <ActionIcon
-                          variant="subtle"
-                          color="red"
-                          onClick={() =>
-                            handleCancelSession(
-                              participant.sessionId,
-                              `${participant.prenom} ${participant.nom}`
-                            )
-                          }
-                        >
-                          <XCircle size={18} />
-                        </ActionIcon>
-                      )}
-                    </Group>
-                  </Table.Td>
+          <Tabs.Panel value="participants" pt="xl">
+            <Table highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Collaborateur</Table.Th>
+                  <Table.Th>Département</Table.Th>
+                  <Table.Th>Statut</Table.Th>
+                  <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
                 </Table.Tr>
-              );
-            })}
-          </Table.Tbody>
-        </Table>
+              </Table.Thead>
+              <Table.Tbody>
+                {session.participants.map((participant) => {
+                  const StatusIcon = statusIcons[participant.statut] || CalendarCheck;
+                  const statusColor = statusColors[participant.statut] || 'gray';
 
-        {session.participants.length === 0 && (
-          <Center h={200}>
-            <Stack align="center">
-              <Users size={48} style={{ opacity: 0.5 }} />
-              <Text c="dimmed">Aucun participant</Text>
-            </Stack>
-          </Center>
-        )}
+                  return (
+                    <Table.Tr key={participant.sessionId}>
+                      <Table.Td>
+                        <Group gap="sm">
+                          <Avatar size="sm" radius="xl" color="blue">
+                            {participant.prenom[0]}{participant.nom[0]}
+                          </Avatar>
+                          <div>
+                            <Text size="sm" fw={500}>
+                              {participant.prenom} {participant.nom}
+                            </Text>
+                            <Text size="xs" c="dimmed">
+                              {participant.email}
+                            </Text>
+                          </div>
+                        </Group>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{participant.departement}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Badge
+                          leftSection={<StatusIcon size={12} />}
+                          color={statusColor}
+                          variant="light"
+                        >
+                          {participant.statut}
+                        </Badge>
+                      </Table.Td>
+                      <Table.Td>
+                        <Group gap="xs" justify="flex-end">
+                          <ActionIcon
+                            variant="subtle"
+                            color="blue"
+                            onClick={() => handleViewCollaborateur(participant.collaborateurId)}
+                          >
+                            <Eye size={18} />
+                          </ActionIcon>
+                          <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={() => handleEditSession(participant.sessionId)}
+                          >
+                            <PencilSimple size={18} />
+                          </ActionIcon>
+                          {participant.statut !== 'annule' && participant.statut !== 'ANNULE' && (
+                            <ActionIcon
+                              variant="subtle"
+                              color="red"
+                              onClick={() =>
+                                handleCancelSession(
+                                  participant.sessionId,
+                                  `${participant.prenom} ${participant.nom}`
+                                )
+                              }
+                            >
+                              <XCircle size={18} />
+                            </ActionIcon>
+                          )}
+                        </Group>
+                      </Table.Td>
+                    </Table.Tr>
+                  );
+                })}
+              </Table.Tbody>
+            </Table>
+
+            {session.participants.length === 0 && (
+              <Center h={200}>
+                <Stack align="center">
+                  <Users size={48} style={{ opacity: 0.5 }} />
+                  <Text c="dimmed">Aucun participant</Text>
+                </Stack>
+              </Center>
+            )}
+          </Tabs.Panel>
+
+          <Tabs.Panel value="checklist" pt="xl">
+            <TodoList groupKey={session.groupKey} typeFormation={session.typeFormation} />
+          </Tabs.Panel>
+        </Tabs>
       </Paper>
     </Container>
   );

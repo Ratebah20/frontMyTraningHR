@@ -58,6 +58,12 @@ export const sessionsService = {
     return response.data;
   },
 
+  // Récupérer une session groupée par son groupKey
+  async getGroupedSessionByKey(groupKey: string): Promise<any> {
+    const response = await api.get(`/sessions/grouped/${groupKey}`);
+    return response.data;
+  },
+
   // Récupérer les sessions d'un collaborateur
   async getCollaborateurSessions(collaborateurId: number, filters?: SessionFilters): Promise<SessionPaginatedResponse> {
     const response = await api.get(`/sessions/collaborateur/${collaborateurId}`, { params: filters });

@@ -94,19 +94,12 @@ export default function GroupedSessionDetailPage({ params }: Props) {
     try {
       const groupKey = decodeURIComponent(params.groupKey);
 
-      // Récupérer toutes les sessions groupées et trouver celle qui correspond
-      const response = await sessionsService.getGroupedSessions({ limit: 1000 });
-      const foundSession = response.data.find(s => s.groupKey === groupKey);
-
-      if (!foundSession) {
-        setError('Session non trouvée');
-        setSession(null);
-      } else {
-        setSession(foundSession);
-      }
+      // Récupérer directement la session groupée par son groupKey
+      const data = await sessionsService.getGroupedSessionByKey(groupKey);
+      setSession(data);
     } catch (err: any) {
       console.error('Erreur lors du chargement de la session:', err);
-      setError(err.message || 'Erreur lors du chargement de la session');
+      setError(err.response?.data?.message || err.message || 'Session non trouvée');
       setSession(null);
     } finally {
       setIsLoading(false);

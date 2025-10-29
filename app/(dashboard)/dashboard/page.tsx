@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { 
-  Container, 
-  Title, 
-  Text, 
-  Grid, 
+import {
+  Container,
+  Title,
+  Text,
+  Grid,
   Card,
   Group,
   Badge,
@@ -23,6 +23,7 @@ import {
   Divider,
   Tooltip,
   Table,
+  SegmentedControl,
 } from '@mantine/core';
 import { AreaChart, DonutChart, BarChart } from '@tremor/react';
 import { 
@@ -61,6 +62,9 @@ export default function DashboardPage() {
   // États pour le sélecteur de période
   const [periode, setPeriode] = useState<'annee' | 'mois'>('annee');
   const [date, setDate] = useState(new Date().getFullYear().toString());
+
+  // État pour le mode d'affichage de l'évolution des sessions
+  const [evolutionViewMode, setEvolutionViewMode] = useState<'numbers' | 'percentages'>('numbers');
 
   // Charger les données du dashboard
   const loadDashboardData = useCallback(async (showLoader = true) => {
@@ -178,10 +182,10 @@ export default function DashboardPage() {
       color: "orange",
     },
     {
-      title: "Départements actifs",
+      title: "Collaborateurs formés",
       value: summary.nombreDepartements || 0,
-      subtitle: "Services",
-      icon: Buildings,
+      subtitle: periode === 'mois' ? 'Ce mois' : 'Cette année',
+      icon: Users,
       color: "pink",
     },
   ] : [];
@@ -302,50 +306,108 @@ export default function DashboardPage() {
                   <Text size="sm" c="dimmed">12 derniers mois</Text>
                 </div>
               </Group>
+              <SegmentedControl
+                size="xs"
+                value={evolutionViewMode}
+                onChange={(value) => setEvolutionViewMode(value as 'numbers' | 'percentages')}
+                data={[
+                  { label: 'Chiffres', value: 'numbers' },
+                  { label: '%', value: 'percentages' },
+                ]}
+              />
             </Group>
             {charts?.evolutionMensuelle && charts.evolutionMensuelle.length > 0 ? (
               <Stack gap="md">
                 {/* Graphique simplifié avec barres */}
                 <SimpleGrid cols={12} spacing="xs">
-                  {charts.evolutionMensuelle.map((item: any, idx: number) => (
-                    <div key={idx}>
-                      <Tooltip label={`${item.month}: ${item.sessions} sessions`}>
-                        <Box>
-                          <Box
-                            h={100}
-                            bg="gray.1"
-                            style={{ 
-                              position: 'relative',
-                              borderRadius: '4px',
-                              overflow: 'hidden'
-                            }}
-                          >
+                  {charts.evolutionMensuelle.map((item: any, idx: number) => {
+                    // Calculer le pourcentage de variation par rapport au mois précédent
+                    const previousSessions = idx > 0 ? charts.evolutionMensuelle[idx - 1].sessions : item.sessions;
+                    const percentageChange = previousSessions !== 0
+                      ? Math.round(((item.sessions - previousSessions) / previousSessions) * 100)
+                      : 0;
+
+                    const displayValue = evolutionViewMode === 'numbers' ? item.sessions : percentageChange;
+                    const maxValue = evolutionViewMode === 'numbers'
+                      ? Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))
+                      : Math.max(...charts.evolutionMensuelle.map((d: any, i: number) => {
+                          const prev = i > 0 ? charts.evolutionMensuelle[i - 1].sessions : d.sessions;
+                          return prev !== 0 ? Math.abs(((d.sessions - prev) / prev) * 100) : 0;
+                        }));
+
+                    const barHeight = evolutionViewMode === 'numbers'
+                      ? Math.min((item.sessions / maxValue) * 100, 100)
+                      : Math.min((Math.abs(percentageChange) / maxValue) * 100, 100);
+
+                    const barColor = evolutionViewMode === 'numbers'
+                      ? 'blue.5'
+                      : percentageChange >= 0 ? 'green.5' : 'red.5';
+
+                    return (
+                      <div key={idx}>
+                        <Tooltip
+                          label={
+                            evolutionViewMode === 'numbers'
+                              ? `${item.month}: ${item.sessions} sessions`
+                              : `${item.month}: ${percentageChange > 0 ? '+' : ''}${percentageChange}%`
+                          }
+                        >
+                          <Box>
                             <Box
-                              bg="blue.5"
+                              h={100}
+                              bg="gray.1"
                               style={{
-                                position: 'absolute',
-                                bottom: 0,
-                                width: '100%',
-                                height: `${Math.min((item.sessions / Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))) * 100, 100)}%`,
-                                transition: 'height 0.3s ease',
+                                position: 'relative',
+                                borderRadius: '4px',
+                                overflow: 'hidden'
                               }}
-                            />
+                            >
+                              <Box
+                                bg={barColor}
+                                style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  width: '100%',
+                                  height: `${barHeight}%`,
+                                  transition: 'height 0.3s ease, background-color 0.3s ease',
+                                }}
+                              />
+                            </Box>
+                            <Text size="xs" ta="center" mt={4} c="dark">
+                              {item.month.split(' ')[0]}
+                            </Text>
+                            <Text size="xs" ta="center" fw={600}>
+                              {evolutionViewMode === 'numbers'
+                                ? displayValue
+                                : `${displayValue > 0 ? '+' : ''}${displayValue}%`}
+                            </Text>
                           </Box>
-                          <Text size="xs" ta="center" mt={4} c="dark">
-                            {item.month.split(' ')[0]}
-                          </Text>
-                          <Text size="xs" ta="center" fw={600}>
-                            {item.sessions}
-                          </Text>
-                        </Box>
-                      </Tooltip>
-                    </div>
-                  ))}
+                        </Tooltip>
+                      </div>
+                    );
+                  })}
                 </SimpleGrid>
                 <Group justify="space-between">
-                  <Text size="xs" c="dimmed">Min: {Math.min(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
-                  <Text size="xs" c="dimmed">Max: {Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
-                  <Text size="xs" c="dimmed">Moy: {Math.round(charts.evolutionMensuelle.reduce((sum: number, d: any) => sum + d.sessions, 0) / charts.evolutionMensuelle.length)}</Text>
+                  {evolutionViewMode === 'numbers' ? (
+                    <>
+                      <Text size="xs" c="dimmed">Min: {Math.min(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
+                      <Text size="xs" c="dimmed">Max: {Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
+                      <Text size="xs" c="dimmed">Moy: {Math.round(charts.evolutionMensuelle.reduce((sum: number, d: any) => sum + d.sessions, 0) / charts.evolutionMensuelle.length)}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text size="xs" c="dimmed">Variation mensuelle moyenne</Text>
+                      <Text size="xs" c="dimmed" fw={600}>
+                        {Math.round(
+                          charts.evolutionMensuelle.reduce((sum: number, d: any, i: number) => {
+                            if (i === 0) return sum;
+                            const prev = charts.evolutionMensuelle[i - 1].sessions;
+                            return sum + (prev !== 0 ? ((d.sessions - prev) / prev) * 100 : 0);
+                          }, 0) / (charts.evolutionMensuelle.length - 1)
+                        )}%
+                      </Text>
+                    </>
+                  )}
                 </Group>
               </Stack>
             ) : (
@@ -483,33 +545,31 @@ export default function DashboardPage() {
                 </div>
               </Group>
             </Group>
-            {charts?.repartitionDepartements && charts.repartitionDepartements.length > 0 ? (
+            {charts?.repartitionDepartements && charts.repartitionDepartements.departements && charts.repartitionDepartements.departements.length > 0 ? (
               <Stack gap="md">
                 {/* Stats globales */}
                 <Group justify="center" gap="xl">
                   <Stack align="center" gap={0}>
                     <Text size="2rem" fw={700} c="blue">
-                      {charts.repartitionDepartements.reduce((sum: number, d: any) => sum + d.value, 0)}
+                      {charts.repartitionDepartements.totalGlobalFormes || 0}
                     </Text>
                     <Text size="xs" c="dimmed">Total formés</Text>
                   </Stack>
                   <Stack align="center" gap={0}>
                     <Text size="2rem" fw={700} c="teal">
-                      {charts.repartitionDepartements.length}
+                      {charts.repartitionDepartements.totalDepartements || 0}
                     </Text>
                     <Text size="xs" c="dimmed">Départements</Text>
                   </Stack>
                 </Group>
-                
+
                 <Divider />
-                
+
                 {/* Liste des départements avec barres de progression */}
                 <Stack gap="xs">
-                  {charts.repartitionDepartements.slice(0, 8).map((dept: any, idx: number) => {
-                    const maxValue = Math.max(...charts.repartitionDepartements.map((d: any) => d.value));
-                    const percentage = Math.round((dept.value / maxValue) * 100);
+                  {charts.repartitionDepartements.departements.slice(0, 8).map((dept: any, idx: number) => {
                     const colors = ["blue", "violet", "grape", "pink", "orange", "teal", "cyan", "indigo"];
-                    
+
                     return (
                       <Box key={idx}>
                         <Group justify="space-between" mb={4}>
@@ -523,16 +583,16 @@ export default function DashboardPage() {
                           </Group>
                           <Group gap="xs">
                             <Text size="sm" fw={600}>
-                              {dept.value}
+                              {dept.trained || 0}/{dept.total || 0}
                             </Text>
                             <Text size="xs" c="dimmed">
-                              ({percentage}%)
+                              ({dept.value}%)
                             </Text>
                           </Group>
                         </Group>
-                        <Progress 
-                          value={percentage} 
-                          size="md" 
+                        <Progress
+                          value={dept.value}
+                          size="md"
                           radius="xl"
                           color={colors[idx % colors.length]}
                           animated
@@ -541,10 +601,10 @@ export default function DashboardPage() {
                     );
                   })}
                 </Stack>
-                
-                {charts.repartitionDepartements.length > 8 && (
+
+                {charts.repartitionDepartements.totalDepartements > 8 && (
                   <Text size="xs" c="dimmed" ta="center">
-                    +{charts.repartitionDepartements.length - 8} autres départements
+                    +{charts.repartitionDepartements.totalDepartements - 8} autres départements
                   </Text>
                 )}
               </Stack>
@@ -584,7 +644,7 @@ export default function DashboardPage() {
                   <Table.Tr>
                     <Table.Th>Formation</Table.Th>
                     <Table.Th>Catégorie</Table.Th>
-                    <Table.Th style={{ textAlign: 'right' }}>Inscriptions</Table.Th>
+                    <Table.Th style={{ textAlign: 'right' }}>Participants</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>

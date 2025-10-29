@@ -67,6 +67,7 @@ import {
 import { sessionsService } from '@/lib/services';
 import { SessionFormationResponse } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
+import { formatDuration } from '@/lib/utils/duration.utils';
 import { TodoList } from '@/components/session-todos/TodoList';
 
 interface Props {
@@ -581,7 +582,10 @@ export default function SessionDetailPage({ params }: Props) {
                     <Text size="sm" c="dimmed">Durée totale</Text>
                   </Group>
                   <Text size="sm" fw={500}>
-                    {session.dureeHeures || session.dureePrevue || session.formation?.dureeHeures || 0}h
+                    {formatDuration(
+                      session.dureeReelle || session.dureePrevue || session.formation?.dureePrevue,
+                      session.uniteDuree || session.formation?.uniteDuree
+                    )}
                   </Text>
                 </Flex>
                 

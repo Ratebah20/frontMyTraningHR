@@ -63,6 +63,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
 import { StatutUtils } from '@/lib/utils/statut.utils';
+import { formatDuration } from '@/lib/utils/duration.utils';
 import { SessionFormationResponse, SessionFilters, GroupedSession } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
@@ -142,11 +143,16 @@ export default function SessionsPage() {
   const [dateFin, setDateFin] = useState<string>('');
   const [formationFilter, setFormationFilter] = useState<string>('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  const [organismeFilter, setOrganismeFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
-  
+
+  // Liste des organismes pour le filtre
+  const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
+  const [loadingOrganismes, setLoadingOrganismes] = useState(false);
+
   const debouncedSearch = useDebounce(search, 500);
 
   // Charger les statistiques globales
@@ -156,6 +162,23 @@ export default function SessionsPage() {
       setGlobalStats(stats);
     } catch (err) {
       console.error('Erreur lors du chargement des statistiques:', err);
+    }
+  };
+
+  // Charger les organismes pour le filtre
+  const loadOrganismes = async () => {
+    setLoadingOrganismes(true);
+    try {
+      const response = await sessionsService.getOrganismes();
+      const organismesData = response.map((org: any) => ({
+        value: org.id.toString(),
+        label: org.nomOrganisme,
+      }));
+      setOrganismes(organismesData);
+    } catch (err) {
+      console.error('Erreur lors du chargement des organismes:', err);
+    } finally {
+      setLoadingOrganismes(false);
     }
   };
 
@@ -172,6 +195,7 @@ export default function SessionsPage() {
         dateFin: dateFin || undefined,
         formationId: formationFilter ? parseInt(formationFilter) : undefined,
         departementId: departmentFilter ? parseInt(departmentFilter) : undefined,
+        organismeId: organismeFilter ? parseInt(organismeFilter) : undefined,
         page,
         limit,
       };
@@ -202,17 +226,18 @@ export default function SessionsPage() {
   // Charger les données au montage
   useEffect(() => {
     loadGlobalStats();
+    loadOrganismes();
   }, []);
 
   // Charger les sessions au montage et quand les filtres changent
   useEffect(() => {
     loadSessions();
-  }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter, page]);
+  }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter]);
+  }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter]);
 
   const handleViewDetails = (groupKey: string) => {
     router.push(`/sessions/grouped/${encodeURIComponent(groupKey)}`);
@@ -387,6 +412,18 @@ export default function SessionsPage() {
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
+            <Select
+              placeholder={loadingOrganismes ? "Chargement..." : "Organisme de formation"}
+              data={organismes}
+              value={organismeFilter}
+              onChange={(value) => setOrganismeFilter(value || '')}
+              clearable
+              disabled={loadingOrganismes}
+              searchable
+              nothingFoundMessage="Aucun organisme trouvé"
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Group grow>
               <TextInput
                 type="date"
@@ -501,11 +538,6 @@ export default function SessionsPage() {
                           {session.formationNom}
                         </Text>
                       </Group>
-                      {session.formationCode && (
-                        <Text size="xs" c="dimmed" ml={28}>
-                          Code: {session.formationCode}
-                        </Text>
-                      )}
                       {session.categorie && (
                         <Badge variant="dot" color="gray" size="sm">
                           {session.categorie}
@@ -562,7 +594,7 @@ export default function SessionsPage() {
                       <Group gap="xs" mb="md">
                         <Clock size={16} color="#868E96" />
                         <Text size="xs" c="dimmed">
-                          {session.dureeHeures} heures
+                          {formatDuration(session.dureeHeures)}
                         </Text>
                       </Group>
                     )}
@@ -626,9 +658,6 @@ export default function SessionsPage() {
                                 {session.formationNom}
                               </Text>
                             </Group>
-                            <Text size="xs" c="dimmed" ml={20}>
-                              {session.formationCode}
-                            </Text>
                             {session.categorie && (
                               <Badge variant="dot" color="gray" size="xs" mt={4}>
                                 {session.categorie}
@@ -732,7 +761,7 @@ export default function SessionsPage() {
                           {session.dureeHeures ? (
                             <Group gap={4} justify="center">
                               <Clock size={14} color="#868E96" />
-                              <Text size="sm">{session.dureeHeures}h</Text>
+                              <Text size="sm">{formatDuration(session.dureeHeures)}</Text>
                             </Group>
                           ) : (
                             <Text size="xs" c="dimmed">

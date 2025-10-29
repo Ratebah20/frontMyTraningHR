@@ -39,6 +39,7 @@ import {
 import { collaborateursService } from '@/lib/services';
 import { Collaborateur, SessionFormation } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
+import { formatDuration } from '@/lib/utils/duration.utils';
 
 interface Props {
   params: {
@@ -226,7 +227,16 @@ export default function CollaborateurDetailPage({ params }: Props) {
                   </Text>
                 </Group>
               )}
-              
+
+              {collaborateur.workerSubType && (
+                <Group gap="xs">
+                  <Calendar size={16} color="#868E96" />
+                  <Text size="sm">
+                    Contrat: {collaborateur.workerSubType}
+                  </Text>
+                </Group>
+              )}
+
               <Badge
                 color={collaborateur.actif ? 'green' : 'red'}
                 variant="light"
@@ -374,7 +384,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
                         : '-'}
                     </Table.Td>
                     <Table.Td>
-                      {session.dureeReelle || session.dureePrevue || '-'} {session.uniteDuree || ''}
+                      {formatDuration(session.dureeReelle || session.dureePrevue, session.uniteDuree)}
                     </Table.Td>
                     <Table.Td>
                       <Badge

@@ -80,14 +80,20 @@ export const sessionsService = {
 
   // Inscrire plusieurs collaborateurs à une formation
   async bulkEnroll(formationId: number, collaborateurIds: number[]): Promise<SessionFormation[]> {
-    const promises = collaborateurIds.map(collaborateurId => 
+    const promises = collaborateurIds.map(collaborateurId =>
       this.createSession({
         collaborateurId,
         formationId,
         statut: 'inscrit',
       })
     );
-    
+
     return Promise.all(promises);
+  },
+
+  // Récupérer la liste des organismes de formation
+  async getOrganismes(): Promise<any[]> {
+    const response = await api.get('/common/organismes');
+    return response.data;
   },
 };

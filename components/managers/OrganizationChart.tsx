@@ -16,6 +16,7 @@ import {
   Collapse,
   Paper,
   rem,
+  ActionIcon,
 } from '@mantine/core';
 import {
   User,
@@ -23,22 +24,26 @@ import {
   CaretDown,
   CaretRight,
   Buildings,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { HierarchyNode } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { EditManagerModal } from './EditManagerModal';
 
 interface OrganizationChartProps {
   data: HierarchyNode[];
   onNodeClick?: (node: HierarchyNode) => void;
+  onRefresh?: () => void;
 }
 
 interface NodeCardProps {
   node: HierarchyNode;
   level: number;
   onNodeClick?: (node: HierarchyNode) => void;
+  onEditManager?: (node: HierarchyNode) => void;
 }
 
-function NodeCard({ node, level, onNodeClick }: NodeCardProps) {
+function NodeCard({ node, level, onNodeClick, onEditManager }: NodeCardProps) {
   const router = useRouter();
   const [expanded, setExpanded] = useState(level < 2); // Auto-expand premier et deuxième niveau
 
@@ -132,8 +137,22 @@ function NodeCard({ node, level, onNodeClick }: NodeCardProps) {
               </div>
             </Group>
 
-            {hasChildren && (
-              <Group gap="xs">
+            <Group gap="xs">
+              <Tooltip label="Modifier le manager">
+                <ActionIcon
+                  variant="light"
+                  color="blue"
+                  size="sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditManager?.(node);
+                  }}
+                >
+                  <PencilSimple size={14} />
+                </ActionIcon>
+              </Tooltip>
+
+              {hasChildren && (
                 <UnstyledButton
                   onClick={(e) => {
                     e.stopPropagation();
@@ -150,8 +169,8 @@ function NodeCard({ node, level, onNodeClick }: NodeCardProps) {
                     {expanded ? <CaretDown size={14} /> : <CaretRight size={14} />}
                   </ThemeIcon>
                 </UnstyledButton>
-              </Group>
-            )}
+              )}
+            </Group>
           </Group>
         </Card>
       </UnstyledButton>
@@ -189,6 +208,7 @@ function NodeCard({ node, level, onNodeClick }: NodeCardProps) {
                     node={child}
                     level={level + 1}
                     onNodeClick={onNodeClick}
+                    onEditManager={onEditManager}
                   />
                 </Box>
               ))}
@@ -200,7 +220,21 @@ function NodeCard({ node, level, onNodeClick }: NodeCardProps) {
   );
 }
 
-export function OrganizationChart({ data, onNodeClick }: OrganizationChartProps) {
+export function OrganizationChart({ data, onNodeClick, onRefresh }: OrganizationChartProps) {
+  const [editModalOpened, setEditModalOpened] = useState(false);
+  const [selectedNode, setSelectedNode] = useState<HierarchyNode | null>(null);
+
+  const handleEditManager = (node: HierarchyNode) => {
+    setSelectedNode(node);
+    setEditModalOpened(true);
+  };
+
+  const handleEditSuccess = () => {
+    setEditModalOpened(false);
+    setSelectedNode(null);
+    onRefresh?.();
+  };
+
   if (!data || data.length === 0) {
     return (
       <Center h={400}>
@@ -222,17 +256,34 @@ export function OrganizationChart({ data, onNodeClick }: OrganizationChartProps)
   }
 
   return (
-    <Paper p="lg" radius="md" withBorder>
-      <Stack gap="lg">
-        {data.map((root) => (
-          <NodeCard
-            key={root.id}
-            node={root}
-            level={0}
-            onNodeClick={onNodeClick}
-          />
-        ))}
-      </Stack>
-    </Paper>
+    <>
+      <Paper p="lg" radius="md" withBorder>
+        <Stack gap="lg">
+          {data.map((root) => (
+            <NodeCard
+              key={root.id}
+              node={root}
+              level={0}
+              onNodeClick={onNodeClick}
+              onEditManager={handleEditManager}
+            />
+          ))}
+        </Stack>
+      </Paper>
+
+      {selectedNode && (
+        <EditManagerModal
+          opened={editModalOpened}
+          onClose={() => {
+            setEditModalOpened(false);
+            setSelectedNode(null);
+          }}
+          collaborateurId={selectedNode.id}
+          collaborateurName={selectedNode.nomComplet}
+          currentManagerId={selectedNode.managerId}
+          onSuccess={handleEditSuccess}
+        />
+      )}
+    </>
   );
 }

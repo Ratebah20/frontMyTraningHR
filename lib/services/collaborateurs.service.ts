@@ -80,6 +80,14 @@ export const collaborateursService = {
     return response.data;
   },
 
+  // Assigner ou changer le manager d'un collaborateur
+  async assignManager(collaborateurId: number, managerId: number | null): Promise<any> {
+    const response = await api.patch(`/collaborateurs/${collaborateurId}/assign-manager`, {
+      managerId,
+    });
+    return response.data;
+  },
+
   // Importer des collaborateurs depuis Excel
   async importCollaborateurs(file: File, type: 'initial' | 'olu'): Promise<any> {
     const formData = new FormData();

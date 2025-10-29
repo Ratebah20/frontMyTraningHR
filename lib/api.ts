@@ -95,11 +95,11 @@ const clearTokens = (): void => {
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const tokens = getTokens();
-    
+
     if (tokens?.accessToken && config.headers) {
       config.headers.Authorization = `Bearer ${tokens.accessToken}`;
     }
-    
+
     return config;
   },
   (error) => {

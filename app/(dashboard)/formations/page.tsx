@@ -28,6 +28,7 @@ import {
   Skeleton,
   Table,
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import {
   MagnifyingGlass,
@@ -55,6 +56,7 @@ import { useRouter } from 'next/navigation';
 import { formationsService, commonService } from '@/lib/services';
 import { Formation, FormationFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
+import { formatDuration } from '@/lib/utils/duration.utils';
 
 // Fonction pour obtenir le nom de la catégorie
 const getCategoryName = (categorie: any): string => {
@@ -112,11 +114,13 @@ export default function FormationsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('');
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>(''); // Changé de showInactive à statusFilter
+  const [createdAtDebut, setCreatedAtDebut] = useState<Date | null>(null);
+  const [createdAtFin, setCreatedAtFin] = useState<Date | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(24); // Plus de cartes par page
-  
+
   const debouncedSearch = useDebounce(search, 500);
 
   // Charger les formations
@@ -130,23 +134,31 @@ export default function FormationsPage() {
         search: debouncedSearch,
         categorieId: categoryFilter ? parseInt(categoryFilter) : undefined,
         typeFormation: typeFilter || undefined,
+        createdAtDebut: createdAtDebut ? (createdAtDebut instanceof Date ? createdAtDebut.toISOString().split('T')[0] : createdAtDebut) : undefined,
+        createdAtFin: createdAtFin ? (createdAtFin instanceof Date ? createdAtFin.toISOString().split('T')[0] : createdAtFin) : undefined,
         page,
         limit,
         sortBy: 'nomFormation',
         order: 'asc',
       };
-      
+
+      // Nettoyer les valeurs undefined pour que axios les envoie correctement
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([_, value]) => value !== undefined)
+      );
+
       // Gérer le filtre de statut comme pour les collaborateurs
       if (statusFilter === 'actif') {
         // Envoyer comme chaîne pour que axios le transmette correctement
-        filters.actif = 'true' as any;
+        cleanFilters.actif = 'true' as any;
       } else if (statusFilter === 'inactif') {
-        // Envoyer comme chaîne pour que axios le transmette correctement  
-        filters.actif = 'false' as any;
+        // Envoyer comme chaîne pour que axios le transmette correctement
+        cleanFilters.actif = 'false' as any;
       }
-      // Pour '' (tous), on n'envoie pas de paramètre actif
-      
-      const response = await formationsService.getFormations(filters);
+      // Pour '' (tous), ne rien envoyer - le backend affichera les actifs par défaut
+      // Si on veut vraiment tous (actifs + inactifs), il faudrait un filtre explicite
+
+      const response = await formationsService.getFormations(cleanFilters);
       
       if (response.data) {
         setFormations(response.data);
@@ -154,18 +166,18 @@ export default function FormationsPage() {
         setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || response.total || 0) / limit));
         
         // Si c'est le premier chargement sans filtre, utiliser ces stats pour les globales
-        if (statusFilter === '' && !categoryFilter && !typeFilter && !debouncedSearch && page === 1) {
+        if (statusFilter === '' && !categoryFilter && !typeFilter && !debouncedSearch && !createdAtDebut && !createdAtFin && page === 1) {
           // Puisque sans filtre on récupère tout, on peut utiliser le total de la méta
           const totalFromMeta = response.meta?.total || response.total || response.data.length;
           // Et toutes les formations visibles sont actives (car par défaut on ne voit que les actives)
           const activesCount = totalFromMeta; // Car par défaut, on ne montre que les actives
-          
+
           console.log('Mise à jour des stats depuis la réponse principale:', {
             total: totalFromMeta,
             actives: activesCount,
             dataLength: response.data.length
           });
-          
+
           setGlobalStats(prev => ({
             ...prev,
             totalFormations: totalFromMeta,
@@ -190,12 +202,12 @@ export default function FormationsPage() {
   // Charger les formations au montage et quand les filtres changent
   useEffect(() => {
     loadFormations();
-  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, page]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/formations/${id}`);
@@ -389,9 +401,9 @@ export default function FormationsPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Total Formations
+                    {(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin) ? 'Résultats filtrés' : 'Total Formations'}
                   </Text>
-                  <Text size="xl" fw={700}>{globalStats.totalFormations || total}</Text>
+                  <Text size="xl" fw={700}>{total}</Text>
                 </div>
                 <BookOpen size={24} color="#228BE6" />
               </Group>
@@ -402,10 +414,10 @@ export default function FormationsPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Formations Actives
+                    {(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin) ? 'Résultats' : 'Formations Actives'}
                   </Text>
                   <Text size="xl" fw={700} c="green">
-                    {globalStats.totalActives}
+                    {(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin) ? total : globalStats.totalActives}
                   </Text>
                 </div>
                 <CheckCircle size={24} color="#40C057" />
@@ -494,6 +506,26 @@ export default function FormationsPage() {
               ]}
               value={statusFilter}
               onChange={(value) => setStatusFilter(value || '')}
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6 }}>
+            <DateInput
+              placeholder="Date de création (début)"
+              leftSection={<Calendar size={16} />}
+              value={createdAtDebut}
+              onChange={setCreatedAtDebut}
+              clearable
+              valueFormat="DD/MM/YYYY"
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 6 }}>
+            <DateInput
+              placeholder="Date de création (fin)"
+              leftSection={<Calendar size={16} />}
+              value={createdAtFin}
+              onChange={setCreatedAtFin}
+              clearable
+              valueFormat="DD/MM/YYYY"
             />
           </Grid.Col>
         </Grid>
@@ -639,7 +671,7 @@ export default function FormationsPage() {
                           <Clock size={18} style={{ color: 'var(--mantine-color-blue-6)' }} />
                           <Text size="xs" c="dimmed">Durée</Text>
                           <Text size="sm" fw={600}>
-                            {formation.dureePrevue || 0}{formation.uniteDuree?.toLowerCase() === 'heures' ? 'h' : formation.uniteDuree || 'h'}
+                            {formatDuration(formation.dureePrevue, formation.uniteDuree)}
                           </Text>
                         </Stack>
                       </Grid.Col>
@@ -740,8 +772,7 @@ export default function FormationsPage() {
                         <Group gap={4} justify="center">
                           <Clock size={16} color="var(--mantine-color-blue-6)" />
                           <Text size="sm" fw={500}>
-                            {formation.dureePrevue || 0}
-                            {formation.uniteDuree?.toLowerCase() === 'heures' ? 'h' : formation.uniteDuree || 'h'}
+                            {formatDuration(formation.dureePrevue, formation.uniteDuree)}
                           </Text>
                         </Group>
                       </Table.Td>

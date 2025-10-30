@@ -252,13 +252,12 @@ export default function DashboardPage() {
       {/* 12 KPIs Cards */}
       <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md" mb="xl">
         {kpiCards.map((kpi, index) => (
-          <Card 
+          <Card
             key={index}
-            shadow="sm" 
-            radius="md" 
-            withBorder 
+            shadow="sm"
+            radius="md"
+            withBorder
             p="md"
-            bg={kpi.highlight ? 'var(--mantine-color-blue-0)' : undefined}
           >
             <Group justify="space-between" mb="xs">
               <ThemeIcon size={32} radius="md" variant="light" color={kpi.color}>
@@ -295,7 +294,7 @@ export default function DashboardPage() {
       <Grid gutter="lg" mb="lg">
         {/* Évolution mensuelle */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
+          <Paper shadow="sm" radius="md" p="lg" withBorder h="100%">
             <Group justify="space-between" mb="md">
               <Group gap="xs">
                 <ThemeIcon size={36} radius="md" variant="light" color="blue">
@@ -355,11 +354,11 @@ export default function DashboardPage() {
                           <Box>
                             <Box
                               h={100}
-                              bg="gray.1"
                               style={{
                                 position: 'relative',
                                 borderRadius: '4px',
-                                overflow: 'hidden'
+                                overflow: 'hidden',
+                                backgroundColor: 'var(--mantine-color-default-border)'
                               }}
                             >
                               <Box
@@ -373,7 +372,7 @@ export default function DashboardPage() {
                                 }}
                               />
                             </Box>
-                            <Text size="xs" ta="center" mt={4} c="dark">
+                            <Text size="xs" ta="center" mt={4}>
                               {item.month.split(' ')[0]}
                             </Text>
                             <Text size="xs" ta="center" fw={600}>
@@ -420,7 +419,7 @@ export default function DashboardPage() {
 
         {/* Alertes & Notifications */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
+          <Paper shadow="sm" radius="md" p="lg" withBorder h="100%">
             <Group justify="space-between" mb="md">
               <Group gap="xs">
                 <ThemeIcon size={36} radius="md" variant="light" color="orange">
@@ -533,7 +532,7 @@ export default function DashboardPage() {
       <Grid gutter="lg" mb="xl">
         {/* Répartition par département */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
+          <Paper shadow="sm" radius="md" p="lg" withBorder h="100%">
             <Group justify="space-between" mb="md">
               <Group gap="xs">
                 <ThemeIcon size={36} radius="md" variant="light" color="teal">
@@ -618,7 +617,7 @@ export default function DashboardPage() {
 
         {/* Top formations */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
-          <Paper shadow="sm" radius="md" p="lg" withBorder bg="white" h="100%">
+          <Paper shadow="sm" radius="md" p="lg" withBorder h="100%">
             <Group justify="space-between" mb="md">
               <Group gap="xs">
                 <ThemeIcon size={36} radius="md" variant="light" color="violet">
@@ -693,7 +692,7 @@ export default function DashboardPage() {
 
       {/* Sessions à venir */}
       {alerts?.sessionsAVenir && alerts.sessionsAVenir.length > 0 && (
-        <Paper shadow="sm" radius="md" p="lg" withBorder bg="white">
+        <Paper shadow="sm" radius="md" p="lg" withBorder>
           <Group justify="space-between" mb="md">
             <Group gap="xs">
               <ThemeIcon size={36} radius="md" variant="light" color="indigo">

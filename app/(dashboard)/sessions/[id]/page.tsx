@@ -583,7 +583,7 @@ export default function SessionDetailPage({ params }: Props) {
                   </Group>
                   <Text size="sm" fw={500}>
                     {formatDuration(
-                      session.dureeReelle || session.dureePrevue || session.formation?.dureePrevue,
+                      session.dureeHeures || session.dureePrevue || session.formation?.dureePrevue,
                       session.uniteDuree || session.formation?.uniteDuree
                     )}
                   </Text>

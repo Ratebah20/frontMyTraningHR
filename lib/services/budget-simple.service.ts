@@ -43,7 +43,6 @@ export interface AnalyseCategorie {
   nombreSessions: number;
   nombreFormationsUniques: number;
   pourcentageDuTotal: number;
-  tauxCompletionMoyen: number;
 }
 
 // Types pour l'analyse par période

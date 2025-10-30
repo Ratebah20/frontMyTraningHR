@@ -255,7 +255,8 @@ export interface CreateSessionDto {
   uniteDuree?: string;
   statut?: string;
   tarifHT?: number;
-  commentaires?: string;
+  note?: number;
+  commentaire?: string;
 }
 
 export interface UpdateSessionDto {
@@ -363,7 +364,6 @@ export interface DashboardStats {
   totalSessions: number;
   sessionsEnCours: number;
   sessionsTerminees: number;
-  tauxCompletionGlobal: number;
   collaborateursActifs: number;
   formationsActives: number;
   heuresFormationTotal: number;
@@ -378,7 +378,6 @@ export interface FormationStats {
   sessionsPlanifiees: number;
   totalParticipants: number;
   participantsUniques: number;
-  tauxCompletion: number;
   dureeMovenne: number;
   coutTotal: number;
   coutMoyen: number;
@@ -391,7 +390,6 @@ export interface CollaborateurStats {
   formationsEnCours: number;
   heuresFormation: number;
   dernierFormation?: SessionFormation;
-  tauxCompletion: number;
 }
 
 export interface DepartementStats {

@@ -32,7 +32,7 @@ import {
   Info,
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
-import { collaborateursService, commonService } from '@/lib/services';
+import { collaborateursService, commonService, managersService } from '@/lib/services';
 
 export default function CollaborateurNewPage() {
   const router = useRouter();
@@ -111,31 +111,37 @@ export default function CollaborateurNewPage() {
 
         // Charger les managers potentiels et les sous-types de contrats existants
         try {
-          const response = await collaborateursService.getCollaborateurs({
-            limit: 100,
-            actif: true,
-          });
-          
-          if (response.data) {
-            const managersList = response.data.map(c => ({
-              value: c.id.toString(),
-              label: c.nomComplet || `${c.nom} ${c.prenom}`,
+          // Charger uniquement les vrais managers (qui ont des subordonnés)
+          const managersResponse = await managersService.getManagers();
+
+          if (managersResponse.data) {
+            const managersList = managersResponse.data.map(m => ({
+              value: m.id.toString(),
+              label: m.nomComplet,
             }));
             setManagers(managersList);
-            
+          }
+
+          // Charger tous les collaborateurs pour extraire les sous-types de contrats
+          const collaborateursResponse = await collaborateursService.getCollaborateurs({
+            limit: 2000,
+            actif: true,
+          });
+
+          if (collaborateursResponse.data) {
             // Extraire les sous-types de contrats uniques existants
             const uniqueSubTypes = new Set<string>();
-            response.data.forEach(c => {
+            collaborateursResponse.data.forEach(c => {
               if (c.workerSubType) {
                 uniqueSubTypes.add(c.workerSubType);
               }
             });
-            
+
             // Ajouter des sous-types communs
             ['Employee FT', 'Employee PT', 'VIE', 'Trainee', 'Contractor', 'Intern'].forEach(type => {
               uniqueSubTypes.add(type);
             });
-            
+
             setWorkerSubTypes(Array.from(uniqueSubTypes).sort());
           }
         } catch (error) {

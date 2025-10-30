@@ -10,7 +10,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL
 interface PerformanceMetrics {
   sessionsTotal: number
   sessionsTerminees: number
-  tauxCompletion: number
   heuresTotal: number
   collaborateursFormes: number
   heuresMoyennes: number
@@ -29,7 +28,6 @@ interface PerformanceKPIs {
     trimestre: string
     sessionsTotal: number
     sessionsTerminees: number
-    tauxCompletion: number
     heuresTotal: number
     collaborateursFormes: number
   }>
@@ -38,7 +36,6 @@ interface PerformanceKPIs {
     effectif: number
     sessionsTotal: number
     sessionsTerminees: number
-    tauxCompletion: number
     tauxParticipation: number
     heuresTotal: number
     heuresMoyennes: number
@@ -110,11 +107,6 @@ export default function PerformanceKPIsPage() {
               {getVariationIcon(metrics.variation)} {Math.abs(metrics.variation)}%
             </Badge>
           )}
-        </Group>
-        <Progress value={metrics.tauxCompletion} size="sm" color="teal" />
-        <Group justify="space-between">
-          <Text size="xs" c="dimmed">Taux complétion</Text>
-          <Text size="xs" fw={600} c="teal">{metrics.tauxCompletion}%</Text>
         </Group>
         <Group justify="space-between">
           <Text size="xs" c="dimmed">Heures totales</Text>
@@ -220,13 +212,6 @@ export default function PerformanceKPIsPage() {
                     <Text size="sm" c="dimmed" mb="xs">Sessions terminées</Text>
                     <Text size="2xl" fw={700} c="green">{data.global.sessionsTerminees}</Text>
                   </div>
-                  <div>
-                    <Text size="sm" c="dimmed" mb="xs">Taux de complétion global</Text>
-                    <Progress value={data.global.tauxCompletion} size="lg" color="teal" />
-                    <Text size="sm" fw={600} c="teal" ta="center" mt="xs">
-                      {data.global.tauxCompletion}%
-                    </Text>
-                  </div>
                 </Stack>
               </Grid.Col>
               <Grid.Col span={{ base: 12, md: 6 }}>
@@ -258,7 +243,6 @@ export default function PerformanceKPIsPage() {
                   <Table.Th>Trimestre</Table.Th>
                   <Table.Th>Sessions</Table.Th>
                   <Table.Th>Terminées</Table.Th>
-                  <Table.Th>Taux complétion</Table.Th>
                   <Table.Th>Heures</Table.Th>
                   <Table.Th>Participants</Table.Th>
                 </Table.Tr>
@@ -273,10 +257,6 @@ export default function PerformanceKPIsPage() {
                     </Table.Td>
                     <Table.Td>{trimestre.sessionsTotal}</Table.Td>
                     <Table.Td>{trimestre.sessionsTerminees}</Table.Td>
-                    <Table.Td>
-                      <Progress value={trimestre.tauxCompletion} size="sm" color="teal" />
-                      <Text size="xs" ta="center">{trimestre.tauxCompletion}%</Text>
-                    </Table.Td>
                     <Table.Td>{trimestre.heuresTotal}h</Table.Td>
                     <Table.Td>{trimestre.collaborateursFormes}</Table.Td>
                   </Table.Tr>
@@ -295,7 +275,6 @@ export default function PerformanceKPIsPage() {
                   <Table.Th>Département</Table.Th>
                   <Table.Th>Effectif</Table.Th>
                   <Table.Th>Sessions</Table.Th>
-                  <Table.Th>Taux complétion</Table.Th>
                   <Table.Th>Taux participation</Table.Th>
                   <Table.Th>Heures totales</Table.Th>
                   <Table.Th>Heures/pers</Table.Th>
@@ -304,9 +283,9 @@ export default function PerformanceKPIsPage() {
               </Table.Thead>
               <Table.Tbody>
                 {data.benchmarkDepartements.map((dept, index) => {
-                  const score = Math.round((dept.tauxCompletion + dept.tauxParticipation) / 2)
+                  const score = dept.tauxParticipation
                   const scoreColor = score >= 80 ? 'green' : score >= 60 ? 'yellow' : score >= 40 ? 'orange' : 'red'
-                  
+
                   return (
                     <Table.Tr key={dept.departement}>
                       <Table.Td>
@@ -315,11 +294,6 @@ export default function PerformanceKPIsPage() {
                       </Table.Td>
                       <Table.Td>{dept.effectif}</Table.Td>
                       <Table.Td>{dept.sessionsTotal}</Table.Td>
-                      <Table.Td>
-                        <Text fw={600} c={dept.tauxCompletion >= 80 ? 'green' : 'orange'}>
-                          {dept.tauxCompletion}%
-                        </Text>
-                      </Table.Td>
                       <Table.Td>
                         <Text fw={600} c={dept.tauxParticipation >= 70 ? 'green' : 'orange'}>
                           {dept.tauxParticipation}%

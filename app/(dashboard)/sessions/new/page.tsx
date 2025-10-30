@@ -21,19 +21,22 @@ import {
   Loader,
   Badge,
   Center,
+  MultiSelect,
+  Switch,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { 
-  ArrowLeft, 
-  CheckCircle, 
-  Warning, 
+import {
+  ArrowLeft,
+  CheckCircle,
+  Warning,
   Calendar,
   User,
   BookOpen,
   Building,
   Clock,
   FileText,
+  Users,
 } from '@phosphor-icons/react';
 import { 
   sessionsService, 
@@ -52,17 +55,19 @@ export default function NewSessionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [batchMode, setBatchMode] = useState(false);
+
   // Données pour les selects
   const [formations, setFormations] = useState<Formation[]>([]);
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
   const [organismes, setOrganismes] = useState<Organisme[]>([]);
   const [loadingData, setLoadingData] = useState(true);
-  
+  const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<string[]>([]);
+
   // Pré-remplir si on vient d'une formation ou d'un collaborateur
   const preselectedFormationId = searchParams.get('formationId');
   const preselectedCollaborateurId = searchParams.get('collaborateurId');
-  
+
   const form = useForm<CreateSessionDto>({
     initialValues: {
       collaborateurId: preselectedCollaborateurId ? parseInt(preselectedCollaborateurId) : 0,
@@ -80,7 +85,7 @@ export default function NewSessionPage() {
     },
     validate: {
       collaborateurId: (value) => {
-        if (!value || value === 0) return 'Collaborateur requis';
+        if (!batchMode && (!value || value === 0)) return 'Collaborateur requis';
         return null;
       },
       formationId: (value) => {
@@ -119,14 +124,14 @@ export default function NewSessionPage() {
       try {
         // Charger les formations actives
         const formationsResponse = await formationsService.getFormations({
-          limit: 100,
+          limit: 2000,
           includeInactive: false,
         });
         setFormations(formationsResponse.data || []);
-        
+
         // Charger les collaborateurs actifs
         const collaborateursResponse = await collaborateursService.getCollaborateurs({
-          limit: 100,
+          limit: 2000,
           actif: true,
         });
         setCollaborateurs(collaborateursResponse.data || []);
@@ -152,11 +157,22 @@ export default function NewSessionPage() {
   }, []);
 
   const handleSubmit = async (values: CreateSessionDto) => {
+    // Validation pour le mode batch
+    if (batchMode && selectedCollaborateurs.length === 0) {
+      notifications.show({
+        title: 'Erreur',
+        message: 'Veuillez sélectionner au moins un collaborateur',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     try {
       // Nettoyer les données avant envoi
-      const dataToSend = {
+      const baseData = {
         ...values,
         dureePrevue: values.dureePrevue || undefined,
         dureeReelle: values.dureeReelle || undefined,
@@ -165,20 +181,40 @@ export default function NewSessionPage() {
         note: values.note !== undefined ? values.note : undefined,
         dateFin: values.dateFin || undefined,
       };
-      
-      const session = await sessionsService.createSession(dataToSend);
-      
-      notifications.show({
-        title: 'Succès',
-        message: 'Inscription créée avec succès',
-        color: 'green',
-        icon: <CheckCircle size={20} />,
-      });
-      
+
+      if (batchMode) {
+        // Mode batch : créer une session pour chaque collaborateur
+        const promises = selectedCollaborateurs.map(collabId =>
+          sessionsService.createSession({
+            ...baseData,
+            collaborateurId: parseInt(collabId),
+          })
+        );
+
+        await Promise.all(promises);
+
+        notifications.show({
+          title: 'Succès',
+          message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      } else {
+        // Mode simple : créer une seule session
+        await sessionsService.createSession(baseData);
+
+        notifications.show({
+          title: 'Succès',
+          message: 'Inscription créée avec succès',
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      }
+
       router.push('/sessions');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Erreur lors de la création de l\'inscription';
-      
+
       notifications.show({
         title: 'Erreur',
         message: errorMessage,
@@ -216,7 +252,9 @@ export default function NewSessionPage() {
       <Group justify="space-between" mb="xl">
         <div>
           <Title order={2}>Nouvelle inscription</Title>
-          <Text c="dimmed">Inscrire un collaborateur à une formation</Text>
+          <Text c="dimmed">
+            {batchMode ? 'Inscrire plusieurs collaborateurs à une formation' : 'Inscrire un collaborateur à une formation'}
+          </Text>
         </div>
         <Button
           variant="subtle"
@@ -229,26 +267,65 @@ export default function NewSessionPage() {
 
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="lg">
+          {/* Mode d'inscription */}
+          <Paper shadow="xs" p="lg" radius="md" withBorder>
+            <Group justify="space-between">
+              <Group>
+                {batchMode ? <Users size={24} /> : <User size={24} />}
+                <div>
+                  <Text fw={600}>Mode d'inscription</Text>
+                  <Text size="sm" c="dimmed">
+                    {batchMode ? 'Plusieurs collaborateurs' : 'Un seul collaborateur'}
+                  </Text>
+                </div>
+              </Group>
+              <Switch
+                checked={batchMode}
+                onChange={(event) => {
+                  setBatchMode(event.currentTarget.checked);
+                  setSelectedCollaborateurs([]);
+                  form.setFieldValue('collaborateurId', 0);
+                }}
+                label="Inscription multiple"
+                size="md"
+              />
+            </Group>
+          </Paper>
+
           {/* Informations principales */}
           <Paper shadow="xs" p="lg" radius="md" withBorder>
             <Group align="center" mb="md">
-              <User size={20} />
+              {batchMode ? <Users size={20} /> : <User size={20} />}
               <Text fw={600}>Informations principales</Text>
             </Group>
-            
+
             <Stack gap="md">
-              <Select
-                label="Collaborateur"
-                placeholder="Sélectionner un collaborateur"
-                required
-                searchable
-                data={collaborateursData}
-                value={form.values.collaborateurId?.toString()}
-                onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value) : 0)}
-                error={form.errors.collaborateurId}
-                leftSection={<User size={16} />}
-              />
-              
+              {batchMode ? (
+                <MultiSelect
+                  label="Collaborateurs"
+                  placeholder="Sélectionner les collaborateurs"
+                  required
+                  searchable
+                  data={collaborateursData}
+                  value={selectedCollaborateurs}
+                  onChange={setSelectedCollaborateurs}
+                  leftSection={<Users size={16} />}
+                  description={`${selectedCollaborateurs.length} collaborateur(s) sélectionné(s)`}
+                />
+              ) : (
+                <Select
+                  label="Collaborateur"
+                  placeholder="Sélectionner un collaborateur"
+                  required
+                  searchable
+                  data={collaborateursData}
+                  value={form.values.collaborateurId?.toString()}
+                  onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value) : 0)}
+                  error={form.errors.collaborateurId}
+                  leftSection={<User size={16} />}
+                />
+              )}
+
               <Select
                 label="Formation"
                 placeholder="Sélectionner une formation"
@@ -377,21 +454,32 @@ export default function NewSessionPage() {
             </Stack>
           </Paper>
 
+          {/* Résumé en mode batch */}
+          {batchMode && selectedCollaborateurs.length > 0 && (
+            <Alert color="blue" title="Récapitulatif" icon={<Users size={16} />}>
+              <Text size="sm">
+                <strong>{selectedCollaborateurs.length}</strong> inscription(s) vont être créées pour la formation sélectionnée.
+              </Text>
+            </Alert>
+          )}
+
           {/* Actions */}
           <Group justify="flex-end">
-            <Button 
-              variant="subtle" 
+            <Button
+              variant="subtle"
               onClick={() => router.back()}
               disabled={isSubmitting}
             >
               Annuler
             </Button>
-            <Button 
+            <Button
               type="submit"
               loading={isSubmitting}
               leftSection={<CheckCircle size={16} />}
             >
-              Créer l'inscription
+              {batchMode
+                ? `Créer ${selectedCollaborateurs.length} inscription(s)`
+                : 'Créer l\'inscription'}
             </Button>
           </Group>
         </Stack>

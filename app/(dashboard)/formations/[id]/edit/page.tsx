@@ -492,10 +492,6 @@ export default function EditFormationPage() {
                   <Text fw={600}>{formation.stats.nombreParticipants || 0}</Text>
                 </Grid.Col>
                 <Grid.Col span={{ base: 6, md: 3 }}>
-                  <Text size="sm" c="dimmed">Taux de complétion</Text>
-                  <Text fw={600}>{formation.stats.tauxCompletion || 0}%</Text>
-                </Grid.Col>
-                <Grid.Col span={{ base: 6, md: 3 }}>
                   <Text size="sm" c="dimmed">Heures totales</Text>
                   <Text fw={600}>{formation.stats.heuresTotales || 0}h</Text>
                 </Grid.Col>

@@ -54,7 +54,6 @@ interface DashboardData {
     totalCollaborateurs: number;
     totalFormations: number;
     totalSessions: number;
-    tauxCompletion: number;
     heuresFormation: number;
     budgetUtilise?: number;
   };
@@ -76,7 +75,6 @@ interface DashboardData {
     nom: string;
     categorie: string;
     participants: number;
-    tauxCompletion: number;
   }>;
   alertes: Array<{
     type: string;
@@ -297,33 +295,6 @@ export default function ReportsPage() {
               </Stack>
             </Card>
 
-            <Card shadow="sm" p="lg" radius="md" withBorder>
-              <Stack align="center" gap="md">
-                <Center>
-                  <RingProgress
-                    size={100}
-                    thickness={12}
-                    sections={[
-                      { 
-                        value: dashboardData.kpis.tauxCompletion, 
-                        color: dashboardData.kpis.tauxCompletion > 70 ? 'green' : 
-                               dashboardData.kpis.tauxCompletion > 40 ? 'yellow' : 'red'
-                      }
-                    ]}
-                    label={
-                      <Center>
-                        <Text size="lg" fw={700}>
-                          {Math.round(dashboardData.kpis.tauxCompletion)}%
-                        </Text>
-                      </Center>
-                    }
-                  />
-                </Center>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700} ta="center">
-                  Taux de complétion
-                </Text>
-              </Stack>
-            </Card>
           </SimpleGrid>
 
           {/* Heures de formation */}
@@ -423,7 +394,6 @@ export default function ReportsPage() {
                     <Table.Th>Code</Table.Th>
                     <Table.Th>Catégorie</Table.Th>
                     <Table.Th>Participants</Table.Th>
-                    <Table.Th>Taux complétion</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -443,18 +413,6 @@ export default function ReportsPage() {
                       </Table.Td>
                       <Table.Td>{formation.categorie}</Table.Td>
                       <Table.Td>{formation.participants}</Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <Progress 
-                            value={formation.tauxCompletion} 
-                            color={formation.tauxCompletion > 70 ? 'green' : 
-                                   formation.tauxCompletion > 40 ? 'yellow' : 'red'}
-                            size="sm"
-                            w={100}
-                          />
-                          <Text size="xs">{Math.round(formation.tauxCompletion)}%</Text>
-                        </Group>
-                      </Table.Td>
                     </Table.Tr>
                   ))}
                 </Table.Tbody>

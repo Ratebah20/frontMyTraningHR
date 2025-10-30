@@ -31,7 +31,7 @@ import {
   IdentificationCard,
   Users,
 } from '@phosphor-icons/react';
-import { collaborateursService, commonService } from '@/lib/services';
+import { collaborateursService, commonService, managersService } from '@/lib/services';
 import { Collaborateur } from '@/lib/types';
 
 interface Props {
@@ -128,17 +128,14 @@ export default function CollaborateurEditPage({ params }: Props) {
           actif: collabData.actif !== false,
         });
         
-        // Charger la liste des managers potentiels
-        const managersResponse = await collaborateursService.getCollaborateurs({ 
-          limit: 100, 
-          includeInactive: false 
-        });
+        // Charger uniquement les vrais managers (qui ont des subordonnés)
+        const managersResponse = await managersService.getManagers();
         if (managersResponse.data) {
           const managersList = managersResponse.data
-            .filter(c => c.id !== parseInt(params.id)) // Exclure le collaborateur lui-même
-            .map(c => ({
-              value: c.id.toString(),
-              label: c.nomComplet || `${c.nom} ${c.prenom}`,
+            .filter(m => m.id !== parseInt(params.id)) // Exclure le collaborateur lui-même
+            .map(m => ({
+              value: m.id.toString(),
+              label: m.nomComplet,
             }));
           setManagers(managersList);
         }

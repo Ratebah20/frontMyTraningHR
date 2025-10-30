@@ -334,11 +334,6 @@ export default function ManagersPage() {
                         </Table.Thead>
                         <Table.Tbody>
                           {filteredManagers.map((manager) => {
-                            const totalFormations = manager.formationsEnCours + manager.formationsTerminees + manager.formationsPlanifiees;
-                            const tauxCompletion = totalFormations > 0
-                              ? Math.round((manager.formationsTerminees / totalFormations) * 100)
-                              : 0;
-
                             return (
                               <Table.Tr key={manager.id}>
                                 <Table.Td>
@@ -386,11 +381,6 @@ export default function ManagersPage() {
                                         {manager.formationsTerminees}
                                       </Badge>
                                     </Tooltip>
-                                    {tauxCompletion > 0 && (
-                                      <Text size="xs" c="dimmed">
-                                        ({tauxCompletion}%)
-                                      </Text>
-                                    )}
                                   </Group>
                                 </Table.Td>
                                 <Table.Td>

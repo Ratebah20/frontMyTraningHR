@@ -309,16 +309,6 @@ export default function FormationDetailPage({ params }: Props) {
             <Grid>
               <Grid.Col span={{ base: 12, sm: 6 }}>
                 <Stack gap="sm">
-                  <div>
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                      Taux de complétion
-                    </Text>
-                    <Group gap="xs" mt="xs">
-                      <Progress value={formation.stats?.tauxCompletion || 0} size="lg" style={{ flex: 1 }} />
-                      <Text fw={700}>{formation.stats?.tauxCompletion || 0}%</Text>
-                    </Group>
-                  </div>
-                  
                   <Group justify="space-between">
                     <Text size="sm">Sessions terminées</Text>
                     <Badge color="green">{formation.stats?.sessionsTerminees || 0}</Badge>

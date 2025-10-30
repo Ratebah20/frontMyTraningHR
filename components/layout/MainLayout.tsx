@@ -18,6 +18,7 @@ import {
   Burger,
   useMantineTheme,
   Flex,
+  Button,
 } from '@mantine/core';
 import { useDisclosure, useWindowScroll, useHotkeys } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
@@ -25,18 +26,19 @@ import { NavigationProgress, nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
 import { gsap } from 'gsap';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Bell, 
-  ChatCircle, 
-  Gear, 
-  SignOut, 
+import {
+  Bell,
+  ChatCircle,
+  Gear,
+  SignOut,
   User,
   MagnifyingGlass,
   Moon,
   Sun,
-  ArrowsClockwise
+  ArrowsClockwise,
+  Plus
 } from '@phosphor-icons/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 
@@ -48,6 +50,7 @@ interface MainLayoutProps {
 export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
   const theme = useMantineTheme();
   const pathname = usePathname();
+  const router = useRouter();
   const [opened, { toggle }] = useDisclosure(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user: authUser, logout } = useAuth();
@@ -127,13 +130,11 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
         padding="md"
       >
         <AppShell.Header>
-          <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
             height: '100%',
             padding: '0 1rem',
-            backgroundColor: theme.white,
-            borderBottom: `1px solid ${theme.colors.gray[2]}`,
           }}>
             <Burger
               opened={opened}
@@ -172,6 +173,15 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
 
               {/* Actions */}
               <Group gap="md">
+                {/* Nouvelle session */}
+                <Button
+                  leftSection={<Plus size={16} />}
+                  variant="filled"
+                  onClick={() => router.push('/sessions/new')}
+                >
+                  Nouvelle session
+                </Button>
+
                 {/* Recherche */}
                 <Tooltip label="Recherche (Ctrl+K)" position="bottom">
                   <ActionIcon variant="light" size="lg">
@@ -181,8 +191,8 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
 
                 {/* Rafraîchir */}
                 <Tooltip label="Synchroniser (Ctrl+S)" position="bottom">
-                  <ActionIcon 
-                    variant="light" 
+                  <ActionIcon
+                    variant="light"
                     size="lg"
                     onClick={() => setIsSyncing(true)}
                     loading={isSyncing}

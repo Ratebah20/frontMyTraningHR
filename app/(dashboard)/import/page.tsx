@@ -44,9 +44,10 @@ import { importService } from '@/lib/services';
 import type { ImportHistory, ImportResult } from '@/lib/services/import.service';
 
 export default function ImportPage() {
-  const [activeTab, setActiveTab] = useState<string | null>('initial');
+  const [activeTab, setActiveTab] = useState<string | null>('collaborateurs');
   const [initialFile, setInitialFile] = useState<File | null>(null);
   const [oluFile, setOluFile] = useState<File | null>(null);
+  const [collaborateursFile, setCollaborateursFile] = useState<File | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [importHistory, setImportHistory] = useState<ImportHistory[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
@@ -57,6 +58,12 @@ export default function ImportPage() {
   useEffect(() => {
     loadImportHistory();
   }, []);
+
+  // Réinitialiser les stats lors du changement d'onglet
+  useEffect(() => {
+    setCurrentImportStats(null);
+    setImportProgress(0);
+  }, [activeTab]);
 
   const loadImportHistory = async () => {
     setIsLoadingHistory(true);
@@ -177,7 +184,7 @@ export default function ImportPage() {
 
       // Recharger l'historique
       await loadImportHistory();
-      
+
       // Réinitialiser après succès
       setTimeout(() => {
         setOluFile(null);
@@ -186,7 +193,66 @@ export default function ImportPage() {
     } catch (error: any) {
       clearInterval(progressInterval);
       setImportProgress(0);
-      
+
+      const errorMessage = error.response?.data?.message || 'Erreur lors de l\'import';
+      notifications.show({
+        title: 'Erreur d\'import',
+        message: errorMessage,
+        color: 'red',
+        icon: <XCircle size={20} />,
+        autoClose: false,
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleCollaborateursImport = async () => {
+    if (!collaborateursFile) {
+      notifications.show({
+        title: 'Erreur',
+        message: 'Veuillez sélectionner un fichier',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+      return;
+    }
+
+    setIsImporting(true);
+    setImportProgress(0);
+    setCurrentImportStats(null);
+
+    // Simuler la progression
+    const progressInterval = setInterval(() => {
+      setImportProgress((prev) => Math.min(prev + 10, 90));
+    }, 800);
+
+    try {
+      const result = await importService.importCollaborateurs(collaborateursFile);
+      clearInterval(progressInterval);
+      setImportProgress(100);
+      setCurrentImportStats(result);
+
+      notifications.show({
+        title: 'Import terminé',
+        message: `Import collaborateurs réussi: ${result.stats?.created || 0} créés, ${result.stats?.updated || 0} mis à jour`,
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+        autoClose: 10000,
+      });
+
+      // Recharger l'historique
+      await loadImportHistory();
+
+      // Réinitialiser après succès
+      setTimeout(() => {
+        setCollaborateursFile(null);
+        setImportProgress(0);
+      }, 2000);
+    } catch (error: any) {
+      clearInterval(progressInterval);
+      setImportProgress(0);
+
       const errorMessage = error.response?.data?.message || 'Erreur lors de l\'import';
       notifications.show({
         title: 'Erreur d\'import',
@@ -340,6 +406,9 @@ export default function ImportPage() {
       <Paper shadow="xs" radius="md" mb="xl">
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
+            <Tabs.Tab value="collaborateurs" leftSection={<Users size={16} />}>
+              Import Collaborateurs
+            </Tabs.Tab>
             <Tabs.Tab value="initial" leftSection={<Database size={16} />}>
               Import Initial (SUIVI_FORMATIONS)
             </Tabs.Tab>
@@ -350,6 +419,61 @@ export default function ImportPage() {
               Historique
             </Tabs.Tab>
           </Tabs.List>
+
+          {/* Import Collaborateurs */}
+          <Tabs.Panel value="collaborateurs" pt="xl" px="lg" pb="lg">
+            <Stack gap="lg">
+              <Alert icon={<Info size={16} />} color="blue" variant="light">
+                <Text fw={600} mb="xs">Import du fichier collaborateurs</Text>
+                <Text size="sm">
+                  Utilisez cet import pour charger ou mettre à jour les données des collaborateurs.
+                  Format attendu : Excel avec colonnes spécifiques (Matricule, Nom, Prénom, Département, Manager, etc.)
+                </Text>
+              </Alert>
+
+              <FileInput
+                label="Fichier Excel collaborateurs"
+                placeholder="Cliquez pour sélectionner un fichier"
+                accept=".xlsx,.xls"
+                leftSection={<FileXls size={20} />}
+                value={collaborateursFile}
+                onChange={setCollaborateursFile}
+                disabled={isImporting}
+                required
+              />
+
+              {importProgress > 0 && (
+                <div>
+                  <Text size="sm" mb="xs">Progression de l'import...</Text>
+                  <Progress value={importProgress} animated />
+                </div>
+              )}
+
+              {currentImportStats && (
+                <Alert icon={<CheckCircle size={16} />} color="green" variant="light">
+                  <Text fw={600} mb="xs">Import terminé avec succès !</Text>
+                  <Group gap="xl">
+                    <Text size="sm">Total traité: {currentImportStats.stats?.total || 0}</Text>
+                    <Text size="sm">Créés: {currentImportStats.stats?.created || 0}</Text>
+                    <Text size="sm">Mis à jour: {currentImportStats.stats?.updated || 0}</Text>
+                    <Text size="sm">Échecs: {currentImportStats.stats?.failed || 0}</Text>
+                  </Group>
+                </Alert>
+              )}
+
+              <Group justify="flex-end">
+                <Button
+                  leftSection={<Upload size={16} />}
+                  onClick={handleCollaborateursImport}
+                  loading={isImporting}
+                  disabled={!collaborateursFile}
+                  size="md"
+                >
+                  Lancer l'import collaborateurs
+                </Button>
+              </Group>
+            </Stack>
+          </Tabs.Panel>
 
           {/* Import Initial */}
           <Tabs.Panel value="initial" pt="xl" px="lg" pb="lg">

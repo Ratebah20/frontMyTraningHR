@@ -27,7 +27,6 @@ interface FormationsKPIs {
     sessions: number
     participants: number
     heuresTotal: number
-    tauxCompletion: number
     departements: string[]
     actif: boolean
   }>
@@ -232,7 +231,6 @@ export default function FormationsKPIsPage() {
                     <Table.Th>Sessions</Table.Th>
                     <Table.Th>Participants</Table.Th>
                     <Table.Th>Heures</Table.Th>
-                    <Table.Th>Taux complétion</Table.Th>
                     <Table.Th>Statut</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
@@ -257,10 +255,6 @@ export default function FormationsKPIsPage() {
                         </Group>
                       </Table.Td>
                       <Table.Td>{formation.heuresTotal}h</Table.Td>
-                      <Table.Td>
-                        <Progress value={formation.tauxCompletion} size="sm" color="teal" />
-                        <Text size="xs" c="dimmed" ta="center">{formation.tauxCompletion}%</Text>
-                      </Table.Td>
                       <Table.Td>
                         <Badge color={formation.actif ? 'green' : 'gray'} variant="dot">
                           {formation.actif ? 'Active' : 'Inactive'}
@@ -316,7 +310,6 @@ export default function FormationsKPIsPage() {
                   <Table.Th>Catégorie</Table.Th>
                   <Table.Th>Sessions</Table.Th>
                   <Table.Th>Heures totales</Table.Th>
-                  <Table.Th>Taux complétion</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -338,10 +331,6 @@ export default function FormationsKPIsPage() {
                     </Table.Td>
                     <Table.Td>{formation.sessions}</Table.Td>
                     <Table.Td>{formation.heuresTotal}h</Table.Td>
-                    <Table.Td>
-                      <Progress value={formation.tauxCompletion} size="sm" color="teal" />
-                      <Text size="xs" ta="center">{formation.tauxCompletion}%</Text>
-                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>

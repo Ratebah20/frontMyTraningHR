@@ -2,7 +2,7 @@ import api from '../api';
 
 export interface ImportHistory {
   id: number;
-  type: 'INITIAL' | 'OLU';
+  type: 'INITIAL' | 'OLU' | 'COLLABORATEURS';
   filename: string;
   status: 'SUCCESS' | 'PARTIAL' | 'ERROR';
   recordsProcessed: number;
@@ -55,7 +55,22 @@ export const importService = {
       },
       timeout: 320000, // 5 minutes + 20 secondes de marge
     });
-    
+
+    return response.data;
+  },
+
+  // Import fichier collaborateurs
+  async importCollaborateurs(file: File): Promise<ImportResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post('/import/collaborateurs', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 320000, // 5 minutes + 20 secondes de marge
+    });
+
     return response.data;
   },
 

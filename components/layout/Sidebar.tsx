@@ -138,14 +138,13 @@ const navigationItems: NavigationItem[] = [
     href: '/import',
     color: 'green'
   },
-  { 
-    icon: ChartBar, 
-    label: 'KPIs', 
-    href: '/kpi',
+  {
+    icon: ChartBar,
+    label: 'KPIs',
+    href: '/kpi/formations',
     color: 'red',
     badge: 3,
     subItems: [
-      { label: 'Centre KPIs', href: '/kpi' },
       { label: 'Formations', href: '/kpi/formations' },
       { label: 'Collaborateurs', href: '/kpi/collaborateurs' },
       { label: 'Performance', href: '/kpi/performance' },

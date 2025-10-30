@@ -65,14 +65,6 @@ export const statsService = {
     return response.data;
   },
 
-  // Récupérer le taux de complétion
-  async getCompletionRate(period?: string): Promise<ChartData[]> {
-    const response = await api.get('/stats/completion-rate', {
-      params: { period }
-    });
-    return response.data;
-  },
-
   // Récupérer le rapport d'un collaborateur
   async getCollaborateurReport(id: number): Promise<CollaborateurStats> {
     const response = await api.get(`/reports/collaborateur/${id}`);

@@ -41,12 +41,6 @@ export function ManagerStatsCard({ manager, onViewDetails }: ManagerStatsCardPro
     }
   };
 
-  // Calculer le taux de complétion des formations
-  const totalFormations = manager.formationsEnCours + manager.formationsTerminees + manager.formationsPlanifiees;
-  const tauxCompletion = totalFormations > 0
-    ? Math.round((manager.formationsTerminees / totalFormations) * 100)
-    : 0;
-
   return (
     <Card shadow="sm" padding="lg" radius="md" withBorder>
       <Stack gap="md">
@@ -178,26 +172,6 @@ export function ManagerStatsCard({ manager, onViewDetails }: ManagerStatsCardPro
               </Badge>
             </Tooltip>
           </Group>
-
-          {totalFormations > 0 && (
-            <div>
-              <Group justify="space-between" mb={4}>
-                <Text size="xs" c="dimmed">
-                  Taux de complétion
-                </Text>
-                <Text size="xs" fw={600}>
-                  {tauxCompletion}%
-                </Text>
-              </Group>
-              <Progress
-                value={tauxCompletion}
-                size="sm"
-                radius="xl"
-                color={tauxCompletion >= 75 ? 'green' : tauxCompletion >= 50 ? 'orange' : 'red'}
-                animated
-              />
-            </div>
-          )}
         </Stack>
       </Stack>
     </Card>

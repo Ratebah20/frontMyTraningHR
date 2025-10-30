@@ -49,7 +49,6 @@ interface GlobalStats {
   totalSessions: number;
   heuresFormation: number;
   collaborateursActifs: number;
-  tauxCompletion: number;
   formationsEnCours: number;
   formationsTerminees: number;
 }
@@ -70,21 +69,12 @@ interface DepartmentStat {
   totalSessions: number;
   sessionsTerminees: number;
   heuresFormation: number;
-  tauxCompletion: number;
-}
-
-interface CompletionRate {
-  categorie: string;
-  totalSessions: number;
-  sessionsTerminees: number;
-  tauxCompletion: number;
 }
 
 export default function KPIStatsPage() {
   const [globalStats, setGlobalStats] = useState<GlobalStats | null>(null);
   const [topFormations, setTopFormations] = useState<TopFormation[]>([]);
   const [departmentStats, setDepartmentStats] = useState<DepartmentStat[]>([]);
-  const [completionRates, setCompletionRates] = useState<CompletionRate[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -98,17 +88,15 @@ export default function KPIStatsPage() {
     
     try {
       // Charger toutes les statistiques en parallèle
-      const [global, top, depts, completion] = await Promise.all([
+      const [global, top, depts] = await Promise.all([
         statsService.getGlobalStats(),
         statsService.getTopFormations(10),
         statsService.getStatsByDepartment(),
-        statsService.getCompletionRate(),
       ]);
 
       setGlobalStats(global);
       setTopFormations(Array.isArray(top) ? top : []);
       setDepartmentStats(Array.isArray(depts) ? depts : []);
-      setCompletionRates(Array.isArray(completion) ? completion : []);
     } catch (err: any) {
       console.error('Erreur lors du chargement des statistiques:', err);
       setError(err.message || 'Erreur lors du chargement des statistiques');
@@ -339,19 +327,6 @@ export default function KPIStatsPage() {
                       <Text size="sm" c="dimmed">Heures formation</Text>
                       <Text fw={500}>{Math.round(dept.heuresFormation)}h</Text>
                     </Group>
-                    
-                    <Box mt="xs">
-                      <Group justify="space-between" mb={4}>
-                        <Text size="xs" c="dimmed">Taux de complétion</Text>
-                        <Text size="xs" fw={500}>{dept.tauxCompletion}%</Text>
-                      </Group>
-                      <Progress 
-                        value={dept.tauxCompletion} 
-                        color={dept.tauxCompletion > 70 ? 'green' : dept.tauxCompletion > 40 ? 'yellow' : 'red'}
-                        size="sm"
-                        radius="sm"
-                      />
-                    </Box>
                   </Stack>
                 </Card>
               ))}
@@ -363,115 +338,38 @@ export default function KPIStatsPage() {
           )}
         </Paper>
 
-        {/* Section 4: Taux de complétion par catégorie */}
+        {/* Section 4: Résumé des sessions */}
         <Paper shadow="xs" p="lg" radius="md">
           <Group align="center" gap="sm" mb="lg">
             <Target size={24} color="#40C057" />
-            <Title order={3}>Taux de complétion par catégorie</Title>
+            <Title order={3}>Résumé des sessions</Title>
           </Group>
-          
-          <Grid>
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              {completionRates.length > 0 ? (
-                <Stack gap="md">
-                  {completionRates.map((category, index) => (
-                    <Card key={index} withBorder p="md" radius="md">
-                      <Stack gap="xs">
-                        <Group justify="space-between">
-                          <Text fw={500}>{category.categorie}</Text>
-                          <Badge 
-                            color={category.tauxCompletion > 70 ? 'green' : category.tauxCompletion > 40 ? 'yellow' : 'red'}
-                            variant="light"
-                            size="lg"
-                          >
-                            {category.tauxCompletion}%
-                          </Badge>
-                        </Group>
-                        
-                        <Progress 
-                          value={category.tauxCompletion} 
-                          color={category.tauxCompletion > 70 ? 'green' : category.tauxCompletion > 40 ? 'yellow' : 'red'}
-                          size="xl"
-                          radius="sm"
-                        />
-                        
-                        <Group justify="space-between">
-                          <Text size="xs" c="dimmed">
-                            {category.sessionsTerminees} / {category.totalSessions} sessions
-                          </Text>
-                          <Text size="xs" c="dimmed">
-                            terminées
-                          </Text>
-                        </Group>
-                      </Stack>
-                    </Card>
-                  ))}
-                </Stack>
-              ) : (
-                <Text c="dimmed" ta="center" py="xl">
-                  Aucune donnée de complétion disponible
-                </Text>
-              )}
-            </Grid.Col>
-            
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Card withBorder p="lg" radius="md" h="100%">
-                <Stack align="center" justify="center" h="100%">
-                  <Center>
-                    <RingProgress
-                      size={200}
-                      thickness={20}
-                      sections={[
-                        { 
-                          value: globalStats?.tauxCompletion || 0, 
-                          color: globalStats?.tauxCompletion > 70 ? 'green' : 
-                                 globalStats?.tauxCompletion > 40 ? 'yellow' : 'red' 
-                        }
-                      ]}
-                      label={
-                        <Center>
-                          <Stack align="center" gap={0}>
-                            <Text size="xl" fw={700}>
-                              {globalStats?.tauxCompletion || 0}%
-                            </Text>
-                            <Text size="xs" c="dimmed">
-                              Taux global
-                            </Text>
-                          </Stack>
-                        </Center>
-                      }
-                    />
-                  </Center>
-                  
-                  <Stack gap="xs" w="100%" mt="lg">
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <CheckCircle size={16} color="#40C057" />
-                        <Text size="sm">Sessions terminées</Text>
-                      </Group>
-                      <Text fw={500}>{globalStats?.formationsTerminees || 0}</Text>
-                    </Group>
-                    
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <Pulse size={16} color="#FAB005" />
-                        <Text size="sm">Sessions en cours</Text>
-                      </Group>
-                      <Text fw={500}>{globalStats?.formationsEnCours || 0}</Text>
-                    </Group>
-                    
-                    <Group justify="space-between">
-                      <Group gap="xs">
-                        <Calendar size={16} color="#228BE6" />
-                        <Text size="sm">Total sessions</Text>
-                      </Group>
-                      <Text fw={500}>{globalStats?.totalSessions || 0}</Text>
-                    </Group>
-                  </Stack>
-                </Stack>
-              </Card>
-            </Grid.Col>
-          </Grid>
+
+          <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
+            <Card withBorder p="lg" radius="md">
+              <Group gap="xs" mb="xs">
+                <CheckCircle size={20} color="#40C057" />
+                <Text size="sm" fw={600}>Sessions terminées</Text>
+              </Group>
+              <Text size="2xl" fw={700}>{globalStats?.formationsTerminees || 0}</Text>
+            </Card>
+
+            <Card withBorder p="lg" radius="md">
+              <Group gap="xs" mb="xs">
+                <Pulse size={20} color="#FAB005" />
+                <Text size="sm" fw={600}>Sessions en cours</Text>
+              </Group>
+              <Text size="2xl" fw={700}>{globalStats?.formationsEnCours || 0}</Text>
+            </Card>
+
+            <Card withBorder p="lg" radius="md">
+              <Group gap="xs" mb="xs">
+                <Calendar size={20} color="#228BE6" />
+                <Text size="sm" fw={600}>Total sessions</Text>
+              </Group>
+              <Text size="2xl" fw={700}>{globalStats?.totalSessions || 0}</Text>
+            </Card>
+          </SimpleGrid>
         </Paper>
 
         {/* Indicateurs de performance supplémentaires */}

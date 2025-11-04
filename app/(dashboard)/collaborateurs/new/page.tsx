@@ -64,14 +64,15 @@ export default function CollaborateurNewPage() {
       managerId: (value) => (!value ? 'Le manager est requis' : null),
       contratId: (value) => (!value ? 'Le type de contrat est requis' : null),
       matricule: (value) => {
-        if (!value?.trim()) return 'Le matricule est requis';
+        // Matricule optionnel - peut être vide pour les anciens collaborateurs
+        if (!value?.trim()) return null;
         if (value.length > 20) return 'Le matricule ne peut pas dépasser 20 caractères';
         return null;
       },
       idExterne: (value) => {
-        // ID externe optionnel - sera fourni lors de l'import OLU
+        // ID Orange Learning optionnel - sera fourni lors de l'import OLU
         if (!value?.trim()) return null;
-        if (value.length > 50) return 'L\'ID externe ne peut pas dépasser 50 caractères';
+        if (value.length > 50) return 'L\'ID Orange Learning ne peut pas dépasser 50 caractères';
         return null;
       },
       workerSubType: (value) => {
@@ -122,28 +123,19 @@ export default function CollaborateurNewPage() {
             setManagers(managersList);
           }
 
-          // Charger tous les collaborateurs pour extraire les sous-types de contrats
-          const collaborateursResponse = await collaborateursService.getCollaborateurs({
-            limit: 2000,
-            actif: true,
-          });
-
-          if (collaborateursResponse.data) {
-            // Extraire les sous-types de contrats uniques existants
-            const uniqueSubTypes = new Set<string>();
-            collaborateursResponse.data.forEach(c => {
-              if (c.workerSubType) {
-                uniqueSubTypes.add(c.workerSubType);
-              }
-            });
-
-            // Ajouter des sous-types communs
-            ['Employee FT', 'Employee PT', 'VIE', 'Trainee', 'Contractor', 'Intern'].forEach(type => {
-              uniqueSubTypes.add(type);
-            });
-
-            setWorkerSubTypes(Array.from(uniqueSubTypes).sort());
-          }
+          // Définir les sous-types de contrats les plus courants
+          const commonSubTypes = [
+            'Employee FT',
+            'Employee PT',
+            'VIE',
+            'Trainee',
+            'Contractor',
+            'Intern',
+            'Manager',
+            'Consultant',
+            'Apprentice'
+          ];
+          setWorkerSubTypes(commonSubTypes.sort());
         } catch (error) {
           console.error('Erreur lors du chargement des managers:', error);
         }
@@ -186,12 +178,12 @@ export default function CollaborateurNewPage() {
       
       notifications.show({
         title: 'Succès',
-        message: values.idExterne 
-          ? 'Collaborateur créé avec succès' 
-          : 'Collaborateur créé avec succès. N\'oubliez pas d\'ajouter l\'ID externe dès qu\'il sera disponible.',
+        message: values.idExterne
+          ? 'Collaborateur créé avec succès'
+          : 'Collaborateur créé avec succès. N\'oubliez pas d\'ajouter l\'ID Orange Learning dès qu\'il sera disponible.',
         color: 'green',
         icon: <CheckCircle size={20} />,
-        autoClose: values.idExterne ? 5000 : false, // Message permanent si pas d'ID externe
+        autoClose: values.idExterne ? 5000 : false, // Message permanent si pas d'ID Orange Learning
       });
       
       // Rediriger vers la page de détail du nouveau collaborateur
@@ -236,21 +228,21 @@ export default function CollaborateurNewPage() {
         <Title order={1}>Nouveau collaborateur</Title>
       </Group>
 
-      {/* Message d'information sur l'ID externe */}
-      <Alert 
-        icon={<Warning size={16} />} 
-        color="orange" 
+      {/* Message d'information sur l'ID Orange Learning */}
+      <Alert
+        icon={<Warning size={16} />}
+        color="orange"
         variant="light"
         mb="xl"
       >
-        <Text fw={600} mb="xs">Information importante sur l'ID externe</Text>
+        <Text fw={600} mb="xs">Information importante sur l'ID Orange Learning</Text>
         <Text size="sm">
-          L'ID externe peut être laissé vide lors de la création, mais <strong>ATTENTION</strong> : 
-          vous devez <strong>impérativement ajouter l'ID externe AVANT</strong> d'importer le fichier OLU 
-          quand le collaborateur suivra sa première formation. 
+          L'ID Orange Learning peut être laissé vide lors de la création, mais <strong>ATTENTION</strong> :
+          vous devez <strong>impérativement ajouter l'ID Orange Learning AVANT</strong> d'importer le fichier OLU
+          quand le collaborateur suivra sa première formation.
         </Text>
         <Text size="sm" mt="xs">
-          <strong>Rappel :</strong> L'ID externe doit être saisi manuellement dans le système avant l'import OLU, 
+          <strong>Rappel :</strong> L'ID Orange Learning doit être saisi manuellement dans le système avant l'import OLU,
           sinon l'import échouera pour ce collaborateur.
         </Text>
       </Alert>
@@ -285,14 +277,15 @@ export default function CollaborateurNewPage() {
                   <TextInput
                     label="Matricule RH"
                     placeholder="Ex: 00017336"
-                    required
+                    description="Optionnel pour les anciens collaborateurs"
                     {...form.getInputProps('matricule')}
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
                   <TextInput
-                    label="ID Externe (OLU)"
+                    label="ID Orange Learning"
                     placeholder="À ajouter avant import OLU"
+                    description="Optionnel - requis avant import OLU"
                     {...form.getInputProps('idExterne')}
                   />
                 </Grid.Col>

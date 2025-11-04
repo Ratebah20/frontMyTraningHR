@@ -225,9 +225,9 @@ export default function CollaborateursPage() {
                 {collaborateur.nomComplet}
               </Text>
               {!collaborateur.idExterne && (
-                <Tooltip label="ID externe manquant - À ajouter dès que disponible">
+                <Tooltip label="ID Orange Learning manquant - À ajouter dès que disponible">
                   <Badge color="orange" variant="light" size="xs">
-                    ID externe manquant
+                    ID Orange Learning manquant
                   </Badge>
                 </Tooltip>
               )}

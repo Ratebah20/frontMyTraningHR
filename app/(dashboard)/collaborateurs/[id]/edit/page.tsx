@@ -73,7 +73,7 @@ export default function CollaborateurEditPage({ params }: Props) {
       },
       idExterne: (value) => {
         if (!value?.trim()) return null; // Optionnel
-        if (value.length > 50) return 'L\'ID externe ne peut pas dépasser 50 caractères';
+        if (value.length > 50) return 'L\'ID Orange Learning ne peut pas dépasser 50 caractères';
         return null;
       },
     },
@@ -282,7 +282,7 @@ export default function CollaborateurEditPage({ params }: Props) {
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
                   <TextInput
-                    label="ID Externe"
+                    label="ID Orange Learning"
                     placeholder="Ex: COL001"
                     {...form.getInputProps('idExterne')}
                   />

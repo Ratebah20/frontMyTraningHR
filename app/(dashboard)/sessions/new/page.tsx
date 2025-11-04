@@ -131,7 +131,7 @@ export default function NewSessionPage() {
 
         // Charger les collaborateurs actifs
         const collaborateursResponse = await collaborateursService.getCollaborateurs({
-          limit: 2000,
+          limit: 1000,
           actif: true,
         });
         setCollaborateurs(collaborateursResponse.data || []);

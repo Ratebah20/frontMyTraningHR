@@ -64,7 +64,7 @@ export const importService = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await api.post('/import/collaborateurs', formData, {
+    const response = await api.post('/import/rh-collaborateurs', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

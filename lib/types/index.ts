@@ -26,10 +26,13 @@ export interface Collaborateur {
   dateModification: string;
   actif: boolean;
   manager?: Collaborateur;
-  departement?: Departement;
+  departement?: Departement | string;
   contrat?: TypeContrat;
   sessions?: SessionFormation[];
   nombreFormations?: number;
+  _count?: {
+    sessions?: number;
+  };
 }
 
 export interface Departement {
@@ -701,6 +704,38 @@ export interface TodoStats {
 }
 
 export interface SessionWithTodos extends SessionFormation {
-  todos?: SessionTodo[];
+  todos?: GroupedSessionTodo[];
   todosStats?: TodoStats;
+}
+
+// Alias pour compatibilité
+export type SessionTodo = GroupedSessionTodo;
+
+// ==================== TYPES POUR LES KPIs DÉTAILLÉS ====================
+
+export interface CategoryStats {
+  nombre: number;
+  formations: number;
+  heures: number;
+  moyenne: number;
+}
+
+export interface DetailedKPIsPeriode {
+  annee: number;
+  mois: number | null;
+  libelle: string;
+}
+
+export interface DetailedKPIsResponse {
+  periode: DetailedKPIsPeriode;
+  parGenre: {
+    homme: CategoryStats;
+    femme: CategoryStats;
+    nonDefini?: CategoryStats;
+  };
+  parRole: {
+    manager: CategoryStats;
+    nonManager: CategoryStats;
+    directeur: CategoryStats;
+  };
 }

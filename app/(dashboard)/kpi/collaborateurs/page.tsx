@@ -1,9 +1,11 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, RingProgress, PieChart, BarChart } from '@mantine/core'
-import { Users, UserCircle, Briefcase, TrendUp, Building, Trophy, GenderIntersex } from '@phosphor-icons/react'
+import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, RingProgress, Select, Divider } from '@mantine/core'
+import { Users, UserCircle, Briefcase, TrendUp, Building, Trophy, GenderIntersex, Clock, Calendar, ChartBar } from '@phosphor-icons/react'
 import axios from 'axios'
+import { statsService } from '@/lib/services'
+import { DetailedKPIsResponse, CategoryStats } from '@/lib/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -46,11 +48,45 @@ interface CollaborateursKPIs {
 
 export default function CollaborateursKPIsPage() {
   const [data, setData] = useState<CollaborateursKPIs | null>(null)
+  const [detailedData, setDetailedData] = useState<DetailedKPIsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [detailedLoading, setDetailedLoading] = useState(false)
+
+  // Filtres temporels
+  const currentYear = new Date().getFullYear()
+  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString())
+  const [selectedMonth, setSelectedMonth] = useState<string>('')
+
+  // Générer les options d'années (5 dernières années)
+  const yearOptions = Array.from({ length: 5 }, (_, i) => {
+    const year = currentYear - i
+    return { value: year.toString(), label: year.toString() }
+  })
+
+  // Options de mois
+  const monthOptions = [
+    { value: '', label: 'Toute l\'année' },
+    { value: '1', label: 'Janvier' },
+    { value: '2', label: 'Février' },
+    { value: '3', label: 'Mars' },
+    { value: '4', label: 'Avril' },
+    { value: '5', label: 'Mai' },
+    { value: '6', label: 'Juin' },
+    { value: '7', label: 'Juillet' },
+    { value: '8', label: 'Août' },
+    { value: '9', label: 'Septembre' },
+    { value: '10', label: 'Octobre' },
+    { value: '11', label: 'Novembre' },
+    { value: '12', label: 'Décembre' },
+  ]
 
   useEffect(() => {
     fetchData()
   }, [])
+
+  useEffect(() => {
+    fetchDetailedData()
+  }, [selectedYear, selectedMonth])
 
   const fetchData = async () => {
     try {
@@ -60,6 +96,20 @@ export default function CollaborateursKPIsPage() {
       console.error('Erreur lors du chargement des KPIs collaborateurs:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchDetailedData = async () => {
+    setDetailedLoading(true)
+    try {
+      const year = parseInt(selectedYear, 10)
+      const month = selectedMonth ? parseInt(selectedMonth, 10) : undefined
+      const response = await statsService.getCollaborateursDetailedKpis(year, month)
+      setDetailedData(response)
+    } catch (error) {
+      console.error('Erreur lors du chargement des KPIs détaillés:', error)
+    } finally {
+      setDetailedLoading(false)
     }
   }
 
@@ -88,11 +138,181 @@ export default function CollaborateursKPIsPage() {
 
   return (
     <div style={{ padding: '1.5rem' }}>
-      <Title order={2} mb="xl">👥 KPIs Collaborateurs</Title>
+      <Title order={2} mb="xl"> KPIs Collaborateurs</Title>
+
+      {/* ==================== SECTION KPIs DÉTAILLÉS ==================== */}
+
+      <Title order={2} mb="md" mt="xl">Statistiques détaillées par catégorie</Title>
+
+      {/* Filtres temporels */}
+      <Card shadow="sm" p="md" radius="md" mb="xl">
+        <Group align="center" gap="md">
+          <Calendar size={24} weight="bold" />
+          <Text fw={600}>Période d'analyse</Text>
+          <Select
+            placeholder="Année"
+            data={yearOptions}
+            value={selectedYear}
+            onChange={(value) => setSelectedYear(value || currentYear.toString())}
+            w={120}
+          />
+          <Select
+            placeholder="Mois"
+            data={monthOptions}
+            value={selectedMonth}
+            onChange={(value) => setSelectedMonth(value || '')}
+            w={180}
+          />
+          {detailedData && (
+            <Badge color="blue" variant="light" size="lg">
+              {detailedData.periode.libelle}
+            </Badge>
+          )}
+        </Group>
+      </Card>
+
+      {detailedLoading ? (
+        <Card shadow="sm" p="md" radius="md" mb="xl">
+          <Text ta="center">Chargement des statistiques détaillées...</Text>
+        </Card>
+      ) : detailedData ? (
+        <>
+          {/* Cards de statistiques clés */}
+          <Grid mb="xl">
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" p="md" radius="md">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" c="dimmed" tt="uppercase" fw={700}>Heures - Hommes</Text>
+                  <GenderIntersex size={20} color="#228BE6" />
+                </Group>
+                <Text size="xl" fw={700} c="blue">{detailedData.parGenre.homme.heures}h</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {detailedData.parGenre.homme.formations} formations • {detailedData.parGenre.homme.moyenne}h/personne
+                </Text>
+              </Card>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" p="md" radius="md">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" c="dimmed" tt="uppercase" fw={700}>Heures - Femmes</Text>
+                  <GenderIntersex size={20} color="#E64980" />
+                </Group>
+                <Text size="xl" fw={700} c="pink">{detailedData.parGenre.femme.heures}h</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {detailedData.parGenre.femme.formations} formations • {detailedData.parGenre.femme.moyenne}h/personne
+                </Text>
+              </Card>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" p="md" radius="md">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" c="dimmed" tt="uppercase" fw={700}>Directeurs</Text>
+                  <UserCircle size={20} color="#7950F2" />
+                </Group>
+                <Text size="xl" fw={700} c="violet">{detailedData.parRole.directeur.heures}h</Text>
+                <Text size="xs" c="dimmed" mt="xs">
+                  {detailedData.parRole.directeur.formations} formations • {detailedData.parRole.directeur.moyenne}h/personne
+                </Text>
+              </Card>
+            </Grid.Col>
+          </Grid>
+
+          {/* Tableaux comparatifs */}
+          <Grid mb="xl">
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Card shadow="sm" p="md" radius="md">
+                <Title order={4} mb="md">Par genre</Title>
+                <Table striped>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Catégorie</Table.Th>
+                      <Table.Th>Collaborateurs</Table.Th>
+                      <Table.Th>Formations</Table.Th>
+                      <Table.Th>Heures</Table.Th>
+                      <Table.Th>Moyenne</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    <Table.Tr>
+                      <Table.Td><Badge color="blue">Homme</Badge></Table.Td>
+                      <Table.Td>{detailedData.parGenre.homme.nombre}</Table.Td>
+                      <Table.Td>{detailedData.parGenre.homme.formations}</Table.Td>
+                      <Table.Td>{detailedData.parGenre.homme.heures}h</Table.Td>
+                      <Table.Td fw={600}>{detailedData.parGenre.homme.moyenne}h</Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Td><Badge color="pink">Femme</Badge></Table.Td>
+                      <Table.Td>{detailedData.parGenre.femme.nombre}</Table.Td>
+                      <Table.Td>{detailedData.parGenre.femme.formations}</Table.Td>
+                      <Table.Td>{detailedData.parGenre.femme.heures}h</Table.Td>
+                      <Table.Td fw={600}>{detailedData.parGenre.femme.moyenne}h</Table.Td>
+                    </Table.Tr>
+                  </Table.Tbody>
+                </Table>
+              </Card>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, md: 6 }}>
+              <Card shadow="sm" p="md" radius="md">
+                <Title order={4} mb="md">Par rôle</Title>
+                <Table striped>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Catégorie</Table.Th>
+                      <Table.Th>Collaborateurs</Table.Th>
+                      <Table.Th>Formations</Table.Th>
+                      <Table.Th>Heures</Table.Th>
+                      <Table.Th>Moyenne</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    <Table.Tr>
+                      <Table.Td><Badge color="violet">Directeur</Badge></Table.Td>
+                      <Table.Td>{detailedData.parRole.directeur.nombre}</Table.Td>
+                      <Table.Td>{detailedData.parRole.directeur.formations}</Table.Td>
+                      <Table.Td>{detailedData.parRole.directeur.heures}h</Table.Td>
+                      <Table.Td fw={600}>{detailedData.parRole.directeur.moyenne}h</Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Td><Badge color="teal">Manager</Badge></Table.Td>
+                      <Table.Td>{detailedData.parRole.manager.nombre}</Table.Td>
+                      <Table.Td>{detailedData.parRole.manager.formations}</Table.Td>
+                      <Table.Td>{detailedData.parRole.manager.heures}h</Table.Td>
+                      <Table.Td fw={600}>{detailedData.parRole.manager.moyenne}h</Table.Td>
+                    </Table.Tr>
+                    <Table.Tr>
+                      <Table.Td><Badge color="gray">Non-manager</Badge></Table.Td>
+                      <Table.Td>{detailedData.parRole.nonManager.nombre}</Table.Td>
+                      <Table.Td>{detailedData.parRole.nonManager.formations}</Table.Td>
+                      <Table.Td>{detailedData.parRole.nonManager.heures}h</Table.Td>
+                      <Table.Td fw={600}>{detailedData.parRole.nonManager.moyenne}h</Table.Td>
+                    </Table.Tr>
+                  </Table.Tbody>
+                </Table>
+              </Card>
+            </Grid.Col>
+          </Grid>
+        </>
+      ) : null}
+
+      {/* Séparateur */}
+      <Divider
+        my="xl"
+        size="md"
+        label={
+          <Group gap="xs">
+            <ChartBar size={20} weight="bold" />
+            <Text size="sm" fw={600} tt="uppercase">Vue d'ensemble générale</Text>
+          </Group>
+        }
+        labelPosition="center"
+      />
 
       {/* KPIs Summary Cards */}
       <Grid mb="xl">
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
+        <Grid.Col span={{ base: 12, md: 6 }}>
           <Card shadow="sm" p="md" radius="md">
             <Group justify="space-between" mb="xs">
               <Text size="sm" c="dimmed">Total Collaborateurs</Text>
@@ -105,38 +325,7 @@ export default function CollaborateursKPIsPage() {
           </Card>
         </Grid.Col>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Taux de participation</Text>
-              <TrendUp size={20} weight="bold" />
-            </Group>
-            <Text size="xl" fw={700} c={getColorByPerformance(data.summary.tauxParticipation)}>
-              {data.summary.tauxParticipation}%
-            </Text>
-            <Progress 
-              value={data.summary.tauxParticipation} 
-              size="xs" 
-              mt="xs" 
-              color={getColorByPerformance(data.summary.tauxParticipation)} 
-            />
-          </Card>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Managers</Text>
-              <UserCircle size={20} weight="bold" />
-            </Group>
-            <Text size="xl" fw={700}>{data.summary.nombreManagers}</Text>
-            <Text size="xs" c="dimmed" mt="xs">
-              Responsables d'équipe
-            </Text>
-          </Card>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
+        <Grid.Col span={{ base: 12, md: 6 }}>
           <Card shadow="sm" p="md" radius="md">
             <Group justify="space-between" mb="xs">
               <Text size="sm" c="dimmed">Sans formation</Text>
@@ -154,29 +343,7 @@ export default function CollaborateursKPIsPage() {
 
       {/* Répartitions */}
       <Grid mb="xl">
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Title order={4} mb="md">Répartition par genre</Title>
-            <Stack gap="sm">
-              {data.repartitionGenre.map((item, index) => (
-                <div key={index}>
-                  <Group justify="space-between" mb="xs">
-                    <Group gap="xs">
-                      <GenderIntersex size={16} />
-                      <Text size="sm">{item.genre}</Text>
-                    </Group>
-                    <Badge color="blue" variant="light">
-                      {item.nombre} ({item.pourcentage}%)
-                    </Badge>
-                  </Group>
-                  <Progress value={item.pourcentage} size="sm" color="blue" />
-                </div>
-              ))}
-            </Stack>
-          </Card>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: 4 }}>
+        <Grid.Col span={{ base: 12, md: 6 }}>
           <Card shadow="sm" p="md" radius="md">
             <Title order={4} mb="md">Types de contrat</Title>
             <Stack gap="sm">
@@ -197,69 +364,7 @@ export default function CollaborateursKPIsPage() {
             </Stack>
           </Card>
         </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Title order={4} mb="md">Nouveaux collaborateurs</Title>
-            <Group align="center" mt="xl">
-              <TrendUp size={40} weight="bold" color="green" />
-              <div>
-                <Text size="2xl" fw={700} c="green">+{data.summary.nouveauxCollaborateurs}</Text>
-                <Text size="sm" c="dimmed">Ces 30 derniers jours</Text>
-              </div>
-            </Group>
-            <Text size="xs" c="dimmed" mt="md">
-              Intégration en cours
-            </Text>
-          </Card>
-        </Grid.Col>
       </Grid>
-
-      {/* Analyse par département */}
-      <Card shadow="sm" p="md" radius="md" mb="xl">
-        <Title order={4} mb="md">📊 Analyse par département</Title>
-        <Table striped highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>Département</Table.Th>
-              <Table.Th>Effectif</Table.Th>
-              <Table.Th>Formés</Table.Th>
-              <Table.Th>Taux formation</Table.Th>
-              <Table.Th>Heures moyennes</Table.Th>
-              <Table.Th>Heures totales</Table.Th>
-              <Table.Th>Performance</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {data.analyseDepartements.map((dept) => (
-              <Table.Tr key={dept.departement}>
-                <Table.Td>
-                  <Group gap="xs">
-                    <Building size={16} />
-                    <Text fw={500}>{dept.departement}</Text>
-                  </Group>
-                </Table.Td>
-                <Table.Td>{dept.effectif}</Table.Td>
-                <Table.Td>{dept.collaborateursFormes}</Table.Td>
-                <Table.Td>
-                  <Text c={getColorByPerformance(dept.tauxFormation)} fw={600}>
-                    {dept.tauxFormation}%
-                  </Text>
-                </Table.Td>
-                <Table.Td>{dept.heuresMoyennes}h</Table.Td>
-                <Table.Td>{dept.heuresTotal}h</Table.Td>
-                <Table.Td>
-                  <Progress 
-                    value={dept.tauxFormation} 
-                    size="sm" 
-                    color={getColorByPerformance(dept.tauxFormation)}
-                  />
-                </Table.Td>
-              </Table.Tr>
-            ))}
-          </Table.Tbody>
-        </Table>
-      </Card>
 
       {/* Top participants */}
       <Card shadow="sm" p="md" radius="md">

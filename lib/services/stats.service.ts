@@ -1,10 +1,11 @@
 import api from '../api';
-import { 
-  DashboardStats, 
-  FormationStats, 
-  CollaborateurStats, 
+import {
+  DashboardStats,
+  FormationStats,
+  CollaborateurStats,
   DepartementStats,
-  ChartData 
+  ChartData,
+  DetailedKPIsResponse
 } from '../types';
 
 export const statsService = {
@@ -92,6 +93,14 @@ export const statsService = {
     }, {
       responseType: 'blob',
     });
+    return response.data;
+  },
+
+  // Récupérer les KPIs détaillés par catégorie avec filtres temporels
+  async getCollaborateursDetailedKpis(annee: number, mois?: number): Promise<DetailedKPIsResponse> {
+    const params: any = { annee };
+    if (mois) params.mois = mois;
+    const response = await api.get('/stats/collaborateurs-detailed-kpis', { params });
     return response.data;
   },
 };

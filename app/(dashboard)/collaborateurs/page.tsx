@@ -46,6 +46,8 @@ import {
   User,
   UserMinus,
   Trash,
+  UserCheck,
+  UserCircleMinus,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
@@ -111,15 +113,16 @@ export default function CollaborateursPage() {
       // Pour 'tous', on n'envoie pas de paramètre actif
       
       const response = await collaborateursService.getCollaborateurs(filters);
-      
+
       if (response.data) {
         setCollaborateurs(response.data);
-        setTotal(response.meta?.total || response.total || 0);
-        setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || response.total || 0) / limit));
-        
+        const totalCount = response.meta?.total || (response as any).total || 0;
+        setTotal(totalCount);
+        setTotalPages(response.meta?.totalPages || Math.ceil(totalCount / limit));
+
         // Utiliser les stats globales du backend si disponibles
-        if (response.stats) {
-          setGlobalStats(response.stats);
+        if ((response as any).stats) {
+          setGlobalStats((response as any).stats);
         }
       } else {
         setCollaborateurs([]);
@@ -206,6 +209,32 @@ export default function CollaborateursPage() {
     loadCollaborateurs();
   };
 
+  // Activer/Désactiver un collaborateur
+  const handleToggleActif = async (collaborateur: Collaborateur) => {
+    try {
+      await collaborateursService.updateCollaborateur(collaborateur.id, {
+        actif: !collaborateur.actif,
+      });
+
+      notifications.show({
+        title: 'Succès',
+        message: `Collaborateur ${!collaborateur.actif ? 'activé' : 'désactivé'} avec succès`,
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
+
+      loadCollaborateurs();
+    } catch (error: any) {
+      console.error('Erreur lors de la modification du statut:', error);
+      notifications.show({
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Erreur lors de la modification du statut',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    }
+  };
+
   // Ouvrir la modal de suppression
   const handleOpenDeleteModal = (collaborateur: Collaborateur) => {
     setCollaborateurToDelete(collaborateur);
@@ -274,7 +303,10 @@ export default function CollaborateursPage() {
     total: total,
     actifs: collaborateurs.filter(c => c.actif).length,
     inactifs: collaborateurs.filter(c => !c.actif).length,
-    departements: [...new Set(collaborateurs.map(c => c.departement?.nomDepartement).filter(Boolean))].length,
+    departements: [...new Set(collaborateurs.map(c => {
+      const dept = c.departement;
+      return typeof dept === 'string' ? dept : dept?.nomDepartement;
+    }).filter(Boolean))].length,
   };
 
   const rows = collaborateurs.map((collaborateur) => (
@@ -298,7 +330,7 @@ export default function CollaborateursPage() {
               )}
             </Group>
             <Text size="xs" c="dimmed">
-              {collaborateur.matricule || collaborateur.idExterne || 'Aucun identifiant'}
+              {collaborateur.idExterne || collaborateur.matricule || 'Aucun identifiant'}
             </Text>
           </div>
         </Group>
@@ -306,7 +338,11 @@ export default function CollaborateursPage() {
       <Table.Td>
         <Group gap="xs">
           <Building size={14} color="#868E96" />
-          <Text size="sm">{collaborateur.departement?.nomDepartement || 'Non assigné'}</Text>
+          <Text size="sm">
+            {typeof collaborateur.departement === 'string'
+              ? collaborateur.departement
+              : collaborateur.departement?.nomDepartement || 'Non assigné'}
+          </Text>
         </Group>
       </Table.Td>
       <Table.Td>
@@ -370,6 +406,14 @@ export default function CollaborateursPage() {
                 onClick={() => router.push(`/sessions/new?collaborateurId=${collaborateur.id}`)}
               >
                 Inscrire à une formation
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item
+                leftSection={collaborateur.actif ? <UserCircleMinus size={14} /> : <UserCheck size={14} />}
+                color={collaborateur.actif ? 'orange' : 'green'}
+                onClick={() => handleToggleActif(collaborateur)}
+              >
+                {collaborateur.actif ? 'Désactiver' : 'Activer'}
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item
@@ -617,7 +661,7 @@ export default function CollaborateursPage() {
           {/* Afficher des informations si le collaborateur a des dépendances */}
           {collaborateurToDelete && (
             <Stack gap="xs">
-              {collaborateurToDelete.nombreFormations > 0 && (
+              {(collaborateurToDelete.nombreFormations ?? 0) > 0 && (
                 <Paper p="sm" withBorder bg="blue.0">
                   <Group gap="xs">
                     <GraduationCap size={20} className="text-blue-600" />
@@ -631,9 +675,10 @@ export default function CollaborateursPage() {
 
               {collaborateurToDelete.departement && (
                 <Text size="sm" c="dimmed">
-                  Département : {typeof collaborateurToDelete.departement === 'string'
+                  Département :{' '}
+                  {typeof collaborateurToDelete.departement === 'string'
                     ? collaborateurToDelete.departement
-                    : collaborateurToDelete.departement.nomDepartement || collaborateurToDelete.departement}
+                    : collaborateurToDelete.departement?.nomDepartement || String(collaborateurToDelete.departement)}
                 </Text>
               )}
             </Stack>

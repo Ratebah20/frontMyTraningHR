@@ -26,6 +26,9 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
+import { DateInput } from '@mantine/dates';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 import {
   ArrowLeft,
   CheckCircle,
@@ -72,8 +75,8 @@ export default function NewSessionPage() {
     initialValues: {
       collaborateurId: preselectedCollaborateurId ? parseInt(preselectedCollaborateurId) : 0,
       formationId: preselectedFormationId ? parseInt(preselectedFormationId) : 0,
-      dateDebut: new Date().toISOString().split('T')[0],
-      dateFin: '',
+      dateDebut: new Date(),
+      dateFin: null,
       dureePrevue: undefined,
       dureeReelle: undefined,
       uniteDuree: 'heures',
@@ -97,8 +100,12 @@ export default function NewSessionPage() {
         return null;
       },
       dateFin: (value, values) => {
-        if (value && value < values.dateDebut) {
-          return 'La date de fin doit être après la date de début';
+        if (value && values.dateDebut) {
+          const dateFin = value instanceof Date ? value : new Date(value);
+          const dateDebut = values.dateDebut instanceof Date ? values.dateDebut : new Date(values.dateDebut);
+          if (dateFin < dateDebut) {
+            return 'La date de fin doit être après la date de début';
+          }
         }
         return null;
       },
@@ -174,12 +181,13 @@ export default function NewSessionPage() {
       // Nettoyer les données avant envoi
       const baseData = {
         ...values,
+        dateDebut: values.dateDebut instanceof Date ? values.dateDebut.toISOString().split('T')[0] : values.dateDebut,
+        dateFin: values.dateFin instanceof Date ? values.dateFin.toISOString().split('T')[0] : undefined,
         dureePrevue: values.dureePrevue || undefined,
         dureeReelle: values.dureeReelle || undefined,
         organismeId: values.organismeId || undefined,
         tarifHT: values.tarifHT || undefined,
         note: values.note !== undefined ? values.note : undefined,
-        dateFin: values.dateFin || undefined,
       };
 
       if (batchMode) {
@@ -361,16 +369,20 @@ export default function NewSessionPage() {
             
             <Stack gap="md">
               <Group grow>
-                <TextInput
+                <DateInput
                   label="Date de début"
-                  type="date"
+                  placeholder="Sélectionner une date"
                   required
+                  locale="fr"
+                  valueFormat="DD/MM/YYYY"
                   {...form.getInputProps('dateDebut')}
                 />
-                
-                <TextInput
+
+                <DateInput
                   label="Date de fin"
-                  type="date"
+                  placeholder="Sélectionner une date"
+                  locale="fr"
+                  valueFormat="DD/MM/YYYY"
                   {...form.getInputProps('dateFin')}
                 />
               </Group>

@@ -18,20 +18,21 @@ import {
   Switch,
   Divider,
   Text,
+  SegmentedControl,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { 
-  ArrowLeft, 
-  Check, 
-  X, 
+import {
+  ArrowLeft,
+  Check,
+  X,
   Warning,
   User,
+  Users,
   Building,
   IdentificationCard,
-  Users,
 } from '@phosphor-icons/react';
-import { collaborateursService, commonService, managersService } from '@/lib/services';
+import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
 import { Collaborateur } from '@/lib/types';
 
 interface Props {
@@ -46,9 +47,11 @@ export default function CollaborateurEditPage({ params }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [collaborateur, setCollaborateur] = useState<Collaborateur | null>(null);
-  const [departements, setDepartements] = useState<any[]>([]);
+  const [allDepartements, setAllDepartements] = useState<any[]>([]); // Tous les départements/équipes
+  const [departements, setDepartements] = useState<any[]>([]); // Liste filtrée
   const [managers, setManagers] = useState<any[]>([]);
   const [typeContrats, setTypeContrats] = useState<any[]>([]);
+  const [departementType, setDepartementType] = useState<'DEPARTEMENT' | 'EQUIPE'>('DEPARTEMENT');
 
   const form = useForm({
     initialValues: {
@@ -84,25 +87,33 @@ export default function CollaborateurEditPage({ params }: Props) {
     const loadData = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         // Charger le collaborateur
         const collabData = await collaborateursService.getCollaborateur(parseInt(params.id));
         setCollaborateur(collabData);
-        
-        // Charger les listes depuis les endpoints dédiés
+
+        // Détecter le type du département actuel du collaborateur
+        if (collabData.departementId) {
+          try {
+            const deptData = await departementsService.getById(collabData.departementId);
+            if (deptData.type) {
+              setDepartementType(deptData.type as 'DEPARTEMENT' | 'EQUIPE');
+            }
+          } catch (err) {
+            console.error('Erreur lors de la détection du type de département:', err);
+          }
+        }
+
+        // Charger TOUS les départements et équipes
         const [departementsData, contratsData] = await Promise.all([
-          commonService.getDepartements(),
+          departementsService.getAll(),
           commonService.getTypesContrats(),
         ]);
-        
-        // Formater les départements pour le select
+
+        // Stocker tous les départements/équipes
         if (departementsData) {
-          const departmentsList = departementsData.map(d => ({
-            value: d.id.toString(),
-            label: d.nomDepartement,
-          }));
-          setDepartements(departmentsList);
+          setAllDepartements(departementsData);
         }
         
         // Formater les types de contrats pour le select
@@ -151,6 +162,18 @@ export default function CollaborateurEditPage({ params }: Props) {
     loadData();
   }, [params.id]);
 
+  // Filtrer les départements/équipes selon le type sélectionné
+  useEffect(() => {
+    if (allDepartements.length > 0) {
+      const filtered = allDepartements.filter(d => d.type === departementType);
+      const departmentsList = filtered.map(d => ({
+        value: d.id.toString(),
+        label: d.nomDepartement,
+      }));
+      setDepartements(departmentsList);
+    }
+  }, [departementType, allDepartements]);
+
   const handleSubmit = async (values: typeof form.values) => {
     setIsSaving(true);
     
@@ -162,13 +185,14 @@ export default function CollaborateurEditPage({ params }: Props) {
         workerSubType: values.workerSubType || undefined,
         nom: values.nom,
         prenom: values.prenom,
-        genre: values.genre || undefined,
+        // N'inclure genre que s'il est valide
+        ...(values.genre && ['M', 'F', 'Autre'].includes(values.genre) ? { genre: values.genre } : {}),
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         actif: values.actif,
       };
-      
+
       // Retirer les champs undefined
       Object.keys(updateData).forEach(key => {
         if (updateData[key] === undefined) {
@@ -298,11 +322,45 @@ export default function CollaborateurEditPage({ params }: Props) {
                 <Building size={20} />
                 <Text fw={600}>Informations professionnelles</Text>
               </Group>
+
+              {/* Sélecteur Type : Département ou Équipe */}
+              <Stack gap="xs" mb="md">
+                <Text size="sm" fw={500}>Type d'affectation</Text>
+                <SegmentedControl
+                  value={departementType}
+                  onChange={(value) => {
+                    setDepartementType(value as 'DEPARTEMENT' | 'EQUIPE');
+                    // Réinitialiser la sélection du département quand on change de type
+                    form.setFieldValue('departementId', '');
+                  }}
+                  data={[
+                    {
+                      value: 'DEPARTEMENT',
+                      label: (
+                        <Group gap="xs">
+                          <Building size={16} />
+                          <Text size="sm">Département</Text>
+                        </Group>
+                      )
+                    },
+                    {
+                      value: 'EQUIPE',
+                      label: (
+                        <Group gap="xs">
+                          <Users size={16} />
+                          <Text size="sm">Équipe</Text>
+                        </Group>
+                      )
+                    },
+                  ]}
+                />
+              </Stack>
+
               <Grid gutter="md">
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <Select
-                    label="Département"
-                    placeholder="Sélectionner le département"
+                    label={departementType === 'DEPARTEMENT' ? 'Département' : 'Équipe'}
+                    placeholder={departementType === 'DEPARTEMENT' ? 'Sélectionner le département' : 'Sélectionner l\'équipe'}
                     data={departements}
                     clearable
                     searchable

@@ -25,6 +25,7 @@ import {
   Card,
   Tooltip,
   ThemeIcon,
+  Modal,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -44,6 +45,7 @@ import {
   FunnelSimple,
   User,
   UserMinus,
+  Trash,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
@@ -59,7 +61,12 @@ export default function CollaborateursPage() {
   const [error, setError] = useState<string | null>(null);
   const [globalStats, setGlobalStats] = useState<any>(null);
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
-  
+
+  // Modal de suppression
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [collaborateurToDelete, setCollaborateurToDelete] = useState<Collaborateur | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Filtres et pagination
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
@@ -199,6 +206,64 @@ export default function CollaborateursPage() {
     loadCollaborateurs();
   };
 
+  // Ouvrir la modal de suppression
+  const handleOpenDeleteModal = (collaborateur: Collaborateur) => {
+    setCollaborateurToDelete(collaborateur);
+    setDeleteModalOpened(true);
+  };
+
+  // Supprimer un collaborateur
+  const handleDelete = async () => {
+    if (!collaborateurToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const result = await collaborateursService.deleteCollaborateur(collaborateurToDelete.id);
+
+      notifications.show({
+        title: 'Succès',
+        message: result.message,
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
+
+      // Afficher les détails de la suppression si pertinent
+      if (result.subordonnesReassignes > 0 || result.formationsConservees > 0) {
+        const details: string[] = [];
+        if (result.subordonnesReassignes > 0) {
+          details.push(`${result.subordonnesReassignes} subordonnés réassignés`);
+        }
+        if (result.formationsConservees > 0) {
+          details.push(`${result.formationsConservees} formations conservées`);
+        }
+
+        setTimeout(() => {
+          notifications.show({
+            title: 'Informations',
+            message: details.join(' • '),
+            color: 'blue',
+            autoClose: 5000,
+          });
+        }, 1000);
+      }
+
+      setDeleteModalOpened(false);
+      setCollaborateurToDelete(null);
+      loadCollaborateurs();
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error);
+      const message = error.response?.data?.message || error.message || 'Une erreur est survenue';
+      notifications.show({
+        title: 'Erreur',
+        message,
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Utiliser les statistiques globales du backend ou calculer localement
   const stats = globalStats ? {
     total: globalStats.total || (globalStats.totalActifs + globalStats.totalInactifs) || total,
@@ -305,6 +370,14 @@ export default function CollaborateursPage() {
                 onClick={() => router.push(`/sessions/new?collaborateurId=${collaborateur.id}`)}
               >
                 Inscrire à une formation
+              </Menu.Item>
+              <Menu.Divider />
+              <Menu.Item
+                leftSection={<Trash size={14} />}
+                color="red"
+                onClick={() => handleOpenDeleteModal(collaborateur)}
+              >
+                Supprimer
               </Menu.Item>
             </Menu.Dropdown>
           </Menu>
@@ -524,6 +597,80 @@ export default function CollaborateursPage() {
           </Center>
         )}
       </Paper>
+
+      {/* Modal de confirmation de suppression */}
+      <Modal
+        opened={deleteModalOpened}
+        onClose={() => !isDeleting && setDeleteModalOpened(false)}
+        title="Confirmer la suppression"
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            Êtes-vous sûr de vouloir supprimer le collaborateur{' '}
+            <Text span fw={600}>
+              {collaborateurToDelete?.prenom} {collaborateurToDelete?.nom}
+            </Text>{' '}
+            ?
+          </Text>
+
+          {/* Afficher des informations si le collaborateur a des dépendances */}
+          {collaborateurToDelete && (
+            <Stack gap="xs">
+              {collaborateurToDelete.nombreFormations > 0 && (
+                <Paper p="sm" withBorder bg="blue.0">
+                  <Group gap="xs">
+                    <GraduationCap size={20} className="text-blue-600" />
+                    <Text size="sm" c="blue.8">
+                      Ce collaborateur a {collaborateurToDelete.nombreFormations} formation(s).
+                      Les données de formation seront conservées.
+                    </Text>
+                  </Group>
+                </Paper>
+              )}
+
+              {collaborateurToDelete.departement && (
+                <Text size="sm" c="dimmed">
+                  Département : {typeof collaborateurToDelete.departement === 'string'
+                    ? collaborateurToDelete.departement
+                    : collaborateurToDelete.departement.nomDepartement || collaborateurToDelete.departement}
+                </Text>
+              )}
+            </Stack>
+          )}
+
+          <Alert icon={<Warning size={20} />} color="red" variant="light">
+            <Text size="sm" fw={500}>
+              Cette action est irréversible !
+            </Text>
+            <Text size="sm">
+              Le collaborateur sera définitivement supprimé de la base de données.
+            </Text>
+            <Text size="sm">
+              Les subordonnés éventuels seront automatiquement réassignés.
+            </Text>
+          </Alert>
+
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={() => setDeleteModalOpened(false)}
+              disabled={isDeleting}
+            >
+              Annuler
+            </Button>
+            <Button
+              color="red"
+              onClick={handleDelete}
+              loading={isDeleting}
+              leftSection={<Trash size={16} />}
+            >
+              Supprimer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

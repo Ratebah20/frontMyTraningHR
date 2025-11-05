@@ -126,7 +126,7 @@ export default function DashboardPage() {
     {
       title: "Total collaborateurs",
       value: summary.totalCollaborateurs || 0,
-      subtitle: `${summary.collaborateursActifs || 0} actifs`,
+      subtitle: `${(summary.totalCollaborateurs || 0) - (summary.collaborateursActifs || 0)} inactifs`,
       icon: Users,
       color: "blue",
     },

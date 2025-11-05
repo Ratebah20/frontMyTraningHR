@@ -18,30 +18,34 @@ import {
   Switch,
   Divider,
   Text,
+  SegmentedControl,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { 
-  ArrowLeft, 
-  Check, 
-  X, 
-  Warning, 
+import {
+  ArrowLeft,
+  Check,
+  X,
+  Warning,
   CheckCircle,
   User,
+  Users,
   Building,
   IdentificationCard,
   Info,
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
-import { collaborateursService, commonService, managersService } from '@/lib/services';
+import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
 
 export default function CollaborateurNewPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
+  const [allDepartements, setAllDepartements] = useState<any[]>([]); // Tous les départements/équipes
+  const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]); // Liste filtrée
   const [managers, setManagers] = useState<{ value: string; label: string }[]>([]);
   const [typeContrats, setTypeContrats] = useState<{ value: string; label: string }[]>([]);
   const [workerSubTypes, setWorkerSubTypes] = useState<string[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [departementType, setDepartementType] = useState<'DEPARTEMENT' | 'EQUIPE'>('DEPARTEMENT');
 
   const form = useForm({
     initialValues: {
@@ -82,23 +86,20 @@ export default function CollaborateurNewPage() {
     },
   });
 
+  // Charger les données initiales
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
-        // Charger les listes depuis les endpoints dédiés
+        // Charger TOUS les départements et équipes
         const [departementsData, contratsData] = await Promise.all([
-          commonService.getDepartements(),
+          departementsService.getAll(),
           commonService.getTypesContrats(),
         ]);
-        
-        // Formater les départements pour le select
+
+        // Stocker tous les départements/équipes
         if (departementsData) {
-          const departmentsList = departementsData.map(d => ({
-            value: d.id.toString(),
-            label: d.nomDepartement,
-          }));
-          setDepartements(departmentsList);
+          setAllDepartements(departementsData);
         }
         
         // Formater les types de contrats pour le select
@@ -149,6 +150,18 @@ export default function CollaborateurNewPage() {
     loadData();
   }, []);
 
+  // Filtrer les départements/équipes selon le type sélectionné
+  useEffect(() => {
+    if (allDepartements.length > 0) {
+      const filtered = allDepartements.filter(d => d.type === departementType);
+      const departmentsList = filtered.map(d => ({
+        value: d.id.toString(),
+        label: d.nomDepartement,
+      }));
+      setDepartements(departmentsList);
+    }
+  }, [departementType, allDepartements]);
+
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
     
@@ -160,13 +173,14 @@ export default function CollaborateurNewPage() {
         workerSubType: values.workerSubType || undefined,
         nom: values.nom,
         prenom: values.prenom,
-        genre: values.genre || undefined,
+        // N'inclure genre que s'il est valide
+        ...(values.genre && ['M', 'F', 'Autre'].includes(values.genre) ? { genre: values.genre } : {}),
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         actif: values.actif,
       };
-      
+
       // Retirer les champs undefined
       Object.keys(dataToSend).forEach(key => {
         if (dataToSend[key] === undefined) {
@@ -273,7 +287,7 @@ export default function CollaborateurNewPage() {
                     {...form.getInputProps('prenom')}
                   />
                 </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 4 }}>
+                <Grid.Col span={{ base: 12, md: 6 }}>
                   <TextInput
                     label="Matricule RH"
                     placeholder="Ex: 00017336"
@@ -281,7 +295,7 @@ export default function CollaborateurNewPage() {
                     {...form.getInputProps('matricule')}
                   />
                 </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 4 }}>
+                <Grid.Col span={{ base: 12, md: 6 }}>
                   <TextInput
                     label="ID Orange Learning"
                     placeholder="À ajouter avant import OLU"
@@ -289,7 +303,7 @@ export default function CollaborateurNewPage() {
                     {...form.getInputProps('idExterne')}
                   />
                 </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 4 }}>
+                <Grid.Col span={{ base: 12, md: 6 }}>
                   <Select
                     label="Genre"
                     placeholder="Sélectionner le genre"
@@ -313,11 +327,45 @@ export default function CollaborateurNewPage() {
                 <Building size={20} />
                 <Text fw={600}>Informations professionnelles</Text>
               </Group>
+
+              {/* Sélecteur Type : Département ou Équipe */}
+              <Stack gap="xs" mb="md">
+                <Text size="sm" fw={500}>Type d'affectation</Text>
+                <SegmentedControl
+                  value={departementType}
+                  onChange={(value) => {
+                    setDepartementType(value as 'DEPARTEMENT' | 'EQUIPE');
+                    // Réinitialiser la sélection du département quand on change de type
+                    form.setFieldValue('departementId', '');
+                  }}
+                  data={[
+                    {
+                      value: 'DEPARTEMENT',
+                      label: (
+                        <Group gap="xs">
+                          <Building size={16} />
+                          <Text size="sm">Département</Text>
+                        </Group>
+                      )
+                    },
+                    {
+                      value: 'EQUIPE',
+                      label: (
+                        <Group gap="xs">
+                          <Users size={16} />
+                          <Text size="sm">Équipe</Text>
+                        </Group>
+                      )
+                    },
+                  ]}
+                />
+              </Stack>
+
               <Grid gutter="md">
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <Select
-                    label="Département"
-                    placeholder="Sélectionner le département"
+                    label={departementType === 'DEPARTEMENT' ? 'Département' : 'Équipe'}
+                    placeholder={departementType === 'DEPARTEMENT' ? 'Sélectionner le département' : 'Sélectionner l\'équipe'}
                     required
                     data={departements}
                     searchable
@@ -347,17 +395,18 @@ export default function CollaborateurNewPage() {
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <Select
                     label="Sous-type de contrat"
-                    placeholder="Ex: Employee FT, VIE, Trainee"
-                    description="Optionnel - Sélectionner ou créer"
-                    data={workerSubTypes}
+                    placeholder="Sélectionner le sous-type"
+                    description="Optionnel"
+                    data={[
+                      { value: 'Employee FT', label: 'Employee FT (Full Time)' },
+                      { value: 'Employee PT', label: 'Employee PT (Part Time)' },
+                      { value: 'VIE', label: 'VIE (Volontariat International)' },
+                      { value: 'Trainee', label: 'Trainee (Stagiaire)' },
+                      { value: 'Apprentice', label: 'Apprentice (Apprenti)' },
+                      { value: 'Consultant', label: 'Consultant' },
+                      { value: 'Contractor', label: 'Contractor (Prestataire)' },
+                    ]}
                     searchable
-                    creatable
-                    getCreateLabel={(query) => `+ Créer "${query}"`}
-                    onCreate={(query) => {
-                      const newItem = query;
-                      setWorkerSubTypes((current) => [...current, newItem]);
-                      return newItem;
-                    }}
                     clearable
                     {...form.getInputProps('workerSubType')}
                   />

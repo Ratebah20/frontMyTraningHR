@@ -80,6 +80,16 @@ export const collaborateursService = {
     return response.data;
   },
 
+  // Supprimer un collaborateur
+  async deleteCollaborateur(id: number): Promise<{
+    message: string;
+    subordonnesReassignes: number;
+    formationsConservees: number;
+  }> {
+    const response = await api.delete(`/collaborateurs/${id}`);
+    return response.data;
+  },
+
   // Assigner ou changer le manager d'un collaborateur
   async assignManager(collaborateurId: number, managerId: number | null): Promise<any> {
     const response = await api.patch(`/collaborateurs/${collaborateurId}/assign-manager`, {

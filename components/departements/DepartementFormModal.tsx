@@ -53,8 +53,8 @@ export function DepartementFormModal({
         return null;
       },
       codeDepartement: (value) => {
-        if (value && value.length > 20) {
-          return 'Le code ne doit pas dépasser 20 caractères';
+        if (value && value.length > 100) {
+          return 'Le code ne doit pas dépasser 100 caractères';
         }
         return null;
       },

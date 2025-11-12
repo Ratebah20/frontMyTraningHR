@@ -167,7 +167,7 @@ export interface SessionFormationResponse {
   dateDebut?: string;
   dateFin?: string;
   statut?: string;
-  note?: number;
+  anneeBudgetaire?: number;
   commentaire?: string;
   dureeHeures?: number;
   dateCreation: string;
@@ -261,7 +261,7 @@ export interface CreateSessionDto {
   uniteDuree?: string;
   statut?: string;
   tarifHT?: number;
-  note?: number;
+  anneeBudgetaire?: number;
   commentaire?: string;
 }
 
@@ -328,7 +328,7 @@ export interface GroupedSessionParticipant {
   statut: string;
   dateDebut?: string;
   dateFin?: string;
-  note?: number;
+  anneeBudgetaire?: number;
   commentaire?: string;
 }
 

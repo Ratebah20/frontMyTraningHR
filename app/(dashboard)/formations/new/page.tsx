@@ -37,6 +37,7 @@ import {
 } from '@phosphor-icons/react';
 import { formationsService, commonService } from '@/lib/services';
 import { CreateFormationDto } from '@/lib/types';
+import { generateFormationCode } from '@/lib/utils/formation';
 
 export default function NewFormationPage() {
   const router = useRouter();
@@ -60,16 +61,7 @@ export default function NewFormationPage() {
       actif: true,
     },
     validate: {
-      codeFormation: (value) => {
-        if (!value) return 'Code formation requis';
-        if (value.length < 3) return 'Le code doit contenir au moins 3 caractères';
-        if (value.length > 50) return 'Le code ne doit pas dépasser 50 caractères';
-        // Validation du format : lettres, chiffres, tirets et underscores uniquement
-        if (!/^[A-Z0-9_-]+$/i.test(value)) {
-          return 'Le code doit contenir uniquement des lettres, chiffres, tirets et underscores';
-        }
-        return null;
-      },
+      // Le code est généré automatiquement, pas de validation nécessaire
       nomFormation: (value) => {
         if (!value) return 'Nom de la formation requis';
         if (value.length < 3) return 'Le nom doit contenir au moins 3 caractères';
@@ -136,11 +128,8 @@ export default function NewFormationPage() {
           'Distanciel',
           'E-learning',
           'Blended',
-          'Webinaire',
-          'MOOC',
-          'Coaching',
         ];
-        
+
         const allTypes = new Set([...types, ...defaultTypes]);
         const sortedTypes = Array.from(allTypes).sort();
         setTypesFormation(sortedTypes);
@@ -155,9 +144,6 @@ export default function NewFormationPage() {
         'Distanciel',
         'E-learning',
         'Blended',
-        'Webinaire',
-        'MOOC',
-        'Coaching',
       ]);
     } finally {
       setLoadingTypes(false);
@@ -214,24 +200,49 @@ export default function NewFormationPage() {
       };
       
       const formation = await formationsService.createFormation(formData);
-      
+
       notifications.show({
         title: 'Succès',
         message: 'La formation a été créée avec succès',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
-      
-      router.push(`/formations/${formation.id}`);
+
+      // Utiliser replace au lieu de push pour éviter les problèmes avec router.back()
+      router.replace(`/formations/${formation.id}`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Erreur lors de la création de la formation';
-      
-      notifications.show({
-        title: 'Erreur',
-        message: errorMessage,
-        color: 'red',
-        icon: <Warning size={20} />,
-      });
+      const statusCode = error.response?.status;
+
+      // Gestion spécifique de l'erreur 409 (doublon de nom ou code)
+      if (statusCode === 409) {
+        const isCodeDuplicate = errorMessage.toLowerCase().includes('code');
+        const isNameDuplicate = errorMessage.toLowerCase().includes('nom');
+
+        // Mettre en surbrillance le champ concerné
+        if (isCodeDuplicate) {
+          form.setFieldError('codeFormation', errorMessage);
+        } else if (isNameDuplicate) {
+          form.setFieldError('nomFormation', errorMessage);
+        }
+
+        // Afficher une notification explicative
+        notifications.show({
+          title: 'Doublon détecté',
+          message: errorMessage,
+          color: 'orange',
+          icon: <Warning size={20} />,
+          autoClose: 8000,
+        });
+      } else {
+        // Autres erreurs
+        notifications.show({
+          title: 'Erreur',
+          message: errorMessage,
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -247,7 +258,7 @@ export default function NewFormationPage() {
         <Button
           variant="subtle"
           leftSection={<ArrowLeft size={20} />}
-          onClick={() => router.back()}
+          onClick={() => router.push('/formations')}
         >
           Retour
         </Button>
@@ -264,21 +275,6 @@ export default function NewFormationPage() {
             
             <Stack gap="md">
               <Grid gutter="md">
-                <Grid.Col span={{ base: 12, md: 4 }}>
-                  <TextInput
-                    label="Code de la formation"
-                    placeholder="EXCEL_ADV_2025"
-                    required
-                    description="Code unique (lettres, chiffres, tirets)"
-                    {...form.getInputProps('codeFormation')}
-                    onBlur={(e) => {
-                      // Convertir automatiquement en majuscules
-                      const value = e.currentTarget.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
-                      form.setFieldValue('codeFormation', value);
-                    }}
-                  />
-                </Grid.Col>
-                
                 <Grid.Col span={{ base: 12, md: 8 }}>
                   <TextInput
                     label="Nom de la formation"
@@ -286,17 +282,39 @@ export default function NewFormationPage() {
                     required
                     description="Nom complet et descriptif de la formation"
                     {...form.getInputProps('nomFormation')}
+                    onChange={(e) => {
+                      const nomFormation = e.currentTarget.value;
+                      form.setFieldValue('nomFormation', nomFormation);
+                      // Générer automatiquement le code à partir du nom
+                      const codeGenere = generateFormationCode(nomFormation);
+                      form.setFieldValue('codeFormation', codeGenere);
+                    }}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                  <TextInput
+                    label="Code de la formation"
+                    placeholder="Généré automatiquement..."
+                    required
+                    description={
+                      <Group gap={4}>
+                        <Info size={14} />
+                        <Text size="xs">Généré automatiquement depuis le nom</Text>
+                      </Group>
+                    }
+                    {...form.getInputProps('codeFormation')}
+                    readOnly
+                    styles={{
+                      input: {
+                        backgroundColor: 'var(--mantine-color-gray-0)',
+                        cursor: 'not-allowed',
+                        color: 'var(--mantine-color-gray-7)',
+                      }
+                    }}
                   />
                 </Grid.Col>
               </Grid>
-
-              <Textarea
-                label="Description"
-                placeholder="Décrivez les objectifs et le contenu de la formation..."
-                minRows={3}
-                maxRows={6}
-                description="Description détaillée pour les participants (optionnel)"
-              />
             </Stack>
           </Card>
 
@@ -412,7 +430,7 @@ export default function NewFormationPage() {
             </Grid>
 
             <Alert color="blue" variant="light" mt="md" icon={<Info size={20} />}>
-              Ces valeurs sont des références. Elles peuvent être ajustées pour chaque session.
+              Ces valeurs servent de références et valeurs par défaut. Elles seront utilisées automatiquement lors de la création de sessions (si non spécifiées) et pour les calculs de coûts estimatifs.
             </Alert>
           </Card>
 
@@ -431,9 +449,9 @@ export default function NewFormationPage() {
 
           {/* Actions */}
           <Group justify="flex-end">
-            <Button 
-              variant="subtle" 
-              onClick={() => router.back()}
+            <Button
+              variant="subtle"
+              onClick={() => router.push('/formations')}
               disabled={isSubmitting}
             >
               Annuler

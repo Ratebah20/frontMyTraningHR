@@ -659,7 +659,7 @@ export default function FormationsPage() {
                   {/* Section métriques */}
                   <Box
                     style={{
-                      background: 'var(--mantine-color-gray-0)',
+                      background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))',
                       borderRadius: 'var(--mantine-radius-md)',
                       padding: '12px',
                       marginBottom: '12px',

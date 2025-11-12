@@ -23,6 +23,7 @@ import {
   Center,
   MultiSelect,
   Switch,
+  Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -41,29 +42,32 @@ import {
   FileText,
   Users,
 } from '@phosphor-icons/react';
-import { 
-  sessionsService, 
-  formationsService, 
+import { formatDateOnly } from '@/lib/utils/date.utils';
+import {
+  sessionsService,
+  formationsService,
   collaborateursService,
-  organismesService 
+  commonService
 } from '@/lib/services';
-import { 
-  CreateSessionDto, 
-  Formation, 
+import {
+  CreateSessionDto,
+  Formation,
   Collaborateur,
-  Organisme 
+  OrganismeFormation
 } from '@/lib/types';
+import { FormationFormModal } from '@/components/formations/FormationFormModal';
 
 export default function NewSessionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [batchMode, setBatchMode] = useState(false);
+  const [formationModalOpened, setFormationModalOpened] = useState(false);
 
   // Données pour les selects
   const [formations, setFormations] = useState<Formation[]>([]);
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
-  const [organismes, setOrganismes] = useState<Organisme[]>([]);
+  const [organismes, setOrganismes] = useState<OrganismeFormation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<string[]>([]);
 
@@ -142,11 +146,11 @@ export default function NewSessionPage() {
           actif: true,
         });
         setCollaborateurs(collaborateursResponse.data || []);
-        
-        // TODO: Charger les organismes quand le service sera disponible
-        // const organismesResponse = await organismesService.getOrganismes();
-        // setOrganismes(organismesResponse.data || []);
-        
+
+        // Charger les organismes de formation actifs
+        const organismesResponse = await commonService.getOrganismesFormation();
+        setOrganismes(organismesResponse || []);
+
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
         notifications.show({
@@ -181,8 +185,8 @@ export default function NewSessionPage() {
       // Nettoyer les données avant envoi
       const baseData = {
         ...values,
-        dateDebut: values.dateDebut instanceof Date ? values.dateDebut.toISOString().split('T')[0] : values.dateDebut,
-        dateFin: values.dateFin instanceof Date ? values.dateFin.toISOString().split('T')[0] : undefined,
+        dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut,
+        dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : undefined,
         dureePrevue: values.dureePrevue || undefined,
         dureeReelle: values.dureeReelle || undefined,
         organismeId: values.organismeId || undefined,
@@ -232,6 +236,26 @@ export default function NewSessionPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Callback quand une formation est créée via la modale
+  const handleFormationCreated = (formation: Formation) => {
+    // Ajouter la nouvelle formation à la liste
+    setFormations(prev => [...prev, formation]);
+
+    // Pré-sélectionner dans le formulaire de session
+    form.setFieldValue('formationId', formation.id);
+
+    // Fermer la modale
+    setFormationModalOpened(false);
+
+    // Notification
+    notifications.show({
+      title: 'Formation créée',
+      message: `${formation.nomFormation} a été ajoutée et sélectionnée`,
+      color: 'green',
+      icon: <CheckCircle size={20} />,
+    });
   };
 
   if (loadingData) {
@@ -334,17 +358,29 @@ export default function NewSessionPage() {
                 />
               )}
 
-              <Select
-                label="Formation"
-                placeholder="Sélectionner une formation"
-                required
-                searchable
-                data={formationsData}
-                value={form.values.formationId?.toString()}
-                onChange={(value) => form.setFieldValue('formationId', value ? parseInt(value) : 0)}
-                error={form.errors.formationId}
-                leftSection={<BookOpen size={16} />}
-              />
+              <Group align="flex-end" gap="xs" grow>
+                <Select
+                  label="Formation"
+                  placeholder="Sélectionner une formation"
+                  required
+                  searchable
+                  data={formationsData}
+                  value={form.values.formationId?.toString()}
+                  onChange={(value) => form.setFieldValue('formationId', value ? parseInt(value) : 0)}
+                  error={form.errors.formationId}
+                  leftSection={<BookOpen size={16} />}
+                  style={{ flex: 1 }}
+                />
+                <Tooltip label="Créer une nouvelle formation">
+                  <Button
+                    variant="light"
+                    onClick={() => setFormationModalOpened(true)}
+                    leftSection={<BookOpen size={16} />}
+                  >
+                    + Nouvelle
+                  </Button>
+                </Tooltip>
+              </Group>
               
               <Select
                 label="Statut"
@@ -425,11 +461,12 @@ export default function NewSessionPage() {
             </Group>
             
             <Stack gap="md">
-              {/* TODO: Activer quand le service organismes sera disponible */}
-              {/* <Select
-                label="Organisme"
+              <Select
+                label="Organisme de formation"
                 placeholder="Sélectionner un organisme"
+                description="Optionnel - Organisme dispensant la formation"
                 searchable
+                clearable
                 data={organismes.map(o => ({
                   value: o.id.toString(),
                   label: o.nomOrganisme,
@@ -437,8 +474,8 @@ export default function NewSessionPage() {
                 value={form.values.organismeId?.toString()}
                 onChange={(value) => form.setFieldValue('organismeId', value ? parseInt(value) : undefined)}
                 leftSection={<Building size={16} />}
-              /> */}
-              
+              />
+
               <Group grow>
                 <NumberInput
                   label="Tarif HT (€)"
@@ -496,6 +533,13 @@ export default function NewSessionPage() {
           </Group>
         </Stack>
       </form>
+
+      {/* Modale de création de formation */}
+      <FormationFormModal
+        opened={formationModalOpened}
+        onClose={() => setFormationModalOpened(false)}
+        onSuccess={handleFormationCreated}
+      />
     </Container>
   );
 }

@@ -130,6 +130,7 @@ export interface Formation {
   uniteDuree: string;
   dateCreation: string;
   actif: boolean;
+  estCertifiante: boolean;
   categorie?: CategorieFormation;
   sessions?: SessionFormation[];
   _count?: {
@@ -236,6 +237,7 @@ export interface CreateFormationDto {
   dureePrevue?: number;
   uniteDuree?: string;
   actif?: boolean;
+  estCertifiante?: boolean;
 }
 
 export interface UpdateFormationDto {
@@ -245,6 +247,7 @@ export interface UpdateFormationDto {
   dureePrevue?: number;
   uniteDuree?: string;
   actif?: boolean;
+  estCertifiante?: boolean;
 }
 
 export interface CreateSessionDto {

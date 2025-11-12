@@ -48,6 +48,7 @@ import {
   UserCheck,
   Hourglass,
   Timer,
+  Certificate,
 } from '@phosphor-icons/react';
 import { formationsService, sessionsService } from '@/lib/services';
 import { Formation, SessionFormation } from '@/lib/types';
@@ -171,7 +172,7 @@ export default function FormationDetailPage({ params }: Props) {
         <Stack align="center">
           <Warning size={48} color="gray" />
           <Text size="lg" c="dimmed">Formation non trouvée</Text>
-          <Button onClick={() => router.back()}>Retour</Button>
+          <Button onClick={() => router.push('/formations')}>Retour</Button>
         </Stack>
       </Center>
     );
@@ -217,7 +218,7 @@ export default function FormationDetailPage({ params }: Props) {
           <Button
             variant="subtle"
             leftSection={<ArrowLeft size={16} />}
-            onClick={() => router.back()}
+            onClick={() => router.push('/formations')}
           >
             Retour
           </Button>
@@ -290,6 +291,17 @@ export default function FormationDetailPage({ params }: Props) {
                   <Text>{formatCurrency(formation.tarifHT)}</Text>
                 </Group>
               )}
+
+              <Group gap="xs">
+                <Certificate size={20} weight="duotone" />
+                <Text fw={500}>Formation certifiante:</Text>
+                <Badge
+                  color={formation.estCertifiante ? 'green' : 'gray'}
+                  variant="light"
+                >
+                  {formation.estCertifiante ? 'Oui' : 'Non'}
+                </Badge>
+              </Group>
 
               {formation.stats?.premiereSession && (
                 <Group gap="xs">

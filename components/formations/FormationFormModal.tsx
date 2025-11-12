@@ -1,63 +1,54 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter, useParams } from 'next/navigation';
 import {
-  Container,
-  Title,
-  Card,
+  Modal,
   TextInput,
-  Textarea,
   NumberInput,
   Select,
   Button,
   Group,
   Stack,
-  Switch,
-  Alert,
   Grid,
+  Card,
   Text,
-  Divider,
-  Paper,
+  Alert,
   ActionIcon,
   Tooltip,
-  Loader,
-  Center,
+  Switch,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { 
-  ArrowLeft, 
-  CheckCircle, 
+import {
+  CheckCircle,
   Warning,
+  BookOpen,
   Tag,
   Clock,
-  CurrencyEur,
   Info,
-  BookOpen,
   ArrowsClockwise,
-  PencilSimple,
+  CurrencyEur,
 } from '@phosphor-icons/react';
 import { formationsService, commonService } from '@/lib/services';
-import { UpdateFormationDto, Formation } from '@/lib/types';
+import { CreateFormationDto, Formation } from '@/lib/types';
+import { generateFormationCode } from '@/lib/utils/formation';
 
-export default function EditFormationPage() {
-  const router = useRouter();
-  const params = useParams();
-  const formationId = Number(params.id);
-  
+interface FormationFormModalProps {
+  opened: boolean;
+  onClose: () => void;
+  onSuccess: (formation: Formation) => void;
+}
+
+export function FormationFormModal({ opened, onClose, onSuccess }: FormationFormModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [formation, setFormation] = useState<Formation | null>(null);
-  
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [typesFormation, setTypesFormation] = useState<string[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
   const [loadingUnites, setLoadingUnites] = useState(true);
-  
-  const form = useForm<UpdateFormationDto & { tarifHT?: number }>({
+
+  const form = useForm<CreateFormationDto & { tarifHT?: number }>({
     initialValues: {
       codeFormation: '',
       nomFormation: '',
@@ -70,15 +61,6 @@ export default function EditFormationPage() {
       estCertifiante: false,
     },
     validate: {
-      codeFormation: (value) => {
-        if (!value) return 'Code formation requis';
-        if (value.length < 3) return 'Le code doit contenir au moins 3 caractères';
-        if (value.length > 50) return 'Le code ne doit pas dépasser 50 caractères';
-        if (!/^[A-Z0-9_-]+$/i.test(value)) {
-          return 'Le code doit contenir uniquement des lettres, chiffres, tirets et underscores';
-        }
-        return null;
-      },
       nomFormation: (value) => {
         if (!value) return 'Nom de la formation requis';
         if (value.length < 3) return 'Le nom doit contenir au moins 3 caractères';
@@ -96,12 +78,12 @@ export default function EditFormationPage() {
     },
   });
 
-  // Fonction pour charger les catégories
+  // Charger les catégories
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
       const cats = await commonService.getCategoriesFormation();
-      
+
       if (Array.isArray(cats) && cats.length > 0) {
         const categoriesList = cats.map(c => ({
           value: c.id.toString(),
@@ -115,7 +97,7 @@ export default function EditFormationPage() {
       console.error('Erreur lors du chargement des catégories:', error);
       notifications.show({
         title: 'Attention',
-        message: 'Impossible de charger les catégories. Vérifiez votre connexion.',
+        message: 'Impossible de charger les catégories.',
         color: 'orange',
         icon: <Warning size={20} />,
       });
@@ -125,7 +107,7 @@ export default function EditFormationPage() {
     }
   };
 
-  // Fonction pour charger les types de formation
+  // Charger les types de formation
   const loadTypesFormation = async () => {
     setLoadingTypes(true);
     try {
@@ -158,12 +140,12 @@ export default function EditFormationPage() {
     }
   };
 
-  // Fonction pour charger les unités de durée
+  // Charger les unités de durée
   const loadUnitesDuree = async () => {
     setLoadingUnites(true);
     try {
       const unites = await commonService.getUnitesDuree();
-      
+
       if (Array.isArray(unites)) {
         const defaultUnites = [
           'Heures',
@@ -171,7 +153,7 @@ export default function EditFormationPage() {
           'Semaines',
           'Mois',
         ];
-        
+
         const allUnites = new Set([...unites, ...defaultUnites]);
         const sortedUnites = Array.from(allUnites).sort();
         setUnitesDuree(sortedUnites);
@@ -186,144 +168,96 @@ export default function EditFormationPage() {
     }
   };
 
-  // Charger la formation existante
-  const loadFormation = async () => {
-    try {
-      setIsLoading(true);
-      const data = await formationsService.getFormation(formationId);
-      setFormation(data);
-      
-      // Pré-remplir le formulaire avec les données existantes
-      form.setValues({
-        codeFormation: data.codeFormation || '',
-        nomFormation: data.nomFormation || '',
-        categorieId: data.categorie?.id?.toString(),
-        typeFormation: data.typeFormation || '',
-        dureePrevue: data.dureePrevue,
-        uniteDuree: data.uniteDuree || 'Heures',
-        tarifHT: data.tarifHT,
-        actif: data.actif !== false,
-        estCertifiante: data.estCertifiante || false,
-      });
-    } catch (error) {
-      console.error('Erreur lors du chargement de la formation:', error);
-      notifications.show({
-        title: 'Erreur',
-        message: 'Impossible de charger les données de la formation',
-        color: 'red',
-        icon: <Warning size={20} />,
-      });
-      router.push('/formations');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Charger toutes les données au montage
+  // Charger les données au montage
   useEffect(() => {
-    loadCategories();
-    loadTypesFormation();
-    loadUnitesDuree();
-    loadFormation();
-  }, [formationId]);
+    if (opened) {
+      loadCategories();
+      loadTypesFormation();
+      loadUnitesDuree();
+    }
+  }, [opened]);
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
-    
+
     try {
-      // Préparer les données pour l'envoi
       const formData: any = {
         ...values,
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
       };
-      
-      await formationsService.updateFormation(formationId, formData);
-      
+
+      const formation = await formationsService.createFormation(formData);
+
       notifications.show({
         title: 'Succès',
-        message: 'La formation a été mise à jour avec succès',
+        message: 'La formation a été créée avec succès',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
-      
-      router.push(`/formations/${formationId}`);
+
+      // Appeler le callback avec la formation créée
+      onSuccess(formation);
+
+      // Réinitialiser le formulaire
+      form.reset();
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Erreur lors de la mise à jour de la formation';
-      
-      notifications.show({
-        title: 'Erreur',
-        message: errorMessage,
-        color: 'red',
-        icon: <Warning size={20} />,
-      });
+      const errorMessage = error.response?.data?.message || 'Erreur lors de la création de la formation';
+      const statusCode = error.response?.status;
+
+      // Gestion spécifique de l'erreur 409 (doublon de nom ou code)
+      if (statusCode === 409) {
+        const isCodeDuplicate = errorMessage.toLowerCase().includes('code');
+        const isNameDuplicate = errorMessage.toLowerCase().includes('nom');
+
+        // Mettre en surbrillance le champ concerné
+        if (isCodeDuplicate) {
+          form.setFieldError('codeFormation', errorMessage);
+        } else if (isNameDuplicate) {
+          form.setFieldError('nomFormation', errorMessage);
+        }
+
+        // Afficher une notification explicative
+        notifications.show({
+          title: 'Doublon détecté',
+          message: errorMessage,
+          color: 'orange',
+          icon: <Warning size={20} />,
+          autoClose: 8000,
+        });
+      } else {
+        // Autres erreurs
+        notifications.show({
+          title: 'Erreur',
+          message: errorMessage,
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
-    return (
-      <Container size="lg">
-        <Center h={400}>
-          <Loader size="lg" />
-        </Center>
-      </Container>
-    );
-  }
-
-  if (!formation) {
-    return (
-      <Container size="lg">
-        <Alert color="red" title="Erreur" icon={<Warning size={20} />}>
-          Formation introuvable
-        </Alert>
-      </Container>
-    );
-  }
-
   return (
-    <Container size="lg">
-      <Group justify="space-between" mb="xl">
-        <div>
-          <Title order={2}>Modifier la formation</Title>
-          <Text c="dimmed" mt="xs">
-            Modification de : {formation.nomFormation}
-          </Text>
-        </div>
-        <Button
-          variant="subtle"
-          leftSection={<ArrowLeft size={20} />}
-          onClick={() => router.back()}
-        >
-          Retour
-        </Button>
-      </Group>
-
+    <Modal
+      opened={opened}
+      onClose={onClose}
+      title={<Text fw={600} size="lg">Nouvelle formation</Text>}
+      size="lg"
+      closeOnClickOutside={!isSubmitting}
+      closeOnEscape={!isSubmitting}
+    >
       <form onSubmit={form.onSubmit(handleSubmit)}>
-        <Stack gap="lg">
+        <Stack gap="md">
           {/* Informations principales */}
-          <Card shadow="sm" p="lg" radius="md" withBorder>
+          <Card shadow="xs" p="md" radius="md" withBorder>
             <Group gap="xs" mb="md">
-              <BookOpen size={20} />
-              <Text fw={600}>Informations principales</Text>
+              <BookOpen size={18} />
+              <Text fw={600} size="sm">Informations principales</Text>
             </Group>
-            
+
             <Stack gap="md">
               <Grid gutter="md">
-                <Grid.Col span={{ base: 12, md: 4 }}>
-                  <TextInput
-                    label="Code de la formation"
-                    placeholder="EXCEL_ADV_2025"
-                    required
-                    description="Code unique (lettres, chiffres, tirets)"
-                    {...form.getInputProps('codeFormation')}
-                    onBlur={(e) => {
-                      const value = e.currentTarget.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
-                      form.setFieldValue('codeFormation', value);
-                    }}
-                  />
-                </Grid.Col>
-                
                 <Grid.Col span={{ base: 12, md: 8 }}>
                   <TextInput
                     label="Nom de la formation"
@@ -331,46 +265,69 @@ export default function EditFormationPage() {
                     required
                     description="Nom complet et descriptif de la formation"
                     {...form.getInputProps('nomFormation')}
+                    onChange={(e) => {
+                      const nomFormation = e.currentTarget.value;
+                      form.setFieldValue('nomFormation', nomFormation);
+                      // Générer automatiquement le code à partir du nom
+                      const codeGenere = generateFormationCode(nomFormation);
+                      form.setFieldValue('codeFormation', codeGenere);
+                    }}
+                  />
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, md: 4 }}>
+                  <TextInput
+                    label="Code de la formation"
+                    placeholder="Généré automatiquement..."
+                    required
+                    description={
+                      <Group gap={4}>
+                        <Info size={14} />
+                        <Text size="xs">Généré automatiquement</Text>
+                      </Group>
+                    }
+                    {...form.getInputProps('codeFormation')}
+                    readOnly
+                    styles={{
+                      input: {
+                        backgroundColor: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))',
+                        cursor: 'not-allowed',
+                        color: 'light-dark(var(--mantine-color-gray-7), var(--mantine-color-gray-4))',
+                      }
+                    }}
                   />
                 </Grid.Col>
               </Grid>
-
-              <Textarea
-                label="Description"
-                placeholder="Décrivez les objectifs et le contenu de la formation..."
-                minRows={3}
-                maxRows={6}
-                description="Description détaillée pour les participants (optionnel)"
-              />
             </Stack>
           </Card>
 
-          {/* Classification et type */}
-          <Card shadow="sm" p="lg" radius="md" withBorder>
+          {/* Classification */}
+          <Card shadow="xs" p="md" radius="md" withBorder>
             <Group gap="xs" mb="md" justify="space-between">
               <Group gap="xs">
-                <Tag size={20} />
-                <Text fw={600}>Classification</Text>
+                <Tag size={18} />
+                <Text fw={600} size="sm">Classification</Text>
               </Group>
               {categories.length === 0 && !loadingCategories && (
                 <Tooltip label="Recharger les catégories">
-                  <ActionIcon 
-                    variant="subtle" 
+                  <ActionIcon
+                    variant="subtle"
                     onClick={loadCategories}
                     loading={loadingCategories}
+                    size="sm"
                   >
                     <ArrowsClockwise size={16} />
                   </ActionIcon>
                 </Tooltip>
               )}
             </Group>
-            
+
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
                   label="Catégorie"
                   placeholder={loadingCategories ? "Chargement..." : "Sélectionner une catégorie"}
-                  description={`Catégorie principale de la formation ${categories.length > 0 ? `(${categories.length} disponibles)` : ''}`}
+                  description="Catégorie principale (optionnel)"
                   clearable
                   searchable
                   data={categories}
@@ -379,12 +336,12 @@ export default function EditFormationPage() {
                   {...form.getInputProps('categorieId')}
                 />
               </Grid.Col>
-              
+
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
                   label="Type de formation"
-                  placeholder={loadingTypes ? "Chargement..." : "Sélectionner ou créer un type"}
-                  description={`Modalité de dispensation ${typesFormation.length > 0 ? `(${typesFormation.length} existants)` : ''}`}
+                  placeholder={loadingTypes ? "Chargement..." : "Sélectionner ou créer"}
+                  description="Modalité de dispensation"
                   clearable
                   searchable
                   creatable
@@ -403,30 +360,30 @@ export default function EditFormationPage() {
             </Grid>
           </Card>
 
-          {/* Durée et tarif */}
-          <Card shadow="sm" p="lg" radius="md" withBorder>
+          {/* Durée et tarification */}
+          <Card shadow="xs" p="md" radius="md" withBorder>
             <Group gap="xs" mb="md">
-              <Clock size={20} />
-              <Text fw={600}>Durée et tarification</Text>
+              <Clock size={18} />
+              <Text fw={600} size="sm">Durée et tarification</Text>
             </Group>
-            
+
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 3 }}>
                 <NumberInput
                   label="Durée prévue"
                   placeholder="14"
-                  description="Durée standard de la formation"
+                  description="Durée standard"
                   min={0}
                   decimalScale={2}
                   {...form.getInputProps('dureePrevue')}
                 />
               </Grid.Col>
-              
+
               <Grid.Col span={{ base: 12, md: 3 }}>
                 <Select
                   label="Unité de durée"
-                  placeholder={loadingUnites ? "Chargement..." : "Sélectionner ou créer"}
-                  description="Unité de mesure du temps"
+                  placeholder={loadingUnites ? "Chargement..." : "Sélectionner"}
+                  description="Unité de temps"
                   searchable
                   creatable
                   getCreateLabel={(query) => `+ Créer "${query}"`}
@@ -446,24 +403,27 @@ export default function EditFormationPage() {
                 <NumberInput
                   label="Tarif HT standard"
                   placeholder="1500"
-                  description="Prix de référence hors taxes (optionnel)"
+                  description="Prix de référence hors taxes"
                   min={0}
                   decimalScale={2}
                   prefix="€ "
                   thousandSeparator=" "
                   {...form.getInputProps('tarifHT')}
+                  leftSection={<CurrencyEur size={16} />}
                 />
               </Grid.Col>
             </Grid>
 
-            <Alert color="blue" variant="light" mt="md" icon={<Info size={20} />}>
-              Ces valeurs sont des références. Elles peuvent être ajustées pour chaque session.
+            <Alert color="blue" variant="light" mt="md" icon={<Info size={16} />}>
+              <Text size="xs">
+                Ces valeurs servent de références et valeurs par défaut. Elles seront utilisées automatiquement lors de la création de sessions (si non spécifiées) et pour les calculs de coûts estimatifs.
+              </Text>
             </Alert>
           </Card>
 
           {/* Paramètres */}
-          <Card shadow="sm" p="lg" radius="md" withBorder>
-            <Text fw={600} mb="md">Paramètres</Text>
+          <Card shadow="xs" p="md" radius="md" withBorder>
+            <Text fw={600} size="sm" mb="md">Paramètres</Text>
 
             <Stack gap="md">
               <Switch
@@ -484,47 +444,25 @@ export default function EditFormationPage() {
             </Stack>
           </Card>
 
-          {/* Statistiques de la formation (info seulement) */}
-          {formation.stats && (
-            <Card shadow="sm" p="lg" radius="md" withBorder>
-              <Text fw={600} mb="md">Informations actuelles</Text>
-              <Grid gutter="md">
-                <Grid.Col span={{ base: 6, md: 3 }}>
-                  <Text size="sm" c="dimmed">Sessions totales</Text>
-                  <Text fw={600}>{formation.stats.nombreSessions || 0}</Text>
-                </Grid.Col>
-                <Grid.Col span={{ base: 6, md: 3 }}>
-                  <Text size="sm" c="dimmed">Participants</Text>
-                  <Text fw={600}>{formation.stats.nombreParticipants || 0}</Text>
-                </Grid.Col>
-                <Grid.Col span={{ base: 6, md: 3 }}>
-                  <Text size="sm" c="dimmed">Heures totales</Text>
-                  <Text fw={600}>{formation.stats.heuresTotales || 0}h</Text>
-                </Grid.Col>
-              </Grid>
-            </Card>
-          )}
-
           {/* Actions */}
-          <Group justify="flex-end">
-            <Button 
-              variant="subtle" 
-              onClick={() => router.back()}
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              onClick={onClose}
               disabled={isSubmitting}
             >
               Annuler
             </Button>
-            <Button 
+            <Button
               type="submit"
               loading={isSubmitting}
-              size="md"
-              leftSection={<CheckCircle size={20} />}
+              leftSection={<CheckCircle size={16} />}
             >
-              Enregistrer les modifications
+              Créer la formation
             </Button>
           </Group>
         </Stack>
       </form>
-    </Container>
+    </Modal>
   );
 }

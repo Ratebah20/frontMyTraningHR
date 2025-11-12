@@ -47,6 +47,7 @@ import {
 import { sessionsService } from '@/lib/services';
 import { SessionFormationResponse } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
+import { formatDateOnly } from '@/lib/utils/date.utils';
 
 interface Props {
   params: {
@@ -136,11 +137,11 @@ export default function EditSessionPage({ params }: Props) {
         // Mettre à jour le formulaire avec les données actuelles
         form.setValues({
           statut: sessionData.statut || 'inscrit',
-          dateDebut: sessionData.dateDebut 
-            ? new Date(sessionData.dateDebut).toISOString().split('T')[0] 
+          dateDebut: sessionData.dateDebut
+            ? formatDateOnly(new Date(sessionData.dateDebut))
             : '',
-          dateFin: sessionData.dateFin 
-            ? new Date(sessionData.dateFin).toISOString().split('T')[0] 
+          dateFin: sessionData.dateFin
+            ? formatDateOnly(new Date(sessionData.dateFin))
             : '',
           dureeHeures: sessionData.dureeHeures || undefined,
           note: sessionData.note !== null && sessionData.note !== undefined 

@@ -363,11 +363,6 @@ export default function FormationDetailPage({ params }: Props) {
                         {formatCurrency(formation.stats?.coutTotalTTC || 0)} TTC
                       </Text>
                     )}
-                    {formation.stats?.fraisAnnexesTotal > 0 && (
-                      <Text size="xs" c="dimmed">
-                        + {formatCurrency(formation.stats?.fraisAnnexesTotal || 0)} de frais annexes
-                      </Text>
-                    )}
                   </div>
                 </Stack>
               </Grid.Col>

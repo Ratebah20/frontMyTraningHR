@@ -77,7 +77,7 @@ interface FormValues {
   dateDebut: string;
   dateFin: string;
   dureeHeures?: number;
-  note?: number;
+  anneeBudgetaire?: number;
   commentaire: string;
 }
 
@@ -93,7 +93,7 @@ export default function EditSessionPage({ params }: Props) {
       dateDebut: '',
       dateFin: '',
       dureeHeures: undefined,
-      note: undefined,
+      anneeBudgetaire: undefined,
       commentaire: '',
     },
     validate: {
@@ -117,9 +117,9 @@ export default function EditSessionPage({ params }: Props) {
         }
         return null;
       },
-      note: (value) => {
-        if (value !== undefined && (value < 0 || value > 100)) {
-          return 'La note doit être entre 0 et 100';
+      anneeBudgetaire: (value) => {
+        if (value !== undefined && (value < 2000 || value > 2100)) {
+          return 'L\'année doit être entre 2000 et 2100';
         }
         return null;
       },
@@ -144,8 +144,8 @@ export default function EditSessionPage({ params }: Props) {
             ? formatDateOnly(new Date(sessionData.dateFin))
             : '',
           dureeHeures: sessionData.dureeHeures || undefined,
-          note: sessionData.note !== null && sessionData.note !== undefined 
-            ? sessionData.note 
+          anneeBudgetaire: sessionData.anneeBudgetaire !== null && sessionData.anneeBudgetaire !== undefined
+            ? sessionData.anneeBudgetaire
             : undefined,
           commentaire: sessionData.commentaire || '',
         });
@@ -216,7 +216,7 @@ export default function EditSessionPage({ params }: Props) {
         dateDebut: values.dateDebut,
         dateFin: values.dateFin || undefined,
         dureeHeures: values.dureeHeures || undefined,
-        note: values.note,
+        anneeBudgetaire: values.anneeBudgetaire,
         commentaire: values.commentaire || undefined,
       };
       
@@ -536,13 +536,13 @@ export default function EditSessionPage({ params }: Props) {
                   
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <NumberInput
-                      label="Note (/100)"
-                      description="Note obtenue si formation terminée"
-                      placeholder="Ex: 85"
-                      min={0}
-                      max={100}
-                      leftSection={<Star size={16} />}
-                      {...form.getInputProps('note')}
+                      label="Année budgétaire"
+                      description="Laissez vide pour utiliser l'année de la session"
+                      placeholder="Ex: 2024"
+                      min={2000}
+                      max={2100}
+                      leftSection={<Calendar size={16} />}
+                      {...form.getInputProps('anneeBudgetaire')}
                     />
                   </Grid.Col>
                 </Grid>

@@ -87,7 +87,7 @@ export default function NewSessionPage() {
       statut: 'inscrit',
       organismeId: undefined,
       tarifHT: undefined,
-      note: undefined,
+      anneeBudgetaire: undefined,
       commentaire: '',
     },
     validate: {
@@ -113,9 +113,9 @@ export default function NewSessionPage() {
         }
         return null;
       },
-      note: (value) => {
-        if (value !== undefined && (value < 0 || value > 100)) {
-          return 'La note doit être entre 0 et 100';
+      anneeBudgetaire: (value) => {
+        if (value !== undefined && (value < 2000 || value > 2100)) {
+          return 'L\'année doit être entre 2000 et 2100';
         }
         return null;
       },
@@ -486,11 +486,12 @@ export default function NewSessionPage() {
                 />
                 
                 <NumberInput
-                  label="Note (/100)"
-                  placeholder="Ex: 85"
-                  min={0}
-                  max={100}
-                  {...form.getInputProps('note')}
+                  label="Année budgétaire"
+                  description="Laissez vide pour utiliser l'année de la session"
+                  placeholder="Ex: 2024"
+                  min={2000}
+                  max={2100}
+                  {...form.getInputProps('anneeBudgetaire')}
                 />
               </Group>
               

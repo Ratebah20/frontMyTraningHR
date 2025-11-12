@@ -177,9 +177,8 @@ export default function SessionDetailPage({ params }: Props) {
   const statusColor = StatutUtils.getStatusColor(session.statut);
   const statusLabel = StatutUtils.getStatusLabel(session.statut);
 
-  // Calculer le coût total
-  const coutTotal = (session.tarifHT || 0) + (session.fraisAnnexes || 0);
-  const coutTTC = session.tarifTTC || (coutTotal * (1 + (session.tva || 0) / 100));
+  // Calculer le coût (priorité TTC > HT)
+  const cout = session.tarifTTC || session.tarifHT || 0;
 
   return (
     <Container size="xl">
@@ -233,10 +232,10 @@ export default function SessionDetailPage({ params }: Props) {
               >
                 {statusLabel}
               </Badge>
-              {session.note !== null && session.note !== undefined && (
+              {session.anneeBudgetaire && (
                 <Group gap="xs">
-                  <Star size={20} color="#FD7E14" />
-                  <Text fw={600}>{session.note}/100</Text>
+                  <Calendar size={20} color="#228BE6" />
+                  <Text fw={600}>Budget {session.anneeBudgetaire}</Text>
                 </Group>
               )}
             </Group>
@@ -448,7 +447,7 @@ export default function SessionDetailPage({ params }: Props) {
           </Paper>
 
           {/* Informations budgétaires */}
-          {(session.tarifHT || session.tarifTTC || session.fraisAnnexes) && (
+          {(session.tarifHT || session.tarifTTC) && (
             <Paper shadow="xs" p="lg" radius="md" withBorder mb="lg">
               <Group mb="md">
                 <CurrencyDollar size={20} />
@@ -464,28 +463,6 @@ export default function SessionDetailPage({ params }: Props) {
                       </Table.Td>
                       <Table.Td align="right">
                         <Text fw={500}>{session.tarifHT.toLocaleString('fr-FR')} €</Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  )}
-                  
-                  {session.fraisAnnexes && session.fraisAnnexes > 0 && (
-                    <Table.Tr>
-                      <Table.Td>
-                        <Text size="sm" c="dimmed">Frais annexes</Text>
-                      </Table.Td>
-                      <Table.Td align="right">
-                        <Text fw={500}>{session.fraisAnnexes.toLocaleString('fr-FR')} €</Text>
-                      </Table.Td>
-                    </Table.Tr>
-                  )}
-                  
-                  {session.tva && (
-                    <Table.Tr>
-                      <Table.Td>
-                        <Text size="sm" c="dimmed">TVA ({session.tva}%)</Text>
-                      </Table.Td>
-                      <Table.Td align="right">
-                        <Text fw={500}>{((coutTotal * session.tva) / 100).toLocaleString('fr-FR')} €</Text>
                       </Table.Td>
                     </Table.Tr>
                   )}
@@ -527,30 +504,19 @@ export default function SessionDetailPage({ params }: Props) {
 
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Stack gap="md">
-            {/* Note et progression */}
-            {session.note !== null && session.note !== undefined && (
+            {/* Année budgétaire */}
+            {session.anneeBudgetaire && (
               <Card shadow="xs" radius="md" withBorder>
-                <Text fw={600} mb="md">Évaluation</Text>
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">Note obtenue</Text>
-                  <Progress
-                    value={session.note}
-                    color={session.note >= 80 ? 'green' : session.note >= 60 ? 'yellow' : 'red'}
-                    size="xl"
-                    radius="md"
-                  />
-                  <Text ta="center" fw={600} size="lg">
-                    {session.note}/100
-                  </Text>
-                  <Badge
-                    fullWidth
-                    size="lg"
-                    color={session.note >= 80 ? 'green' : session.note >= 60 ? 'yellow' : 'red'}
-                    variant="light"
-                  >
-                    {session.note >= 80 ? 'Excellent' : session.note >= 60 ? 'Satisfaisant' : 'À améliorer'}
-                  </Badge>
-                </Stack>
+                <Group gap="sm" mb="sm">
+                  <Calendar size={20} color="#228BE6" />
+                  <Text fw={600}>Année budgétaire</Text>
+                </Group>
+                <Text ta="center" fw={700} size="xl" c="blue">
+                  {session.anneeBudgetaire}
+                </Text>
+                <Text size="xs" c="dimmed" ta="center" mt="xs">
+                  Budget imputé sur cette année
+                </Text>
               </Card>
             )}
 

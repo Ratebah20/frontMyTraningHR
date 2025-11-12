@@ -1375,11 +1375,7 @@ export default function BudgetAnalyticsPage() {
               decimalSeparator=","
               required
             />
-            
-            <Text size="xs" c="dimmed">
-              Tarif TTC estimé: {formatCurrency(tarifValue * 1.2)}
-            </Text>
-            
+
             <Group justify="flex-end">
               <Button variant="light" onClick={closeTarifModal}>
                 Annuler

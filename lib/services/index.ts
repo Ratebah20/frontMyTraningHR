@@ -9,6 +9,7 @@ export { importService } from './import.service';
 export { commonService } from './common.service';
 export { managersService } from './managers.service';
 export { departementsService } from './departements.service';
+export { organismesService } from './organismes.service';
 
 // Ré-export des types pour faciliter l'import
 export * from '../types';

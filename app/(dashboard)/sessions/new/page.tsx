@@ -49,18 +49,23 @@ import {
   collaborateursService,
   commonService
 } from '@/lib/services';
+import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import {
   CreateSessionDto,
   Formation,
   Collaborateur,
-  OrganismeFormation
+  OrganismeFormation,
+  CreateCollectiveSessionDto
 } from '@/lib/types';
 import { FormationFormModal } from '@/components/formations/FormationFormModal';
+import { SessionTypeSelector } from '@/components/sessions/SessionTypeSelector';
+import { ParticipantSelector } from '@/components/sessions/ParticipantSelector';
 
 export default function NewSessionPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sessionType, setSessionType] = useState<'individuelle' | 'collective'>('individuelle');
   const [batchMode, setBatchMode] = useState(false);
   const [formationModalOpened, setFormationModalOpened] = useState(false);
 
@@ -70,29 +75,53 @@ export default function NewSessionPage() {
   const [organismes, setOrganismes] = useState<OrganismeFormation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<string[]>([]);
+  const [participantIds, setParticipantIds] = useState<number[]>([]);
+  const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
+  const [organismeWarning, setOrganismeWarning] = useState<string | null>(null);
 
   // Pré-remplir si on vient d'une formation ou d'un collaborateur
   const preselectedFormationId = searchParams.get('formationId');
   const preselectedCollaborateurId = searchParams.get('collaborateurId');
 
-  const form = useForm<CreateSessionDto>({
+  const form = useForm<any>({
     initialValues: {
-      collaborateurId: preselectedCollaborateurId ? parseInt(preselectedCollaborateurId) : 0,
+      // Champs communs
       formationId: preselectedFormationId ? parseInt(preselectedFormationId) : 0,
       dateDebut: new Date(),
       dateFin: null,
+      organismeId: undefined,
+      anneeBudgetaire: undefined,
+
+      // Champs individuels
+      collaborateurId: preselectedCollaborateurId ? parseInt(preselectedCollaborateurId) : 0,
       dureePrevue: undefined,
       dureeReelle: undefined,
       uniteDuree: 'heures',
       statut: 'inscrit',
-      organismeId: undefined,
       tarifHT: undefined,
-      anneeBudgetaire: undefined,
       commentaire: '',
+
+      // Champs collectifs
+      titre: '',
+      lieu: '',
+      heureDebut: '',
+      heureFin: '',
+      dureePrevueHeures: undefined,
+      capaciteMax: undefined,
+      statutCollectif: 'inscrit',
+      modalite: 'presentiel',
+      tarifUnitaireHT: undefined,
+      tarifTotalHT: undefined,
+      description: '',
+      formateurNom: '',
+      formateurContact: '',
+      lienVisio: '',
     },
     validate: {
       collaborateurId: (value) => {
-        if (!batchMode && (!value || value === 0)) return 'Collaborateur requis';
+        if (sessionType === 'individuelle' && !batchMode && (!value || value === 0)) {
+          return 'Collaborateur requis';
+        }
         return null;
       },
       formationId: (value) => {
@@ -120,8 +149,14 @@ export default function NewSessionPage() {
         return null;
       },
       tarifHT: (value) => {
-        if (value !== undefined && value < 0) {
+        if (sessionType === 'individuelle' && value !== undefined && value < 0) {
           return 'Le tarif doit être positif';
+        }
+        return null;
+      },
+      capaciteMax: (value) => {
+        if (sessionType === 'collective' && value !== undefined && value < 1) {
+          return 'La capacité doit être au moins 1';
         }
         return null;
       },
@@ -167,57 +202,130 @@ export default function NewSessionPage() {
     loadData();
   }, []);
 
-  const handleSubmit = async (values: CreateSessionDto) => {
-    // Validation pour le mode batch
-    if (batchMode && selectedCollaborateurs.length === 0) {
-      notifications.show({
-        title: 'Erreur',
-        message: 'Veuillez sélectionner au moins un collaborateur',
-        color: 'red',
-        icon: <Warning size={20} />,
-      });
-      return;
+  // Auto-remplir l'organismeId quand la formation change
+  useEffect(() => {
+    const loadFormationDetails = async () => {
+      if (form.values.formationId && form.values.formationId > 0) {
+        try {
+          const formation = await formationsService.getFormation(form.values.formationId);
+          setSelectedFormation(formation);
+
+          // Auto-remplir l'organismeId depuis la formation
+          if (formation.organismeId) {
+            form.setFieldValue('organismeId', formation.organismeId);
+            setOrganismeWarning(null);
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement de la formation:', error);
+        }
+      }
+    };
+
+    loadFormationDetails();
+  }, [form.values.formationId]);
+
+  const handleSubmit = async (values: any) => {
+    // Validation spécifique selon le type
+    if (sessionType === 'individuelle') {
+      if (batchMode && selectedCollaborateurs.length === 0) {
+        notifications.show({
+          title: 'Erreur',
+          message: 'Veuillez sélectionner au moins un collaborateur',
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+        return;
+      }
+    } else if (sessionType === 'collective') {
+      if (participantIds.length === 0) {
+        notifications.show({
+          title: 'Erreur',
+          message: 'Veuillez sélectionner au moins un participant pour la session collective',
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+        return;
+      }
     }
 
     setIsSubmitting(true);
 
     try {
-      // Nettoyer les données avant envoi
-      const baseData = {
-        ...values,
-        dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut,
-        dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : undefined,
-        dureePrevue: values.dureePrevue || undefined,
-        dureeReelle: values.dureeReelle || undefined,
-        organismeId: values.organismeId || undefined,
-        tarifHT: values.tarifHT || undefined,
-        note: values.note !== undefined ? values.note : undefined,
-      };
+      if (sessionType === 'individuelle') {
+        // Session individuelle
+        const baseData: CreateSessionDto = {
+          formationId: values.formationId,
+          collaborateurId: values.collaborateurId,
+          dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut,
+          dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : undefined,
+          dureePrevue: values.dureePrevue || undefined,
+          dureeReelle: values.dureeReelle || undefined,
+          uniteDuree: values.uniteDuree,
+          statut: values.statut,
+          organismeId: values.organismeId || undefined,
+          tarifHT: values.tarifHT || undefined,
+          anneeBudgetaire: values.anneeBudgetaire || undefined,
+          commentaire: values.commentaire || '',
+        };
 
-      if (batchMode) {
-        // Mode batch : créer une session pour chaque collaborateur
-        const promises = selectedCollaborateurs.map(collabId =>
-          sessionsService.createSession({
-            ...baseData,
-            collaborateurId: parseInt(collabId),
-          })
-        );
+        if (batchMode) {
+          // Mode batch : créer une session pour chaque collaborateur
+          const promises = selectedCollaborateurs.map(collabId =>
+            SessionsUnifiedService.create({
+              ...baseData,
+              collaborateurId: parseInt(collabId),
+            }, 'individuelle')
+          );
 
-        await Promise.all(promises);
+          await Promise.all(promises);
 
-        notifications.show({
-          title: 'Succès',
-          message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
-          color: 'green',
-          icon: <CheckCircle size={20} />,
-        });
+          notifications.show({
+            title: 'Succès',
+            message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
+            color: 'green',
+            icon: <CheckCircle size={20} />,
+          });
+        } else {
+          // Mode simple : créer une seule session
+          await SessionsUnifiedService.create(baseData, 'individuelle');
+
+          notifications.show({
+            title: 'Succès',
+            message: 'Session individuelle créée avec succès',
+            color: 'green',
+            icon: <CheckCircle size={20} />,
+          });
+        }
       } else {
-        // Mode simple : créer une seule session
-        await sessionsService.createSession(baseData);
+        // Session collective
+        const collectiveData: CreateCollectiveSessionDto = {
+          formationId: values.formationId,
+          organismeId: values.organismeId || undefined,
+          titre: values.titre || undefined,
+          lieu: values.lieu || undefined,
+          dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : undefined,
+          dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : undefined,
+          heureDebut: values.heureDebut || undefined,
+          heureFin: values.heureFin || undefined,
+          dureePrevue: values.dureePrevueHeures || undefined,
+          capaciteMax: values.capaciteMax || undefined,
+          statut: values.statutCollectif,
+          modalite: values.modalite,
+          tarifUnitaireHT: values.tarifUnitaireHT || undefined,
+          tarifTotalHT: values.tarifTotalHT || undefined,
+          anneeBudgetaire: values.anneeBudgetaire || undefined,
+          description: values.description || undefined,
+          formateurNom: values.formateurNom || undefined,
+          formateurContact: values.formateurContact || undefined,
+          lienVisio: values.lienVisio || undefined,
+          participantIds: participantIds,
+        };
+
+        await SessionsUnifiedService.create(collectiveData, 'collective');
 
         notifications.show({
           title: 'Succès',
-          message: 'Inscription créée avec succès',
+          message: 'Session collective créée avec succès',
           color: 'green',
           icon: <CheckCircle size={20} />,
         });
@@ -225,7 +333,7 @@ export default function NewSessionPage() {
 
       router.push('/sessions');
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Erreur lors de la création de l\'inscription';
+      const errorMessage = error.response?.data?.message || `Erreur lors de la création de la session ${sessionType}`;
 
       notifications.show({
         title: 'Erreur',
@@ -283,9 +391,13 @@ export default function NewSessionPage() {
     <Container size="md">
       <Group justify="space-between" mb="xl">
         <div>
-          <Title order={2}>Nouvelle inscription</Title>
+          <Title order={2}>Nouvelle session</Title>
           <Text c="dimmed">
-            {batchMode ? 'Inscrire plusieurs collaborateurs à une formation' : 'Inscrire un collaborateur à une formation'}
+            {sessionType === 'collective'
+              ? 'Créer une session collective avec plusieurs participants'
+              : batchMode
+                ? 'Inscrire plusieurs collaborateurs à une formation'
+                : 'Inscrire un collaborateur à une formation'}
           </Text>
         </div>
         <Button
@@ -299,65 +411,57 @@ export default function NewSessionPage() {
 
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="lg">
-          {/* Mode d'inscription */}
-          <Paper shadow="xs" p="lg" radius="md" withBorder>
-            <Group justify="space-between">
-              <Group>
-                {batchMode ? <Users size={24} /> : <User size={24} />}
-                <div>
-                  <Text fw={600}>Mode d'inscription</Text>
-                  <Text size="sm" c="dimmed">
-                    {batchMode ? 'Plusieurs collaborateurs' : 'Un seul collaborateur'}
-                  </Text>
-                </div>
+          {/* Sélecteur de type de session */}
+          <SessionTypeSelector
+            value={sessionType}
+            onChange={(type) => {
+              setSessionType(type);
+              // Réinitialiser les champs spécifiques
+              if (type === 'collective') {
+                setBatchMode(false);
+                setSelectedCollaborateurs([]);
+              } else {
+                setParticipantIds([]);
+              }
+            }}
+          />
+
+          {/* Mode d'inscription multiple (seulement pour sessions individuelles) */}
+          {sessionType === 'individuelle' && (
+            <Paper shadow="xs" p="lg" radius="md" withBorder>
+              <Group justify="space-between">
+                <Group>
+                  {batchMode ? <Users size={24} /> : <User size={24} />}
+                  <div>
+                    <Text fw={600}>Mode d'inscription</Text>
+                    <Text size="sm" c="dimmed">
+                      {batchMode ? 'Plusieurs collaborateurs' : 'Un seul collaborateur'}
+                    </Text>
+                  </div>
+                </Group>
+                <Switch
+                  checked={batchMode}
+                  onChange={(event) => {
+                    setBatchMode(event.currentTarget.checked);
+                    setSelectedCollaborateurs([]);
+                    form.setFieldValue('collaborateurId', 0);
+                  }}
+                  label="Inscription multiple"
+                  size="md"
+                />
               </Group>
-              <Switch
-                checked={batchMode}
-                onChange={(event) => {
-                  setBatchMode(event.currentTarget.checked);
-                  setSelectedCollaborateurs([]);
-                  form.setFieldValue('collaborateurId', 0);
-                }}
-                label="Inscription multiple"
-                size="md"
-              />
-            </Group>
-          </Paper>
+            </Paper>
+          )}
 
           {/* Informations principales */}
           <Paper shadow="xs" p="lg" radius="md" withBorder>
             <Group align="center" mb="md">
-              {batchMode ? <Users size={20} /> : <User size={20} />}
+              {sessionType === 'collective' ? <Users size={20} /> : batchMode ? <Users size={20} /> : <User size={20} />}
               <Text fw={600}>Informations principales</Text>
             </Group>
 
             <Stack gap="md">
-              {batchMode ? (
-                <MultiSelect
-                  label="Collaborateurs"
-                  placeholder="Sélectionner les collaborateurs"
-                  required
-                  searchable
-                  data={collaborateursData}
-                  value={selectedCollaborateurs}
-                  onChange={setSelectedCollaborateurs}
-                  leftSection={<Users size={16} />}
-                  description={`${selectedCollaborateurs.length} collaborateur(s) sélectionné(s)`}
-                />
-              ) : (
-                <Select
-                  label="Collaborateur"
-                  placeholder="Sélectionner un collaborateur"
-                  required
-                  searchable
-                  data={collaborateursData}
-                  value={form.values.collaborateurId?.toString()}
-                  onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value) : 0)}
-                  error={form.errors.collaborateurId}
-                  leftSection={<User size={16} />}
-                />
-              )}
-
+              {/* Formation (commun aux deux types) */}
               <Group align="flex-end" gap="xs" grow>
                 <Select
                   label="Formation"
@@ -381,18 +485,136 @@ export default function NewSessionPage() {
                   </Button>
                 </Tooltip>
               </Group>
-              
-              <Select
-                label="Statut"
-                required
-                data={[
-                  { value: 'inscrit', label: 'Inscrit' },
-                  { value: 'en_cours', label: 'En cours' },
-                  { value: 'complete', label: 'Terminé' },
-                  { value: 'annule', label: 'Annulé' },
-                ]}
-                {...form.getInputProps('statut')}
-              />
+
+              {/* Champs spécifiques SESSION INDIVIDUELLE */}
+              {sessionType === 'individuelle' && (
+                <>
+                  {batchMode ? (
+                    <MultiSelect
+                      label="Collaborateurs"
+                      placeholder="Sélectionner les collaborateurs"
+                      required
+                      searchable
+                      data={collaborateursData}
+                      value={selectedCollaborateurs}
+                      onChange={setSelectedCollaborateurs}
+                      leftSection={<Users size={16} />}
+                      description={`${selectedCollaborateurs.length} collaborateur(s) sélectionné(s)`}
+                    />
+                  ) : (
+                    <Select
+                      label="Collaborateur"
+                      placeholder="Sélectionner un collaborateur"
+                      required
+                      searchable
+                      data={collaborateursData}
+                      value={form.values.collaborateurId?.toString()}
+                      onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value) : 0)}
+                      error={form.errors.collaborateurId}
+                      leftSection={<User size={16} />}
+                    />
+                  )}
+
+                  <Select
+                    label="Statut"
+                    required
+                    data={[
+                      { value: 'inscrit', label: 'Inscrit' },
+                      { value: 'en_cours', label: 'En cours' },
+                      { value: 'complete', label: 'Terminé' },
+                      { value: 'annule', label: 'Annulé' },
+                    ]}
+                    {...form.getInputProps('statut')}
+                  />
+                </>
+              )}
+
+              {/* Champs spécifiques SESSION COLLECTIVE */}
+              {sessionType === 'collective' && (
+                <>
+                  <TextInput
+                    label="Titre de la session"
+                    placeholder="Ex: Formation React - Session Printemps 2024"
+                    {...form.getInputProps('titre')}
+                  />
+
+                  <Group grow>
+                    <TextInput
+                      label="Lieu"
+                      placeholder="Ex: Salle de formation A, Paris"
+                      {...form.getInputProps('lieu')}
+                    />
+
+                    <Select
+                      label="Modalité"
+                      required
+                      data={[
+                        { value: 'presentiel', label: 'Présentiel' },
+                        { value: 'distanciel', label: 'Distanciel' },
+                        { value: 'hybride', label: 'Hybride' },
+                      ]}
+                      {...form.getInputProps('modalite')}
+                    />
+                  </Group>
+
+                  <Group grow>
+                    <NumberInput
+                      label="Capacité maximale"
+                      placeholder="Ex: 15"
+                      min={1}
+                      max={1000}
+                      {...form.getInputProps('capaciteMax')}
+                      description="Nombre maximum de participants"
+                    />
+
+                    <Select
+                      label="Statut"
+                      required
+                      data={[
+                        { value: 'inscrit', label: 'Inscrit' },
+                        { value: 'en_cours', label: 'En cours' },
+                        { value: 'complete', label: 'Terminé' },
+                        { value: 'annule', label: 'Annulé' },
+                      ]}
+                      {...form.getInputProps('statutCollectif')}
+                    />
+                  </Group>
+
+                  <ParticipantSelector
+                    value={participantIds}
+                    onChange={setParticipantIds}
+                    maxCapacity={form.values.capaciteMax}
+                  />
+
+                  <Group grow>
+                    <TextInput
+                      label="Formateur"
+                      placeholder="Nom du formateur"
+                      {...form.getInputProps('formateurNom')}
+                    />
+
+                    <TextInput
+                      label="Contact formateur"
+                      placeholder="Email ou téléphone"
+                      {...form.getInputProps('formateurContact')}
+                    />
+                  </Group>
+
+                  <TextInput
+                    label="Lien visio"
+                    placeholder="https://meet.google.com/..."
+                    {...form.getInputProps('lienVisio')}
+                    description="Pour les sessions distancielles ou hybrides"
+                  />
+
+                  <Textarea
+                    label="Description"
+                    placeholder="Description de la session collective..."
+                    rows={3}
+                    {...form.getInputProps('description')}
+                  />
+                </>
+              )}
             </Stack>
           </Paper>
 
@@ -402,7 +624,7 @@ export default function NewSessionPage() {
               <Calendar size={20} />
               <Text fw={600}>Dates et durée</Text>
             </Group>
-            
+
             <Stack gap="md">
               <Group grow>
                 <DateInput
@@ -422,34 +644,65 @@ export default function NewSessionPage() {
                   {...form.getInputProps('dateFin')}
                 />
               </Group>
-              
-              <Group grow>
-                <NumberInput
-                  label="Durée prévue"
-                  placeholder="Ex: 14"
-                  min={0}
-                  {...form.getInputProps('dureePrevue')}
-                  leftSection={<Clock size={16} />}
-                />
-                
-                <NumberInput
-                  label="Durée réelle"
-                  placeholder="Ex: 12"
-                  min={0}
-                  {...form.getInputProps('dureeReelle')}
-                  leftSection={<Clock size={16} />}
-                />
-                
-                <Select
-                  label="Unité"
-                  data={[
-                    { value: 'heures', label: 'Heures' },
-                    { value: 'jours', label: 'Jours' },
-                    { value: 'semaines', label: 'Semaines' },
-                  ]}
-                  {...form.getInputProps('uniteDuree')}
-                />
-              </Group>
+
+              {/* Champs SESSION INDIVIDUELLE */}
+              {sessionType === 'individuelle' && (
+                <Group grow>
+                  <NumberInput
+                    label="Durée prévue"
+                    placeholder="Ex: 14"
+                    min={0}
+                    {...form.getInputProps('dureePrevue')}
+                    leftSection={<Clock size={16} />}
+                  />
+
+                  <NumberInput
+                    label="Durée réelle"
+                    placeholder="Ex: 12"
+                    min={0}
+                    {...form.getInputProps('dureeReelle')}
+                    leftSection={<Clock size={16} />}
+                  />
+
+                  <Select
+                    label="Unité"
+                    data={[
+                      { value: 'heures', label: 'Heures' },
+                      { value: 'jours', label: 'Jours' },
+                      { value: 'semaines', label: 'Semaines' },
+                    ]}
+                    {...form.getInputProps('uniteDuree')}
+                  />
+                </Group>
+              )}
+
+              {/* Champs SESSION COLLECTIVE */}
+              {sessionType === 'collective' && (
+                <Group grow>
+                  <TextInput
+                    label="Heure de début"
+                    placeholder="Ex: 09:00"
+                    {...form.getInputProps('heureDebut')}
+                    leftSection={<Clock size={16} />}
+                  />
+
+                  <TextInput
+                    label="Heure de fin"
+                    placeholder="Ex: 17:00"
+                    {...form.getInputProps('heureFin')}
+                    leftSection={<Clock size={16} />}
+                  />
+
+                  <NumberInput
+                    label="Durée (heures)"
+                    placeholder="Ex: 7"
+                    min={0}
+                    decimalScale={2}
+                    {...form.getInputProps('dureePrevueHeures')}
+                    leftSection={<Clock size={16} />}
+                  />
+                </Group>
+              )}
             </Stack>
           </Paper>
 
@@ -459,12 +712,20 @@ export default function NewSessionPage() {
               <FileText size={20} />
               <Text fw={600}>Informations complémentaires</Text>
             </Group>
-            
+
             <Stack gap="md">
+              {organismeWarning && (
+                <Alert color="blue" title="Information" icon={<Warning size={20} />}>
+                  {organismeWarning}
+                </Alert>
+              )}
+
               <Select
                 label="Organisme de formation"
                 placeholder="Sélectionner un organisme"
-                description="Optionnel - Organisme dispensant la formation"
+                description={selectedFormation?.organisme
+                  ? `Auto-rempli depuis la formation : ${selectedFormation.organisme.nomOrganisme}`
+                  : "Sélectionnez l'organisme dispensant la formation"}
                 searchable
                 clearable
                 data={organismes.map(o => ({
@@ -472,43 +733,94 @@ export default function NewSessionPage() {
                   label: o.nomOrganisme,
                 }))}
                 value={form.values.organismeId?.toString()}
-                onChange={(value) => form.setFieldValue('organismeId', value ? parseInt(value) : undefined)}
+                onChange={(value) => {
+                  const newOrganismeId = value ? parseInt(value) : undefined;
+                  form.setFieldValue('organismeId', newOrganismeId);
+
+                  // Afficher un warning si l'organisme diffère de celui de la formation
+                  if (selectedFormation?.organismeId && newOrganismeId !== selectedFormation.organismeId) {
+                    const selectedOrg = organismes.find(o => o.id === newOrganismeId);
+                    const formationOrg = organismes.find(o => o.id === selectedFormation.organismeId);
+                    setOrganismeWarning(
+                      `⚠️ Vous avez sélectionné "${selectedOrg?.nomOrganisme || 'un autre organisme'}" alors que la formation est normalement dispensée par "${formationOrg?.nomOrganisme || 'un autre organisme'}".`
+                    );
+                  } else {
+                    setOrganismeWarning(null);
+                  }
+                }}
                 leftSection={<Building size={16} />}
               />
 
-              <Group grow>
-                <NumberInput
-                  label="Tarif HT (€)"
-                  placeholder="Ex: 1500"
-                  min={0}
-                  decimalScale={2}
-                  {...form.getInputProps('tarifHT')}
-                />
-                
-                <NumberInput
-                  label="Année budgétaire"
-                  description="Laissez vide pour utiliser l'année de la session"
-                  placeholder="Ex: 2024"
-                  min={2000}
-                  max={2100}
-                  {...form.getInputProps('anneeBudgetaire')}
-                />
-              </Group>
-              
-              <Textarea
-                label="Commentaire"
-                placeholder="Commentaires ou remarques..."
-                rows={3}
-                {...form.getInputProps('commentaire')}
+              <NumberInput
+                label="Année budgétaire"
+                description="Laissez vide pour utiliser l'année de la session"
+                placeholder="Ex: 2024"
+                min={2000}
+                max={2100}
+                {...form.getInputProps('anneeBudgetaire')}
               />
+
+              {/* Champs SESSION INDIVIDUELLE */}
+              {sessionType === 'individuelle' && (
+                <>
+                  <NumberInput
+                    label="Tarif HT (€)"
+                    placeholder="Ex: 1500"
+                    min={0}
+                    decimalScale={2}
+                    {...form.getInputProps('tarifHT')}
+                  />
+
+                  <Textarea
+                    label="Commentaire"
+                    placeholder="Commentaires ou remarques..."
+                    rows={3}
+                    {...form.getInputProps('commentaire')}
+                  />
+                </>
+              )}
+
+              {/* Champs SESSION COLLECTIVE */}
+              {sessionType === 'collective' && (
+                <Group grow>
+                  <NumberInput
+                    label="Tarif unitaire HT (€)"
+                    placeholder="Ex: 500"
+                    description="Prix par participant"
+                    min={0}
+                    decimalScale={2}
+                    {...form.getInputProps('tarifUnitaireHT')}
+                  />
+
+                  <NumberInput
+                    label="Tarif total HT (€)"
+                    placeholder="Ex: 7500"
+                    description="Prix total de la session"
+                    min={0}
+                    decimalScale={2}
+                    {...form.getInputProps('tarifTotalHT')}
+                  />
+                </Group>
+              )}
             </Stack>
           </Paper>
 
-          {/* Résumé en mode batch */}
-          {batchMode && selectedCollaborateurs.length > 0 && (
+          {/* Résumé */}
+          {sessionType === 'individuelle' && batchMode && selectedCollaborateurs.length > 0 && (
             <Alert color="blue" title="Récapitulatif" icon={<Users size={16} />}>
               <Text size="sm">
-                <strong>{selectedCollaborateurs.length}</strong> inscription(s) vont être créées pour la formation sélectionnée.
+                <strong>{selectedCollaborateurs.length}</strong> inscription(s) individuelle(s) vont être créées pour la formation sélectionnée.
+              </Text>
+            </Alert>
+          )}
+
+          {sessionType === 'collective' && participantIds.length > 0 && (
+            <Alert color="blue" title="Récapitulatif" icon={<Users size={16} />}>
+              <Text size="sm">
+                Session collective avec <strong>{participantIds.length}</strong> participant(s) sélectionné(s).
+                {form.values.capaciteMax && (
+                  <> Capacité : {participantIds.length}/{form.values.capaciteMax}</>
+                )}
               </Text>
             </Alert>
           )}
@@ -527,9 +839,11 @@ export default function NewSessionPage() {
               loading={isSubmitting}
               leftSection={<CheckCircle size={16} />}
             >
-              {batchMode
-                ? `Créer ${selectedCollaborateurs.length} inscription(s)`
-                : 'Créer l\'inscription'}
+              {sessionType === 'collective'
+                ? 'Créer la session collective'
+                : batchMode
+                  ? `Créer ${selectedCollaborateurs.length} inscription(s)`
+                  : 'Créer l\'inscription'}
             </Button>
           </Group>
         </Stack>

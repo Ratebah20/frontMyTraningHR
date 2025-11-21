@@ -62,10 +62,13 @@ import {
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
+import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
-import { SessionFormationResponse, SessionFilters, GroupedSession } from '@/lib/types';
+import { SessionFormationResponse, SessionFilters, GroupedSession, UnifiedSession } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
+import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
+import { CapacityIndicator } from '@/components/sessions/CapacityIndicator';
 
 // Couleurs par statut
 const statusColors: Record<string, string> = {
@@ -120,25 +123,26 @@ const statusIcons: Record<string, any> = {
 
 export default function SessionsPage() {
   const router = useRouter();
-  
+
   // États
-  const [sessions, setSessions] = useState<GroupedSession[]>([]);
+  const [sessions, setSessions] = useState<any[]>([]); // Can be GroupedSession[] or UnifiedSession[]
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
-  
+
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
     total: 0,
     inscrites: 0,
     enCours: 0,
     terminees: 0,
-    annulees: 0,
+    sessionsGroupees: 0,
   });
-  
+
   // Filtres et pagination
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [typeFilter, setTypeFilter] = useState<string>(''); // '' = all, 'individuelle', 'collective'
   const [dateDebut, setDateDebut] = useState<string>('');
   const [dateFin, setDateFin] = useState<string>('');
   const [formationFilter, setFormationFilter] = useState<string>('');
@@ -159,7 +163,17 @@ export default function SessionsPage() {
   const loadGlobalStats = async () => {
     try {
       const stats = await sessionsService.getGlobalStats();
-      setGlobalStats(stats);
+
+      // Récupérer le nombre de sessions groupées (groupes de 2+ sessions)
+      const groupedCount = await sessionsService.getGroupedSessionsCount();
+
+      setGlobalStats({
+        total: stats.total,
+        inscrites: stats.inscrites,
+        enCours: stats.enCours,
+        terminees: stats.terminees,
+        sessionsGroupees: groupedCount.count,
+      });
     } catch (err) {
       console.error('Erreur lors du chargement des statistiques:', err);
     }
@@ -188,9 +202,10 @@ export default function SessionsPage() {
     setError(null);
 
     try {
-      const filters: SessionFilters = {
+      const filters: any = {
         search: debouncedSearch,
         statut: statusFilter || undefined,
+        type: typeFilter || 'all', // 'individuelle', 'collective', or 'all'
         dateDebut: dateDebut || undefined,
         dateFin: dateFin || undefined,
         formationId: formationFilter ? parseInt(formationFilter) : undefined,
@@ -200,7 +215,19 @@ export default function SessionsPage() {
         limit,
       };
 
-      const response = await sessionsService.getGroupedSessions(filters);
+      // Use unified service for all types or collective only
+      // Use grouped service for individual only (to preserve grouping)
+      let response;
+      if (typeFilter === 'individuelle') {
+        // Show grouped individual sessions only
+        response = await sessionsService.getGroupedSessions(filters);
+      } else if (typeFilter === 'collective') {
+        // Show collective sessions only
+        response = await SessionsUnifiedService.findAll(filters);
+      } else {
+        // Show all types (both individual and collective)
+        response = await SessionsUnifiedService.findAll(filters);
+      }
 
       // Le backend retourne toujours un objet avec data et meta
       if (response && response.data) {
@@ -232,19 +259,60 @@ export default function SessionsPage() {
   // Charger les sessions au montage et quand les filtres changent
   useEffect(() => {
     loadSessions();
-  }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page]);
+    loadGlobalStats(); // Rafraîchir aussi les stats pour avoir des données à jour
+  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter]);
+  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter]);
 
-  const handleViewDetails = (groupKey: string) => {
-    router.push(`/sessions/grouped/${encodeURIComponent(groupKey)}`);
+  const handleViewDetails = (session: any) => {
+    // Validation: vérifier que les champs nécessaires existent
+    if (!session) {
+      console.error('Session invalide:', session);
+      return;
+    }
+
+    // Si c'est une session collective, utiliser l'ID avec le paramètre type
+    if (session.type === 'collective') {
+      if (!session.id || session.id <= 0) {
+        console.error('ID de session collective invalide:', session.id);
+        return;
+      }
+      router.push(`/sessions/${session.id}?type=collective`);
+    } else {
+      // Sinon, c'est une session groupée avec un groupKey
+      if (!session.groupKey) {
+        console.error('GroupKey manquant pour session individuelle:', session);
+        return;
+      }
+      router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey)}`);
+    }
   };
 
   const handleViewFormation = (formationId: number) => {
     router.push(`/formations/${formationId}`);
+  };
+
+  const handleEditSession = (session: any) => {
+    // Gérer les sessions collectives
+    if (session.type === 'collective') {
+      router.push(`/sessions/${session.id}/edit?type=collective`);
+      return;
+    }
+
+    // Gérer les sessions individuelles groupées
+    if (session.participants && session.participants.length === 1) {
+      // Si une seule session, éditer directement
+      const participant = session.participants[0] as GroupedSessionParticipant;
+      if (participant.sessionId) {
+        router.push(`/sessions/${participant.sessionId}/edit`);
+      }
+    } else if (session.groupKey) {
+      // Sinon, aller à la vue groupée pour choisir quelle session éditer
+      router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey)}`);
+    }
   };
 
   const handleRefresh = () => {
@@ -254,11 +322,32 @@ export default function SessionsPage() {
 
   // Fonction pour obtenir le statut dominant d'une session groupée
   const getDominantStatus = (stats: any) => {
+    // Si pas de stats (session collective ou autre), retourner un statut par défaut
+    if (!stats || !stats.total) {
+      return { color: 'blue', label: 'Session active', icon: CalendarCheck };
+    }
+
     if (stats.complete > stats.total / 2) return { color: 'green', label: 'Majoritairement terminé', icon: Certificate };
     if (stats.enCours > 0) return { color: 'yellow', label: 'En cours', icon: Hourglass };
     if (stats.inscrit > 0) return { color: 'blue', label: 'Inscriptions ouvertes', icon: CalendarCheck };
     if (stats.annule === stats.total) return { color: 'red', label: 'Annulée', icon: CalendarX };
     return { color: 'gray', label: 'Non défini', icon: CalendarCheck };
+  };
+
+  // Fonction pour obtenir le nombre de participants de manière standardisée
+  const getParticipantCount = (session: any): number => {
+    // Pour les sessions collectives, utiliser nombreParticipants
+    if (session.type === 'collective') {
+      return session.nombreParticipants ?? 0;
+    }
+    // Pour les sessions individuelles groupées, utiliser stats.total
+    return session.stats?.total ?? 0;
+  };
+
+  // Fonction pour formater l'affichage du nombre de participants
+  const formatParticipantCount = (session: any): string => {
+    const count = getParticipantCount(session);
+    return `${count} participant${count > 1 ? 's' : ''}`;
   };
 
   return (
@@ -365,15 +454,15 @@ export default function SessionsPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Annulées
+                    Groupées
                   </Text>
-                  <Text size="xl" fw={700} c="red">{globalStats.annulees}</Text>
+                  <Text size="xl" fw={700} c="violet">{globalStats.sessionsGroupees}</Text>
                   <Text size="xs" c="dimmed">
-                    sessions annulées
+                    sessions groupées
                   </Text>
                 </div>
-                <ThemeIcon size="lg" radius="md" variant="light" color="red">
-                  <CalendarX size={20} />
+                <ThemeIcon size="lg" radius="md" variant="light" color="violet">
+                  <Users size={20} />
                 </ThemeIcon>
               </Group>
             </Paper>
@@ -398,10 +487,24 @@ export default function SessionsPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
+              placeholder="Type"
+              data={[
+                { value: '', label: 'Tous les types' },
+                { value: 'individuelle', label: 'Individuelle' },
+                { value: 'collective', label: 'Collective' },
+              ]}
+              value={typeFilter}
+              onChange={(value) => setTypeFilter(value || '')}
+              clearable
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
+            <Select
               placeholder="Statut"
               data={[
                 { value: '', label: 'Tous les statuts' },
                 { value: 'inscrit', label: 'Inscrit' },
+                { value: 'planifie', label: 'Planifié' },
                 { value: 'en_cours', label: 'En cours' },
                 { value: 'complete', label: 'Terminé' },
                 { value: 'annule', label: 'Annulé' },
@@ -411,9 +514,9 @@ export default function SessionsPage() {
               clearable
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
-              placeholder={loadingOrganismes ? "Chargement..." : "Organisme de formation"}
+              placeholder={loadingOrganismes ? "Chargement..." : "Organisme"}
               data={organismes}
               value={organismeFilter}
               onChange={(value) => setOrganismeFilter(value || '')}
@@ -423,7 +526,7 @@ export default function SessionsPage() {
               nothingFoundMessage="Aucun organisme trouvé"
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Group grow>
               <TextInput
                 type="date"
@@ -439,15 +542,10 @@ export default function SessionsPage() {
               />
             </Group>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
-            <Text size="sm" c="dimmed" mb={4}>
-              Affichage : {sessions.length} résultats sur cette page
-            </Text>
-            <Text size="xs" c="dimmed">
-              Total dans la base : {globalStats.total} sessions
-            </Text>
-          </Grid.Col>
         </Grid>
+        <Text size="sm" c="dimmed" mt="md">
+          Affichage : {sessions.length} résultats sur cette page • Total : {globalStats.total} sessions
+        </Text>
       </Paper>
 
       {/* Liste des sessions */}
@@ -469,7 +567,7 @@ export default function SessionsPage() {
 
                 return (
                   <Paper
-                    key={session.groupKey}
+                    key={session.type === 'collective' ? `collective-${session.id}` : `grouped-${session.groupKey}`}
                     radius="md"
                     withBorder
                     p="lg"
@@ -485,17 +583,20 @@ export default function SessionsPage() {
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = '';
                     }}
-                    onClick={() => handleViewDetails(session.groupKey)}
+                    onClick={() => handleViewDetails(session)}
                   >
                     {/* Header */}
                     <Group justify="space-between" mb="md">
-                      <Badge
-                        leftSection={<StatusIcon size={14} />}
-                        color={statusInfo.color}
-                        variant="light"
-                      >
-                        {statusInfo.label}
-                      </Badge>
+                      <Group gap="xs">
+                        {session.type && <SessionTypeBadge type={session.type} />}
+                        <Badge
+                          leftSection={<StatusIcon size={14} />}
+                          color={statusInfo.color}
+                          variant="light"
+                        >
+                          {statusInfo.label}
+                        </Badge>
+                      </Group>
                       <Menu withinPortal position="bottom-end" shadow="sm">
                         <Menu.Target>
                           <ActionIcon
@@ -512,7 +613,7 @@ export default function SessionsPage() {
                             leftSection={<Eye size={14} />}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleViewDetails(session.groupKey);
+                              handleViewDetails(session);
                             }}
                           >
                             Voir les participants
@@ -525,6 +626,17 @@ export default function SessionsPage() {
                             }}
                           >
                             Voir la formation
+                          </Menu.Item>
+                          <Menu.Divider />
+                          <Menu.Item
+                            leftSection={<PencilSimple size={14} />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditSession(session);
+                            }}
+                            color="blue"
+                          >
+                            Modifier{session.participants && session.participants.length > 1 ? ' les sessions' : ' la session'}
                           </Menu.Item>
                         </Menu.Dropdown>
                       </Menu>
@@ -552,27 +664,60 @@ export default function SessionsPage() {
                       <Users size={18} color="#868E96" />
                       <div style={{ flex: 1 }}>
                         <Text size="sm" fw={500}>
-                          {session.stats.total} participant{session.stats.total > 1 ? 's' : ''}
+                          {formatParticipantCount(session)}
                         </Text>
-                        <Group gap="xs" mt={2}>
-                          {session.stats.inscrit > 0 && (
-                            <Badge size="xs" color="blue" variant="light">
-                              {session.stats.inscrit} inscrit{session.stats.inscrit > 1 ? 's' : ''}
-                            </Badge>
-                          )}
-                          {session.stats.enCours > 0 && (
-                            <Badge size="xs" color="yellow" variant="light">
-                              {session.stats.enCours} en cours
-                            </Badge>
-                          )}
-                          {session.stats.complete > 0 && (
-                            <Badge size="xs" color="green" variant="light">
-                              {session.stats.complete} terminé{session.stats.complete > 1 ? 's' : ''}
-                            </Badge>
-                          )}
-                        </Group>
+                        {session.type === 'collective' && session.capaciteMax && (
+                          <CapacityIndicator
+                            current={getParticipantCount(session)}
+                            max={session.capaciteMax}
+                          />
+                        )}
+                        {session.stats && (
+                          <Group gap="xs" mt={2}>
+                            {session.stats.inscrit > 0 && (
+                              <Badge size="xs" color="blue" variant="light">
+                                {session.stats.inscrit} inscrit{session.stats.inscrit > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                            {session.stats.enCours > 0 && (
+                              <Badge size="xs" color="yellow" variant="light">
+                                {session.stats.enCours} en cours
+                              </Badge>
+                            )}
+                            {session.stats.complete > 0 && (
+                              <Badge size="xs" color="green" variant="light">
+                                {session.stats.complete} terminé{session.stats.complete > 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </Group>
+                        )}
                       </div>
                     </Group>
+
+                    {/* Info collective session */}
+                    {session.type === 'collective' && (
+                      <>
+                        {session.titre && (
+                          <Group gap="xs" mb="xs">
+                            <Text size="xs" c="dimmed">Titre : {session.titre}</Text>
+                          </Group>
+                        )}
+                        {session.modalite && (
+                          <Group gap="xs" mb="xs">
+                            <Badge size="sm" variant="light" color="grape">
+                              {session.modalite === 'presentiel' ? 'Présentiel' :
+                               session.modalite === 'distanciel' ? 'Distanciel' : 'Hybride'}
+                            </Badge>
+                          </Group>
+                        )}
+                        {session.lieu && (
+                          <Group gap="xs" mb="xs">
+                            <MapPin size={14} color="#868E96" />
+                            <Text size="xs" c="dimmed">{session.lieu}</Text>
+                          </Group>
+                        )}
+                      </>
+                    )}
 
                     {/* Dates */}
                     {(session.dateDebut || session.dateFin) && (
@@ -604,7 +749,7 @@ export default function SessionsPage() {
                       <Group gap="xs" mb="md">
                         <Building size={16} color="#868E96" />
                         <Text size="xs" c="dimmed" lineClamp={1}>
-                          {session.organisme}
+                          {typeof session.organisme === 'string' ? session.organisme : session.organisme.nomOrganisme}
                         </Text>
                       </Group>
                     )}
@@ -615,7 +760,7 @@ export default function SessionsPage() {
                         <Group justify="space-between">
                           <Text size="xs" c="dimmed">Coût total estimé</Text>
                           <Text size="sm" fw={600} c="blue">
-                            {session.coutTotal.toFixed(2)} €
+                            {Number(session.coutTotal).toFixed(2)} €
                           </Text>
                         </Group>
                       </Box>
@@ -631,6 +776,7 @@ export default function SessionsPage() {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Formation</Table.Th>
+                    <Table.Th>Organisme</Table.Th>
                     <Table.Th>Dates</Table.Th>
                     <Table.Th style={{ textAlign: 'center' }}>Participants</Table.Th>
                     <Table.Th style={{ textAlign: 'center' }}>Statuts</Table.Th>
@@ -646,24 +792,45 @@ export default function SessionsPage() {
 
                     return (
                       <Table.Tr
-                        key={session.groupKey}
+                        key={session.type === 'collective' ? `collective-${session.id}` : `grouped-${session.groupKey}`}
                         style={{ cursor: 'pointer' }}
-                        onClick={() => handleViewDetails(session.groupKey)}
+                        onClick={() => handleViewDetails(session)}
                       >
                         <Table.Td>
                           <div>
                             <Group gap="xs" mb={4}>
                               <BookOpen size={16} color="#228BE6" />
                               <Text size="sm" fw={600} lineClamp={1}>
-                                {session.formationNom}
+                                {session.formationNom || session.formation?.nomFormation}
                               </Text>
                             </Group>
-                            {session.categorie && (
-                              <Badge variant="dot" color="gray" size="xs" mt={4}>
-                                {session.categorie}
-                              </Badge>
-                            )}
+                            <Group gap="xs" mt={4}>
+                              {session.type && <SessionTypeBadge type={session.type} size="xs" />}
+                              {session.categorie && (
+                                <Badge variant="dot" color="gray" size="xs">
+                                  {session.categorie}
+                                </Badge>
+                              )}
+                              {session.type === 'collective' && session.modalite && (
+                                <Badge variant="light" color="grape" size="xs">
+                                  {session.modalite === 'presentiel' ? 'Présentiel' :
+                                   session.modalite === 'distanciel' ? 'Distanciel' : 'Hybride'}
+                                </Badge>
+                              )}
+                            </Group>
                           </div>
+                        </Table.Td>
+
+                        <Table.Td>
+                          {session.organismeNom || session.organisme?.nomOrganisme ? (
+                            <Text size="sm" c="dimmed">
+                              {session.organismeNom || session.organisme?.nomOrganisme}
+                            </Text>
+                          ) : (
+                            <Text size="xs" c="dimmed" fs="italic">
+                              Non défini
+                            </Text>
+                          )}
                         </Table.Td>
 
                         <Table.Td>
@@ -703,13 +870,23 @@ export default function SessionsPage() {
                             <Group gap="xs">
                               <Users size={16} color="#868E96" />
                               <Text size="sm" fw={600}>
-                                {session.stats.total}
+                                {getParticipantCount(session)}
                               </Text>
                             </Group>
-                            {session.organisme && (
-                              <Text size="xs" c="dimmed" lineClamp={1}>
-                                {session.organisme}
-                              </Text>
+                            {session.type === 'collective' && session.capaciteMax && (
+                              <CapacityIndicator
+                                current={getParticipantCount(session)}
+                                max={session.capaciteMax}
+                                size="xs"
+                              />
+                            )}
+                            {session.lieu && (
+                              <Group gap={2}>
+                                <MapPin size={12} color="#868E96" />
+                                <Text size="xs" c="dimmed" lineClamp={1}>
+                                  {session.lieu}
+                                </Text>
+                              </Group>
                             )}
                           </Stack>
                         </Table.Td>
@@ -725,28 +902,28 @@ export default function SessionsPage() {
                               {statusInfo.label}
                             </Badge>
                             <Group gap={4} justify="center">
-                              {session.stats.inscrit > 0 && (
+                              {session.stats && session.stats.inscrit > 0 && (
                                 <Tooltip label={`${session.stats.inscrit} inscrit(s)`}>
                                   <Badge size="xs" color="blue" variant="dot">
                                     {session.stats.inscrit}
                                   </Badge>
                                 </Tooltip>
                               )}
-                              {session.stats.enCours > 0 && (
+                              {session.stats && session.stats.enCours > 0 && (
                                 <Tooltip label={`${session.stats.enCours} en cours`}>
                                   <Badge size="xs" color="yellow" variant="dot">
                                     {session.stats.enCours}
                                   </Badge>
                                 </Tooltip>
                               )}
-                              {session.stats.complete > 0 && (
+                              {session.stats && session.stats.complete > 0 && (
                                 <Tooltip label={`${session.stats.complete} terminé(s)`}>
                                   <Badge size="xs" color="green" variant="dot">
                                     {session.stats.complete}
                                   </Badge>
                                 </Tooltip>
                               )}
-                              {session.stats.annule > 0 && (
+                              {session.stats && session.stats.annule > 0 && (
                                 <Tooltip label={`${session.stats.annule} annulé(s)`}>
                                   <Badge size="xs" color="red" variant="dot">
                                     {session.stats.annule}
@@ -774,11 +951,11 @@ export default function SessionsPage() {
                           {session.coutTotal ? (
                             <div>
                               <Text size="sm" fw={600} c="blue">
-                                {session.coutTotal.toFixed(0)} €
+                                {Number(session.coutTotal).toFixed(0)} €
                               </Text>
                               {session.tarifHT && (
                                 <Text size="xs" c="dimmed">
-                                  {session.tarifHT.toFixed(0)} € / pers.
+                                  {Number(session.tarifHT).toFixed(0)} € / pers.
                                 </Text>
                               )}
                             </div>
@@ -798,7 +975,7 @@ export default function SessionsPage() {
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleViewDetails(session.groupKey);
+                                  handleViewDetails(session);
                                 }}
                               >
                                 <Eye size={16} />
@@ -815,6 +992,19 @@ export default function SessionsPage() {
                                 }}
                               >
                                 <BookOpen size={16} />
+                              </ActionIcon>
+                            </Tooltip>
+                            <Tooltip label={session.participants && session.participants.length > 1 ? "Modifier les sessions" : "Modifier la session"}>
+                              <ActionIcon
+                                variant="light"
+                                color="blue"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditSession(session);
+                                }}
+                              >
+                                <PencilSimple size={16} />
                               </ActionIcon>
                             </Tooltip>
                           </Group>

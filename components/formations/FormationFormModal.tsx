@@ -29,7 +29,7 @@ import {
   ArrowsClockwise,
   CurrencyEur,
 } from '@phosphor-icons/react';
-import { formationsService, commonService } from '@/lib/services';
+import { formationsService, commonService, organismesService } from '@/lib/services';
 import { CreateFormationDto, Formation } from '@/lib/types';
 import { generateFormationCode } from '@/lib/utils/formation';
 
@@ -43,6 +43,8 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
+  const [loadingOrganismes, setLoadingOrganismes] = useState(true);
   const [typesFormation, setTypesFormation] = useState<string[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
@@ -53,6 +55,7 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
       codeFormation: '',
       nomFormation: '',
       categorieId: undefined,
+      organismeId: undefined,
       typeFormation: '',
       dureePrevue: undefined,
       uniteDuree: 'Heures',
@@ -65,6 +68,10 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
         if (!value) return 'Nom de la formation requis';
         if (value.length < 3) return 'Le nom doit contenir au moins 3 caractères';
         if (value.length > 255) return 'Le nom ne doit pas dépasser 255 caractères';
+        return null;
+      },
+      organismeId: (value) => {
+        if (!value) return 'Organisme de formation requis';
         return null;
       },
       dureePrevue: (value) => {
@@ -168,12 +175,42 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
     }
   };
 
+  // Charger les organismes de formation
+  const loadOrganismes = async () => {
+    setLoadingOrganismes(true);
+    try {
+      const orgs = await organismesService.getOrganismes(false);
+
+      if (Array.isArray(orgs) && orgs.length > 0) {
+        const organismesList = orgs.map(o => ({
+          value: o.id.toString(),
+          label: o.nomOrganisme,
+        }));
+        setOrganismes(organismesList);
+      } else {
+        setOrganismes([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des organismes:', error);
+      notifications.show({
+        title: 'Attention',
+        message: 'Impossible de charger les organismes.',
+        color: 'orange',
+        icon: <Warning size={20} />,
+      });
+      setOrganismes([]);
+    } finally {
+      setLoadingOrganismes(false);
+    }
+  };
+
   // Charger les données au montage
   useEffect(() => {
     if (opened) {
       loadCategories();
       loadTypesFormation();
       loadUnitesDuree();
+      loadOrganismes();
     }
   }, [opened]);
 
@@ -184,6 +221,7 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
       const formData: any = {
         ...values,
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
+        organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
       };
 
       const formation = await formationsService.createFormation(formData);
@@ -308,21 +346,51 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
                 <Tag size={18} />
                 <Text fw={600} size="sm">Classification</Text>
               </Group>
-              {categories.length === 0 && !loadingCategories && (
-                <Tooltip label="Recharger les catégories">
-                  <ActionIcon
-                    variant="subtle"
-                    onClick={loadCategories}
-                    loading={loadingCategories}
-                    size="sm"
-                  >
-                    <ArrowsClockwise size={16} />
-                  </ActionIcon>
-                </Tooltip>
-              )}
+              {(categories.length === 0 && !loadingCategories) || (organismes.length === 0 && !loadingOrganismes) ? (
+                <Group gap="xs">
+                  {organismes.length === 0 && !loadingOrganismes && (
+                    <Tooltip label="Recharger les organismes">
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={loadOrganismes}
+                        loading={loadingOrganismes}
+                        size="sm"
+                      >
+                        <ArrowsClockwise size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                  {categories.length === 0 && !loadingCategories && (
+                    <Tooltip label="Recharger les catégories">
+                      <ActionIcon
+                        variant="subtle"
+                        onClick={loadCategories}
+                        loading={loadingCategories}
+                        size="sm"
+                      >
+                        <ArrowsClockwise size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </Group>
+              ) : null}
             </Group>
 
             <Grid gutter="md">
+              <Grid.Col span={{ base: 12 }}>
+                <Select
+                  label="Organisme de formation"
+                  placeholder={loadingOrganismes ? "Chargement..." : "Sélectionner un organisme"}
+                  description="Organisme responsable de cette formation"
+                  required
+                  searchable
+                  data={organismes}
+                  disabled={loadingOrganismes || organismes.length === 0}
+                  nothingFoundMessage="Aucun organisme trouvé"
+                  {...form.getInputProps('organismeId')}
+                />
+              </Grid.Col>
+
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
                   label="Catégorie"

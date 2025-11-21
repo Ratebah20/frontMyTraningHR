@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
   Title,
@@ -21,6 +21,7 @@ import {
   Progress,
   Alert,
   Divider,
+  Loader,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -33,8 +34,13 @@ import {
   MapPin,
   Users,
   Info,
+  Warning,
+  CheckCircle,
 } from '@phosphor-icons/react';
-import { mockData } from '@/lib/mock-data';
+import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import CollectiveSessionsService from '@/lib/services/collective-sessions.service';
+import { collaborateursService } from '@/lib/services';
+import { Collaborateur } from '@/lib/types';
 
 interface Props {
   params: {
@@ -44,31 +50,78 @@ interface Props {
 
 export default function SessionInscriptionsPage({ params }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const sessionId = parseInt(params.id);
 
   // États
+  const [session, setSession] = useState<any | null>(null);
+  const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
+  const [existingParticipants, setExistingParticipants] = useState<number[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<number[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock session data
-  const session = mockData.sessions.find(s => s.id === sessionId);
-  const formation = session ? mockData.formations.find(f => f.id === session.formation_id) : null;
-  
-  if (!session || !formation) {
-    return (
-      <Center h="100vh">
-        <Stack align="center">
-          <Text size="lg" c="dimmed">Session non trouvée</Text>
-          <Button onClick={() => router.back()}>Retour</Button>
-        </Stack>
-      </Center>
-    );
-  }
+  // Charger la session
+  const loadSession = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
 
-  const placesDisponibles = session.places - session.inscrits;
+      const typeHint = searchParams.get('type') as 'collective' | null;
+      const sessionData = await SessionsUnifiedService.findOne(sessionId, typeHint || undefined);
+
+      // Vérifier que c'est bien une session collective
+      if (sessionData.type !== 'collective') {
+        throw new Error('Cette page est réservée aux sessions collectives');
+      }
+
+      setSession(sessionData);
+
+      // Récupérer les participants existants
+      const participants = sessionData.participants || [];
+      const participantIds = participants.map((p: any) => p.collaborateurId || p.collaborateur?.id).filter(Boolean);
+      setExistingParticipants(participantIds);
+
+    } catch (err: any) {
+      console.error('Erreur lors du chargement de la session:', err);
+      setError(err.message || 'Session non trouvée');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Charger tous les collaborateurs
+  const loadCollaborateurs = async () => {
+    try {
+      const response = await collaborateursService.getCollaborateurs({
+        page: 1,
+        limit: 1000, // Charger tous les collaborateurs actifs
+        actif: true,
+      });
+      setCollaborateurs(response.data || []);
+    } catch (err: any) {
+      console.error('Erreur lors du chargement des collaborateurs:', err);
+      notifications.show({
+        title: 'Erreur',
+        message: 'Impossible de charger la liste des collaborateurs',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    }
+  };
+
+  useEffect(() => {
+    loadSession();
+    loadCollaborateurs();
+  }, [sessionId]);
 
   const handleSelectAll = () => {
-    setSelectedCollaborateurs(mockData.collaborateurs.map(c => c.id));
+    const availableIds = filteredCollaborateurs
+      .filter(c => !existingParticipants.includes(c.id))
+      .map(c => c.id);
+    setSelectedCollaborateurs(availableIds);
   };
 
   const handleDeselectAll = () => {
@@ -83,40 +136,98 @@ export default function SessionInscriptionsPage({ params }: Props) {
     );
   };
 
-  const handleInscrire = () => {
+  const handleInscrire = async () => {
     if (selectedCollaborateurs.length === 0) {
       notifications.show({
         title: 'Aucune sélection',
         message: 'Veuillez sélectionner au moins un collaborateur',
         color: 'orange',
+        icon: <Info size={20} />,
       });
       return;
     }
 
-    if (selectedCollaborateurs.length > placesDisponibles) {
+    // Vérifier la capacité
+    if (session.capaciteMax) {
+      const currentParticipants = existingParticipants.length;
+      const placesDisponibles = session.capaciteMax - currentParticipants;
+
+      if (selectedCollaborateurs.length > placesDisponibles) {
+        notifications.show({
+          title: 'Places insuffisantes',
+          message: `Il ne reste que ${placesDisponibles} places disponibles`,
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+        return;
+      }
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Ajouter les participants via l'API
+      await CollectiveSessionsService.addParticipantsBulk(sessionId, {
+        collaborateurIds: selectedCollaborateurs,
+      });
+
       notifications.show({
-        title: 'Places insuffisantes',
-        message: `Il ne reste que ${placesDisponibles} places disponibles`,
-        color: 'red',
+        title: 'Succès',
+        message: `${selectedCollaborateurs.length} participant(s) ajouté(s) avec succès`,
+        color: 'green',
+        icon: <CheckCircle size={20} />,
       });
-      return;
-    }
 
-    notifications.show({
-      title: 'Inscriptions réussies',
-      message: `${selectedCollaborateurs.length} collaborateur(s) inscrit(s) à la session`,
-      color: 'green',
-    });
-    
-    router.push(`/sessions/${sessionId}`);
+      // Retourner à la page de détail de la session
+      router.push(`/sessions/${sessionId}?type=collective`);
+    } catch (err: any) {
+      console.error('Erreur lors de l\'ajout des participants:', err);
+      notifications.show({
+        title: 'Erreur',
+        message: err.message || 'Impossible d\'ajouter les participants',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const filteredCollaborateurs = mockData.collaborateurs.filter(c =>
-    search === '' || 
-    c.nom.toLowerCase().includes(search.toLowerCase()) ||
-    c.prenom.toLowerCase().includes(search.toLowerCase()) ||
-    c.email.toLowerCase().includes(search.toLowerCase())
+  // Filtrer les collaborateurs
+  const filteredCollaborateurs = collaborateurs.filter(c =>
+    search === '' ||
+    c.nom?.toLowerCase().includes(search.toLowerCase()) ||
+    c.prenom?.toLowerCase().includes(search.toLowerCase()) ||
+    c.nomComplet?.toLowerCase().includes(search.toLowerCase())
   );
+
+  // Affichage pendant le chargement
+  if (isLoading) {
+    return (
+      <Center h="100vh">
+        <Loader size="lg" variant="bars" />
+      </Center>
+    );
+  }
+
+  // Affichage en cas d'erreur
+  if (error || !session) {
+    return (
+      <Center h="100vh">
+        <Stack align="center">
+          <Warning size={48} color="gray" />
+          <Text size="lg" c="dimmed">{error || 'Session non trouvée'}</Text>
+          <Button onClick={() => router.back()}>Retour</Button>
+        </Stack>
+      </Center>
+    );
+  }
+
+  const placesDisponibles = session.capaciteMax
+    ? session.capaciteMax - existingParticipants.length
+    : Infinity;
+  const isPlacesLimited = session.capaciteMax !== null && session.capaciteMax !== undefined;
+  const isFull = isPlacesLimited && placesDisponibles <= 0;
 
   return (
     <Container size="xl">
@@ -130,7 +241,7 @@ export default function SessionInscriptionsPage({ params }: Props) {
         </Button>
         <div>
           <Title order={1}>Gérer les inscriptions</Title>
-          <Text size="lg" c="dimmed">{formation.titre}</Text>
+          <Text size="lg" c="dimmed">{session.formation?.nomFormation || session.titre}</Text>
         </div>
       </Group>
 
@@ -141,40 +252,45 @@ export default function SessionInscriptionsPage({ params }: Props) {
             <Group gap="lg">
               <Group gap="xs">
                 <Calendar size={16} />
-                <Text size="sm">{session.date_debut}</Text>
+                <Text size="sm">
+                  {session.dateDebut ? new Date(session.dateDebut).toLocaleDateString('fr-FR') : 'Date non définie'}
+                </Text>
               </Group>
-              <Group gap="xs">
-                <Clock size={16} />
-                <Text size="sm">09:00 - 17:00</Text>
-              </Group>
-              <Group gap="xs">
-                <MapPin size={16} />
-                <Text size="sm">Paris</Text>
-              </Group>
+              {session.modalite && (
+                <Group gap="xs">
+                  <MapPin size={16} />
+                  <Text size="sm">
+                    {session.modalite === 'presentiel' ? session.lieu || 'Présentiel' :
+                     session.modalite === 'distanciel' ? 'Distanciel' : 'Hybride'}
+                  </Text>
+                </Group>
+              )}
             </Group>
           </Stack>
-          
-          <Paper p="md" radius="md" withBorder>
-            <Stack gap="xs" align="center">
-              <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                Places disponibles
-              </Text>
-              <Text size="2xl" fw={700} c={placesDisponibles === 0 ? 'red' : 'green'}>
-                {placesDisponibles} / {session.places}
-              </Text>
-              <Progress
-                value={(session.inscrits / session.places) * 100}
-                color={placesDisponibles === 0 ? 'red' : 'blue'}
-                size="sm"
-                radius="xl"
-                w={120}
-              />
-            </Stack>
-          </Paper>
+
+          {isPlacesLimited && (
+            <Paper p="md" radius="md" withBorder>
+              <Stack gap="xs" align="center">
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                  Places disponibles
+                </Text>
+                <Text size="2xl" fw={700} c={isFull ? 'red' : placesDisponibles < 5 ? 'orange' : 'green'}>
+                  {placesDisponibles} / {session.capaciteMax}
+                </Text>
+                <Progress
+                  value={(existingParticipants.length / session.capaciteMax) * 100}
+                  color={isFull ? 'red' : placesDisponibles < 5 ? 'orange' : 'blue'}
+                  size="sm"
+                  radius="xl"
+                  w={120}
+                />
+              </Stack>
+            </Paper>
+          )}
         </Group>
       </Card>
 
-      {placesDisponibles === 0 && (
+      {isFull && (
         <Alert
           icon={<Info size={20} />}
           title="Session complète"
@@ -209,7 +325,7 @@ export default function SessionInscriptionsPage({ params }: Props) {
                 variant="subtle"
                 size="xs"
                 onClick={handleSelectAll}
-                disabled={placesDisponibles === 0}
+                disabled={isFull}
               >
                 Tout sélectionner
               </Button>
@@ -233,50 +349,62 @@ export default function SessionInscriptionsPage({ params }: Props) {
               <Table.Tr>
                 <Table.Th style={{ width: 40 }}>
                   <Checkbox
-                    checked={selectedCollaborateurs.length === filteredCollaborateurs.length && filteredCollaborateurs.length > 0}
-                    indeterminate={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length < filteredCollaborateurs.length}
-                    onChange={() => selectedCollaborateurs.length === filteredCollaborateurs.length ? handleDeselectAll() : handleSelectAll()}
-                    disabled={placesDisponibles === 0}
+                    checked={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length === filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length}
+                    indeterminate={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length < filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length}
+                    onChange={() => selectedCollaborateurs.length === filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length ? handleDeselectAll() : handleSelectAll()}
+                    disabled={isFull}
                   />
                 </Table.Th>
                 <Table.Th>Collaborateur</Table.Th>
-                <Table.Th>Email</Table.Th>
-                <Table.Th>Service</Table.Th>
-                <Table.Th>Rôle</Table.Th>
+                <Table.Th>Département</Table.Th>
+                <Table.Th>Statut</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
               {filteredCollaborateurs.map((collaborateur) => {
+                const isAlreadyParticipant = existingParticipants.includes(collaborateur.id);
                 const isSelected = selectedCollaborateurs.includes(collaborateur.id);
-                const canSelect = placesDisponibles > 0 || isSelected;
+                const canSelect = !isAlreadyParticipant && (!isFull || isSelected);
 
                 return (
                   <Table.Tr
                     key={collaborateur.id}
-                    style={{ 
+                    style={{
                       opacity: canSelect ? 1 : 0.5,
-                      cursor: canSelect ? 'pointer' : 'not-allowed'
+                      cursor: canSelect ? 'pointer' : 'not-allowed',
+                      backgroundColor: isAlreadyParticipant ? '#f0f0f0' : undefined,
                     }}
                     onClick={() => canSelect && handleToggleCollaborateur(collaborateur.id)}
                   >
                     <Table.Td>
-                      <Checkbox
-                        checked={isSelected}
-                        onChange={() => {}}
-                        disabled={!canSelect}
-                      />
+                      {isAlreadyParticipant ? (
+                        <Badge size="xs" color="gray">Déjà inscrit</Badge>
+                      ) : (
+                        <Checkbox
+                          checked={isSelected}
+                          onChange={() => {}}
+                          disabled={!canSelect}
+                        />
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <Group gap="sm">
-                        <Avatar size="sm">
-                          {collaborateur.prenom[0]}{collaborateur.nom[0]}
+                        <Avatar size="sm" color="blue">
+                          {collaborateur.prenom?.[0]}{collaborateur.nom?.[0]}
                         </Avatar>
-                        <Text fw={500}>{collaborateur.prenom} {collaborateur.nom}</Text>
+                        <Text fw={500}>{collaborateur.nomComplet || `${collaborateur.prenom} ${collaborateur.nom}`}</Text>
                       </Group>
                     </Table.Td>
-                    <Table.Td>{collaborateur.email}</Table.Td>
-                    <Table.Td>{collaborateur.service}</Table.Td>
-                    <Table.Td>{collaborateur.role}</Table.Td>
+                    <Table.Td>
+                      {collaborateur.departement?.nomDepartement || 'Non défini'}
+                    </Table.Td>
+                    <Table.Td>
+                      {isAlreadyParticipant ? (
+                        <Badge color="green" size="sm">Inscrit</Badge>
+                      ) : (
+                        <Badge color="gray" variant="light" size="sm">Disponible</Badge>
+                      )}
+                    </Table.Td>
                   </Table.Tr>
                 );
               })}
@@ -299,13 +427,15 @@ export default function SessionInscriptionsPage({ params }: Props) {
               variant="subtle"
               leftSection={<X size={16} />}
               onClick={() => router.back()}
+              disabled={isSubmitting}
             >
               Annuler
             </Button>
             <Button
               leftSection={<UserPlus size={16} />}
               onClick={handleInscrire}
-              disabled={selectedCollaborateurs.length === 0 || placesDisponibles === 0}
+              disabled={selectedCollaborateurs.length === 0 || isFull || isSubmitting}
+              loading={isSubmitting}
             >
               Inscrire {selectedCollaborateurs.length} participant(s)
             </Button>

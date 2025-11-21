@@ -65,10 +65,13 @@ import {
   Info,
 } from '@phosphor-icons/react';
 import { sessionsService } from '@/lib/services';
-import { SessionFormationResponse } from '@/lib/types';
+import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import { SessionFormationResponse, UnifiedSession, CollectiveSession } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
 import { TodoList } from '@/components/session-todos/TodoList';
+import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
+import { ParticipantList } from '@/components/sessions/ParticipantList';
 
 interface Props {
   params: {
@@ -91,11 +94,11 @@ const statusConfig = {
 
 export default function SessionDetailPage({ params }: Props) {
   const router = useRouter();
-  const [session, setSession] = useState<SessionFormationResponse | null>(null);
+  const [session, setSession] = useState<any | null>(null); // Can be SessionFormationResponse or CollectiveSession
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  // Charger la session
+
+  // Charger la session avec auto-détection du type
   const loadSession = async () => {
     setIsLoading(true);
     setError(null);
@@ -108,7 +111,12 @@ export default function SessionDetailPage({ params }: Props) {
         throw new Error('ID de session invalide');
       }
 
-      const data = await sessionsService.getSession(sessionId);
+      // Lire le paramètre type depuis l'URL si disponible
+      const searchParams = new URLSearchParams(window.location.search);
+      const typeHint = searchParams.get('type') as 'individuelle' | 'collective' | null;
+
+      // Utiliser le service unifié avec type hint si disponible
+      const data = await SessionsUnifiedService.findOne(sessionId, typeHint || undefined);
       setSession(data);
     } catch (err: any) {
       console.error('Erreur lors du chargement de la session:', err);
@@ -178,7 +186,8 @@ export default function SessionDetailPage({ params }: Props) {
   const statusLabel = StatutUtils.getStatusLabel(session.statut);
 
   // Calculer le coût (priorité TTC > HT)
-  const cout = session.tarifTTC || session.tarifHT || 0;
+  const coutTTC = session.tarifTTC || session.tarifHT || 0;
+  const coutTotal = coutTTC;
 
   return (
     <Container size="xl">
@@ -224,14 +233,17 @@ export default function SessionDetailPage({ params }: Props) {
           {/* Statut et informations principales */}
           <Paper shadow="xs" p="lg" radius="md" withBorder mb="lg">
             <Group justify="space-between" mb="lg">
-              <Badge
-                size="lg"
-                leftSection={<StatusIcon size={16} />}
-                color={statusColor}
-                variant="light"
-              >
-                {statusLabel}
-              </Badge>
+              <Group gap="xs">
+                {session.type && <SessionTypeBadge type={session.type} />}
+                <Badge
+                  size="lg"
+                  leftSection={<StatusIcon size={16} />}
+                  color={statusColor}
+                  variant="light"
+                >
+                  {statusLabel}
+                </Badge>
+              </Group>
               {session.anneeBudgetaire && (
                 <Group gap="xs">
                   <Calendar size={20} color="#228BE6" />
@@ -241,7 +253,74 @@ export default function SessionDetailPage({ params }: Props) {
             </Group>
 
             <Stack gap="lg">
-              {/* Collaborateur avec plus d'infos */}
+              {/* Session collective: Informations générales */}
+              {session.type === 'collective' && (
+                <>
+                  <Box>
+                    <Group mb="md">
+                      <ThemeIcon size="lg" radius="md" variant="light" color="indigo">
+                        <Info size={20} />
+                      </ThemeIcon>
+                      <Text fw={600} size="lg">Informations de la session</Text>
+                    </Group>
+
+                    <Grid>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <Stack gap="xs">
+                          {session.titre && (
+                            <Text size="sm">
+                              <Text span c="dimmed" size="xs">Titre:</Text> {session.titre}
+                            </Text>
+                          )}
+                          {session.lieu && (
+                            <Group gap="xs">
+                              <MapPin size={16} color="#868E96" />
+                              <Text size="sm">
+                                <Text span c="dimmed" size="xs">Lieu:</Text> {session.lieu}
+                              </Text>
+                            </Group>
+                          )}
+                          {session.modalite && (
+                            <Text size="sm">
+                              <Text span c="dimmed" size="xs">Modalité:</Text>{' '}
+                              <Badge size="sm" variant="light" color="grape">
+                                {session.modalite === 'presentiel' ? 'Présentiel' :
+                                 session.modalite === 'distanciel' ? 'Distanciel' : 'Hybride'}
+                              </Badge>
+                            </Text>
+                          )}
+                        </Stack>
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <Stack gap="xs">
+                          {session.capaciteMax && (
+                            <Text size="sm">
+                              <Text span c="dimmed" size="xs">Capacité maximale:</Text> {session.capaciteMax} participants
+                            </Text>
+                          )}
+                          {session.formateurNom && (
+                            <Text size="sm">
+                              <Text span c="dimmed" size="xs">Formateur:</Text> {session.formateurNom}
+                            </Text>
+                          )}
+                          {session.formateurContact && (
+                            <Text size="sm">
+                              <Text span c="dimmed" size="xs">Contact:</Text> {session.formateurContact}
+                            </Text>
+                          )}
+                        </Stack>
+                      </Grid.Col>
+                    </Grid>
+                  </Box>
+
+                  <Divider />
+                </>
+              )}
+
+              {/* Collaborateur (seulement pour sessions individuelles) */}
+              {session.type === 'individuelle' && session.collaborateur && (
+              <>
               <Box>
                 <Group mb="md">
                   <ThemeIcon size="lg" radius="md" variant="light" color="blue">
@@ -321,6 +400,33 @@ export default function SessionDetailPage({ params }: Props) {
               </Box>
 
               <Divider />
+              </>
+              )}
+
+              {/* Participants (seulement pour sessions collectives) */}
+              {session.type === 'collective' && session.participants && (
+                <>
+                  <Box>
+                    <Group mb="md">
+                      <ThemeIcon size="lg" radius="md" variant="light" color="cyan">
+                        <UsersThree size={20} />
+                      </ThemeIcon>
+                      <Text fw={600} size="lg">
+                        Participants ({session.participants.length}
+                        {session.capaciteMax && ` / ${session.capaciteMax}`})
+                      </Text>
+                    </Group>
+
+                    <ParticipantList
+                      participants={session.participants}
+                      readonly={true}
+                      showPresence={session.statut === 'en_cours' || session.statut === 'complete'}
+                    />
+                  </Box>
+
+                  <Divider />
+                </>
+              )}
 
               {/* Formation avec plus d'infos */}
               <Box>
@@ -633,17 +739,33 @@ export default function SessionDetailPage({ params }: Props) {
                 >
                   Modifier la session
                 </Button>
-                
-                <Button
-                  fullWidth
-                  variant="light"
-                  color="violet"
-                  leftSection={<User size={16} />}
-                  onClick={() => router.push(`/collaborateurs/${session.collaborateur?.id}`)}
-                  disabled={!session.collaborateur?.id}
-                >
-                  Voir le collaborateur
-                </Button>
+
+                {/* Bouton pour ajouter des participants (sessions collectives uniquement) */}
+                {session.type === 'collective' && (
+                  <Button
+                    fullWidth
+                    variant="light"
+                    color="cyan"
+                    leftSection={<UsersThree size={16} />}
+                    onClick={() => router.push(`/sessions/${params.id}/inscriptions`)}
+                  >
+                    Gérer les participants
+                  </Button>
+                )}
+
+                {/* Bouton pour voir le collaborateur (sessions individuelles uniquement) */}
+                {session.type === 'individuelle' && (
+                  <Button
+                    fullWidth
+                    variant="light"
+                    color="violet"
+                    leftSection={<User size={16} />}
+                    onClick={() => router.push(`/collaborateurs/${session.collaborateur?.id}`)}
+                    disabled={!session.collaborateur?.id}
+                  >
+                    Voir le collaborateur
+                  </Button>
+                )}
                 
                 <Button
                   fullWidth

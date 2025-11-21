@@ -54,6 +54,7 @@ import {
   SignOut as SignOutIcon,
   Wallet,
   ListChecks,
+  Building,
 } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { spotlight } from '@mantine/spotlight';
@@ -91,9 +92,9 @@ const navigationItems: NavigationItem[] = [
       { label: 'Départements', href: '/collaborateurs/departements' },
     ]
   },
-  { 
-    icon: Books, 
-    label: 'Formations', 
+  {
+    icon: Books,
+    label: 'Formations',
     href: '/formations',
     color: 'violet',
     subItems: [
@@ -101,6 +102,16 @@ const navigationItems: NavigationItem[] = [
       { label: 'Créer', href: '/formations/new' },
       { label: 'Catégories', href: '/formations/categories' },
       { label: 'Obligatoires', href: '/formations/obligatoires' },
+    ]
+  },
+  {
+    icon: Building,
+    label: 'Organismes',
+    href: '/organismes',
+    color: 'grape',
+    subItems: [
+      { label: 'Liste', href: '/organismes' },
+      { label: 'Nouveau', href: '/organismes/new' },
     ]
   },
   {

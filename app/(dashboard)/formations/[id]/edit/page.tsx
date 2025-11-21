@@ -38,20 +38,23 @@ import {
   ArrowsClockwise,
   PencilSimple,
 } from '@phosphor-icons/react';
-import { formationsService, commonService } from '@/lib/services';
+import { formationsService, commonService, organismesService } from '@/lib/services';
 import { UpdateFormationDto, Formation } from '@/lib/types';
 
 export default function EditFormationPage() {
   const router = useRouter();
   const params = useParams();
   const formationId = Number(params.id);
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [formation, setFormation] = useState<Formation | null>(null);
-  
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
+  const [loadingOrganismes, setLoadingOrganismes] = useState(true);
   const [typesFormation, setTypesFormation] = useState<string[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
@@ -62,6 +65,7 @@ export default function EditFormationPage() {
       codeFormation: '',
       nomFormation: '',
       categorieId: undefined,
+      organismeId: undefined,
       typeFormation: '',
       dureePrevue: undefined,
       uniteDuree: 'Heures',
@@ -83,6 +87,10 @@ export default function EditFormationPage() {
         if (!value) return 'Nom de la formation requis';
         if (value.length < 3) return 'Le nom doit contenir au moins 3 caractères';
         if (value.length > 255) return 'Le nom ne doit pas dépasser 255 caractères';
+        return null;
+      },
+      organismeId: (value) => {
+        if (!value) return 'Organisme de formation requis';
         return null;
       },
       dureePrevue: (value) => {
@@ -163,7 +171,7 @@ export default function EditFormationPage() {
     setLoadingUnites(true);
     try {
       const unites = await commonService.getUnitesDuree();
-      
+
       if (Array.isArray(unites)) {
         const defaultUnites = [
           'Heures',
@@ -171,7 +179,7 @@ export default function EditFormationPage() {
           'Semaines',
           'Mois',
         ];
-        
+
         const allUnites = new Set([...unites, ...defaultUnites]);
         const sortedUnites = Array.from(allUnites).sort();
         setUnitesDuree(sortedUnites);
@@ -183,6 +191,35 @@ export default function EditFormationPage() {
       setUnitesDuree(['Heures', 'Jours', 'Semaines', 'Mois']);
     } finally {
       setLoadingUnites(false);
+    }
+  };
+
+  // Fonction pour charger les organismes
+  const loadOrganismes = async () => {
+    setLoadingOrganismes(true);
+    try {
+      const orgs = await organismesService.getOrganismes(false); // Seulement les actifs
+
+      if (Array.isArray(orgs) && orgs.length > 0) {
+        const organismesList = orgs.map(o => ({
+          value: o.id.toString(),
+          label: o.nomOrganisme,
+        }));
+        setOrganismes(organismesList);
+      } else {
+        setOrganismes([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des organismes:', error);
+      notifications.show({
+        title: 'Attention',
+        message: 'Impossible de charger les organismes. Vérifiez votre connexion.',
+        color: 'orange',
+        icon: <Warning size={20} />,
+      });
+      setOrganismes([]);
+    } finally {
+      setLoadingOrganismes(false);
     }
   };
 
@@ -198,6 +235,7 @@ export default function EditFormationPage() {
         codeFormation: data.codeFormation || '',
         nomFormation: data.nomFormation || '',
         categorieId: data.categorie?.id?.toString(),
+        organismeId: data.organisme?.id?.toString() || data.organismeId?.toString(),
         typeFormation: data.typeFormation || '',
         dureePrevue: data.dureePrevue,
         uniteDuree: data.uniteDuree || 'Heures',
@@ -222,6 +260,7 @@ export default function EditFormationPage() {
   // Charger toutes les données au montage
   useEffect(() => {
     loadCategories();
+    loadOrganismes();
     loadTypesFormation();
     loadUnitesDuree();
     loadFormation();
@@ -229,27 +268,34 @@ export default function EditFormationPage() {
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
-    
+    setWarningMessage(null);
+
     try {
       // Préparer les données pour l'envoi
       const formData: any = {
         ...values,
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
+        organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
       };
-      
-      await formationsService.updateFormation(formationId, formData);
-      
+
+      const response = await formationsService.updateFormation(formationId, formData);
+
+      // Afficher le warning s'il y en a un dans la réponse
+      if (response.warning) {
+        setWarningMessage(response.warning);
+      }
+
       notifications.show({
         title: 'Succès',
         message: 'La formation a été mise à jour avec succès',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
-      
+
       router.push(`/formations/${formationId}`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Erreur lors de la mise à jour de la formation';
-      
+
       notifications.show({
         title: 'Erreur',
         message: errorMessage,
@@ -365,6 +411,12 @@ export default function EditFormationPage() {
               )}
             </Group>
             
+            {warningMessage && (
+              <Alert color="orange" title="Avertissement" icon={<Warning size={20} />}>
+                {warningMessage}
+              </Alert>
+            )}
+
             <Grid gutter="md">
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
@@ -379,7 +431,21 @@ export default function EditFormationPage() {
                   {...form.getInputProps('categorieId')}
                 />
               </Grid.Col>
-              
+
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Select
+                  label="Organisme de formation"
+                  placeholder={loadingOrganismes ? "Chargement..." : "Sélectionner un organisme"}
+                  description={`Organisme qui dispense la formation ${organismes.length > 0 ? `(${organismes.length} disponibles)` : ''}`}
+                  required
+                  searchable
+                  data={organismes}
+                  disabled={loadingOrganismes || organismes.length === 0}
+                  nothingFoundMessage="Aucun organisme trouvé"
+                  {...form.getInputProps('organismeId')}
+                />
+              </Grid.Col>
+
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
                   label="Type de formation"

@@ -45,9 +45,12 @@ import {
   IdentificationCard,
 } from '@phosphor-icons/react';
 import { sessionsService } from '@/lib/services';
-import { SessionFormationResponse } from '@/lib/types';
+import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import { SessionFormationResponse, CollectiveSession } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDateOnly } from '@/lib/utils/date.utils';
+import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
+import { Users, MapPin } from '@phosphor-icons/react';
 
 interface Props {
   params: {
@@ -73,28 +76,62 @@ const statusConfig = {
 };
 
 interface FormValues {
+  // Champs communs
   statut: string;
   dateDebut: string;
   dateFin: string;
-  dureeHeures?: number;
   anneeBudgetaire?: number;
+
+  // Champs individuels
+  dureeHeures?: number;
   commentaire: string;
+
+  // Champs collectifs
+  titre?: string;
+  lieu?: string;
+  heureDebut?: string;
+  heureFin?: string;
+  dureePrevueHeures?: number;
+  capaciteMax?: number;
+  modalite?: string;
+  tarifUnitaireHT?: number;
+  tarifTotalHT?: number;
+  description?: string;
+  formateurNom?: string;
+  formateurContact?: string;
+  lienVisio?: string;
 }
 
 export default function EditSessionPage({ params }: Props) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [session, setSession] = useState<SessionFormationResponse | null>(null);
+  const [session, setSession] = useState<any | null>(null); // Can be individual or collective
   
   const form = useForm<FormValues>({
     initialValues: {
+      // Communs
       statut: '',
       dateDebut: '',
       dateFin: '',
-      dureeHeures: undefined,
       anneeBudgetaire: undefined,
+      // Individuels
+      dureeHeures: undefined,
       commentaire: '',
+      // Collectifs
+      titre: '',
+      lieu: '',
+      heureDebut: '',
+      heureFin: '',
+      dureePrevueHeures: undefined,
+      capaciteMax: undefined,
+      modalite: 'presentiel',
+      tarifUnitaireHT: undefined,
+      tarifTotalHT: undefined,
+      description: '',
+      formateurNom: '',
+      formateurContact: '',
+      lienVisio: '',
     },
     validate: {
       statut: (value) => {
@@ -126,29 +163,75 @@ export default function EditSessionPage({ params }: Props) {
     },
   });
 
-  // Charger les données de la session
+  // Charger les données de la session avec auto-détection
   useEffect(() => {
     const loadSession = async () => {
       setIsLoading(true);
       try {
-        const sessionData = await sessionsService.getSession(parseInt(params.id));
+        const sessionData = await SessionsUnifiedService.findOne(parseInt(params.id));
         setSession(sessionData);
-        
-        // Mettre à jour le formulaire avec les données actuelles
-        form.setValues({
-          statut: sessionData.statut || 'inscrit',
-          dateDebut: sessionData.dateDebut
-            ? formatDateOnly(new Date(sessionData.dateDebut))
-            : '',
-          dateFin: sessionData.dateFin
-            ? formatDateOnly(new Date(sessionData.dateFin))
-            : '',
-          dureeHeures: sessionData.dureeHeures || undefined,
-          anneeBudgetaire: sessionData.anneeBudgetaire !== null && sessionData.anneeBudgetaire !== undefined
-            ? sessionData.anneeBudgetaire
-            : undefined,
-          commentaire: sessionData.commentaire || '',
-        });
+
+        // Mettre à jour le formulaire selon le type de session
+        if (sessionData.type === 'collective') {
+          // Session collective
+          form.setValues({
+            statut: sessionData.statut || 'inscrit',
+            dateDebut: sessionData.dateDebut
+              ? formatDateOnly(new Date(sessionData.dateDebut))
+              : '',
+            dateFin: sessionData.dateFin
+              ? formatDateOnly(new Date(sessionData.dateFin))
+              : '',
+            anneeBudgetaire: sessionData.anneeBudgetaire || undefined,
+            // Champs collectifs
+            titre: sessionData.titre || '',
+            lieu: sessionData.lieu || '',
+            heureDebut: sessionData.heureDebut || '',
+            heureFin: sessionData.heureFin || '',
+            dureePrevueHeures: sessionData.dureePrevue ? Number(sessionData.dureePrevue) : undefined,
+            capaciteMax: sessionData.capaciteMax || undefined,
+            modalite: sessionData.modalite || 'presentiel',
+            tarifUnitaireHT: sessionData.tarifUnitaireHT ? Number(sessionData.tarifUnitaireHT) : undefined,
+            tarifTotalHT: sessionData.tarifTotalHT ? Number(sessionData.tarifTotalHT) : undefined,
+            description: sessionData.description || '',
+            formateurNom: sessionData.formateurNom || '',
+            formateurContact: sessionData.formateurContact || '',
+            lienVisio: sessionData.lienVisio || '',
+            // Champs individuels (vides)
+            dureeHeures: undefined,
+            commentaire: '',
+          });
+        } else {
+          // Session individuelle
+          form.setValues({
+            statut: sessionData.statut || 'inscrit',
+            dateDebut: sessionData.dateDebut
+              ? formatDateOnly(new Date(sessionData.dateDebut))
+              : '',
+            dateFin: sessionData.dateFin
+              ? formatDateOnly(new Date(sessionData.dateFin))
+              : '',
+            dureeHeures: sessionData.dureeHeures || undefined,
+            anneeBudgetaire: sessionData.anneeBudgetaire !== null && sessionData.anneeBudgetaire !== undefined
+              ? sessionData.anneeBudgetaire
+              : undefined,
+            commentaire: sessionData.commentaire || '',
+            // Champs collectifs (vides)
+            titre: '',
+            lieu: '',
+            heureDebut: '',
+            heureFin: '',
+            dureePrevueHeures: undefined,
+            capaciteMax: undefined,
+            modalite: 'presentiel',
+            tarifUnitaireHT: undefined,
+            tarifTotalHT: undefined,
+            description: '',
+            formateurNom: '',
+            formateurContact: '',
+            lienVisio: '',
+          });
+        }
       } catch (error) {
         console.error('Erreur lors du chargement de la session:', error);
         notifications.show({
@@ -196,8 +279,10 @@ export default function EditSessionPage({ params }: Props) {
   };
 
   const handleSubmit = async (values: FormValues) => {
+    if (!session) return;
+
     // Vérifier si la transition de statut est autorisée
-    if (session && !isStatusTransitionAllowed(session.statut || 'inscrit', values.statut)) {
+    if (!isStatusTransitionAllowed(session.statut || 'inscrit', values.statut)) {
       notifications.show({
         title: 'Erreur',
         message: `Transition de statut non autorisée: ${session.statut} → ${values.statut}`,
@@ -208,38 +293,70 @@ export default function EditSessionPage({ params }: Props) {
     }
 
     setIsSubmitting(true);
-    
+
     try {
-      // Préparer les données selon le DTO backend
-      const updateData: any = {
-        statut: values.statut,
-        dateDebut: values.dateDebut,
-        dateFin: values.dateFin || undefined,
-        dureeHeures: values.dureeHeures || undefined,
-        anneeBudgetaire: values.anneeBudgetaire,
-        commentaire: values.commentaire || undefined,
-      };
-      
-      // Supprimer les valeurs undefined
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        }
-      });
-      
-      await sessionsService.updateSession(parseInt(params.id), updateData);
-      
+      if (session.type === 'collective') {
+        // Mise à jour session collective
+        const updateData: any = {
+          statut: values.statut,
+          dateDebut: values.dateDebut || undefined,
+          dateFin: values.dateFin || undefined,
+          titre: values.titre || undefined,
+          lieu: values.lieu || undefined,
+          heureDebut: values.heureDebut || undefined,
+          heureFin: values.heureFin || undefined,
+          dureePrevue: values.dureePrevueHeures || undefined,
+          capaciteMax: values.capaciteMax || undefined,
+          modalite: values.modalite || undefined,
+          tarifUnitaireHT: values.tarifUnitaireHT || undefined,
+          tarifTotalHT: values.tarifTotalHT || undefined,
+          anneeBudgetaire: values.anneeBudgetaire || undefined,
+          description: values.description || undefined,
+          formateurNom: values.formateurNom || undefined,
+          formateurContact: values.formateurContact || undefined,
+          lienVisio: values.lienVisio || undefined,
+        };
+
+        // Supprimer les valeurs undefined
+        Object.keys(updateData).forEach(key => {
+          if (updateData[key] === undefined) {
+            delete updateData[key];
+          }
+        });
+
+        await SessionsUnifiedService.update(parseInt(params.id), updateData, 'collective');
+      } else {
+        // Mise à jour session individuelle
+        const updateData: any = {
+          statut: values.statut,
+          dateDebut: values.dateDebut,
+          dateFin: values.dateFin || undefined,
+          dureeHeures: values.dureeHeures || undefined,
+          anneeBudgetaire: values.anneeBudgetaire,
+          commentaire: values.commentaire || undefined,
+        };
+
+        // Supprimer les valeurs undefined
+        Object.keys(updateData).forEach(key => {
+          if (updateData[key] === undefined) {
+            delete updateData[key];
+          }
+        });
+
+        await sessionsService.updateSession(parseInt(params.id), updateData);
+      }
+
       notifications.show({
         title: 'Succès',
         message: 'Session mise à jour avec succès',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
-      
+
       router.push(`/sessions/${params.id}`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Erreur lors de la mise à jour';
-      
+
       notifications.show({
         title: 'Erreur',
         message: errorMessage,
@@ -342,9 +459,10 @@ export default function EditSessionPage({ params }: Props) {
           <Group align="center" gap="sm">
             <Title order={1}>Modifier la session</Title>
             <Badge color="gray" variant="light">#{session.id}</Badge>
+            {session.type && <SessionTypeBadge type={session.type} />}
           </Group>
           <Text c="dimmed" mt="xs">
-            Modification de la session de formation
+            Modification de la session {session.type === 'collective' ? 'collective' : 'individuelle'}
           </Text>
         </div>
         <Button
@@ -363,34 +481,65 @@ export default function EditSessionPage({ params }: Props) {
             <Paper shadow="xs" p="lg" radius="md" withBorder>
               <Text fw={600} mb="md">Informations de la session</Text>
               <Stack gap="md">
-                {/* Collaborateur */}
-                <div>
-                  <Group gap="xs" mb={4}>
-                    <User size={16} color="#868E96" />
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                      Collaborateur
-                    </Text>
-                  </Group>
-                  <Text size="sm" fw={500}>
-                    {session.collaborateur?.prenom} {session.collaborateur?.nom}
-                  </Text>
-                  {session.collaborateur?.matricule && (
-                    <Group gap={4} mt={2}>
-                      <IdentificationCard size={14} color="#868E96" />
-                      <Text size="xs" c="dimmed">
-                        Matricule: {session.collaborateur.matricule}
+                {/* Collaborateur (seulement pour sessions individuelles) */}
+                {session.type === 'individuelle' && session.collaborateur && (
+                  <>
+                    <div>
+                      <Group gap="xs" mb={4}>
+                        <User size={16} color="#868E96" />
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                          Collaborateur
+                        </Text>
+                      </Group>
+                      <Text size="sm" fw={500}>
+                        {session.collaborateur?.prenom} {session.collaborateur?.nom}
                       </Text>
-                    </Group>
-                  )}
-                  <Text size="xs" c="dimmed" mt={2}>
-                    {session.collaborateur?.departement || 'Département non défini'}
-                  </Text>
-                  {session.collaborateur?.email && (
-                    <Text size="xs" c="dimmed">
-                      {session.collaborateur.email}
-                    </Text>
-                  )}
-                </div>
+                      {session.collaborateur?.matricule && (
+                        <Group gap={4} mt={2}>
+                          <IdentificationCard size={14} color="#868E96" />
+                          <Text size="xs" c="dimmed">
+                            Matricule: {session.collaborateur.matricule}
+                          </Text>
+                        </Group>
+                      )}
+                      <Text size="xs" c="dimmed" mt={2}>
+                        {session.collaborateur?.departement || 'Département non défini'}
+                      </Text>
+                      {session.collaborateur?.email && (
+                        <Text size="xs" c="dimmed">
+                          {session.collaborateur.email}
+                        </Text>
+                      )}
+                    </div>
+                    <Divider />
+                  </>
+                )}
+
+                {/* Informations collective (pour sessions collectives) */}
+                {session.type === 'collective' && (
+                  <>
+                    <div>
+                      <Group gap="xs" mb={4}>
+                        <Users size={16} color="#868E96" />
+                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                          Session collective
+                        </Text>
+                      </Group>
+                      {session.capaciteMax && (
+                        <Text size="sm" fw={500}>
+                          Capacité: {session.participants?.length || 0} / {session.capaciteMax} participants
+                        </Text>
+                      )}
+                      {session.modalite && (
+                        <Badge size="sm" variant="light" color="grape" mt={2}>
+                          {session.modalite === 'presentiel' ? 'Présentiel' :
+                           session.modalite === 'distanciel' ? 'Distanciel' : 'Hybride'}
+                        </Badge>
+                      )}
+                    </div>
+                    <Divider />
+                  </>
+                )}
 
                 <Divider />
 
@@ -514,55 +663,228 @@ export default function EditSessionPage({ params }: Props) {
                 </Stack>
               </Paper>
 
-              {/* Durée et évaluation */}
-              <Paper shadow="xs" p="lg" radius="md" withBorder>
-                <Group align="center" mb="md">
-                  <Clock size={20} />
-                  <Text fw={600}>Durée et évaluation</Text>
-                </Group>
-                
-                <Grid>
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <NumberInput
-                      label="Durée réelle (heures)"
-                      description="Nombre d'heures effectivement suivies"
-                      placeholder="Ex: 14"
-                      min={0}
-                      max={1000}
-                      decimalScale={1}
-                      {...form.getInputProps('dureeHeures')}
-                    />
-                  </Grid.Col>
-                  
-                  <Grid.Col span={{ base: 12, sm: 6 }}>
-                    <NumberInput
-                      label="Année budgétaire"
-                      description="Laissez vide pour utiliser l'année de la session"
-                      placeholder="Ex: 2024"
-                      min={2000}
-                      max={2100}
-                      leftSection={<Calendar size={16} />}
-                      {...form.getInputProps('anneeBudgetaire')}
-                    />
-                  </Grid.Col>
-                </Grid>
-              </Paper>
+              {/* Champs SESSION INDIVIDUELLE */}
+              {session.type === 'individuelle' && (
+                <>
+                  <Paper shadow="xs" p="lg" radius="md" withBorder>
+                    <Group align="center" mb="md">
+                      <Clock size={20} />
+                      <Text fw={600}>Durée et évaluation</Text>
+                    </Group>
 
-              {/* Commentaire */}
-              <Paper shadow="xs" p="lg" radius="md" withBorder>
-                <Group align="center" mb="md">
-                  <FileText size={20} />
-                  <Text fw={600}>Commentaire</Text>
-                </Group>
-                
-                <Textarea
-                  label="Commentaire"
-                  description="Remarques ou observations sur la session"
-                  placeholder="Ajouter un commentaire sur la session..."
-                  rows={4}
-                  {...form.getInputProps('commentaire')}
-                />
-              </Paper>
+                    <Grid>
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <NumberInput
+                          label="Durée réelle (heures)"
+                          description="Nombre d'heures effectivement suivies"
+                          placeholder="Ex: 14"
+                          min={0}
+                          max={1000}
+                          decimalScale={1}
+                          {...form.getInputProps('dureeHeures')}
+                        />
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <NumberInput
+                          label="Année budgétaire"
+                          description="Laissez vide pour utiliser l'année de la session"
+                          placeholder="Ex: 2024"
+                          min={2000}
+                          max={2100}
+                          leftSection={<Calendar size={16} />}
+                          {...form.getInputProps('anneeBudgetaire')}
+                        />
+                      </Grid.Col>
+                    </Grid>
+                  </Paper>
+
+                  <Paper shadow="xs" p="lg" radius="md" withBorder>
+                    <Group align="center" mb="md">
+                      <FileText size={20} />
+                      <Text fw={600}>Commentaire</Text>
+                    </Group>
+
+                    <Textarea
+                      label="Commentaire"
+                      description="Remarques ou observations sur la session"
+                      placeholder="Ajouter un commentaire sur la session..."
+                      rows={4}
+                      {...form.getInputProps('commentaire')}
+                    />
+                  </Paper>
+                </>
+              )}
+
+              {/* Champs SESSION COLLECTIVE */}
+              {session.type === 'collective' && (
+                <>
+                  <Paper shadow="xs" p="lg" radius="md" withBorder>
+                    <Group align="center" mb="md">
+                      <FileText size={20} />
+                      <Text fw={600}>Informations de la session</Text>
+                    </Group>
+
+                    <Stack gap="md">
+                      <TextInput
+                        label="Titre de la session"
+                        placeholder="Ex: Formation React - Session Printemps 2024"
+                        {...form.getInputProps('titre')}
+                      />
+
+                      <Grid>
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label="Lieu"
+                            placeholder="Ex: Salle de formation A, Paris"
+                            leftSection={<MapPin size={16} />}
+                            {...form.getInputProps('lieu')}
+                          />
+                        </Grid.Col>
+
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <Select
+                            label="Modalité"
+                            data={[
+                              { value: 'presentiel', label: 'Présentiel' },
+                              { value: 'distanciel', label: 'Distanciel' },
+                              { value: 'hybride', label: 'Hybride' },
+                            ]}
+                            {...form.getInputProps('modalite')}
+                          />
+                        </Grid.Col>
+                      </Grid>
+
+                      <Grid>
+                        <Grid.Col span={{ base: 12, sm: 4 }}>
+                          <TextInput
+                            label="Heure de début"
+                            placeholder="Ex: 09:00"
+                            type="time"
+                            leftSection={<Clock size={16} />}
+                            {...form.getInputProps('heureDebut')}
+                          />
+                        </Grid.Col>
+
+                        <Grid.Col span={{ base: 12, sm: 4 }}>
+                          <TextInput
+                            label="Heure de fin"
+                            placeholder="Ex: 17:00"
+                            type="time"
+                            leftSection={<Clock size={16} />}
+                            {...form.getInputProps('heureFin')}
+                          />
+                        </Grid.Col>
+
+                        <Grid.Col span={{ base: 12, sm: 4 }}>
+                          <NumberInput
+                            label="Durée (heures)"
+                            placeholder="Ex: 7"
+                            min={0}
+                            decimalScale={2}
+                            leftSection={<Clock size={16} />}
+                            {...form.getInputProps('dureePrevueHeures')}
+                          />
+                        </Grid.Col>
+                      </Grid>
+
+                      <NumberInput
+                        label="Capacité maximale"
+                        placeholder="Ex: 15"
+                        description="Nombre maximum de participants"
+                        min={1}
+                        max={1000}
+                        leftSection={<Users size={16} />}
+                        {...form.getInputProps('capaciteMax')}
+                      />
+                    </Stack>
+                  </Paper>
+
+                  <Paper shadow="xs" p="lg" radius="md" withBorder>
+                    <Group align="center" mb="md">
+                      <User size={20} />
+                      <Text fw={600}>Formateur</Text>
+                    </Group>
+
+                    <Stack gap="md">
+                      <TextInput
+                        label="Nom du formateur"
+                        placeholder="Nom complet du formateur"
+                        {...form.getInputProps('formateurNom')}
+                      />
+
+                      <TextInput
+                        label="Contact du formateur"
+                        placeholder="Email ou téléphone"
+                        {...form.getInputProps('formateurContact')}
+                      />
+
+                      <TextInput
+                        label="Lien visio"
+                        placeholder="https://meet.google.com/..."
+                        description="Pour les sessions distancielles ou hybrides"
+                        {...form.getInputProps('lienVisio')}
+                      />
+                    </Stack>
+                  </Paper>
+
+                  <Paper shadow="xs" p="lg" radius="md" withBorder>
+                    <Group align="center" mb="md">
+                      <FileText size={20} />
+                      <Text fw={600}>Tarifs et budget</Text>
+                    </Group>
+
+                    <Grid>
+                      <Grid.Col span={{ base: 12, sm: 4 }}>
+                        <NumberInput
+                          label="Tarif unitaire HT (€)"
+                          placeholder="Ex: 500"
+                          description="Prix par participant"
+                          min={0}
+                          decimalScale={2}
+                          {...form.getInputProps('tarifUnitaireHT')}
+                        />
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, sm: 4 }}>
+                        <NumberInput
+                          label="Tarif total HT (€)"
+                          placeholder="Ex: 7500"
+                          description="Prix total de la session"
+                          min={0}
+                          decimalScale={2}
+                          {...form.getInputProps('tarifTotalHT')}
+                        />
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, sm: 4 }}>
+                        <NumberInput
+                          label="Année budgétaire"
+                          placeholder="Ex: 2024"
+                          min={2000}
+                          max={2100}
+                          leftSection={<Calendar size={16} />}
+                          {...form.getInputProps('anneeBudgetaire')}
+                        />
+                      </Grid.Col>
+                    </Grid>
+                  </Paper>
+
+                  <Paper shadow="xs" p="lg" radius="md" withBorder>
+                    <Group align="center" mb="md">
+                      <FileText size={20} />
+                      <Text fw={600}>Description</Text>
+                    </Group>
+
+                    <Textarea
+                      label="Description de la session"
+                      placeholder="Description détaillée de la session collective..."
+                      rows={4}
+                      {...form.getInputProps('description')}
+                    />
+                  </Paper>
+                </>
+              )}
 
               {/* Actions */}
               <Group justify="space-between">

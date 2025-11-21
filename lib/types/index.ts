@@ -125,6 +125,7 @@ export interface Formation {
   codeFormation: string;
   nomFormation: string;
   categorieId?: number;
+  organismeId?: number;
   typeFormation?: string;
   dureePrevue?: number;
   uniteDuree: string;
@@ -132,6 +133,7 @@ export interface Formation {
   actif: boolean;
   estCertifiante: boolean;
   categorie?: CategorieFormation;
+  organisme?: OrganismeFormation;
   sessions?: SessionFormation[];
   _count?: {
     sessions: number;
@@ -201,6 +203,14 @@ export interface OrganismeFormation {
   typeOrganisme?: string;
   contact?: string;
   actif: boolean;
+  _count?: {
+    formations: number;
+    sessions: number;
+  };
+  statistics?: {
+    nbFormationsActives: number;
+    nbSessionsActives: number;
+  };
 }
 
 export interface ImportLog {
@@ -449,7 +459,6 @@ export interface SessionFilters {
 // Enums pour les statuts
 
 export enum SessionStatut {
-  PLANIFIE = 'planifie',
   INSCRIT = 'inscrit',
   EN_COURS = 'en_cours',
   COMPLETE = 'complete',
@@ -740,5 +749,291 @@ export interface DetailedKPIsResponse {
     manager: CategoryStats;
     nonManager: CategoryStats;
     directeur: CategoryStats;
+  };
+}
+
+// ==================== TYPES POUR LES SESSIONS COLLECTIVES ====================
+
+// Enums pour sessions collectives
+export enum CollectiveSessionStatut {
+  INSCRIT = 'inscrit',
+  EN_COURS = 'en_cours',
+  COMPLETE = 'complete',
+  ANNULE = 'annule',
+}
+
+export enum ParticipantStatut {
+  INSCRIT = 'inscrit',
+  COMPLETE = 'complete',
+  DESINSCRIT = 'desinscrit',
+}
+
+export enum Modalite {
+  PRESENTIEL = 'presentiel',
+  DISTANCIEL = 'distanciel',
+  HYBRIDE = 'hybride',
+}
+
+// Interface principale pour une session collective
+export interface CollectiveSession {
+  id: number;
+  formationId: number;
+  organismeId?: number;
+  titre?: string;
+  lieu?: string;
+  dateDebut?: string;
+  dateFin?: string;
+  heureDebut?: string;
+  heureFin?: string;
+  dureePrevue?: number;
+  capaciteMax?: number;
+  statut: string;
+  modalite: string;
+  tarifUnitaireHT?: number;
+  tarifTotalHT?: number;
+  anneeBudgetaire?: number;
+  description?: string;
+  formateurNom?: string;
+  formateurContact?: string;
+  lienVisio?: string;
+  dateCreation?: string;
+  dateModification?: string;
+  // Relations
+  formation?: Formation;
+  organisme?: OrganismeFormation;
+  participants?: CollectiveSessionParticipant[];
+  _count?: {
+    participants: number;
+  };
+}
+
+// Participant d'une session collective
+export interface CollectiveSessionParticipant {
+  id: number;
+  sessionCollectiveId: number;
+  collaborateurId: number;
+  statutIndividuel: string;
+  dateInscription: string;
+  presence?: boolean;
+  datePresence?: string;
+  noteEvaluation?: number;
+  commentairesIndiv?: string;
+  satisfactionNote?: number;
+  satisfactionComm?: string;
+  // Relations
+  sessionCollective?: CollectiveSession;
+  collaborateur?: Collaborateur;
+}
+
+// Session collective avec détails complets
+export interface CollectiveSessionDetail extends CollectiveSession {
+  participants: CollectiveSessionParticipant[];
+  stats: SessionStats;
+  formation: Formation;
+  organisme?: OrganismeFormation;
+}
+
+// DTOs pour création/modification
+export interface CreateCollectiveSessionDto {
+  formationId: number;
+  organismeId?: number;
+  titre?: string;
+  lieu?: string;
+  dateDebut?: string;
+  dateFin?: string;
+  heureDebut?: string;
+  heureFin?: string;
+  dureePrevue?: number;
+  capaciteMax?: number;
+  statut?: string;
+  modalite?: string;
+  tarifUnitaireHT?: number;
+  tarifTotalHT?: number;
+  anneeBudgetaire?: number;
+  description?: string;
+  formateurNom?: string;
+  formateurContact?: string;
+  lienVisio?: string;
+  // Participants initiaux (optionnel)
+  participantIds?: number[];
+}
+
+export interface UpdateCollectiveSessionDto {
+  formationId?: number;
+  organismeId?: number;
+  titre?: string;
+  lieu?: string;
+  dateDebut?: string;
+  dateFin?: string;
+  heureDebut?: string;
+  heureFin?: string;
+  dureePrevue?: number;
+  capaciteMax?: number;
+  statut?: string;
+  modalite?: string;
+  tarifUnitaireHT?: number;
+  tarifTotalHT?: number;
+  anneeBudgetaire?: number;
+  description?: string;
+  formateurNom?: string;
+  formateurContact?: string;
+  lienVisio?: string;
+}
+
+export interface UpdateSessionStatusDto {
+  statut: string;
+}
+
+// DTOs pour gestion des participants
+export interface AddParticipantDto {
+  collaborateurId: number;
+  statutIndividuel?: string;
+}
+
+export interface AddParticipantsBulkDto {
+  collaborateurIds: number[];
+  statutIndividuel?: string;
+}
+
+export interface UpdateParticipantDto {
+  statutIndividuel?: string;
+  presence?: boolean;
+  datePresence?: string;
+  noteEvaluation?: number;
+  commentairesIndiv?: string;
+  satisfactionNote?: number;
+  satisfactionComm?: string;
+}
+
+// Filtres pour requêtes
+export interface CollectiveSessionFilters {
+  formationId?: number;
+  organismeId?: number;
+  statut?: string;
+  modalite?: string;
+  dateDebut?: string;
+  dateFin?: string;
+  anneeBudgetaire?: number;
+  search?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  order?: 'asc' | 'desc';
+}
+
+// Statistiques d'une session
+export interface SessionStats {
+  totalParticipants: number;
+  inscrits: number;
+  completes: number;
+  desincrits: number;
+  tauxCompletionPourcentage: number;
+  capaciteUtiliseePourcentage: number;
+  presences?: number;
+  absences?: number;
+  tauxPresencePourcentage?: number;
+  noteEvaluationMoyenne?: number;
+  satisfactionMoyenne?: number;
+}
+
+// Rapport de présence
+export interface AttendanceReport {
+  sessionId: number;
+  sessionTitre: string;
+  dateDebut?: string;
+  dateFin?: string;
+  totalParticipants: number;
+  presents: number;
+  absents: number;
+  nonMarques: number;
+  tauxPresence: number;
+  participants: {
+    collaborateurId: number;
+    nomComplet: string;
+    presence: boolean | null;
+    datePresence?: string;
+    statutIndividuel: string;
+  }[];
+}
+
+// Résultat d'ajout en masse
+export interface BulkAddResult {
+  added: number;
+  skipped: number;
+  errors: {
+    collaborateurId: number;
+    reason: string;
+  }[];
+  participants: CollectiveSessionParticipant[];
+}
+
+// Session unifiée (individuelle OU collective)
+export interface UnifiedSession {
+  id: number;
+  type: 'individuelle' | 'collective';
+  formationId: number;
+  formation?: Formation;
+  organismeId?: number;
+  organisme?: OrganismeFormation;
+  dateDebut?: string;
+  dateFin?: string;
+  statut?: string;
+  anneeBudgetaire?: number;
+  // Propriétés spécifiques aux sessions individuelles
+  collaborateurId?: number;
+  collaborateur?: Collaborateur;
+  groupKey?: string; // Clé de regroupement pour sessions individuelles groupées
+  // Propriétés spécifiques aux sessions collectives
+  titre?: string;
+  lieu?: string;
+  modalite?: string;
+  capaciteMax?: number;
+  nombreParticipants?: number;
+  participants?: CollectiveSessionParticipant[] | GroupedSessionParticipant[];
+  // Propriétés communes
+  tarifHT?: number;
+  commentaires?: string;
+  dateCreation?: string;
+  dateModification?: string;
+  // Propriétés additionnelles pour compatibilité UI
+  formationNom?: string; // Nom de la formation (dupliqué pour faciliter l'accès)
+  formationCode?: string; // Code de la formation
+  organismeNom?: string; // Nom de l'organisme (dupliqué pour faciliter l'accès)
+  categorie?: string; // Catégorie de la formation
+  typeFormation?: string; // Type de formation
+  dureeHeures?: number; // Durée en heures
+  coutTotal?: number; // Coût total calculé
+  stats?: GroupedSessionStats; // Statistiques agrégées (pour sessions groupées)
+}
+
+// Réponse paginée pour sessions unifiées
+export interface UnifiedSessionPaginatedResponse {
+  data: UnifiedSession[];
+  meta: SessionPaginationMeta;
+  stats?: {
+    totalIndividuelles: number;
+    totalCollectives: number;
+  };
+}
+
+// Statistiques globales (toutes sessions)
+export interface GlobalSessionStats {
+  totalSessions: number;
+  totalIndividuelles: number;
+  totalCollectives: number;
+  totalParticipants: number;
+  tauxCompletionGlobal: number;
+  heuresFormationTotales: number;
+  coutTotalHT: number;
+  parStatut: {
+    inscrit: number;
+    enCours: number;
+    complete: number;
+    annule: number;
+  };
+  parModalite?: {
+    presentiel: number;
+    distanciel: number;
+    hybride: number;
   };
 }

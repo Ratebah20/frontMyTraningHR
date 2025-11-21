@@ -23,6 +23,12 @@ export const sessionsService = {
     return response.data;
   },
 
+  // Récupérer le nombre de sessions groupées (groupes de 2+ sessions)
+  async getGroupedSessionsCount(): Promise<{ count: number }> {
+    const response = await api.get('/sessions/stats/grouped-count');
+    return response.data;
+  },
+
   // Récupérer une session par ID
   async getSession(id: number): Promise<SessionFormation> {
     const response = await api.get(`/sessions/${id}`);

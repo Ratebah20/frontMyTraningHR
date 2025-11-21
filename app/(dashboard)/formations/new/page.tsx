@@ -35,7 +35,7 @@ import {
   BookOpen,
   ArrowsClockwise,
 } from '@phosphor-icons/react';
-import { formationsService, commonService } from '@/lib/services';
+import { formationsService, commonService, organismesService } from '@/lib/services';
 import { CreateFormationDto } from '@/lib/types';
 import { generateFormationCode } from '@/lib/utils/formation';
 
@@ -44,6 +44,8 @@ export default function NewFormationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [categories, setCategories] = useState<{ value: string; label: string }[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
+  const [loadingOrganismes, setLoadingOrganismes] = useState(true);
   const [typesFormation, setTypesFormation] = useState<string[]>([]);
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
@@ -54,11 +56,13 @@ export default function NewFormationPage() {
       codeFormation: '',
       nomFormation: '',
       categorieId: undefined,
+      organismeId: undefined,
       typeFormation: '',
       dureePrevue: undefined,
       uniteDuree: 'Heures',
       tarifHT: undefined,
       actif: true,
+      estCertifiante: false,
     },
     validate: {
       // Le code est généré automatiquement, pas de validation nécessaire
@@ -66,6 +70,10 @@ export default function NewFormationPage() {
         if (!value) return 'Nom de la formation requis';
         if (value.length < 3) return 'Le nom doit contenir au moins 3 caractères';
         if (value.length > 255) return 'Le nom ne doit pas dépasser 255 caractères';
+        return null;
+      },
+      organismeId: (value) => {
+        if (!value) return 'Organisme de formation requis';
         return null;
       },
       dureePrevue: (value) => {
@@ -182,9 +190,43 @@ export default function NewFormationPage() {
     }
   };
 
-  // Charger les catégories, types et unités au montage
+  // Fonction pour charger les organismes
+  const loadOrganismes = async () => {
+    setLoadingOrganismes(true);
+    try {
+      console.log('Chargement des organismes...');
+      const orgs = await organismesService.getOrganismes(false); // Seulement les actifs
+      console.log('Organismes reçus:', orgs);
+
+      if (Array.isArray(orgs) && orgs.length > 0) {
+        const organismesList = orgs.map(o => ({
+          value: o.id.toString(),
+          label: o.nomOrganisme,
+        }));
+        console.log('Organismes formatés:', organismesList);
+        setOrganismes(organismesList);
+      } else {
+        console.warn('Aucun organisme reçu ou format invalide');
+        setOrganismes([]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des organismes:', error);
+      notifications.show({
+        title: 'Attention',
+        message: 'Impossible de charger les organismes. Vérifiez votre connexion.',
+        color: 'orange',
+        icon: <Warning size={20} />,
+      });
+      setOrganismes([]);
+    } finally {
+      setLoadingOrganismes(false);
+    }
+  };
+
+  // Charger les catégories, organismes, types et unités au montage
   useEffect(() => {
     loadCategories();
+    loadOrganismes();
     loadTypesFormation();
     loadUnitesDuree();
   }, []);
@@ -197,6 +239,7 @@ export default function NewFormationPage() {
       const formData: any = {
         ...values,
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
+        organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
       };
       
       const formation = await formationsService.createFormation(formData);
@@ -352,7 +395,21 @@ export default function NewFormationPage() {
                   {...form.getInputProps('categorieId')}
                 />
               </Grid.Col>
-              
+
+              <Grid.Col span={{ base: 12, md: 6 }}>
+                <Select
+                  label="Organisme de formation"
+                  placeholder={loadingOrganismes ? "Chargement..." : "Sélectionner un organisme"}
+                  description={`Organisme qui dispense la formation ${organismes.length > 0 ? `(${organismes.length} disponibles)` : ''}`}
+                  required
+                  searchable
+                  data={organismes}
+                  disabled={loadingOrganismes || organismes.length === 0}
+                  nothingFoundMessage="Aucun organisme trouvé"
+                  {...form.getInputProps('organismeId')}
+                />
+              </Grid.Col>
+
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
                   label="Type de formation"
@@ -437,14 +494,24 @@ export default function NewFormationPage() {
           {/* Paramètres */}
           <Card shadow="sm" p="lg" radius="md" withBorder>
             <Text fw={600} mb="md">Paramètres</Text>
-            
-            <Switch
-              label="Formation active"
-              description="Les formations inactives ne peuvent pas recevoir de nouvelles inscriptions"
-              checked={form.values.actif}
-              {...form.getInputProps('actif', { type: 'checkbox' })}
-              size="md"
-            />
+
+            <Stack gap="md">
+              <Switch
+                label="Formation active"
+                description="Les formations inactives ne peuvent pas recevoir de nouvelles inscriptions"
+                checked={form.values.actif}
+                {...form.getInputProps('actif', { type: 'checkbox' })}
+                size="md"
+              />
+
+              <Switch
+                label="Formation certifiante"
+                description="Cette formation délivre une certification ou un diplôme"
+                checked={form.values.estCertifiante}
+                {...form.getInputProps('estCertifiante', { type: 'checkbox' })}
+                size="md"
+              />
+            </Stack>
           </Card>
 
           {/* Actions */}

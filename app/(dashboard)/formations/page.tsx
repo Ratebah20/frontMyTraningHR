@@ -717,6 +717,7 @@ export default function FormationsPage() {
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Formation</Table.Th>
+                    <Table.Th>Organisme</Table.Th>
                     <Table.Th>Catégorie / Type</Table.Th>
                     <Table.Th style={{ textAlign: 'center' }}>Durée</Table.Th>
                     <Table.Th style={{ textAlign: 'center' }}>Sessions</Table.Th>
@@ -743,6 +744,18 @@ export default function FormationsPage() {
                             {formation.nomFormation || formation.titre}
                           </Text>
                         </Box>
+                      </Table.Td>
+
+                      <Table.Td>
+                        {formation.organisme ? (
+                          <Text size="sm" c="dimmed">
+                            {formation.organisme.nomOrganisme}
+                          </Text>
+                        ) : (
+                          <Text size="xs" c="dimmed" fs="italic">
+                            Non défini
+                          </Text>
+                        )}
                       </Table.Td>
 
                       <Table.Td>

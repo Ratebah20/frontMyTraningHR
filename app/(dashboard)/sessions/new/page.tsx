@@ -74,6 +74,7 @@ export default function NewSessionPage() {
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
   const [organismes, setOrganismes] = useState<OrganismeFormation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [loadingFormations, setLoadingFormations] = useState(false);
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<string[]>([]);
   const [participantIds, setParticipantIds] = useState<number[]>([]);
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
@@ -163,22 +164,65 @@ export default function NewSessionPage() {
     },
   });
 
+  // State pour la recherche de formation
+  const [formationSearchValue, setFormationSearchValue] = useState('');
+
+  // Fonction de recherche de formations
+  useEffect(() => {
+    const searchFormations = async () => {
+      // Ne rechercher qu'après 2 caractères minimum
+      if (formationSearchValue.length < 2) {
+        setFormations([]);
+        return;
+      }
+
+      setLoadingFormations(true);
+      try {
+        const formationsResponse = await formationsService.getFormations({
+          search: formationSearchValue,
+          limit: 50, // Limiter à 50 résultats pour éviter le crash
+          includeInactive: false,
+        });
+        setFormations(formationsResponse.data || []);
+      } catch (error) {
+        console.error('Erreur lors de la recherche des formations:', error);
+        notifications.show({
+          title: 'Erreur',
+          message: 'Erreur lors de la recherche des formations',
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+      } finally {
+        setLoadingFormations(false);
+      }
+    };
+
+    // Debounce de 300ms
+    const timeoutId = setTimeout(searchFormations, 300);
+    return () => clearTimeout(timeoutId);
+  }, [formationSearchValue]);
+
   // Charger les données
   useEffect(() => {
     const loadData = async () => {
       setLoadingData(true);
       try {
-        // Charger les formations actives
-        const formationsResponse = await formationsService.getFormations({
-          limit: 2000,
-          includeInactive: false,
-        });
-        setFormations(formationsResponse.data || []);
+        // NE PLUS charger les formations ici - elles seront chargées via la recherche
+        // Si une formation est pré-sélectionnée, la charger individuellement
+        if (preselectedFormationId) {
+          try {
+            const formation = await formationsService.getFormation(parseInt(preselectedFormationId));
+            setFormations([formation]);
+            setFormationSearchValue(`${formation.nomFormation} (${formation.codeFormation})`);
+          } catch (error) {
+            console.error('Erreur lors du chargement de la formation pré-sélectionnée:', error);
+          }
+        }
 
-        // Charger les collaborateurs actifs
+        // Charger tous les collaborateurs (actifs et inactifs)
         const collaborateursResponse = await collaborateursService.getCollaborateurs({
           limit: 1000,
-          actif: true,
+          includeInactive: true, // Inclure les collaborateurs inactifs
         });
         setCollaborateurs(collaborateursResponse.data || []);
 
@@ -198,9 +242,9 @@ export default function NewSessionPage() {
         setLoadingData(false);
       }
     };
-    
+
     loadData();
-  }, []);
+  }, [preselectedFormationId]);
 
   // Auto-remplir l'organismeId quand la formation change
   useEffect(() => {
@@ -379,13 +423,12 @@ export default function NewSessionPage() {
   // Préparer les données pour les autocompletes
   const collaborateursData = collaborateurs.map(c => ({
     value: c.id.toString(),
-    label: `${c.nomComplet} - ${c.departement?.nomDepartement || 'Sans département'}`,
+    label: `${c.nomComplet} - ${c.departement?.nomDepartement || 'Sans département'}${!c.actif ? ' (Inactif)' : ''}`,
   }));
-  
-  const formationsData = formations.map(f => ({
-    value: f.id.toString(),
-    label: `${f.nomFormation} (${f.codeFormation})`,
-  }));
+
+  // Pour Autocomplete, on utilise un tableau de strings avec une map pour retrouver l'ID
+  const formationsData = (formations || []).map(f => `${f.nomFormation} (${f.codeFormation})`);
+  const formationsMap = new Map((formations || []).map(f => [`${f.nomFormation} (${f.codeFormation})`, f.id]));
 
   return (
     <Container size="md">
@@ -463,17 +506,28 @@ export default function NewSessionPage() {
             <Stack gap="md">
               {/* Formation (commun aux deux types) */}
               <Group align="flex-end" gap="xs" grow>
-                <Select
+                <Autocomplete
                   label="Formation"
-                  placeholder="Sélectionner une formation"
+                  placeholder="Tapez pour rechercher une formation..."
                   required
-                  searchable
-                  data={formationsData}
-                  value={form.values.formationId?.toString()}
-                  onChange={(value) => form.setFieldValue('formationId', value ? parseInt(value) : 0)}
+                  data={formationsData || []}
+                  value={formationSearchValue}
+                  onChange={(value) => {
+                    setFormationSearchValue(value);
+                    // Trouver l'ID de la formation depuis la map
+                    const formationId = formationsMap.get(value);
+                    if (formationId) {
+                      form.setFieldValue('formationId', formationId);
+                    } else if (!value) {
+                      // Si le champ est vidé, réinitialiser
+                      form.setFieldValue('formationId', 0);
+                    }
+                  }}
                   error={form.errors.formationId}
-                  leftSection={<BookOpen size={16} />}
+                  leftSection={loadingFormations ? <Loader size={16} /> : <BookOpen size={16} />}
                   style={{ flex: 1 }}
+                  limit={50}
+                  description="Tapez au moins 2 caractères pour rechercher"
                 />
                 <Tooltip label="Créer une nouvelle formation">
                   <Button

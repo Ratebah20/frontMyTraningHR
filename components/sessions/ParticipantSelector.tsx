@@ -39,8 +39,8 @@ export function ParticipantSelector({
     try {
       setLoading(true);
       const data = await collaborateursService.getCollaborateurs({
-        actif: true,
-        limit: 1000, // Charger tous les collaborateurs actifs
+        limit: 1000, // Charger tous les collaborateurs (actifs et inactifs)
+        includeInactive: true, // Inclure les collaborateurs inactifs
       });
       setCollaborateurs(data.data || []);
     } catch (error) {
@@ -59,6 +59,7 @@ export function ParticipantSelector({
         : collab.departement.nomDepartement
       : undefined,
     email: collab.email || undefined,
+    actif: collab.actif !== false, // Par défaut true si non défini
   }));
 
   const selectedCount = value.length;
@@ -106,11 +107,18 @@ export function ParticipantSelector({
         }
         renderOption={({ option }) => (
           <Group gap="sm" wrap="nowrap">
-            <Avatar size="sm" radius="xl" color="blue">
+            <Avatar size="sm" radius="xl" color={option.actif ? 'blue' : 'gray'}>
               {option.label?.charAt(0)}
             </Avatar>
             <div style={{ flex: 1 }}>
-              <Text size="sm">{option.label}</Text>
+              <Group gap="xs">
+                <Text size="sm">{option.label}</Text>
+                {!option.actif && (
+                  <Badge size="xs" color="gray" variant="light">
+                    Inactif
+                  </Badge>
+                )}
+              </Group>
               {option.description && (
                 <Text size="xs" c="dimmed">
                   {option.description}

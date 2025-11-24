@@ -40,16 +40,17 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { fr } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { sessionsService } from '@/lib/services';
-import { SessionFormationResponse, GroupedSession } from '@/lib/types';
+import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import { SessionFormationResponse, GroupedSession, UnifiedSession } from '@/lib/types';
 import { notifications } from '@mantine/notifications';
 
 export default function SessionsCalendarPage() {
   const router = useRouter();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [sessions, setSessions] = useState<GroupedSession[]>([]);
+  const [sessions, setSessions] = useState<UnifiedSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSessions, setSelectedSessions] = useState<GroupedSession[]>([]);
+  const [selectedSessions, setSelectedSessions] = useState<UnifiedSession[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('');
 
@@ -61,20 +62,29 @@ export default function SessionsCalendarPage() {
     };
   }, [currentDate]);
 
-  // Charger les sessions pour la période affichée
+  // Charger les sessions pour la période affichée (individuelles ET collectives)
   const loadSessions = async () => {
     setIsLoading(true);
     try {
-      const response = await sessionsService.getGroupedSessions({
+      const response = await SessionsUnifiedService.findAll({
         dateDebut: format(dateRange.start, 'yyyy-MM-dd'),
         dateFin: format(dateRange.end, 'yyyy-MM-dd'),
-        limit: 2000,
+        limit: 100, // Maximum accepté par le backend
+        type: 'all', // Charger les deux types de sessions
       });
 
       if (response && response.data) {
-        // Filtrer les sessions avec au moins un participant non annulé
-        const activeSessions = response.data.filter(s => {
-          return s.stats.total - s.stats.annule > 0;
+        // Filtrer les sessions actives (non annulées)
+        const activeSessions = response.data.filter(session => {
+          // Pour les sessions individuelles groupées
+          if (session.type === 'individuelle' && session.stats) {
+            return session.stats.total - session.stats.annule > 0;
+          }
+          // Pour les sessions collectives
+          if (session.type === 'collective') {
+            return session.statut !== 'annule' && session.statut !== 'ANNULE';
+          }
+          return true;
         });
         setSessions(activeSessions);
       }
@@ -102,7 +112,7 @@ export default function SessionsCalendarPage() {
 
   // Grouper les sessions par jour
   const sessionsByDay = useMemo(() => {
-    const grouped: Record<string, GroupedSession[]> = {};
+    const grouped: Record<string, UnifiedSession[]> = {};
 
     sessions.forEach(session => {
       if (session.dateDebut) {
@@ -116,8 +126,12 @@ export default function SessionsCalendarPage() {
           if (!grouped[dateKey]) {
             grouped[dateKey] = [];
           }
-          // Éviter les doublons
-          if (!grouped[dateKey].find(s => s.groupKey === session.groupKey)) {
+          // Éviter les doublons - utiliser id pour collectives, groupKey pour individuelles
+          const sessionIdentifier = session.type === 'collective' ? `collective-${session.id}` : session.groupKey;
+          if (!grouped[dateKey].find(s => {
+            const existingIdentifier = s.type === 'collective' ? `collective-${s.id}` : s.groupKey;
+            return existingIdentifier === sessionIdentifier;
+          })) {
             grouped[dateKey].push(session);
           }
           currentDay.setDate(currentDay.getDate() + 1);
@@ -195,14 +209,23 @@ export default function SessionsCalendarPage() {
   };
 
   // Grouper les sessions par département pour un jour donné
-  const getSessionsByDepartment = (sessions: GroupedSession[]) => {
-    const grouped: Record<string, GroupedSession[]> = {};
+  const getSessionsByDepartment = (sessions: UnifiedSession[]) => {
+    const grouped: Record<string, UnifiedSession[]> = {};
     sessions.forEach(session => {
       // Regrouper par département des participants
       const deptSet = new Set<string>();
-      session.participants?.forEach(p => {
-        if (p.departement) deptSet.add(p.departement);
-      });
+
+      // Pour les sessions individuelles
+      if (session.type === 'individuelle') {
+        session.participants?.forEach(p => {
+          if (p.departement) deptSet.add(p.departement);
+        });
+      }
+
+      // Pour les sessions collectives - utiliser "Session collective" comme département
+      if (session.type === 'collective') {
+        deptSet.add('Sessions collectives');
+      }
 
       // Ajouter la session à chaque département concerné
       deptSet.forEach(dept => {
@@ -216,10 +239,12 @@ export default function SessionsCalendarPage() {
   };
 
   // Grouper les sessions par formation pour un jour donné
-  const getSessionsByFormation = (sessions: GroupedSession[]) => {
-    const grouped: Record<string, GroupedSession[]> = {};
+  const getSessionsByFormation = (sessions: UnifiedSession[]) => {
+    const grouped: Record<string, UnifiedSession[]> = {};
     sessions.forEach(session => {
-      const formation = session.formationNom || 'Formation inconnue';
+      const formation = session.type === 'collective'
+        ? session.titre || session.formationNom || 'Formation inconnue'
+        : session.formationNom || 'Formation inconnue';
       if (!grouped[formation]) {
         grouped[formation] = [];
       }
@@ -413,11 +438,24 @@ export default function SessionsCalendarPage() {
                           </Badge>
                           
                           {/* Afficher les 2 premières sessions */}
-                          {filteredSessions.slice(0, 2).map((session, idx) => (
-                            <Text key={`${session.groupKey}-${idx}`} size="xs" c="dimmed" truncate>
-                              {session.formationNom} ({session.stats.total})
-                            </Text>
-                          ))}
+                          {filteredSessions.slice(0, 2).map((session, idx) => {
+                            const displayName = session.type === 'collective'
+                              ? session.titre || session.formationNom
+                              : session.formationNom;
+                            const participantCount = session.type === 'collective'
+                              ? session.nombreParticipants || 0
+                              : session.stats?.total || 0;
+                            const sessionKey = session.type === 'collective' ? session.id : session.groupKey;
+
+                            return (
+                              <Text key={`${sessionKey}-${idx}`} size="xs" c="dimmed" truncate>
+                                {displayName} ({participantCount})
+                                {session.type === 'collective' && (
+                                  <Badge size="xs" ml={4} variant="dot" color="violet">C</Badge>
+                                )}
+                              </Text>
+                            );
+                          })}
                           
                           {filteredSessions.length > 2 && (
                             <Text size="xs" c="dimmed" ta="center">
@@ -466,76 +504,141 @@ export default function SessionsCalendarPage() {
             <ScrollArea h={400} mt="md">
               <Tabs.Panel value="list">
                 <Stack gap="sm">
-                  {selectedSessions.map(session => (
-                    <Paper key={session.groupKey} p="sm" radius="md" withBorder>
-                      <Group justify="space-between" align="flex-start">
-                        <div style={{ flex: 1 }}>
-                          <Group gap="sm" mb="xs">
-                            <ThemeIcon size="lg" radius="md" variant="light" color="blue">
-                              <CalendarIcon size={20} />
-                            </ThemeIcon>
-                            <div>
-                              <Text size="sm" fw={600}>
-                                {session.formationNom}
-                              </Text>
-                              <Group gap="xs" mt={2}>
-                                <Badge size="xs" variant="light">
-                                  {session.categorie || 'Non catégorisée'}
-                                </Badge>
-                                {session.organisme && (
-                                  <Text size="xs" c="dimmed">
-                                    {session.organisme}
+                  {selectedSessions.map(session => {
+                    const sessionKey = session.type === 'collective' ? `collective-${session.id}` : session.groupKey;
+                    const displayName = session.type === 'collective'
+                      ? session.titre || session.formationNom
+                      : session.formationNom;
+                    const participantCount = session.type === 'collective'
+                      ? session.nombreParticipants || 0
+                      : session.stats?.total || 0;
+
+                    return (
+                      <Paper key={sessionKey} p="sm" radius="md" withBorder>
+                        <Group justify="space-between" align="flex-start">
+                          <div style={{ flex: 1 }}>
+                            <Group gap="sm" mb="xs">
+                              <ThemeIcon
+                                size="lg"
+                                radius="md"
+                                variant="light"
+                                color={session.type === 'collective' ? 'violet' : 'blue'}
+                              >
+                                {session.type === 'collective' ? <Users size={20} /> : <CalendarIcon size={20} />}
+                              </ThemeIcon>
+                              <div>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={600}>
+                                    {displayName}
                                   </Text>
-                                )}
-                              </Group>
-                            </div>
-                          </Group>
+                                  <Badge
+                                    size="xs"
+                                    variant="dot"
+                                    color={session.type === 'collective' ? 'violet' : 'blue'}
+                                  >
+                                    {session.type === 'collective' ? 'Collective' : 'Individuelle'}
+                                  </Badge>
+                                </Group>
+                                <Group gap="xs" mt={2}>
+                                  <Badge size="xs" variant="light">
+                                    {session.categorie || 'Non catégorisée'}
+                                  </Badge>
+                                  {session.organisme && (
+                                    <Text size="xs" c="dimmed">
+                                      {typeof session.organisme === 'string'
+                                        ? session.organisme
+                                        : session.organisme.nomOrganisme}
+                                    </Text>
+                                  )}
+                                  {session.type === 'collective' && session.modalite && (
+                                    <Badge size="xs" variant="outline" color="gray">
+                                      {session.modalite}
+                                    </Badge>
+                                  )}
+                                </Group>
+                              </div>
+                            </Group>
 
-                          <Group gap="xs" mb="xs">
-                            <ThemeIcon size="xs" variant="light" color="gray">
-                              <Users size={12} />
-                            </ThemeIcon>
-                            <Text size="sm" fw={500}>
-                              {session.stats.total} participant{session.stats.total > 1 ? 's' : ''}
-                            </Text>
-                            {session.stats.inscrit > 0 && (
-                              <Badge size="xs" color="blue" variant="light">
-                                {session.stats.inscrit} inscrit{session.stats.inscrit > 1 ? 's' : ''}
-                              </Badge>
-                            )}
-                            {session.stats.enCours > 0 && (
-                              <Badge size="xs" color="yellow" variant="light">
-                                {session.stats.enCours} en cours
-                              </Badge>
-                            )}
-                            {session.stats.complete > 0 && (
-                              <Badge size="xs" color="green" variant="light">
-                                {session.stats.complete} terminé{session.stats.complete > 1 ? 's' : ''}
-                              </Badge>
-                            )}
-                          </Group>
+                            <Group gap="xs" mb="xs">
+                              <ThemeIcon size="xs" variant="light" color="gray">
+                                <Users size={12} />
+                              </ThemeIcon>
+                              <Text size="sm" fw={500}>
+                                {participantCount} participant{participantCount > 1 ? 's' : ''}
+                              </Text>
 
-                          <Group gap="xs">
-                            <ThemeIcon size="xs" variant="light" color="gray">
-                              <Clock size={12} />
-                            </ThemeIcon>
-                            <Text size="xs" c="dimmed">
-                              {session.dateDebut && format(parseISO(session.dateDebut.toString()), 'd MMM', { locale: fr })}
-                              {session.dateFin && ` - ${format(parseISO(session.dateFin.toString()), 'd MMM yyyy', { locale: fr })}`}
-                              {session.dureeHeures && ` (${session.dureeHeures}h)`}
-                            </Text>
-                          </Group>
-                        </div>
-                        <Button
-                          size="xs"
-                          variant="light"
-                          onClick={() => router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey)}`)}
-                        >
-                          Détails
-                        </Button>
-                      </Group>
-                    </Paper>
-                  ))}
+                              {/* Stats pour sessions individuelles */}
+                              {session.type === 'individuelle' && session.stats && (
+                                <>
+                                  {session.stats.inscrit > 0 && (
+                                    <Badge size="xs" color="blue" variant="light">
+                                      {session.stats.inscrit} inscrit{session.stats.inscrit > 1 ? 's' : ''}
+                                    </Badge>
+                                  )}
+                                  {session.stats.enCours > 0 && (
+                                    <Badge size="xs" color="yellow" variant="light">
+                                      {session.stats.enCours} en cours
+                                    </Badge>
+                                  )}
+                                  {session.stats.complete > 0 && (
+                                    <Badge size="xs" color="green" variant="light">
+                                      {session.stats.complete} terminé{session.stats.complete > 1 ? 's' : ''}
+                                    </Badge>
+                                  )}
+                                </>
+                              )}
+
+                              {/* Statut pour sessions collectives */}
+                              {session.type === 'collective' && session.statut && (
+                                <Badge
+                                  size="xs"
+                                  color={
+                                    session.statut === 'complete' ? 'green' :
+                                    session.statut === 'en_cours' ? 'yellow' :
+                                    'blue'
+                                  }
+                                  variant="light"
+                                >
+                                  {session.statut}
+                                </Badge>
+                              )}
+                            </Group>
+
+                            <Group gap="xs">
+                              <ThemeIcon size="xs" variant="light" color="gray">
+                                <Clock size={12} />
+                              </ThemeIcon>
+                              <Text size="xs" c="dimmed">
+                                {session.dateDebut && format(parseISO(session.dateDebut.toString()), 'd MMM', { locale: fr })}
+                                {session.dateFin && ` - ${format(parseISO(session.dateFin.toString()), 'd MMM yyyy', { locale: fr })}`}
+                                {session.dureeHeures && ` (${session.dureeHeures}h)`}
+                              </Text>
+                              {session.type === 'collective' && session.lieu && (
+                                <>
+                                  <Text size="xs" c="dimmed">•</Text>
+                                  <MapPin size={12} />
+                                  <Text size="xs" c="dimmed">{session.lieu}</Text>
+                                </>
+                              )}
+                            </Group>
+                          </div>
+                          <Button
+                            size="xs"
+                            variant="light"
+                            onClick={() => {
+                              if (session.type === 'collective') {
+                                router.push(`/sessions/${session.id}?type=collective`);
+                              } else {
+                                router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey || '')}`);
+                              }
+                            }}
+                          >
+                            Détails
+                          </Button>
+                        </Group>
+                      </Paper>
+                    );
+                  })}
                 </Stack>
               </Tabs.Panel>
 
@@ -550,21 +653,36 @@ export default function SessionsCalendarPage() {
                         </Badge>
                       </Group>
                       <Stack gap="xs">
-                        {deptSessions.map(session => (
-                          <Group key={session.groupKey} justify="space-between" align="flex-start">
-                            <div style={{ flex: 1 }}>
-                              <Text size="sm" fw={500}>
-                                {session.formationNom}
-                              </Text>
-                              <Group gap="xs" mt={2}>
-                                <Users size={14} />
-                                <Text size="xs" c="dimmed">
-                                  {session.stats.total} participant{session.stats.total > 1 ? 's' : ''}
-                                </Text>
-                              </Group>
-                            </div>
-                          </Group>
-                        ))}
+                        {deptSessions.map(session => {
+                          const sessionKey = session.type === 'collective' ? `collective-${session.id}` : session.groupKey;
+                          const displayName = session.type === 'collective'
+                            ? session.titre || session.formationNom
+                            : session.formationNom;
+                          const participantCount = session.type === 'collective'
+                            ? session.nombreParticipants || 0
+                            : session.stats?.total || 0;
+
+                          return (
+                            <Group key={sessionKey} justify="space-between" align="flex-start">
+                              <div style={{ flex: 1 }}>
+                                <Group gap="xs">
+                                  <Text size="sm" fw={500}>
+                                    {displayName}
+                                  </Text>
+                                  {session.type === 'collective' && (
+                                    <Badge size="xs" variant="dot" color="violet">C</Badge>
+                                  )}
+                                </Group>
+                                <Group gap="xs" mt={2}>
+                                  <Users size={14} />
+                                  <Text size="xs" c="dimmed">
+                                    {participantCount} participant{participantCount > 1 ? 's' : ''}
+                                  </Text>
+                                </Group>
+                              </div>
+                            </Group>
+                          );
+                        })}
                       </Stack>
                     </Paper>
                   ))}

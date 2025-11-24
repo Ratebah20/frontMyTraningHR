@@ -97,8 +97,8 @@ export default function SessionInscriptionsPage({ params }: Props) {
     try {
       const response = await collaborateursService.getCollaborateurs({
         page: 1,
-        limit: 1000, // Charger tous les collaborateurs actifs
-        actif: true,
+        limit: 1000, // Charger tous les collaborateurs (actifs et inactifs)
+        includeInactive: true, // Inclure les collaborateurs inactifs
       });
       setCollaborateurs(response.data || []);
     } catch (err: any) {

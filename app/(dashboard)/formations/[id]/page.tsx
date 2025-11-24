@@ -157,6 +157,20 @@ export default function FormationDetailPage({ params }: Props) {
         return 'gray';
     }
   };
+
+  const handleViewSession = (groupedSession: any) => {
+    const sessions = groupedSession.sessions;
+    if (sessions && sessions.length > 0) {
+      const firstSession = sessions[0];
+      // Déterminer le type de session et naviguer vers la bonne route
+      if (firstSession.type === 'collective') {
+        router.push(`/sessions/${firstSession.id}?type=collective`);
+      } else {
+        // Pour les sessions individuelles, utiliser la route groupée
+        router.push(`/sessions/grouped/${encodeURIComponent(groupedSession.key)}`);
+      }
+    }
+  };
   
   if (loadingFormation) {
     return (
@@ -462,7 +476,14 @@ export default function FormationDetailPage({ params }: Props) {
                           const firstSession = sessions[0];
                           // Calculer les stats
                           const stats = {
-                            total: sessions.length,
+                            // Pour les sessions collectives, sommer le nombre de participants
+                            // Pour les sessions individuelles, compter le nombre de sessions
+                            total: sessions.reduce((sum, s) => {
+                              if (s.type === 'collective') {
+                                return sum + (s.nombreParticipants || 0);
+                              }
+                              return sum + 1;
+                            }, 0),
                             inscrit: sessions.filter(s => ['inscrit', 'INSCRIT', 'Inscrit'].includes(s.statut)).length,
                             enCours: sessions.filter(s => ['en_cours', 'EN_COURS', 'En cours'].includes(s.statut)).length,
                             complete: sessions.filter(s => ['complete', 'COMPLETE', 'TERMINE', 'Terminé', 'terminé'].includes(s.statut)).length,
@@ -472,15 +493,40 @@ export default function FormationDetailPage({ params }: Props) {
                           // Déterminer le statut dominant
                           let statutDominant = 'En cours';
                           let color = 'yellow';
-                          if (stats.complete > stats.total / 2) {
-                            statutDominant = 'Majoritairement terminée';
-                            color = 'green';
-                          } else if (stats.annule === stats.total) {
-                            statutDominant = 'Annulée';
-                            color = 'red';
-                          } else if (stats.inscrit > 0) {
-                            statutDominant = 'Inscriptions ouvertes';
-                            color = 'blue';
+
+                          // Si c'est une session unique (surtout pour les collectives), utiliser son statut réel
+                          if (sessions.length === 1) {
+                            const session = sessions[0];
+                            const statut = session.statut?.toLowerCase();
+
+                            if (['complete', 'termine', 'terminé'].includes(statut)) {
+                              statutDominant = 'Terminée';
+                              color = 'green';
+                            } else if (['en_cours'].includes(statut)) {
+                              statutDominant = 'En cours';
+                              color = 'yellow';
+                            } else if (['inscrit'].includes(statut)) {
+                              statutDominant = 'Inscrit';
+                              color = 'blue';
+                            } else if (['annule', 'annulé'].includes(statut)) {
+                              statutDominant = 'Annulée';
+                              color = 'red';
+                            }
+                          } else {
+                            // Pour plusieurs sessions, calculer le statut majoritaire
+                            if (stats.annule === sessions.length) {
+                              statutDominant = 'Annulée';
+                              color = 'red';
+                            } else if (stats.complete > sessions.length / 2) {
+                              statutDominant = 'Majoritairement terminée';
+                              color = 'green';
+                            } else if (stats.complete === sessions.length) {
+                              statutDominant = 'Toutes terminées';
+                              color = 'green';
+                            } else if (stats.inscrit > 0) {
+                              statutDominant = 'Inscriptions ouvertes';
+                              color = 'blue';
+                            }
                           }
 
                           return {
@@ -502,7 +548,21 @@ export default function FormationDetailPage({ params }: Props) {
                         });
 
                       return sessionsArray.map((groupedSession) => (
-                        <Paper key={groupedSession.key} p="md" withBorder>
+                        <Paper
+                          key={groupedSession.key}
+                          p="md"
+                          withBorder
+                          onClick={() => handleViewSession(groupedSession)}
+                          style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.transform = 'translateY(-2px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '';
+                          }}
+                        >
                           <Group justify="space-between" align="flex-start">
                             <div style={{ flex: 1 }}>
                               <Group gap="sm" mb="xs">

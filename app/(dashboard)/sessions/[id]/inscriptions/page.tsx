@@ -167,16 +167,39 @@ export default function SessionInscriptionsPage({ params }: Props) {
       setIsSubmitting(true);
 
       // Ajouter les participants via l'API
-      await CollectiveSessionsService.addParticipantsBulk(sessionId, {
+      const results = await CollectiveSessionsService.addParticipantsBulk(sessionId, {
         collaborateurIds: selectedCollaborateurs,
       });
 
-      notifications.show({
-        title: 'Succès',
-        message: `${selectedCollaborateurs.length} participant(s) ajouté(s) avec succès`,
-        color: 'green',
-        icon: <CheckCircle size={20} />,
-      });
+      // Afficher le résultat réel (pas juste le nombre sélectionné)
+      if (results.added > 0 && results.skipped === 0) {
+        // Tout a réussi
+        notifications.show({
+          title: 'Succès',
+          message: `${results.added} participant(s) ajouté(s) avec succès`,
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      } else if (results.added > 0 && results.skipped > 0) {
+        // Succès partiel
+        const errorReasons = results.errors?.map((e: any) => e.reason).join(', ') || '';
+        notifications.show({
+          title: 'Inscription partielle',
+          message: `${results.added} ajouté(s), ${results.skipped} ignoré(s). ${errorReasons}`,
+          color: 'yellow',
+          icon: <Warning size={20} />,
+        });
+      } else if (results.added === 0 && results.skipped > 0) {
+        // Tout a échoué
+        const errorReasons = results.errors?.map((e: any) => e.reason).join(', ') || 'Erreur inconnue';
+        notifications.show({
+          title: 'Échec',
+          message: `Aucun participant ajouté. ${errorReasons}`,
+          color: 'red',
+          icon: <Warning size={20} />,
+        });
+        return; // Ne pas naviguer si rien n'a été ajouté
+      }
 
       // Retourner à la page de détail de la session
       router.push(`/sessions/${sessionId}?type=collective`);
@@ -389,10 +412,15 @@ export default function SessionInscriptionsPage({ params }: Props) {
                     </Table.Td>
                     <Table.Td>
                       <Group gap="sm">
-                        <Avatar size="sm" color="blue">
+                        <Avatar size="sm" color={collaborateur.actif === false ? 'gray' : 'blue'}>
                           {collaborateur.prenom?.[0]}{collaborateur.nom?.[0]}
                         </Avatar>
-                        <Text fw={500}>{collaborateur.nomComplet || `${collaborateur.prenom} ${collaborateur.nom}`}</Text>
+                        <Stack gap={0}>
+                          <Text fw={500}>{collaborateur.nomComplet || `${collaborateur.prenom} ${collaborateur.nom}`}</Text>
+                          {collaborateur.actif === false && (
+                            <Badge size="xs" color="orange" variant="light">Inactif</Badge>
+                          )}
+                        </Stack>
                       </Group>
                     </Table.Td>
                     <Table.Td>

@@ -458,11 +458,21 @@ export default function FormationDetailPage({ params }: Props) {
                       // Grouper les sessions récentes
                       const groupedSessions = new Map<string, any[]>();
 
+                      // Fonction pour formater la date au format YYYY-MM-DD
+                      const formatDateForKey = (date: string | null) => {
+                        if (!date) return 'null';
+                        try {
+                          return new Date(date).toISOString().split('T')[0];
+                        } catch {
+                          return 'null';
+                        }
+                      };
+
                       formation.sessionsRecentes?.forEach((session: any) => {
-                        const dateDebut = session.dateDebut || 'sans_date';
-                        const dateFin = session.dateFin || 'sans_date';
-                        const organisme = session.organisme || 'sans_organisme';
-                        const key = `${dateDebut}_${dateFin}_${organisme}`;
+                        const dateDebutStr = formatDateForKey(session.dateDebut);
+                        const dateFinStr = formatDateForKey(session.dateFin);
+                        // Le groupKey doit correspondre au format backend: formationId_dateDebut_dateFin
+                        const key = `${formation.id}_${dateDebutStr}_${dateFinStr}`;
 
                         if (!groupedSessions.has(key)) {
                           groupedSessions.set(key, []);
@@ -628,7 +638,7 @@ export default function FormationDetailPage({ params }: Props) {
                     {total > 0 && (
                       <Button
                         variant="subtle"
-                        onClick={() => router.push(`/formations/${params.id}/sessions`)}
+                        onClick={() => router.push(`/sessions?formationId=${params.id}`)}
                       >
                         Voir toutes les sessions
                       </Button>
@@ -713,7 +723,7 @@ export default function FormationDetailPage({ params }: Props) {
                   fullWidth
                   variant="light"
                   leftSection={<Eye size={16} />}
-                  onClick={() => router.push(`/formations/${params.id}/sessions`)}
+                  onClick={() => router.push(`/sessions?formationId=${params.id}`)}
                 >
                   Voir toutes les sessions
                 </Button>

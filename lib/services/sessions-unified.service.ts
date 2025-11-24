@@ -330,40 +330,45 @@ export class SessionsUnifiedService {
         }
         return true;
       })
-      .map((group) => ({
-        id: group.participants[0].sessionId,
-        type: 'individuelle' as const,
-        formationId: group.formationId,
-        formation: {
-          id: group.formationId,
-          nomFormation: group.formationNom,
-          codeFormation: group.formationCode,
-        },
-        groupKey: group.groupKey,
-        dateDebut: group.dateDebut,
-        dateFin: group.dateFin,
-        statut: group.stats?.inscrit > 0 ? 'inscrit' : 'complete',
-        anneeBudgetaire: group.participants[0].anneeBudgetaire,
-        collaborateurId: group.participants[0].collaborateurId,
-        collaborateur: group.participants[0]
-          ? {
-              id: group.participants[0].collaborateurId,
-              nomComplet: `${group.participants[0].nom} ${group.participants[0].prenom}`,
-            }
-          : undefined,
-        tarifHT: group.tarifHT,
-        commentaires: group.participants[0].commentaire,
-        // Champs additionnels pour compatibilité UI
-        formationNom: group.formationNom,
-        formationCode: group.formationCode,
-        organismeNom: group.organisme,
-        categorie: group.categorie,
-        typeFormation: group.typeFormation,
-        dureeHeures: group.dureeHeures,
-        coutTotal: group.coutTotal,
-        stats: group.stats,
-        participants: group.participants,
-      }));
+      .map((group) => {
+        const firstParticipant = group.participants[0];
+        const nom = firstParticipant?.nom || '';
+        const prenom = firstParticipant?.prenom || '';
+        return {
+          id: firstParticipant?.sessionId,
+          type: 'individuelle' as const,
+          formationId: group.formationId,
+          formation: {
+            id: group.formationId,
+            nomFormation: group.formationNom,
+            codeFormation: group.formationCode,
+          },
+          groupKey: group.groupKey,
+          dateDebut: group.dateDebut,
+          dateFin: group.dateFin,
+          statut: group.stats?.inscrit > 0 ? 'inscrit' : 'complete',
+          anneeBudgetaire: firstParticipant?.anneeBudgetaire,
+          collaborateurId: firstParticipant?.collaborateurId,
+          collaborateur: firstParticipant
+            ? {
+                id: firstParticipant.collaborateurId,
+                nomComplet: `${nom} ${prenom}`.trim() || 'Inconnu',
+              }
+            : undefined,
+          tarifHT: group.tarifHT,
+          commentaires: firstParticipant?.commentaire,
+          // Champs additionnels pour compatibilité UI
+          formationNom: group.formationNom,
+          formationCode: group.formationCode,
+          organismeNom: group.organisme,
+          categorie: group.categorie,
+          typeFormation: group.typeFormation,
+          dureeHeures: group.dureeHeures,
+          coutTotal: group.coutTotal,
+          stats: group.stats,
+          participants: group.participants,
+        };
+      });
   }
 
   /**

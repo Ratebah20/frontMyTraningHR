@@ -321,14 +321,31 @@ export default function NewSessionPage() {
             }, 'individuelle')
           );
 
-          await Promise.all(promises);
+          // Utiliser allSettled pour gérer les échecs partiels
+          const results = await Promise.allSettled(promises);
+          const succeeded = results.filter(r => r.status === 'fulfilled');
+          const failed = results.filter(r => r.status === 'rejected');
 
-          notifications.show({
-            title: 'Succès',
-            message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
-            color: 'green',
-            icon: <CheckCircle size={20} />,
-          });
+          if (failed.length > 0 && succeeded.length > 0) {
+            // Échec partiel
+            notifications.show({
+              title: 'Inscription partielle',
+              message: `${succeeded.length} inscription(s) réussie(s), ${failed.length} échouée(s)`,
+              color: 'yellow',
+              icon: <Warning size={20} />,
+            });
+          } else if (failed.length > 0 && succeeded.length === 0) {
+            // Tout a échoué
+            throw new Error(`Toutes les inscriptions ont échoué`);
+          } else {
+            // Tout a réussi
+            notifications.show({
+              title: 'Succès',
+              message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
+              color: 'green',
+              icon: <CheckCircle size={20} />,
+            });
+          }
         } else {
           // Mode simple : créer une seule session
           await SessionsUnifiedService.create(baseData, 'individuelle');

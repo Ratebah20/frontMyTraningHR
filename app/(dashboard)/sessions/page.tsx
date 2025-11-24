@@ -60,7 +60,7 @@ import {
   List,
   CalendarBlank,
 } from '@phosphor-icons/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { StatutUtils } from '@/lib/utils/statut.utils';
@@ -123,6 +123,7 @@ const statusIcons: Record<string, any> = {
 
 export default function SessionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // États
   const [sessions, setSessions] = useState<any[]>([]); // Can be GroupedSession[] or UnifiedSession[]
@@ -255,6 +256,14 @@ export default function SessionsPage() {
     loadGlobalStats();
     loadOrganismes();
   }, []);
+
+  // Lire le paramètre formationId depuis l'URL
+  useEffect(() => {
+    const formationIdFromUrl = searchParams.get('formationId');
+    if (formationIdFromUrl) {
+      setFormationFilter(formationIdFromUrl);
+    }
+  }, [searchParams]);
 
   // Charger les sessions au montage et quand les filtres changent
   useEffect(() => {
@@ -647,7 +656,7 @@ export default function SessionsPage() {
                       <Group gap="xs">
                         <BookOpen size={20} color="#228BE6" />
                         <Text size="md" fw={600} lineClamp={2}>
-                          {session.formationNom}
+                          {session.formationNom || session.formation?.nomFormation || 'Formation non définie'}
                         </Text>
                       </Group>
                       {session.categorie && (
@@ -745,11 +754,11 @@ export default function SessionsPage() {
                     )}
 
                     {/* Organisme */}
-                    {session.organisme && (
+                    {(session.organisme || session.organismeNom) && (
                       <Group gap="xs" mb="md">
                         <Building size={16} color="#868E96" />
                         <Text size="xs" c="dimmed" lineClamp={1}>
-                          {typeof session.organisme === 'string' ? session.organisme : session.organisme.nomOrganisme}
+                          {session.organismeNom || (typeof session.organisme === 'string' ? session.organisme : session.organisme?.nomOrganisme) || 'Organisme non défini'}
                         </Text>
                       </Group>
                     )}

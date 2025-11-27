@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, ScrollArea, Tabs, TextInput, Select, ActionIcon } from '@mantine/core'
-import { Book, ChartBar, Target, Clock, MagnifyingGlass, Funnel, TrendUp, Warning, Users, BookOpen } from '@phosphor-icons/react'
+import { useState, useEffect, useRef } from 'react'
+import { Text, Badge, RingProgress, Tooltip, useMantineColorScheme } from '@mantine/core'
+import { Clock, Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire } from '@phosphor-icons/react'
+import { motion } from 'framer-motion'
 import axios from 'axios'
+import styles from './formations.module.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -41,15 +43,276 @@ interface FormationsKPIs {
     formations: number
     pourcentage: number
   }>
-  topFormations: Array<any>
+  topFormations: Array<{
+    id: string
+    code: string
+    nom: string
+    categorie: string
+    sessions: number
+    heuresTotal: number
+    participants?: number
+  }>
+}
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 40, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 100,
+      damping: 15
+    }
+  }
+}
+
+const numberVariants = {
+  hidden: { opacity: 0, scale: 0.5 },
+  visible: {
+    opacity: 1,
+    scale: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 200,
+      damping: 20
+    }
+  }
+}
+
+// Animated counter hook
+function useAnimatedCounter(end: number, duration: number = 2000) {
+  const [count, setCount] = useState(0)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (startedRef.current || end === 0) return
+    startedRef.current = true
+
+    let startTime: number
+    let animationFrame: number
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp
+      const progress = Math.min((timestamp - startTime) / duration, 1)
+      const easeOutExpo = 1 - Math.pow(2, -10 * progress)
+      setCount(Math.floor(easeOutExpo * end))
+
+      if (progress < 1) {
+        animationFrame = requestAnimationFrame(animate)
+      }
+    }
+
+    animationFrame = requestAnimationFrame(animate)
+    return () => cancelAnimationFrame(animationFrame)
+  }, [end, duration])
+
+  return count
+}
+
+// Hero KPI Card - Large featured metric
+function HeroKPICard({
+  title,
+  value,
+  suffix = '',
+  subtitle,
+  icon,
+  gradient
+}: {
+  title: string
+  value: number
+  suffix?: string
+  subtitle?: string
+  icon: React.ReactNode
+  gradient: string
+}) {
+  const animatedValue = useAnimatedCounter(value)
+
+  return (
+    <motion.div
+      className={styles.heroCard}
+      variants={cardVariants}
+      whileHover={{ scale: 1.02, y: -8 }}
+      style={{ background: gradient }}
+    >
+      <div className={styles.heroGlow} />
+      <div className={styles.heroContent}>
+        <div className={styles.heroIcon}>{icon}</div>
+        <motion.div className={styles.heroValue} variants={numberVariants}>
+          <span className={styles.heroNumber}>{animatedValue.toLocaleString('fr-FR')}</span>
+          {suffix && <span className={styles.heroSuffix}>{suffix}</span>}
+        </motion.div>
+        <div className={styles.heroLabel}>
+          <span className={styles.heroTitle}>{title}</span>
+          {subtitle && <span className={styles.heroSubtitle}>{subtitle}</span>}
+        </div>
+      </div>
+      <div className={styles.heroPattern} />
+    </motion.div>
+  )
+}
+
+// Standard KPI Card
+function KPICard({
+  title,
+  value,
+  suffix = '',
+  subtitle,
+  icon,
+  color = 'orange',
+  delay = 0
+}: {
+  title: string
+  value: number
+  suffix?: string
+  subtitle?: string
+  icon: React.ReactNode
+  color?: string
+  delay?: number
+}) {
+  const animatedValue = useAnimatedCounter(value)
+
+  return (
+    <motion.div
+      className={styles.kpiCard}
+      variants={cardVariants}
+      whileHover={{ y: -6, scale: 1.02 }}
+      transition={{ delay }}
+    >
+      <div className={styles.kpiCardInner}>
+        <div className={styles.kpiHeader}>
+          <span className={styles.kpiTitle}>{title}</span>
+          <div className={styles.kpiIcon} data-color={color}>
+            {icon}
+          </div>
+        </div>
+
+        <motion.div className={styles.kpiValue} variants={numberVariants}>
+          <span className={styles.kpiNumber}>{animatedValue.toLocaleString('fr-FR')}</span>
+          {suffix && <span className={styles.kpiSuffix}>{suffix}</span>}
+        </motion.div>
+
+        {subtitle && (
+          <div className={styles.kpiSubtitle}>{subtitle}</div>
+        )}
+
+        <div className={styles.kpiGlow} data-color={color} />
+      </div>
+    </motion.div>
+  )
+}
+
+// Top Formation Row with animated progress
+function TopFormationRow({
+  formation,
+  index,
+  maxParticipants
+}: {
+  formation: FormationsKPIs['topFormations'][0]
+  index: number
+  maxParticipants: number
+}) {
+  const participants = formation.participants || 0
+  const percentage = maxParticipants > 0 ? (participants / maxParticipants) * 100 : 0
+
+  return (
+    <motion.div
+      className={styles.topRow}
+      initial={{ opacity: 0, x: -30 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.4 + index * 0.1, type: 'spring', stiffness: 100 }}
+      whileHover={{ x: 12, backgroundColor: 'rgba(255, 121, 0, 0.05)' }}
+    >
+      <div className={styles.topRank} data-top={index < 3}>
+        {index < 3 ? (
+          <Fire size={20} weight="fill" />
+        ) : (
+          <span>{String(index + 1).padStart(2, '0')}</span>
+        )}
+      </div>
+
+      <div className={styles.topContent}>
+        <div className={styles.topHeader}>
+          <Tooltip label={formation.nom} position="top" withArrow>
+            <h4 className={styles.topName}>{formation.nom}</h4>
+          </Tooltip>
+          <Badge
+            variant="light"
+            color={index < 3 ? 'orange' : 'gray'}
+            size="sm"
+            className={styles.topBadge}
+          >
+            {formation.categorie}
+          </Badge>
+        </div>
+
+        <div className={styles.topBar}>
+          <motion.div
+            className={styles.topProgress}
+            initial={{ width: 0 }}
+            animate={{ width: `${percentage}%` }}
+            transition={{ duration: 1, delay: 0.6 + index * 0.1, ease: 'easeOut' }}
+          />
+        </div>
+
+        <div className={styles.topStats}>
+          <span>{formation.sessions} sessions</span>
+          <span className={styles.topParticipants}>
+            <Users size={14} weight="bold" />
+            {participants}
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+// Category item with color indicator
+function CategoryRow({
+  category,
+  index
+}: {
+  category: FormationsKPIs['repartitionCategories'][0]
+  index: number
+}) {
+  const colors = ['orange', 'cyan', 'violet', 'pink', 'teal', 'yellow']
+  const color = colors[index % colors.length]
+
+  return (
+    <motion.div
+      className={styles.categoryRow}
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.3 + index * 0.08 }}
+      whileHover={{ scale: 1.02 }}
+    >
+      <div className={styles.categoryIndicator} data-color={color} />
+      <div className={styles.categoryInfo}>
+        <span className={styles.categoryName}>{category.nom}</span>
+        <span className={styles.categoryCount}>{category.formations} formations</span>
+      </div>
+      <div className={styles.categoryValue}>{category.pourcentage}%</div>
+    </motion.div>
+  )
 }
 
 export default function FormationsKPIsPage() {
   const [data, setData] = useState<FormationsKPIs | null>(null)
   const [loading, setLoading] = useState(true)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<string | null>('catalogue')
+  const { colorScheme } = useMantineColorScheme()
 
   useEffect(() => {
     fetchData()
@@ -68,276 +331,264 @@ export default function FormationsKPIsPage() {
 
   if (loading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <Text>Chargement des données...</Text>
+      <div className={styles.loadingContainer}>
+        <motion.div
+          className={styles.loadingOrb}
+          animate={{
+            scale: [1, 1.2, 1],
+            opacity: [0.5, 1, 0.5]
+          }}
+          transition={{ duration: 1.5, repeat: Infinity }}
+        />
+        <motion.p
+          className={styles.loadingText}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          Chargement des indicateurs...
+        </motion.p>
       </div>
     )
   }
 
   if (!data) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <Text color="red">Erreur lors du chargement des données</Text>
+      <div className={styles.errorContainer}>
+        <motion.div
+          className={styles.errorIcon}
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 200 }}
+        >
+          !
+        </motion.div>
+        <h2>Erreur de chargement</h2>
+        <p>Impossible de recuperer les donnees</p>
+        <motion.button
+          onClick={fetchData}
+          className={styles.retryButton}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          Reessayer
+        </motion.button>
       </div>
     )
   }
 
-  const filteredCatalogue = data.catalogue.filter(formation => {
-    const matchSearch = formation.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                       formation.code.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchCategory = !categoryFilter || formation.categorie === categoryFilter
-    return matchSearch && matchCategory
-  })
-
-  const categories = [...new Set(data.catalogue.map(f => f.categorie))]
+  // Calculate derived metrics
+  const totalParticipants = data.catalogue.reduce((sum: number, f) => sum + f.participants, 0)
+  const totalHeures = data.catalogue.reduce((sum: number, f) => sum + f.heuresTotal, 0)
+  const tauxUtilisation = data.summary.formationsAvecSessions > 0
+    ? Math.round((data.summary.formationsAvecSessions / data.summary.totalFormations) * 100)
+    : 0
+  const maxParticipants = Math.max(...(data.topFormations.map(f => f.participants || 0)), 1)
 
   return (
-    <div style={{ padding: '1.5rem' }}>
-      <Title order={2} mb="xl">📊 KPIs Formations</Title>
+    <div className={styles.container} data-theme={colorScheme}>
+      {/* Animated background */}
+      <div className={styles.bgEffects}>
+        <div className={styles.bgOrb1} />
+        <div className={styles.bgOrb2} />
+        <div className={styles.bgOrb3} />
+        <div className={styles.bgNoise} />
+      </div>
 
-      {/* KPIs Summary Cards */}
-      <Grid mb="xl">
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Total Formations</Text>
-              <Book size={20} weight="bold" />
-            </Group>
-            <Text size="xl" fw={700}>{data.summary.totalFormations}</Text>
-            <Text size="xs" c="dimmed" mt="xs">
-              {data.summary.formationsActives} actives
-            </Text>
-          </Card>
-        </Grid.Col>
+      {/* Header */}
+      <motion.header
+        className={styles.header}
+        initial={{ opacity: 0, y: -30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, type: 'spring' }}
+      >
+        <div className={styles.headerContent}>
+          <div>
+            <motion.h1
+              className={styles.title}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              KPIs Formations
+            </motion.h1>
+            <motion.p
+              className={styles.subtitle}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.4 }}
+            >
+              Vue d'ensemble des indicateurs cles de performance
+            </motion.p>
+          </div>
+          <motion.div
+            className={styles.liveTag}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <span className={styles.liveDot} />
+            Temps reel
+          </motion.div>
+        </div>
+      </motion.header>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Taux d'utilisation</Text>
-              <Target size={20} weight="bold" />
-            </Group>
-            <Text size="xl" fw={700}>{data.summary.tauxUtilisation}%</Text>
-            <Progress value={data.summary.tauxUtilisation} size="xs" mt="xs" color="teal" />
-          </Card>
-        </Grid.Col>
+      {/* Hero Section - Main KPIs */}
+      <motion.section
+        className={styles.heroSection}
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <HeroKPICard
+          title="Heures de formation"
+          value={totalHeures}
+          suffix="h"
+          subtitle="Temps total investi"
+          icon={<Clock size={32} weight="bold" />}
+          gradient="linear-gradient(135deg, #ff7900 0%, #ff9a44 50%, #ffb366 100%)"
+        />
+        <HeroKPICard
+          title="Participants"
+          value={totalParticipants}
+          subtitle="Collaborateurs formes"
+          icon={<Users size={32} weight="bold" />}
+          gradient="linear-gradient(135deg, #0ea5e9 0%, #38bdf8 50%, #7dd3fc 100%)"
+        />
+      </motion.section>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Durée moyenne</Text>
-              <Clock size={20} weight="bold" />
-            </Group>
-            <Text size="xl" fw={700}>{data.summary.dureeMoyenne}h</Text>
-            <Text size="xs" c="dimmed" mt="xs">
-              Par formation
-            </Text>
-          </Card>
-        </Grid.Col>
+      {/* Secondary KPIs */}
+      <motion.section
+        className={styles.kpiGrid}
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <KPICard
+          title="Formations actives"
+          value={data.summary.formationsActives}
+          subtitle={`sur ${data.summary.totalFormations} au total`}
+          icon={<BookOpen size={22} weight="bold" />}
+          color="green"
+        />
+        <KPICard
+          title="Duree moyenne"
+          value={data.summary.dureeMoyenne}
+          suffix="h"
+          subtitle="Par formation"
+          icon={<ChartBar size={22} weight="bold" />}
+          color="violet"
+        />
+        <KPICard
+          title="Nouvelles"
+          value={data.summary.nouvellesFormations}
+          subtitle="Ces 30 derniers jours"
+          icon={<TrendUp size={22} weight="bold" />}
+          color="cyan"
+        />
+      </motion.section>
 
-        <Grid.Col span={{ base: 12, md: 6, lg: 3 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Group justify="space-between" mb="xs">
-              <Text size="sm" c="dimmed">Formations orphelines</Text>
-              <Warning size={20} weight="bold" color="orange" />
-            </Group>
-            <Text size="xl" fw={700} c="orange">{data.summary.formationsOrphelines}</Text>
-            <Text size="xs" c="dimmed" mt="xs">
-              Sans sessions
-            </Text>
-          </Card>
-        </Grid.Col>
-      </Grid>
+      {/* Detailed sections */}
+      <div className={styles.detailsGrid}>
+        {/* Utilization Ring */}
+        <motion.div
+          className={styles.utilizationCard}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.6 }}
+        >
+          <h3 className={styles.sectionTitle}>Taux d'utilisation</h3>
+          <p className={styles.sectionSubtitle}>Formations avec au moins une session</p>
 
-      {/* Répartition par catégorie */}
-      <Grid mb="xl">
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Title order={4} mb="md">Répartition par catégorie</Title>
-            <Stack gap="xs">
-              {data.repartitionCategories.map((cat, index) => (
-                <div key={index}>
-                  <Group justify="space-between" mb="xs">
-                    <Text size="sm">{cat.nom}</Text>
-                    <Badge color="blue" variant="light">
-                      {cat.formations} formations ({cat.pourcentage}%)
-                    </Badge>
-                  </Group>
-                  <Progress value={cat.pourcentage} size="sm" color="blue" />
+          <div className={styles.ringContainer}>
+            <RingProgress
+              size={180}
+              thickness={14}
+              roundCaps
+              sections={[{ value: tauxUtilisation, color: '#ff7900' }]}
+              label={
+                <div className={styles.ringLabel}>
+                  <Text size="2rem" fw={800} c="white">{tauxUtilisation}</Text>
+                  <Text size="sm" c="dimmed">%</Text>
                 </div>
-              ))}
-            </Stack>
-          </Card>
-        </Grid.Col>
+              }
+            />
+          </div>
 
-        <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card shadow="sm" p="md" radius="md">
-            <Title order={4} mb="md">Nouvelles formations (30j)</Title>
-            <Group align="center" mt="xl">
-              <TrendUp size={40} weight="bold" color="green" />
-              <div>
-                <Text size="2xl" fw={700} c="green">{data.summary.nouvellesFormations}</Text>
-                <Text size="sm" c="dimmed">formations ajoutées</Text>
-              </div>
-            </Group>
-            <Text size="xs" c="dimmed" mt="md">
-              Enrichissement continu du catalogue
-            </Text>
-          </Card>
-        </Grid.Col>
-      </Grid>
+          <div className={styles.utilizationStats}>
+            <div className={styles.statBox}>
+              <span className={styles.statNumber}>{data.summary.formationsAvecSessions}</span>
+              <span className={styles.statLabel}>Utilisees</span>
+            </div>
+            <div className={styles.statDivider} />
+            <div className={styles.statBox}>
+              <span className={styles.statNumber}>{data.summary.formationsOrphelines}</span>
+              <span className={styles.statLabel}>Inactives</span>
+            </div>
+          </div>
+        </motion.div>
 
-      {/* Tabs pour catalogue et analyses */}
-      <Tabs value={activeTab} onChange={setActiveTab}>
-        <Tabs.List mb="md">
-          <Tabs.Tab value="catalogue" leftSection={<BookOpen size={16} />}>
-            Catalogue complet
-          </Tabs.Tab>
-          <Tabs.Tab value="orphelines" leftSection={<Warning size={16} />}>
-            Formations orphelines
-          </Tabs.Tab>
-          <Tabs.Tab value="top" leftSection={<ChartBar size={16} />}>
-            Top formations
-          </Tabs.Tab>
-        </Tabs.List>
+        {/* Categories */}
+        <motion.div
+          className={styles.categoriesCard}
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.7 }}
+        >
+          <h3 className={styles.sectionTitle}>Categories</h3>
+          <p className={styles.sectionSubtitle}>Distribution du catalogue</p>
 
-        <Tabs.Panel value="catalogue">
-          <Card shadow="sm" p="md" radius="md">
-            <Group mb="md">
-              <TextInput
-                placeholder="Rechercher une formation..."
-                leftSection={<MagnifyingGlass size={16} />}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.currentTarget.value)}
-                style={{ flex: 1 }}
-              />
-              <Select
-                placeholder="Filtrer par catégorie"
-                data={categories}
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                clearable
-                leftSection={<Funnel size={16} />}
-                style={{ width: 250 }}
-              />
-            </Group>
+          <div className={styles.categoryList}>
+            {data.repartitionCategories.slice(0, 5).map((category, index) => (
+              <CategoryRow key={category.nom} category={category} index={index} />
+            ))}
+          </div>
+        </motion.div>
+      </div>
 
-            <ScrollArea h={500}>
-              <Table striped highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Code</Table.Th>
-                    <Table.Th>Formation</Table.Th>
-                    <Table.Th>Catégorie</Table.Th>
-                    <Table.Th>Sessions</Table.Th>
-                    <Table.Th>Participants</Table.Th>
-                    <Table.Th>Heures</Table.Th>
-                    <Table.Th>Statut</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {filteredCatalogue.map((formation) => (
-                    <Table.Tr key={formation.id}>
-                      <Table.Td>{formation.code}</Table.Td>
-                      <Table.Td>
-                        <Text size="sm" fw={500}>{formation.nom}</Text>
-                        <Text size="xs" c="dimmed">Durée: {formation.duree}h</Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge color="blue" variant="light" size="sm">
-                          {formation.categorie}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>{formation.sessions}</Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <Users size={14} />
-                          <Text size="sm">{formation.participants}</Text>
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>{formation.heuresTotal}h</Table.Td>
-                      <Table.Td>
-                        <Badge color={formation.actif ? 'green' : 'gray'} variant="dot">
-                          {formation.actif ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
-          </Card>
-        </Tabs.Panel>
+      {/* Top Formations */}
+      <motion.section
+        className={styles.topSection}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <div className={styles.topHeader}>
+          <div>
+            <h3 className={styles.sectionTitle}>Top Formations</h3>
+            <p className={styles.sectionSubtitle}>Les plus suivies par vos collaborateurs</p>
+          </div>
+          <Badge color="orange" variant="filled" size="lg" className={styles.topBadgeMain}>
+            TOP 5
+          </Badge>
+        </div>
 
-        <Tabs.Panel value="orphelines">
-          <Card shadow="sm" p="md" radius="md">
-            <Title order={4} mb="md">Formations sans sessions</Title>
-            <Text size="sm" c="dimmed" mb="md">
-              Ces formations n'ont jamais eu de participants
-            </Text>
-            <Table striped>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Code</Table.Th>
-                  <Table.Th>Nom</Table.Th>
-                  <Table.Th>Catégorie</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {data.formationsOrphelines.map((formation) => (
-                  <Table.Tr key={formation.id}>
-                    <Table.Td>{formation.code}</Table.Td>
-                    <Table.Td>{formation.nom}</Table.Td>
-                    <Table.Td>
-                      <Badge color="gray" variant="light">
-                        {formation.categorie}
-                      </Badge>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Card>
-        </Tabs.Panel>
+        <div className={styles.topList}>
+          {data.topFormations.slice(0, 5).map((formation, index) => (
+            <TopFormationRow
+              key={formation.id}
+              formation={formation}
+              index={index}
+              maxParticipants={maxParticipants}
+            />
+          ))}
+        </div>
+      </motion.section>
 
-        <Tabs.Panel value="top">
-          <Card shadow="sm" p="md" radius="md">
-            <Title order={4} mb="md">Top 10 des formations populaires</Title>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Rang</Table.Th>
-                  <Table.Th>Formation</Table.Th>
-                  <Table.Th>Catégorie</Table.Th>
-                  <Table.Th>Sessions</Table.Th>
-                  <Table.Th>Heures totales</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {data.topFormations.map((formation, index) => (
-                  <Table.Tr key={formation.id}>
-                    <Table.Td>
-                      <Badge color={index < 3 ? 'yellow' : 'gray'} variant="filled">
-                        #{index + 1}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={500}>{formation.nom}</Text>
-                      <Text size="xs" c="dimmed">{formation.code}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge color="blue" variant="light">
-                        {formation.categorie}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>{formation.sessions}</Table.Td>
-                    <Table.Td>{formation.heuresTotal}h</Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Card>
-        </Tabs.Panel>
-      </Tabs>
+      {/* Footer insight */}
+      <motion.footer
+        className={styles.footer}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2 }}
+      >
+        <div className={styles.insightCard}>
+          <Lightbulb size={20} weight="fill" color="#fbbf24" />
+          <span>
+            <strong>{data.summary.nouvellesFormations}</strong> nouvelles formations ajoutees ces 30 derniers jours
+          </span>
+        </div>
+      </motion.footer>
     </div>
   )
 }

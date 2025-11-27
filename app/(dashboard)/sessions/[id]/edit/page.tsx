@@ -84,6 +84,8 @@ interface FormValues {
 
   // Champs individuels
   dureeHeures?: number;
+  tarifHT?: number;
+  tarifTTC?: number;
   commentaire: string;
 
   // Champs collectifs
@@ -117,6 +119,8 @@ export default function EditSessionPage({ params }: Props) {
       anneeBudgetaire: undefined,
       // Individuels
       dureeHeures: undefined,
+      tarifHT: undefined,
+      tarifTTC: undefined,
       commentaire: '',
       // Collectifs
       titre: '',
@@ -212,6 +216,8 @@ export default function EditSessionPage({ params }: Props) {
               ? formatDateOnly(new Date(sessionData.dateFin))
               : '',
             dureeHeures: sessionData.dureeHeures || undefined,
+            tarifHT: sessionData.tarifHT ? Number(sessionData.tarifHT) : undefined,
+            tarifTTC: sessionData.tarifTTC ? Number(sessionData.tarifTTC) : undefined,
             anneeBudgetaire: sessionData.anneeBudgetaire !== null && sessionData.anneeBudgetaire !== undefined
               ? sessionData.anneeBudgetaire
               : undefined,
@@ -332,6 +338,8 @@ export default function EditSessionPage({ params }: Props) {
           dateDebut: values.dateDebut,
           dateFin: values.dateFin || undefined,
           dureeHeures: values.dureeHeures || undefined,
+          tarifHT: values.tarifHT || undefined,
+          tarifTTC: values.tarifTTC || undefined,
           anneeBudgetaire: values.anneeBudgetaire,
           commentaire: values.commentaire || undefined,
         };
@@ -669,7 +677,7 @@ export default function EditSessionPage({ params }: Props) {
                   <Paper shadow="xs" p="lg" radius="md" withBorder>
                     <Group align="center" mb="md">
                       <Clock size={20} />
-                      <Text fw={600}>Durée et évaluation</Text>
+                      <Text fw={600}>Durée et tarification</Text>
                     </Group>
 
                     <Grid>
@@ -694,6 +702,28 @@ export default function EditSessionPage({ params }: Props) {
                           max={2100}
                           leftSection={<Calendar size={16} />}
                           {...form.getInputProps('anneeBudgetaire')}
+                        />
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <NumberInput
+                          label="Tarif HT (€)"
+                          description="Prix hors taxes"
+                          placeholder="Ex: 500"
+                          min={0}
+                          decimalScale={2}
+                          {...form.getInputProps('tarifHT')}
+                        />
+                      </Grid.Col>
+
+                      <Grid.Col span={{ base: 12, sm: 6 }}>
+                        <NumberInput
+                          label="Tarif TTC (€)"
+                          description="Prix TTC (utilisé en priorité pour le budget)"
+                          placeholder="Ex: 600"
+                          min={0}
+                          decimalScale={2}
+                          {...form.getInputProps('tarifTTC')}
                         />
                       </Grid.Col>
                     </Grid>

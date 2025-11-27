@@ -60,6 +60,72 @@ export class SessionsUnifiedService {
   }
 
   /**
+   * Normaliser les données d'une session individuelle pour uniformiser la structure
+   */
+  private static normalizeIndividualSession(session: any): UnifiedSession {
+    return {
+      ...session,
+      type: 'individuelle' as const,
+      // Normaliser la formation
+      formation: session.formation ? {
+        id: session.formation.id,
+        nom: session.formation.nom || session.formation.nomFormation,
+        nomFormation: session.formation.nom || session.formation.nomFormation,
+        code: session.formation.code || session.formation.codeFormation,
+        codeFormation: session.formation.code || session.formation.codeFormation,
+        categorie: session.formation.categorie,
+        type: session.formation.type || session.formation.typeFormation,
+        typeFormation: session.formation.type || session.formation.typeFormation,
+        dureeHeures: session.formation.dureeHeures || session.formation.dureePrevue,
+        dureePrevue: session.formation.dureeHeures || session.formation.dureePrevue,
+        tarifHT: session.formation.tarifHT,
+      } : undefined,
+      // Normaliser l'organisme
+      organisme: session.organisme ? {
+        id: session.organisme.id,
+        nom: session.organisme.nom || session.organisme.nomOrganisme,
+        nomOrganisme: session.organisme.nom || session.organisme.nomOrganisme,
+        type: session.organisme.type || session.organisme.typeOrganisme,
+        typeOrganisme: session.organisme.type || session.organisme.typeOrganisme,
+        contact: session.organisme.contact,
+      } : undefined,
+    };
+  }
+
+  /**
+   * Normaliser les données d'une session collective pour uniformiser la structure
+   */
+  private static normalizeCollectiveSession(session: any): UnifiedSession {
+    return {
+      ...session,
+      type: 'collective' as const,
+      // Normaliser la formation
+      formation: session.formation ? {
+        id: session.formation.id,
+        nom: session.formation.nomFormation || session.formation.nom,
+        nomFormation: session.formation.nomFormation || session.formation.nom,
+        code: session.formation.codeFormation || session.formation.code,
+        codeFormation: session.formation.codeFormation || session.formation.code,
+        categorie: session.formation.categorie?.nomCategorie || session.formation.categorie,
+        type: session.formation.typeFormation || session.formation.type,
+        typeFormation: session.formation.typeFormation || session.formation.type,
+        dureeHeures: session.formation.dureePrevue || session.formation.dureeHeures,
+        dureePrevue: session.formation.dureePrevue || session.formation.dureeHeures,
+        tarifHT: session.formation.tarifHT,
+      } : undefined,
+      // Normaliser l'organisme
+      organisme: session.organisme ? {
+        id: session.organisme.id,
+        nom: session.organisme.nomOrganisme || session.organisme.nom,
+        nomOrganisme: session.organisme.nomOrganisme || session.organisme.nom,
+        type: session.organisme.typeOrganisme || session.organisme.type,
+        typeOrganisme: session.organisme.typeOrganisme || session.organisme.type,
+        contact: session.organisme.contact,
+      } : undefined,
+    };
+  }
+
+  /**
    * Obtenir une session par ID (auto-détection du type)
    */
   static async findOne(
@@ -69,25 +135,19 @@ export class SessionsUnifiedService {
     // Si le type est connu, appeler directement le bon service
     if (type === 'individuelle') {
       const session = await sessionsService.getSession(id);
-      return {
-        ...session,
-        type: 'individuelle',
-      };
+      return this.normalizeIndividualSession(session);
     }
 
     if (type === 'collective') {
       const session = await CollectiveSessionsService.findOne(id);
-      return {
-        ...session,
-        type: 'collective',
-      };
+      return this.normalizeCollectiveSession(session);
     }
 
     // Sinon, essayer d'auto-détecter en parallèle
     // Essayer les deux types simultanément pour éviter les conflits d'ID
     const [collectiveResult, individualResult] = await Promise.allSettled([
-      CollectiveSessionsService.findOne(id).then(s => ({ ...s, type: 'collective' as const })),
-      sessionsService.getSession(id).then(s => ({ ...s, type: 'individuelle' as const })),
+      CollectiveSessionsService.findOne(id).then(s => this.normalizeCollectiveSession(s)),
+      sessionsService.getSession(id).then(s => this.normalizeIndividualSession(s)),
     ]);
 
     // Log si les deux ont réussi (collision d'ID)
@@ -330,45 +390,40 @@ export class SessionsUnifiedService {
         }
         return true;
       })
-      .map((group) => {
-        const firstParticipant = group.participants[0];
-        const nom = firstParticipant?.nom || '';
-        const prenom = firstParticipant?.prenom || '';
-        return {
-          id: firstParticipant?.sessionId,
-          type: 'individuelle' as const,
-          formationId: group.formationId,
-          formation: {
-            id: group.formationId,
-            nomFormation: group.formationNom,
-            codeFormation: group.formationCode,
-          },
-          groupKey: group.groupKey,
-          dateDebut: group.dateDebut,
-          dateFin: group.dateFin,
-          statut: group.stats?.inscrit > 0 ? 'inscrit' : 'complete',
-          anneeBudgetaire: firstParticipant?.anneeBudgetaire,
-          collaborateurId: firstParticipant?.collaborateurId,
-          collaborateur: firstParticipant
-            ? {
-                id: firstParticipant.collaborateurId,
-                nomComplet: `${nom} ${prenom}`.trim() || 'Inconnu',
-              }
-            : undefined,
-          tarifHT: group.tarifHT,
-          commentaires: firstParticipant?.commentaire,
-          // Champs additionnels pour compatibilité UI
-          formationNom: group.formationNom,
-          formationCode: group.formationCode,
-          organismeNom: group.organisme,
-          categorie: group.categorie,
-          typeFormation: group.typeFormation,
-          dureeHeures: group.dureeHeures,
-          coutTotal: group.coutTotal,
-          stats: group.stats,
-          participants: group.participants,
-        };
-      });
+      .map((group) => ({
+        id: group.participants[0].sessionId,
+        type: 'individuelle' as const,
+        formationId: group.formationId,
+        formation: {
+          id: group.formationId,
+          nomFormation: group.formationNom,
+          codeFormation: group.formationCode,
+        },
+        groupKey: group.groupKey,
+        dateDebut: group.dateDebut,
+        dateFin: group.dateFin,
+        statut: group.stats?.inscrit > 0 ? 'inscrit' : 'complete',
+        anneeBudgetaire: group.participants[0].anneeBudgetaire,
+        collaborateurId: group.participants[0].collaborateurId,
+        collaborateur: group.participants[0]
+          ? {
+              id: group.participants[0].collaborateurId,
+              nomComplet: `${group.participants[0].nom} ${group.participants[0].prenom}`,
+            }
+          : undefined,
+        tarifHT: group.tarifHT,
+        commentaires: group.participants[0].commentaire,
+        // Champs additionnels pour compatibilité UI
+        formationNom: group.formationNom,
+        formationCode: group.formationCode,
+        organismeNom: group.organisme,
+        categorie: group.categorie,
+        typeFormation: group.typeFormation,
+        dureeHeures: group.dureeHeures,
+        coutTotal: group.coutTotal,
+        stats: group.stats,
+        participants: group.participants,
+      }));
   }
 
   /**

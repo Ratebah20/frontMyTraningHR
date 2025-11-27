@@ -41,11 +41,13 @@ import {
   DotsThreeVertical,
   Warning,
   ListChecks,
+  FilePdf,
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
 import { sessionsService } from '@/lib/services';
 import { GroupedSession } from '@/lib/types';
 import { TodoList } from '@/components/session-todos/TodoList';
+import { DocumentGenerator } from '@/components/documents';
 
 interface Props {
   params: {
@@ -196,12 +198,15 @@ export default function GroupedSessionDetailPage({ params }: Props) {
             )}
           </div>
 
-          <Button
-            variant="light"
-            onClick={() => router.push(`/formations/${session.formationId}`)}
-          >
-            Voir la formation
-          </Button>
+          <Group gap="sm">
+            <DocumentGenerator session={session} sessionType="grouped" variant="button" />
+            <Button
+              variant="light"
+              onClick={() => router.push(`/formations/${session.formationId}`)}
+            >
+              Voir la formation
+            </Button>
+          </Group>
         </Group>
 
         <Grid>

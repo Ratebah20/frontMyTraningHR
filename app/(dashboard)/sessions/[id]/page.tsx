@@ -72,6 +72,7 @@ import { formatDuration } from '@/lib/utils/duration.utils';
 import { TodoList } from '@/components/session-todos/TodoList';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
 import { ParticipantList } from '@/components/sessions/ParticipantList';
+import { DocumentGenerator } from '@/components/documents';
 
 interface Props {
   params: {
@@ -436,35 +437,35 @@ export default function SessionDetailPage({ params }: Props) {
                   </ThemeIcon>
                   <Text fw={600} size="lg">Informations de la formation</Text>
                 </Group>
-                
+
                 <Grid>
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <Stack gap="xs">
                       <Text size="sm">
-                        <Text span c="dimmed" size="xs">Nom:</Text> {session.formation?.nom || 'Non renseignée'}
+                        <Text span c="dimmed" size="xs">Nom:</Text> {session.formation?.nom || session.formation?.nomFormation || session.formationNom || 'Non renseignée'}
                       </Text>
                       <Text size="sm">
-                        <Text span c="dimmed" size="xs">Code:</Text> {session.formation?.code || 'N/A'}
+                        <Text span c="dimmed" size="xs">Code:</Text> {session.formation?.code || session.formation?.codeFormation || session.formationCode || 'N/A'}
                       </Text>
                       <Text size="sm">
-                        <Text span c="dimmed" size="xs">Catégorie:</Text> {session.formation?.categorie || 'Non définie'}
+                        <Text span c="dimmed" size="xs">Catégorie:</Text> {session.formation?.categorie || session.categorie || 'Non définie'}
                       </Text>
                     </Stack>
                   </Grid.Col>
-                  
+
                   <Grid.Col span={{ base: 12, sm: 6 }}>
                     <Stack gap="xs">
-                      {session.formation?.type && (
+                      {(session.formation?.type || session.formation?.typeFormation || session.typeFormation) && (
                         <Text size="sm">
-                          <Text span c="dimmed" size="xs">Type:</Text> {session.formation.type}
+                          <Text span c="dimmed" size="xs">Type:</Text> {session.formation?.type || session.formation?.typeFormation || session.typeFormation}
                         </Text>
                       )}
                       <Text size="sm">
-                        <Text span c="dimmed" size="xs">Durée prévue:</Text> {session.formation?.dureeHeures || 0} heures
+                        <Text span c="dimmed" size="xs">Durée prévue:</Text> {session.formation?.dureeHeures || session.formation?.dureePrevue || session.dureePrevue || 0} heures
                       </Text>
-                      {session.formation?.tarifHT && (
+                      {(session.formation?.tarifHT || session.tarifHT) && (
                         <Text size="sm">
-                          <Text span c="dimmed" size="xs">Tarif catalogue:</Text> {session.formation.tarifHT.toLocaleString('fr-FR')} € HT
+                          <Text span c="dimmed" size="xs">Tarif catalogue:</Text> {(session.formation?.tarifHT || session.tarifHT)?.toLocaleString('fr-FR')} € HT
                         </Text>
                       )}
                     </Stack>
@@ -513,7 +514,7 @@ export default function SessionDetailPage({ params }: Props) {
               </Box>
 
               {/* Organisme */}
-              {session.organisme && (
+              {(session.organisme || session.organismeNom) && (
                 <>
                   <Divider />
                   <Box>
@@ -523,22 +524,22 @@ export default function SessionDetailPage({ params }: Props) {
                       </ThemeIcon>
                       <Text fw={600} size="lg">Organisme de formation</Text>
                     </Group>
-                    
+
                     <Grid>
                       <Grid.Col span={{ base: 12, sm: 6 }}>
                         <Stack gap="xs">
                           <Text size="sm">
-                            <Text span c="dimmed" size="xs">Nom:</Text> {session.organisme.nom}
+                            <Text span c="dimmed" size="xs">Nom:</Text> {session.organisme?.nom || session.organisme?.nomOrganisme || session.organismeNom || 'Non défini'}
                           </Text>
-                          {session.organisme.type && (
+                          {(session.organisme?.type || session.organisme?.typeOrganisme) && (
                             <Text size="sm">
-                              <Text span c="dimmed" size="xs">Type:</Text> {session.organisme.type}
+                              <Text span c="dimmed" size="xs">Type:</Text> {session.organisme?.type || session.organisme?.typeOrganisme}
                             </Text>
                           )}
                         </Stack>
                       </Grid.Col>
-                      
-                      {session.organisme.contact && (
+
+                      {session.organisme?.contact && (
                         <Grid.Col span={{ base: 12, sm: 6 }}>
                           <Text size="sm">
                             <Text span c="dimmed" size="xs">Contact:</Text> {session.organisme.contact}
@@ -731,6 +732,14 @@ export default function SessionDetailPage({ params }: Props) {
             <Card shadow="xs" radius="md" withBorder>
               <Stack gap="sm">
                 <Text fw={600}>Actions disponibles</Text>
+
+                {/* Bouton Documents HR */}
+                <DocumentGenerator
+                  session={session}
+                  sessionType="unified"
+                  variant="button"
+                />
+
                 <Button
                   fullWidth
                   variant="light"

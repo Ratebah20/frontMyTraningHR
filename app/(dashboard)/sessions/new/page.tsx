@@ -83,6 +83,7 @@ export default function NewSessionPage() {
   // Pré-remplir si on vient d'une formation ou d'un collaborateur
   const preselectedFormationId = searchParams.get('formationId');
   const preselectedCollaborateurId = searchParams.get('collaborateurId');
+  const returnTo = searchParams.get('returnTo');
 
   const form = useForm<any>({
     initialValues: {
@@ -246,7 +247,7 @@ export default function NewSessionPage() {
     loadData();
   }, [preselectedFormationId]);
 
-  // Auto-remplir l'organismeId quand la formation change
+  // Auto-remplir l'organismeId et le titre quand la formation change
   useEffect(() => {
     const loadFormationDetails = async () => {
       if (form.values.formationId && form.values.formationId > 0) {
@@ -259,6 +260,11 @@ export default function NewSessionPage() {
             form.setFieldValue('organismeId', formation.organismeId);
             setOrganismeWarning(null);
           }
+
+          // Auto-remplir le titre pour les sessions collectives (si pas déjà modifié)
+          if (sessionType === 'collective' && !form.values.titre) {
+            form.setFieldValue('titre', formation.nomFormation);
+          }
         } catch (error) {
           console.error('Erreur lors du chargement de la formation:', error);
         }
@@ -266,7 +272,7 @@ export default function NewSessionPage() {
     };
 
     loadFormationDetails();
-  }, [form.values.formationId]);
+  }, [form.values.formationId, sessionType]);
 
   const handleSubmit = async (values: any) => {
     // Validation spécifique selon le type
@@ -321,31 +327,14 @@ export default function NewSessionPage() {
             }, 'individuelle')
           );
 
-          // Utiliser allSettled pour gérer les échecs partiels
-          const results = await Promise.allSettled(promises);
-          const succeeded = results.filter(r => r.status === 'fulfilled');
-          const failed = results.filter(r => r.status === 'rejected');
+          await Promise.all(promises);
 
-          if (failed.length > 0 && succeeded.length > 0) {
-            // Échec partiel
-            notifications.show({
-              title: 'Inscription partielle',
-              message: `${succeeded.length} inscription(s) réussie(s), ${failed.length} échouée(s)`,
-              color: 'yellow',
-              icon: <Warning size={20} />,
-            });
-          } else if (failed.length > 0 && succeeded.length === 0) {
-            // Tout a échoué
-            throw new Error(`Toutes les inscriptions ont échoué`);
-          } else {
-            // Tout a réussi
-            notifications.show({
-              title: 'Succès',
-              message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
-              color: 'green',
-              icon: <CheckCircle size={20} />,
-            });
-          }
+          notifications.show({
+            title: 'Succès',
+            message: `${selectedCollaborateurs.length} inscription(s) créée(s) avec succès`,
+            color: 'green',
+            icon: <CheckCircle size={20} />,
+          });
         } else {
           // Mode simple : créer une seule session
           await SessionsUnifiedService.create(baseData, 'individuelle');
@@ -392,7 +381,7 @@ export default function NewSessionPage() {
         });
       }
 
-      router.push('/sessions');
+      router.push(returnTo || '/sessions');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || `Erreur lors de la création de la session ${sessionType}`;
 

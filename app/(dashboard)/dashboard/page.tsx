@@ -60,23 +60,40 @@ export default function DashboardPage() {
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
   // États pour le sélecteur de période
-  const [periode, setPeriode] = useState<'annee' | 'mois'>('annee');
+  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee');
   const [date, setDate] = useState(new Date().getFullYear().toString());
+  const [dateDebut, setDateDebut] = useState<Date | null>(null);
+  const [dateFin, setDateFin] = useState<Date | null>(null);
 
   // État pour le mode d'affichage de l'évolution des sessions
   const [evolutionViewMode, setEvolutionViewMode] = useState<'numbers' | 'percentages'>('numbers');
 
   // Charger les données du dashboard
   const loadDashboardData = useCallback(async (showLoader = true) => {
-    console.log('🔄 Chargement dashboard avec:', { periode, date });
+    // Pour le mode plage, on attend d'avoir au moins une date
+    if (periode === 'plage' && !dateDebut && !dateFin) {
+      return;
+    }
+
+    // Formater les dates pour l'API
+    const formatDate = (d: Date | null) => {
+      if (!d) return undefined;
+      // S'assurer que c'est une vraie instance de Date
+      const date = d instanceof Date ? d : new Date(d);
+      return date.toISOString().split('T')[0];
+    };
+    const startDateStr = formatDate(dateDebut);
+    const endDateStr = formatDate(dateFin);
+
+    console.log('🔄 Chargement dashboard avec:', { periode, date, startDateStr, endDateStr });
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
     try {
       const [summaryData, chartsData, alertsData] = await Promise.all([
-        statsService.getDashboardSummary(periode, date),
-        statsService.getDashboardCharts(periode, date),
-        statsService.getDashboardAlerts(periode, date)
+        statsService.getDashboardSummary(periode, date, startDateStr, endDateStr),
+        statsService.getDashboardCharts(periode, date, startDateStr, endDateStr),
+        statsService.getDashboardAlerts(periode, date, startDateStr, endDateStr)
       ]);
 
       console.log('✅ Données chargées:', { summaryData, chartsData, alertsData });
@@ -96,7 +113,7 @@ export default function DashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [periode, date]); // Dépend de periode et date
+  }, [periode, date, dateDebut, dateFin]); // Dépend de periode, date, dateDebut et dateFin
 
   useEffect(() => {
     loadDashboardData();
@@ -241,9 +258,15 @@ export default function DashboardPage() {
           <PeriodSelector
             periode={periode}
             date={date}
+            dateDebut={dateDebut}
+            dateFin={dateFin}
             onChange={(newPeriode, newDate) => {
               setPeriode(newPeriode);
               setDate(newDate);
+            }}
+            onDateRangeChange={(newDateDebut, newDateFin) => {
+              setDateDebut(newDateDebut);
+              setDateFin(newDateFin);
             }}
           />
         </Paper>

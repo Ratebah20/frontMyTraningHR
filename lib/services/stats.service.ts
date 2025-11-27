@@ -22,30 +22,60 @@ export const statsService = {
   },
 
   // ==================== NOUVEAUX ENDPOINTS DASHBOARD ====================
-  
+
   // Récupérer le résumé du dashboard
-  async getDashboardSummary(periode?: 'annee' | 'mois', date?: string): Promise<any> {
+  async getDashboardSummary(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
-    if (date) params.date = date;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
     const response = await api.get('/stats/dashboard-summary', { params });
     return response.data;
   },
 
   // Récupérer les données des graphiques
-  async getDashboardCharts(periode?: 'annee' | 'mois', date?: string): Promise<any> {
+  async getDashboardCharts(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
-    if (date) params.date = date;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
     const response = await api.get('/stats/dashboard-charts', { params });
     return response.data;
   },
 
   // Récupérer les alertes et notifications
-  async getDashboardAlerts(periode?: 'annee' | 'mois', date?: string): Promise<any> {
+  async getDashboardAlerts(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
-    if (date) params.date = date;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
     const response = await api.get('/stats/dashboard-alerts', { params });
     return response.data;
   },

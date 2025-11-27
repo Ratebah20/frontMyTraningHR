@@ -21,6 +21,7 @@ import {
   ThemeIcon,
   Divider,
   Alert,
+  useMantineColorScheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -45,6 +46,8 @@ import Lottie from 'lottie-react';
 export default function LoginPage() {
   const router = useRouter();
   const { login, isAuthenticated } = useAuth();
+  const { colorScheme } = useMantineColorScheme();
+  const isDark = colorScheme === 'dark';
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [isLogging, setIsLogging] = useState(false);
@@ -246,11 +249,23 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen relative overflow-hidden">
       {/* Background animé */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+      <div
+        className="absolute inset-0"
+        style={{
+          background: isDark
+            ? 'linear-gradient(to bottom right, #111827, #1f2937, #111827)'
+            : 'linear-gradient(to bottom right, #eff6ff, #ffffff, #ecfeff)'
+        }}
+      >
         <div className="absolute inset-0">
           {/* Cercles animés en arrière-plan */}
           <motion.div
-            className="absolute top-20 left-20 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-xl opacity-70"
+            className="absolute top-20 left-20 w-72 h-72 rounded-full filter blur-xl"
+            style={{
+              backgroundColor: isDark ? '#1e3a5f' : '#bfdbfe',
+              mixBlendMode: isDark ? 'screen' : 'multiply',
+              opacity: isDark ? 0.3 : 0.7,
+            }}
             animate={{
               x: [0, 100, 0],
               y: [0, -100, 0],
@@ -262,7 +277,12 @@ export default function LoginPage() {
             }}
           />
           <motion.div
-            className="absolute bottom-20 right-20 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-70"
+            className="absolute bottom-20 right-20 w-72 h-72 rounded-full filter blur-xl"
+            style={{
+              backgroundColor: isDark ? '#4c1d95' : '#e9d5ff',
+              mixBlendMode: isDark ? 'screen' : 'multiply',
+              opacity: isDark ? 0.3 : 0.7,
+            }}
             animate={{
               x: [0, -100, 0],
               y: [0, 100, 0],
@@ -274,7 +294,12 @@ export default function LoginPage() {
             }}
           />
           <motion.div
-            className="absolute top-1/2 left-1/2 w-72 h-72 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-70"
+            className="absolute top-1/2 left-1/2 w-72 h-72 rounded-full filter blur-xl"
+            style={{
+              backgroundColor: isDark ? '#831843' : '#fbcfe8',
+              mixBlendMode: isDark ? 'screen' : 'multiply',
+              opacity: isDark ? 0.3 : 0.7,
+            }}
             animate={{
               x: [0, 50, 0],
               y: [0, 50, 0],
@@ -331,12 +356,12 @@ export default function LoginPage() {
 
           {/* Section droite - Formulaire */}
           <div className="relative pt-24">
-            <Paper 
+            <Paper
               ref={formRef}
-              radius="lg" 
-              p={40} 
+              radius="lg"
+              p={40}
               shadow="xl"
-              className="backdrop-blur-sm bg-white/90 relative"
+              className="backdrop-blur-sm relative"
             >
               {/* Ours animé */}
               <div 

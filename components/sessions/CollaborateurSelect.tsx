@@ -61,9 +61,6 @@ export function CollaborateurSelect({
   const combobox = useCombobox({
     onDropdownClose: () => {
       combobox.resetSelectedOption();
-      if (!multiple) {
-        setSearchValue('');
-      }
     },
   });
 
@@ -279,8 +276,11 @@ export function CollaborateurSelect({
         ? currentValues.filter(v => v !== val)
         : [...currentValues, val];
       onChange(newValues);
+      // Effacer le texte de recherche après sélection
+      setSearchValue('');
     } else {
       onChange(val);
+      setSearchValue('');
       combobox.closeDropdown();
     }
   };

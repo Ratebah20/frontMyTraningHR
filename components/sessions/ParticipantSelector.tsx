@@ -272,6 +272,8 @@ export function ParticipantSelector({
     } else if (!isAtCapacity) {
       onChange([...value, numVal]);
     }
+    // Effacer le texte de recherche après sélection
+    setSearchValue('');
   };
 
   const handleValueRemove = (val: number) => {

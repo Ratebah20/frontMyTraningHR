@@ -167,6 +167,18 @@ export default function EditSessionPage({ params }: Props) {
     },
   });
 
+  // Normaliser le statut pour le backend
+  const normalizeStatusForBackend = (status: string): string => {
+    const statusLower = status?.toLowerCase() || 'inscrit';
+    if (statusLower === 'termine' || statusLower === 'terminé') {
+      return 'complete';
+    }
+    if (statusLower === 'annulé') {
+      return 'annule';
+    }
+    return statusLower;
+  };
+
   // Charger les données de la session avec auto-détection
   useEffect(() => {
     const loadSession = async () => {
@@ -175,11 +187,14 @@ export default function EditSessionPage({ params }: Props) {
         const sessionData = await SessionsUnifiedService.findOne(parseInt(params.id));
         setSession(sessionData);
 
+        // Normaliser le statut pour l'envoi au backend
+        const normalizedStatus = normalizeStatusForBackend(sessionData.statut);
+
         // Mettre à jour le formulaire selon le type de session
         if (sessionData.type === 'collective') {
           // Session collective
           form.setValues({
-            statut: sessionData.statut || 'inscrit',
+            statut: normalizedStatus,
             dateDebut: sessionData.dateDebut
               ? formatDateOnly(new Date(sessionData.dateDebut))
               : '',
@@ -208,7 +223,7 @@ export default function EditSessionPage({ params }: Props) {
         } else {
           // Session individuelle
           form.setValues({
-            statut: sessionData.statut || 'inscrit',
+            statut: normalizedStatus,
             dateDebut: sessionData.dateDebut
               ? formatDateOnly(new Date(sessionData.dateDebut))
               : '',
@@ -257,30 +272,19 @@ export default function EditSessionPage({ params }: Props) {
 
   // Vérifier la transition de statut
   const isStatusTransitionAllowed = (currentStatus: string, newStatus: string): boolean => {
-    // Normaliser les statuts en minuscules pour la comparaison
-    const normalizedCurrent = currentStatus.toLowerCase();
-    const normalizedNew = newStatus.toLowerCase();
-    
-    // Gérer les statuts spéciaux
-    const statusMap: Record<string, string> = {
-      'termine': 'complete',
-      'inscrit': 'inscrit',
-      'en_cours': 'en_cours',
-      'annule': 'annule',
-      'complete': 'complete'
-    };
-    
-    const mappedCurrent = statusMap[normalizedCurrent] || normalizedCurrent;
-    const mappedNew = statusMap[normalizedNew] || normalizedNew;
-    
+    // Normaliser les deux statuts avec la même fonction
+    const mappedCurrent = normalizeStatusForBackend(currentStatus);
+    const mappedNew = normalizeStatusForBackend(newStatus);
+
     const allowedTransitions: Record<string, string[]> = {
       'inscrit': ['en_cours', 'annule'],
       'en_cours': ['complete', 'annule'],
       'complete': [], // Aucune transition autorisée
       'annule': ['inscrit'], // Permet de réinscrire
     };
-    
-    return mappedCurrent === mappedNew || 
+
+    // Même statut = autorisé (pas de changement)
+    return mappedCurrent === mappedNew ||
            (allowedTransitions[mappedCurrent]?.includes(mappedNew) ?? false);
   };
 
@@ -429,36 +433,42 @@ export default function EditSessionPage({ params }: Props) {
   // Déterminer les transitions de statut autorisées
   const getAvailableStatusTransitions = () => {
     const currentStatus = session.statut || 'inscrit';
-    const normalizedStatus = currentStatus.toLowerCase();
+    // Normaliser le statut pour le backend
+    const normalizedStatus = normalizeStatusForBackend(currentStatus);
     const transitions: { value: string; label: string; disabled?: boolean }[] = [];
-    
-    // Toujours afficher le statut actuel
+
+    // Labels pour l'affichage
+    const statusLabels: Record<string, string> = {
+      'inscrit': 'Inscrit',
+      'en_cours': 'En cours',
+      'complete': 'Terminé',
+      'annule': 'Annulé',
+    };
+
+    // Toujours afficher le statut actuel avec la valeur normalisée
     transitions.push({
-      value: currentStatus,
-      label: `${statusConfig[currentStatus as keyof typeof statusConfig]?.label || 'Terminé'} (actuel)`,
+      value: normalizedStatus,
+      label: `${statusLabels[normalizedStatus] || 'Terminé'} (actuel)`,
     });
-    
-    // Normaliser pour les comparaisons (TERMINE = complete)
-    const statusForComparison = normalizedStatus === 'termine' ? 'complete' : normalizedStatus;
-    
+
     // Ajouter les transitions possibles
-    if (statusForComparison === 'inscrit') {
+    if (normalizedStatus === 'inscrit') {
       transitions.push(
         { value: 'en_cours', label: 'En cours' },
         { value: 'annule', label: 'Annulé' }
       );
-    } else if (statusForComparison === 'en_cours') {
+    } else if (normalizedStatus === 'en_cours') {
       transitions.push(
         { value: 'complete', label: 'Terminé' },
         { value: 'annule', label: 'Annulé' }
       );
-    } else if (statusForComparison === 'annule') {
+    } else if (normalizedStatus === 'annule') {
       transitions.push(
         { value: 'inscrit', label: 'Inscrit (réinscrire)' }
       );
     }
-    // Si complete ou termine, aucune transition possible
-    
+    // Si complete, aucune transition possible
+
     return transitions;
   };
 

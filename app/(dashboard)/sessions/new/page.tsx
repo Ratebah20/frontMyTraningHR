@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useDebouncedValue } from '@mantine/hooks';
 import {
   Container,
   Title,
@@ -61,7 +60,6 @@ import {
 import { FormationFormModal } from '@/components/formations/FormationFormModal';
 import { SessionTypeSelector } from '@/components/sessions/SessionTypeSelector';
 import { ParticipantSelector } from '@/components/sessions/ParticipantSelector';
-import { CollaborateurSelect } from '@/components/sessions/CollaborateurSelect';
 
 export default function NewSessionPage() {
   const router = useRouter();
@@ -77,19 +75,10 @@ export default function NewSessionPage() {
   const [organismes, setOrganismes] = useState<OrganismeFormation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingFormations, setLoadingFormations] = useState(false);
-  const [loadingCollaborateurs, setLoadingCollaborateurs] = useState(false);
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<string[]>([]);
   const [participantIds, setParticipantIds] = useState<number[]>([]);
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
   const [organismeWarning, setOrganismeWarning] = useState<string | null>(null);
-
-  // Recherche collaborateurs avec debounce
-  const [collaborateurSearchValue, setCollaborateurSearchValue] = useState('');
-  const [debouncedCollabSearch] = useDebouncedValue(collaborateurSearchValue, 300);
-  const loadedCollabIdsRef = useRef<Set<number>>(new Set());
-  const [collabPage, setCollabPage] = useState(1);
-  const [hasMoreCollabs, setHasMoreCollabs] = useState(true);
-  const [loadingMoreCollabs, setLoadingMoreCollabs] = useState(false);
 
   // Pré-remplir si on vient d'une formation ou d'un collaborateur
   const preselectedFormationId = searchParams.get('formationId');
@@ -214,7 +203,7 @@ export default function NewSessionPage() {
     return () => clearTimeout(timeoutId);
   }, [formationSearchValue]);
 
-  // Charger les données initiales
+  // Charger les données
   useEffect(() => {
     const loadData = async () => {
       setLoadingData(true);
@@ -231,31 +220,12 @@ export default function NewSessionPage() {
           }
         }
 
-        // Charger seulement 20 collaborateurs initialement (pour éviter le crash)
+        // Charger tous les collaborateurs (actifs et inactifs)
         const collaborateursResponse = await collaborateursService.getCollaborateurs({
-          limit: 20,
-          page: 1,
-          includeInactive: true,
+          limit: 1000,
+          includeInactive: true, // Inclure les collaborateurs inactifs
         });
-        const initialCollabs = collaborateursResponse.data || [];
-        setCollaborateurs(initialCollabs);
-        loadedCollabIdsRef.current = new Set(initialCollabs.map(c => c.id));
-        setHasMoreCollabs((collaborateursResponse.meta?.hasNext) ?? (initialCollabs.length === 20));
-        setCollabPage(1);
-
-        // Si un collaborateur est pré-sélectionné, le charger
-        if (preselectedCollaborateurId) {
-          const collabId = parseInt(preselectedCollaborateurId);
-          if (!loadedCollabIdsRef.current.has(collabId)) {
-            try {
-              const collab = await collaborateursService.getCollaborateur(collabId);
-              setCollaborateurs(prev => [...prev, collab]);
-              loadedCollabIdsRef.current.add(collabId);
-            } catch (error) {
-              console.error('Erreur lors du chargement du collaborateur pré-sélectionné:', error);
-            }
-          }
-        }
+        setCollaborateurs(collaborateursResponse.data || []);
 
         // Charger les organismes de formation actifs
         const organismesResponse = await commonService.getOrganismesFormation();
@@ -275,116 +245,7 @@ export default function NewSessionPage() {
     };
 
     loadData();
-  }, [preselectedFormationId, preselectedCollaborateurId]);
-
-  // Recherche de collaborateurs côté serveur
-  useEffect(() => {
-    const searchCollaborateurs = async () => {
-      if (debouncedCollabSearch.length < 2) {
-        // Revenir aux 20 premiers si recherche vide
-        if (debouncedCollabSearch.length === 0 && !loadingData) {
-          const response = await collaborateursService.getCollaborateurs({
-            limit: 20,
-            page: 1,
-            includeInactive: true,
-          });
-          const initialCollabs = response.data || [];
-
-          // Garder les collaborateurs déjà sélectionnés
-          const selectedIds = new Set(selectedCollaborateurs.map(id => parseInt(id)));
-          const selectedCollabs = collaborateurs.filter(c => selectedIds.has(c.id));
-
-          // Fusionner
-          const combined = [...initialCollabs];
-          selectedCollabs.forEach(collab => {
-            if (!combined.find(c => c.id === collab.id)) {
-              combined.push(collab);
-            }
-          });
-
-          setCollaborateurs(combined);
-          loadedCollabIdsRef.current = new Set(combined.map(c => c.id));
-          setHasMoreCollabs((response.meta?.hasNext) ?? (initialCollabs.length === 20));
-          setCollabPage(1);
-        }
-        return;
-      }
-
-      setLoadingCollaborateurs(true);
-      try {
-        const response = await collaborateursService.getCollaborateurs({
-          search: debouncedCollabSearch,
-          limit: 50,
-          includeInactive: true,
-        });
-
-        const searchResults = response.data || [];
-
-        // Garder les collaborateurs déjà sélectionnés
-        const selectedIds = new Set(selectedCollaborateurs.map(id => parseInt(id)));
-        const selectedCollabs = collaborateurs.filter(c => selectedIds.has(c.id));
-
-        // Fusionner les résultats avec les sélectionnés
-        const combined = [...searchResults];
-        selectedCollabs.forEach(collab => {
-          if (!combined.find(c => c.id === collab.id)) {
-            combined.push(collab);
-          }
-        });
-
-        setCollaborateurs(combined);
-        combined.forEach(c => loadedCollabIdsRef.current.add(c.id));
-        setHasMoreCollabs(false); // Pas de pagination en mode recherche
-      } catch (error) {
-        console.error('Erreur lors de la recherche:', error);
-      } finally {
-        setLoadingCollaborateurs(false);
-      }
-    };
-
-    searchCollaborateurs();
-  }, [debouncedCollabSearch]);
-
-  // Fonction pour charger plus de collaborateurs
-  const loadMoreCollaborateurs = async () => {
-    if (!hasMoreCollabs || loadingMoreCollabs || loadingCollaborateurs || debouncedCollabSearch.length > 0) {
-      return;
-    }
-
-    setLoadingMoreCollabs(true);
-    try {
-      const nextPage = collabPage + 1;
-      const response = await collaborateursService.getCollaborateurs({
-        limit: 20,
-        page: nextPage,
-        includeInactive: true,
-      });
-
-      const newCollabs = response.data || [];
-
-      if (newCollabs.length === 0) {
-        setHasMoreCollabs(false);
-        return;
-      }
-
-      // Ajouter les nouveaux collaborateurs (sans doublons)
-      setCollaborateurs(prev => {
-        const combined = [...prev, ...newCollabs];
-        const unique = combined.filter((c, i, arr) =>
-          arr.findIndex(x => x.id === c.id) === i
-        );
-        return unique;
-      });
-
-      newCollabs.forEach(c => loadedCollabIdsRef.current.add(c.id));
-      setHasMoreCollabs((response.meta?.hasNext) ?? (newCollabs.length === 20));
-      setCollabPage(nextPage);
-    } catch (error) {
-      console.error('Erreur lors du chargement supplémentaire:', error);
-    } finally {
-      setLoadingMoreCollabs(false);
-    }
-  };
+  }, [preselectedFormationId]);
 
   // Auto-remplir l'organismeId et le titre quand la formation change
   useEffect(() => {
@@ -689,27 +550,28 @@ export default function NewSessionPage() {
               {sessionType === 'individuelle' && (
                 <>
                   {batchMode ? (
-                    <CollaborateurSelect
+                    <MultiSelect
                       label="Collaborateurs"
-                      placeholder="Rechercher des collaborateurs..."
+                      placeholder="Sélectionner les collaborateurs"
                       required
-                      multiple
+                      searchable
+                      data={collaborateursData}
                       value={selectedCollaborateurs}
-                      onChange={(values) => setSelectedCollaborateurs(values as string[])}
-                      description={
-                        selectedCollaborateurs.length > 0
-                          ? `${selectedCollaborateurs.length} collaborateur(s) sélectionné(s)`
-                          : 'Scrollez pour charger plus ou recherchez'
-                      }
+                      onChange={setSelectedCollaborateurs}
+                      leftSection={<Users size={16} />}
+                      description={`${selectedCollaborateurs.length} collaborateur(s) sélectionné(s)`}
                     />
                   ) : (
-                    <CollaborateurSelect
+                    <Select
                       label="Collaborateur"
-                      placeholder="Rechercher un collaborateur..."
+                      placeholder="Sélectionner un collaborateur"
                       required
-                      value={form.values.collaborateurId ? form.values.collaborateurId.toString() : ''}
-                      onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value as string) : 0)}
-                      error={form.errors.collaborateurId as string}
+                      searchable
+                      data={collaborateursData}
+                      value={form.values.collaborateurId?.toString()}
+                      onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value) : 0)}
+                      error={form.errors.collaborateurId}
+                      leftSection={<User size={16} />}
                     />
                   )}
 

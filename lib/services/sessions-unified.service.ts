@@ -309,7 +309,7 @@ export class SessionsUnifiedService {
 
   /**
    * Merger les sessions côté client si le backend ne le supporte pas encore
-   * APPROCHE RAPIDE: Ne charge que la page courante de chaque type
+   * Charge suffisamment de données pour paginer correctement le résultat fusionné
    */
   private static async mergeSessionsClientSide(
     filters?: UnifiedSessionFilters,
@@ -322,18 +322,26 @@ export class SessionsUnifiedService {
     // Retirer le paramètre 'type' des filtres
     const { type, ...cleanFilters } = filters || {};
 
-    // Stratégie simple et rapide: récupérer la même page des deux types
-    // Chaque type retourne sa propre page, on les mélange
+    // Calculer combien d'éléments on doit charger pour avoir la bonne page
+    // On doit charger suffisamment pour couvrir offset + limit du résultat fusionné
+    const offset = (requestedPage - 1) * requestedLimit;
+    const neededItems = offset + requestedLimit;
+
+    // Limiter à 100 éléments max par type (limite backend)
+    const maxItemsPerType = 100;
+    const itemsToFetch = Math.min(neededItems, maxItemsPerType);
+
+    // Charger les données nécessaires de chaque type
     const [indivResponse, collecResponse] = await Promise.all([
       sessionsService.getGroupedSessions({
         ...cleanFilters,
-        page: requestedPage,
-        limit: requestedLimit,
+        page: 1,
+        limit: itemsToFetch,
       }),
       CollectiveSessionsService.findAll({
         ...cleanFilters,
-        page: requestedPage,
-        limit: requestedLimit,
+        page: 1,
+        limit: itemsToFetch,
       } as CollectiveSessionFilters),
     ]);
 
@@ -375,8 +383,8 @@ export class SessionsUnifiedService {
       }
     });
 
-    // Limiter au nombre demandé (les deux types peuvent retourner jusqu'à requestedLimit chacun)
-    const limitedSessions = allSessions.slice(0, requestedLimit);
+    // Appliquer la pagination sur le résultat fusionné et trié
+    const paginatedSessions = allSessions.slice(offset, offset + requestedLimit);
 
     // Calculer les totaux réels à partir des métadonnées backend
     const totalIndividuelles = indivResponse.meta.totalItems;
@@ -385,7 +393,7 @@ export class SessionsUnifiedService {
     const totalPages = Math.ceil(totalItems / requestedLimit);
 
     return {
-      data: limitedSessions,
+      data: paginatedSessions,
       meta: {
         currentPage: requestedPage,
         totalPages,

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Combobox,
   useCombobox,
+  TextInput,
   ScrollArea,
   Loader,
   Text,
@@ -17,33 +18,35 @@ import {
   CloseButton,
 } from '@mantine/core';
 import { useDebouncedValue, useDebouncedCallback } from '@mantine/hooks';
-import { MagnifyingGlass, Users } from '@phosphor-icons/react';
+import { MagnifyingGlass, User, Users } from '@phosphor-icons/react';
 import { Collaborateur } from '@/lib/types';
 import { collaborateursService } from '@/lib/services/collaborateurs.service';
 
-interface ParticipantSelectorProps {
-  value: number[];
-  onChange: (value: number[]) => void;
-  maxCapacity?: number;
-  error?: string;
-  disabled?: boolean;
+interface CollaborateurSelectProps {
+  value: string | string[];
+  onChange: (value: string | string[]) => void;
+  multiple?: boolean;
   label?: string;
-  description?: string;
   placeholder?: string;
+  error?: string;
+  required?: boolean;
+  disabled?: boolean;
+  description?: string;
 }
 
 const PAGE_SIZE = 20;
 
-export function ParticipantSelector({
+export function CollaborateurSelect({
   value,
   onChange,
-  maxCapacity,
+  multiple = false,
+  label,
+  placeholder = 'Rechercher un collaborateur...',
   error,
+  required = false,
   disabled = false,
-  label = 'Participants',
   description,
-  placeholder = 'Rechercher des collaborateurs...'
-}: ParticipantSelectorProps) {
+}: CollaborateurSelectProps) {
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -58,12 +61,16 @@ export function ParticipantSelector({
   const combobox = useCombobox({
     onDropdownClose: () => {
       combobox.resetSelectedOption();
+      if (!multiple) {
+        setSearchValue('');
+      }
     },
   });
 
-  const selectedValues = value.map(String);
-  const selectedCount = value.length;
-  const isAtCapacity = maxCapacity ? selectedCount >= maxCapacity : false;
+  // Valeurs sélectionnées (toujours un tableau pour simplifier la logique)
+  const selectedValues = multiple
+    ? (value as string[]) || []
+    : value ? [value as string] : [];
 
   // Charger les collaborateurs initiaux
   useEffect(() => {
@@ -72,9 +79,7 @@ export function ParticipantSelector({
 
   // Charger les infos des collaborateurs sélectionnés
   useEffect(() => {
-    if (value.length > 0) {
-      loadSelectedCollaborateurs();
-    }
+    loadSelectedCollaborateurs();
   }, [value]);
 
   // Recherche avec debounce
@@ -121,7 +126,7 @@ export function ParticipantSelector({
       const collabs = response.data || [];
 
       // Conserver les collaborateurs sélectionnés
-      const selectedIds = new Set(value);
+      const selectedIds = new Set(selectedValues.map(id => parseInt(id)));
       const selectedCollabs = collaborateurs.filter(c => selectedIds.has(c.id));
 
       const combined = [...collabs];
@@ -143,7 +148,9 @@ export function ParticipantSelector({
   };
 
   const loadSelectedCollaborateurs = async () => {
-    const missingIds = value.filter(id => !loadedIdsRef.current.has(id));
+    const missingIds = selectedValues
+      .map(id => parseInt(id))
+      .filter(id => !loadedIdsRef.current.has(id));
 
     if (missingIds.length === 0) return;
 
@@ -178,7 +185,7 @@ export function ParticipantSelector({
       const searchResults = response.data || [];
 
       // Conserver les sélectionnés
-      const selectedIds = new Set(value);
+      const selectedIds = new Set(selectedValues.map(id => parseInt(id)));
       const selectedCollabs = collaborateurs.filter(c => selectedIds.has(c.id));
 
       const combined = [...searchResults];
@@ -233,7 +240,7 @@ export function ParticipantSelector({
       });
 
       newCollabs.forEach(c => loadedIdsRef.current.add(c.id));
-      setHasMore(newCollabs.length === PAGE_SIZE);
+      setHasMore(response.meta?.hasNext ?? newCollabs.length === PAGE_SIZE);
       setPage(nextPage);
     } catch (error) {
       console.error('Erreur chargement supplémentaire:', error);
@@ -266,21 +273,29 @@ export function ParticipantSelector({
   };
 
   const handleValueSelect = (val: string) => {
-    const numVal = parseInt(val);
-    if (value.includes(numVal)) {
-      onChange(value.filter(v => v !== numVal));
-    } else if (!isAtCapacity) {
-      onChange([...value, numVal]);
+    if (multiple) {
+      const currentValues = selectedValues;
+      const newValues = currentValues.includes(val)
+        ? currentValues.filter(v => v !== val)
+        : [...currentValues, val];
+      onChange(newValues);
+    } else {
+      onChange(val);
+      combobox.closeDropdown();
     }
   };
 
-  const handleValueRemove = (val: number) => {
-    onChange(value.filter(v => v !== val));
+  const handleValueRemove = (val: string) => {
+    if (multiple) {
+      onChange(selectedValues.filter(v => v !== val));
+    } else {
+      onChange('');
+    }
   };
 
   // Options à afficher
   const options = collaborateurs.map((collab) => {
-    const isSelected = value.includes(collab.id);
+    const isSelected = selectedValues.includes(String(collab.id));
     const displayName = collab.nomComplet || `${collab.prenom} ${collab.nom}`;
     const dept = collab.departement
       ? typeof collab.departement === 'string'
@@ -289,16 +304,13 @@ export function ParticipantSelector({
       : null;
 
     return (
-      <Combobox.Option
-        value={String(collab.id)}
-        key={collab.id}
-        active={isSelected}
-        disabled={isAtCapacity && !isSelected}
-      >
+      <Combobox.Option value={String(collab.id)} key={collab.id} active={isSelected}>
         <Group gap="sm" wrap="nowrap">
-          <Box style={{ width: 20 }}>
-            {isSelected && <CheckIcon size={12} />}
-          </Box>
+          {multiple && (
+            <Box style={{ width: 20 }}>
+              {isSelected && <CheckIcon size={12} />}
+            </Box>
+          )}
           <Avatar size="sm" radius="xl" color={collab.actif !== false ? 'blue' : 'gray'}>
             {displayName.charAt(0)}
           </Avatar>
@@ -322,18 +334,18 @@ export function ParticipantSelector({
     );
   });
 
-  // Rendu des pills
-  const selectedPills = value.map((id) => {
-    const collab = collaborateurs.find(c => c.id === id);
+  // Rendu des pills pour le mode multiple
+  const selectedPills = multiple && selectedValues.map((val) => {
+    const collab = collaborateurs.find(c => String(c.id) === val);
     const displayName = collab
       ? (collab.nomComplet || `${collab.prenom} ${collab.nom}`)
-      : `ID: ${id}`;
+      : `ID: ${val}`;
 
     return (
       <Pill
-        key={id}
+        key={val}
         withRemoveButton
-        onRemove={() => handleValueRemove(id)}
+        onRemove={() => handleValueRemove(val)}
         style={{ maxWidth: 200 }}
       >
         {displayName}
@@ -341,41 +353,35 @@ export function ParticipantSelector({
     );
   });
 
-  const descriptionText = description ||
-    (maxCapacity
-      ? `Sélectionnez jusqu'à ${maxCapacity} participants (scrollez pour charger plus)`
-      : 'Scrollez pour charger plus ou recherchez');
+  // Valeur affichée pour le mode simple
+  const displayValue = !multiple && selectedValues.length > 0
+    ? (() => {
+        const collab = collaborateurs.find(c => String(c.id) === selectedValues[0]);
+        return collab
+          ? (collab.nomComplet || `${collab.prenom} ${collab.nom}`)
+          : '';
+      })()
+    : searchValue;
 
   return (
-    <div>
-      <Combobox
-        store={combobox}
-        onOptionSubmit={handleValueSelect}
-        withinPortal={true}
-      >
-        <Combobox.DropdownTarget>
+    <Combobox
+      store={combobox}
+      onOptionSubmit={handleValueSelect}
+      withinPortal={true}
+    >
+      <Combobox.DropdownTarget>
+        {multiple ? (
           <PillsInput
-            label={
-              <Group justify="space-between">
-                <Text size="sm" fw={500}>
-                  {label}
-                </Text>
-                {selectedCount > 0 && (
-                  <Badge size="sm" variant="filled" color="blue">
-                    {selectedCount} sélectionné{selectedCount > 1 ? 's' : ''}
-                    {maxCapacity ? ` / ${maxCapacity}` : ''}
-                  </Badge>
-                )}
-              </Group>
-            }
-            description={descriptionText}
+            label={label}
+            description={description}
+            required={required}
             disabled={disabled}
             error={error}
             pointer
             onClick={() => combobox.openDropdown()}
-            leftSection={loading || loadingMore ? <Loader size={16} /> : <Users size={16} />}
+            leftSection={loading ? <Loader size={16} /> : <Users size={16} />}
             rightSection={
-              selectedCount > 0 ? (
+              selectedValues.length > 0 ? (
                 <CloseButton
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
@@ -388,7 +394,7 @@ export function ParticipantSelector({
               {selectedPills}
               <Combobox.EventsTarget>
                 <PillsInput.Field
-                  placeholder={selectedCount === 0 ? placeholder : undefined}
+                  placeholder={selectedValues.length === 0 ? placeholder : undefined}
                   value={searchValue}
                   onChange={(e) => {
                     setSearchValue(e.currentTarget.value);
@@ -398,76 +404,98 @@ export function ParticipantSelector({
                   onFocus={() => combobox.openDropdown()}
                   onBlur={() => combobox.closeDropdown()}
                   onKeyDown={(e) => {
-                    if (e.key === 'Backspace' && searchValue.length === 0 && value.length > 0) {
-                      handleValueRemove(value[value.length - 1]);
+                    if (e.key === 'Backspace' && searchValue.length === 0 && selectedValues.length > 0) {
+                      handleValueRemove(selectedValues[selectedValues.length - 1]);
                     }
                   }}
                 />
               </Combobox.EventsTarget>
             </Pill.Group>
           </PillsInput>
-        </Combobox.DropdownTarget>
+        ) : (
+          <TextInput
+            label={label}
+            description={description}
+            required={required}
+            disabled={disabled}
+            error={error}
+            placeholder={placeholder}
+            value={displayValue}
+            onChange={(e) => {
+              setSearchValue(e.currentTarget.value);
+              if (!multiple && e.currentTarget.value === '') {
+                onChange('');
+              }
+              combobox.openDropdown();
+              combobox.updateSelectedOptionIndex();
+            }}
+            onClick={() => combobox.openDropdown()}
+            onFocus={() => combobox.openDropdown()}
+            onBlur={() => combobox.closeDropdown()}
+            leftSection={loading ? <Loader size={16} /> : <User size={16} />}
+            rightSection={
+              selectedValues.length > 0 && !disabled ? (
+                <CloseButton
+                  size="sm"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    onChange('');
+                    setSearchValue('');
+                  }}
+                />
+              ) : null
+            }
+          />
+        )}
+      </Combobox.DropdownTarget>
 
-        <Combobox.Dropdown>
-          <Combobox.Options>
-            <ScrollArea.Autosize
-              mah={300}
-              type="scroll"
-              onScrollCapture={onScrollCapture}
-              viewportRef={scrollRef}
-            >
-              {loading && collaborateurs.length === 0 ? (
-                <Combobox.Empty>
-                  <Group justify="center" p="sm">
-                    <Loader size="sm" />
-                    <Text size="sm">Chargement...</Text>
-                  </Group>
-                </Combobox.Empty>
-              ) : options.length === 0 ? (
-                <Combobox.Empty>
-                  {searchValue.length > 0 && searchValue.length < 2
-                    ? 'Tapez au moins 2 caractères'
-                    : 'Aucun collaborateur trouvé'}
-                </Combobox.Empty>
-              ) : (
-                <>
-                  {options}
-                  {loadingMore && (
-                    <Box p="xs">
-                      <Group justify="center">
-                        <Loader size="xs" />
-                        <Text size="xs" c="dimmed">Chargement...</Text>
-                      </Group>
-                    </Box>
-                  )}
-                  {hasMore && !loadingMore && debouncedSearch.length === 0 && (
-                    <Text size="xs" c="dimmed" ta="center" p="xs">
-                      ↓ Scrollez pour charger plus ({collaborateurs.length} affichés)
-                    </Text>
-                  )}
-                  {!hasMore && debouncedSearch.length === 0 && (
-                    <Text size="xs" c="dimmed" ta="center" p="xs">
-                      {collaborateurs.length} collaborateurs chargés
-                    </Text>
-                  )}
-                </>
-              )}
-            </ScrollArea.Autosize>
-          </Combobox.Options>
-        </Combobox.Dropdown>
-      </Combobox>
-
-      {isAtCapacity && !disabled && (
-        <Text size="xs" c="orange" mt={4}>
-          Capacité maximale atteinte ({maxCapacity} participants)
-        </Text>
-      )}
-
-      {selectedCount > 0 && !isAtCapacity && maxCapacity && (
-        <Text size="xs" c="dimmed" mt={4}>
-          {maxCapacity - selectedCount} place{maxCapacity - selectedCount > 1 ? 's' : ''} restante{maxCapacity - selectedCount > 1 ? 's' : ''}
-        </Text>
-      )}
-    </div>
+      <Combobox.Dropdown>
+        <Combobox.Options>
+          <ScrollArea.Autosize
+            mah={300}
+            type="scroll"
+            onScrollCapture={onScrollCapture}
+            viewportRef={scrollRef}
+          >
+            {loading && collaborateurs.length === 0 ? (
+              <Combobox.Empty>
+                <Group justify="center" p="sm">
+                  <Loader size="sm" />
+                  <Text size="sm">Chargement...</Text>
+                </Group>
+              </Combobox.Empty>
+            ) : options.length === 0 ? (
+              <Combobox.Empty>
+                {searchValue.length > 0 && searchValue.length < 2
+                  ? 'Tapez au moins 2 caractères'
+                  : 'Aucun collaborateur trouvé'}
+              </Combobox.Empty>
+            ) : (
+              <>
+                {options}
+                {loadingMore && (
+                  <Box p="xs">
+                    <Group justify="center">
+                      <Loader size="xs" />
+                      <Text size="xs" c="dimmed">Chargement...</Text>
+                    </Group>
+                  </Box>
+                )}
+                {hasMore && !loadingMore && debouncedSearch.length === 0 && (
+                  <Text size="xs" c="dimmed" ta="center" p="xs">
+                    ↓ Scrollez pour charger plus ({collaborateurs.length} affichés)
+                  </Text>
+                )}
+                {!hasMore && debouncedSearch.length === 0 && (
+                  <Text size="xs" c="dimmed" ta="center" p="xs">
+                    {collaborateurs.length} collaborateurs chargés
+                  </Text>
+                )}
+              </>
+            )}
+          </ScrollArea.Autosize>
+        </Combobox.Options>
+      </Combobox.Dropdown>
+    </Combobox>
   );
 }

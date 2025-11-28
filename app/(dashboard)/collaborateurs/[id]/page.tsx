@@ -19,6 +19,8 @@ import {
   Grid,
   Avatar,
   ThemeIcon,
+  ActionIcon,
+  Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -35,11 +37,13 @@ import {
   Trophy,
   Star,
   Download,
+  ArrowsLeftRight,
 } from '@phosphor-icons/react';
 import { collaborateursService } from '@/lib/services';
 import { Collaborateur, SessionFormation } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
+import { ChangeEquipeModal } from '@/components/collaborateurs/ChangeEquipeModal';
 
 interface Props {
   params: {
@@ -54,6 +58,17 @@ export default function CollaborateurDetailPage({ params }: Props) {
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [changeEquipeModalOpened, setChangeEquipeModalOpened] = useState(false);
+
+  // Fonction pour recharger les données après changement d'équipe
+  const reloadData = async () => {
+    try {
+      const collabData = await collaborateursService.getCollaborateur(parseInt(params.id));
+      setCollaborateur(collabData);
+    } catch (err) {
+      console.error('Erreur lors du rechargement:', err);
+    }
+  };
 
   useEffect(() => {
     const loadData = async () => {
@@ -217,6 +232,16 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 <Text size="sm">
                   {collaborateur.departement?.nomDepartement || 'Non assigné'}
                 </Text>
+                <Tooltip label="Changer d'équipe">
+                  <ActionIcon
+                    variant="subtle"
+                    size="sm"
+                    color="blue"
+                    onClick={() => setChangeEquipeModalOpened(true)}
+                  >
+                    <ArrowsLeftRight size={14} />
+                  </ActionIcon>
+                </Tooltip>
               </Group>
               
               {collaborateur.manager && (
@@ -425,6 +450,17 @@ export default function CollaborateurDetailPage({ params }: Props) {
           </Center>
         )}
       </Paper>
+
+      {/* Modal de changement d'équipe */}
+      {collaborateur && (
+        <ChangeEquipeModal
+          opened={changeEquipeModalOpened}
+          onClose={() => setChangeEquipeModalOpened(false)}
+          collaborateurs={[{ id: collaborateur.id, nomComplet: collaborateur.nomComplet }]}
+          currentDepartementId={collaborateur.departementId}
+          onSuccess={reloadData}
+        />
+      )}
     </Container>
   );
 }

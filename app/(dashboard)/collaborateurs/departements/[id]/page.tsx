@@ -22,6 +22,9 @@ import {
   Tooltip,
   Menu,
   Avatar,
+  Checkbox,
+  Affix,
+  Transition,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -37,12 +40,15 @@ import {
   UserCircle,
   Plus,
   TreeStructure,
+  ArrowsLeftRight,
+  X,
 } from '@phosphor-icons/react';
 import { departementsService } from '@/lib/services';
 import { DepartementDetail, Collaborateur } from '@/lib/types';
 import { DepartementFormModal } from '@/components/departements/DepartementFormModal';
 import { DepartementBreadcrumb } from '@/components/departements/DepartementBreadcrumb';
 import { TypeBadge } from '@/components/departements/TypeBadge';
+import { ChangeEquipeModal } from '@/components/collaborateurs/ChangeEquipeModal';
 
 export default function DepartementDetailPage() {
   const router = useRouter();
@@ -56,6 +62,50 @@ export default function DepartementDetailPage() {
   const [modalOpened, setModalOpened] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingEquipe, setIsCreatingEquipe] = useState(false);
+
+  // États pour la sélection multiple et le changement d'équipe
+  const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<number[]>([]);
+  const [changeEquipeModalOpened, setChangeEquipeModalOpened] = useState(false);
+  const [collaborateursToMove, setCollaborateursToMove] = useState<{ id: number; nomComplet: string }[]>([]);
+
+  // Gestion de la sélection
+  const isAllSelected = collaborateurs.length > 0 && selectedCollaborateurs.length === collaborateurs.length;
+  const isSomeSelected = selectedCollaborateurs.length > 0 && selectedCollaborateurs.length < collaborateurs.length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedCollaborateurs([]);
+    } else {
+      setSelectedCollaborateurs(collaborateurs.map(c => c.id));
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelectedCollaborateurs(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
+  // Ouvrir la modale pour un seul collaborateur
+  const openChangeEquipeForOne = (collab: Collaborateur) => {
+    setCollaborateursToMove([{ id: collab.id, nomComplet: collab.nomComplet }]);
+    setChangeEquipeModalOpened(true);
+  };
+
+  // Ouvrir la modale pour les collaborateurs sélectionnés
+  const openChangeEquipeForSelected = () => {
+    const selected = collaborateurs
+      .filter(c => selectedCollaborateurs.includes(c.id))
+      .map(c => ({ id: c.id, nomComplet: c.nomComplet }));
+    setCollaborateursToMove(selected);
+    setChangeEquipeModalOpened(true);
+  };
+
+  // Callback après changement d'équipe réussi
+  const handleChangeEquipeSuccess = () => {
+    setSelectedCollaborateurs([]);
+    loadData();
+  };
 
   // Charger les données
   const loadData = async () => {
@@ -348,17 +398,35 @@ export default function DepartementDetailPage() {
             <Table highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
+                  <Table.Th style={{ width: 40 }}>
+                    <Checkbox
+                      checked={isAllSelected}
+                      indeterminate={isSomeSelected}
+                      onChange={toggleSelectAll}
+                      aria-label="Sélectionner tout"
+                    />
+                  </Table.Th>
                   <Table.Th>Collaborateur</Table.Th>
                   <Table.Th>Matricule</Table.Th>
                   <Table.Th>Manager</Table.Th>
                   <Table.Th>Formations</Table.Th>
                   <Table.Th>Statut</Table.Th>
-                  <Table.Th style={{ width: 80 }}>Actions</Table.Th>
+                  <Table.Th style={{ width: 100 }}>Actions</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {collaborateurs.map((collab) => (
-                  <Table.Tr key={collab.id}>
+                  <Table.Tr
+                    key={collab.id}
+                    bg={selectedCollaborateurs.includes(collab.id) ? 'var(--mantine-color-blue-light)' : undefined}
+                  >
+                    <Table.Td>
+                      <Checkbox
+                        checked={selectedCollaborateurs.includes(collab.id)}
+                        onChange={() => toggleSelect(collab.id)}
+                        aria-label={`Sélectionner ${collab.nomComplet}`}
+                      />
+                    </Table.Td>
                     <Table.Td>
                       <Group gap="sm">
                         <Avatar size="sm" color="blue">
@@ -406,6 +474,27 @@ export default function DepartementDetailPage() {
                             <Eye size={18} />
                           </ActionIcon>
                         </Tooltip>
+                        <Menu shadow="md" width={200} position="bottom-end">
+                          <Menu.Target>
+                            <ActionIcon variant="subtle">
+                              <DotsThreeVertical size={18} />
+                            </ActionIcon>
+                          </Menu.Target>
+                          <Menu.Dropdown>
+                            <Menu.Item
+                              leftSection={<ArrowsLeftRight size={16} />}
+                              onClick={() => openChangeEquipeForOne(collab)}
+                            >
+                              Changer d'équipe
+                            </Menu.Item>
+                            <Menu.Item
+                              leftSection={<Eye size={16} />}
+                              onClick={() => router.push(`/collaborateurs/${collab.id}`)}
+                            >
+                              Voir le profil
+                            </Menu.Item>
+                          </Menu.Dropdown>
+                        </Menu>
                       </Group>
                     </Table.Td>
                   </Table.Tr>
@@ -429,6 +518,53 @@ export default function DepartementDetailPage() {
         initialType={isCreatingEquipe ? 'EQUIPE' : undefined}
         initialParentId={isCreatingEquipe ? departementId : undefined}
       />
+
+      {/* Modal de changement d'équipe */}
+      <ChangeEquipeModal
+        opened={changeEquipeModalOpened}
+        onClose={() => setChangeEquipeModalOpened(false)}
+        collaborateurs={collaborateursToMove}
+        currentDepartementId={departementId}
+        onSuccess={handleChangeEquipeSuccess}
+      />
+
+      {/* Barre d'actions flottante pour la sélection multiple */}
+      <Affix position={{ bottom: 20, left: '50%' }} style={{ transform: 'translateX(-50%)' }}>
+        <Transition transition="slide-up" mounted={selectedCollaborateurs.length > 0}>
+          {(transitionStyles) => (
+            <Paper
+              shadow="lg"
+              p="md"
+              radius="lg"
+              withBorder
+              style={{
+                ...transitionStyles,
+                backgroundColor: 'var(--mantine-color-body)',
+              }}
+            >
+              <Group gap="md">
+                <Badge size="lg" variant="filled" color="blue">
+                  {selectedCollaborateurs.length} sélectionné{selectedCollaborateurs.length > 1 ? 's' : ''}
+                </Badge>
+                <Button
+                  leftSection={<ArrowsLeftRight size={18} />}
+                  onClick={openChangeEquipeForSelected}
+                >
+                  Changer d'équipe
+                </Button>
+                <ActionIcon
+                  variant="subtle"
+                  color="gray"
+                  onClick={() => setSelectedCollaborateurs([])}
+                  size="lg"
+                >
+                  <X size={18} />
+                </ActionIcon>
+              </Group>
+            </Paper>
+          )}
+        </Transition>
+      </Affix>
     </Container>
   );
 }

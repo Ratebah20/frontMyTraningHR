@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Title,
@@ -62,7 +62,7 @@ import {
   SortAscending,
   SortDescending,
 } from '@phosphor-icons/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { StatutUtils } from '@/lib/utils/statut.utils';
@@ -125,6 +125,7 @@ const statusIcons: Record<string, any> = {
 
 export default function SessionsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // États
   const [sessions, setSessions] = useState<any[]>([]); // Can be GroupedSession[] or UnifiedSession[]
@@ -141,23 +142,26 @@ export default function SessionsPage() {
     sessionsGroupees: 0,
   });
 
-  // Filtres et pagination
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>(''); // '' = all, 'individuelle', 'collective'
-  const [dateDebut, setDateDebut] = useState<string>('');
-  const [dateFin, setDateFin] = useState<string>('');
-  const [formationFilter, setFormationFilter] = useState<string>('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('');
-  const [organismeFilter, setOrganismeFilter] = useState<string>('');
-  const [page, setPage] = useState(1);
+  // Filtres et pagination - initialisés depuis l'URL
+  const [search, setSearch] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
+  const [typeFilter, setTypeFilter] = useState<string>(searchParams.get('type') || ''); // '' = all, 'individuelle', 'collective'
+  const [dateDebut, setDateDebut] = useState<string>(searchParams.get('dateDebut') || '');
+  const [dateFin, setDateFin] = useState<string>(searchParams.get('dateFin') || '');
+  const [formationFilter, setFormationFilter] = useState<string>(searchParams.get('formation') || '');
+  const [departmentFilter, setDepartmentFilter] = useState<string>(searchParams.get('department') || '');
+  const [organismeFilter, setOrganismeFilter] = useState<string>(searchParams.get('organisme') || '');
+  const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
 
-  // Tri
-  const [sortBy, setSortBy] = useState<string>('dateDebut');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  // Tri - initialisés depuis l'URL
+  const [sortBy, setSortBy] = useState<string>(searchParams.get('sortBy') || 'dateDebut');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc');
+
+  // Flag pour éviter la synchronisation URL au premier render
+  const isFirstRender = useRef(true);
 
   // Liste des organismes pour le filtre
   const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
@@ -270,10 +274,36 @@ export default function SessionsPage() {
     loadGlobalStats(); // Rafraîchir aussi les stats pour avoir des données à jour
   }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
 
-  // Réinitialiser la page quand les filtres changent
+  // Réinitialiser la page quand les filtres changent (sauf au premier render)
   useEffect(() => {
+    if (isFirstRender.current) return;
     setPage(1);
   }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, sortBy, sortOrder]);
+
+  // Synchroniser les filtres avec l'URL (sauf au premier render)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    const params = new URLSearchParams();
+
+    if (debouncedSearch) params.set('search', debouncedSearch);
+    if (statusFilter) params.set('status', statusFilter);
+    if (typeFilter) params.set('type', typeFilter);
+    if (dateDebut) params.set('dateDebut', dateDebut);
+    if (dateFin) params.set('dateFin', dateFin);
+    if (formationFilter) params.set('formation', formationFilter);
+    if (departmentFilter) params.set('department', departmentFilter);
+    if (organismeFilter) params.set('organisme', organismeFilter);
+    if (page > 1) params.set('page', String(page));
+    if (sortBy !== 'dateDebut') params.set('sortBy', sortBy);
+    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
+
+    const newUrl = params.toString() ? `?${params.toString()}` : '/sessions';
+    router.replace(newUrl, { scroll: false });
+  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder, router]);
 
   const handleViewDetails = (session: any) => {
     // Validation: vérifier que les champs nécessaires existent

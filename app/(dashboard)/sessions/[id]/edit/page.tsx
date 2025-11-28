@@ -361,7 +361,9 @@ export default function EditSessionPage({ params }: Props) {
         icon: <CheckCircle size={20} />,
       });
 
-      router.push(`/sessions/${params.id}`);
+      // Conserver le paramètre type pour rester sur la bonne page
+      const typeParam = session.type === 'collective' ? '?type=collective' : '';
+      router.push(`/sessions/${params.id}${typeParam}`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Erreur lors de la mise à jour';
 

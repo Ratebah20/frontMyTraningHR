@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Select } from '@mantine/core'
 import {
   Users,
   UserCircle,
@@ -9,7 +8,6 @@ import {
   Trophy,
   GenderMale,
   GenderFemale,
-  Calendar,
   ChartBar,
   UsersFour,
   Warning,
@@ -20,6 +18,7 @@ import axios from 'axios'
 import { motion } from 'framer-motion'
 import { statsService } from '@/lib/services'
 import { DetailedKPIsResponse } from '@/lib/types'
+import { PeriodSelector } from '@/components/PeriodSelector'
 import styles from './collaborateurs.module.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -209,33 +208,11 @@ export default function CollaborateursKPIsPage() {
   const [loading, setLoading] = useState(true)
   const [detailedLoading, setDetailedLoading] = useState(false)
 
-  // Filtres temporels
-  const currentYear = new Date().getFullYear()
-  const [selectedYear, setSelectedYear] = useState<string>(currentYear.toString())
-  const [selectedMonth, setSelectedMonth] = useState<string>('')
-
-  // Générer les options d'années (5 dernières années)
-  const yearOptions = Array.from({ length: 5 }, (_, i) => {
-    const year = currentYear - i
-    return { value: year.toString(), label: year.toString() }
-  })
-
-  // Options de mois
-  const monthOptions = [
-    { value: '', label: 'Toute l\'année' },
-    { value: '1', label: 'Janvier' },
-    { value: '2', label: 'Février' },
-    { value: '3', label: 'Mars' },
-    { value: '4', label: 'Avril' },
-    { value: '5', label: 'Mai' },
-    { value: '6', label: 'Juin' },
-    { value: '7', label: 'Juillet' },
-    { value: '8', label: 'Août' },
-    { value: '9', label: 'Septembre' },
-    { value: '10', label: 'Octobre' },
-    { value: '11', label: 'Novembre' },
-    { value: '12', label: 'Décembre' },
-  ]
+  // Filtres temporels - comme dans le dashboard
+  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee')
+  const [date, setDate] = useState(new Date().getFullYear().toString())
+  const [dateDebut, setDateDebut] = useState<Date | null>(null)
+  const [dateFin, setDateFin] = useState<Date | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -243,7 +220,7 @@ export default function CollaborateursKPIsPage() {
 
   useEffect(() => {
     fetchDetailedData()
-  }, [selectedYear, selectedMonth])
+  }, [periode, date, dateDebut, dateFin])
 
   const fetchData = async () => {
     try {
@@ -257,11 +234,19 @@ export default function CollaborateursKPIsPage() {
   }
 
   const fetchDetailedData = async () => {
+    // En mode plage, attendre que les deux dates soient sélectionnées
+    if (periode === 'plage' && (!dateDebut || !dateFin)) {
+      return
+    }
+
     setDetailedLoading(true)
     try {
-      const year = parseInt(selectedYear, 10)
-      const month = selectedMonth ? parseInt(selectedMonth, 10) : undefined
-      const response = await statsService.getCollaborateursDetailedKpis(year, month)
+      // Convertir les dates en ISO string de manière sécurisée
+      const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
+                        dateDebut ? new Date(dateDebut).toISOString() : undefined
+      const endDate = dateFin instanceof Date ? dateFin.toISOString() :
+                      dateFin ? new Date(dateFin).toISOString() : undefined
+      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate)
       setDetailedData(response)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs détaillés:', error)
@@ -347,36 +332,18 @@ export default function CollaborateursKPIsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <div className={styles.filterLabel}>
-            <Calendar size={20} weight="bold" className={styles.filterIcon} />
-            Période d'analyse
-          </div>
-          <Select
-            placeholder="Année"
-            data={yearOptions}
-            value={selectedYear}
-            onChange={(value) => setSelectedYear(value || currentYear.toString())}
-            w={120}
-            styles={{
-              input: {
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: '#fff'
-              }
+          <PeriodSelector
+            periode={periode}
+            date={date}
+            dateDebut={dateDebut}
+            dateFin={dateFin}
+            onChange={(newPeriode, newDate) => {
+              setPeriode(newPeriode)
+              setDate(newDate)
             }}
-          />
-          <Select
-            placeholder="Mois"
-            data={monthOptions}
-            value={selectedMonth}
-            onChange={(value) => setSelectedMonth(value || '')}
-            w={180}
-            styles={{
-              input: {
-                background: 'rgba(255,255,255,0.05)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                color: '#fff'
-              }
+            onDateRangeChange={(newDateDebut, newDateFin) => {
+              setDateDebut(newDateDebut)
+              setDateFin(newDateFin)
             }}
           />
           {detailedData && (

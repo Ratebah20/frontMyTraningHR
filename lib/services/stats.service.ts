@@ -127,9 +127,21 @@ export const statsService = {
   },
 
   // Récupérer les KPIs détaillés par catégorie avec filtres temporels
-  async getCollaborateursDetailedKpis(annee: number, mois?: number): Promise<DetailedKPIsResponse> {
-    const params: any = { annee };
-    if (mois) params.mois = mois;
+  async getCollaborateursDetailedKpis(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<DetailedKPIsResponse> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
+    console.log('getCollaborateursDetailedKpis params:', params);
     const response = await api.get('/stats/collaborateurs-detailed-kpis', { params });
     return response.data;
   },

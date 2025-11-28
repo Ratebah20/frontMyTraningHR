@@ -12,6 +12,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export interface UnifiedSessionFilters extends SessionFilters {
   type?: 'individuelle' | 'collective' | 'all';
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
 }
 
 /**
@@ -314,6 +316,8 @@ export class SessionsUnifiedService {
   ): Promise<UnifiedSessionPaginatedResponse> {
     const requestedPage = filters?.page || 1;
     const requestedLimit = filters?.limit || 10;
+    const sortBy = filters?.sortBy || 'dateDebut';
+    const sortOrder = filters?.sortOrder || 'desc';
 
     // Retirer le paramètre 'type' des filtres
     const { type, ...cleanFilters } = filters || {};
@@ -336,11 +340,39 @@ export class SessionsUnifiedService {
     const individuelles = this.mapGroupedToUnified(indivResponse.data);
     const collectives = this.mapCollectivesToUnified(collecResponse.data);
 
-    // Mélanger et trier par date
+    // Mélanger et trier selon le critère choisi
     const allSessions = [...individuelles, ...collectives].sort((a, b) => {
-      const dateA = a.dateDebut ? new Date(a.dateDebut).getTime() : 0;
-      const dateB = b.dateDebut ? new Date(b.dateDebut).getTime() : 0;
-      return dateB - dateA; // Plus récent en premier
+      let valueA: any;
+      let valueB: any;
+
+      switch (sortBy) {
+        case 'dateDebut':
+        case 'dateFin':
+          valueA = a[sortBy] ? new Date(a[sortBy] as string).getTime() : 0;
+          valueB = b[sortBy] ? new Date(b[sortBy] as string).getTime() : 0;
+          break;
+        case 'formationNom':
+          valueA = (a.formationNom || '').toLowerCase();
+          valueB = (b.formationNom || '').toLowerCase();
+          break;
+        case 'dureeHeures':
+          valueA = Number(a.dureeHeures) || 0;
+          valueB = Number(b.dureeHeures) || 0;
+          break;
+        case 'coutTotal':
+          valueA = Number(a.coutTotal) || 0;
+          valueB = Number(b.coutTotal) || 0;
+          break;
+        default:
+          valueA = a[sortBy as keyof typeof a] || 0;
+          valueB = b[sortBy as keyof typeof b] || 0;
+      }
+
+      if (sortOrder === 'asc') {
+        return valueA > valueB ? 1 : valueA < valueB ? -1 : 0;
+      } else {
+        return valueA < valueB ? 1 : valueA > valueB ? -1 : 0;
+      }
     });
 
     // Limiter au nombre demandé (les deux types peuvent retourner jusqu'à requestedLimit chacun)

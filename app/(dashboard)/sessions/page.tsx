@@ -59,6 +59,8 @@ import {
   Hourglass,
   List,
   CalendarBlank,
+  SortAscending,
+  SortDescending,
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
@@ -153,6 +155,10 @@ export default function SessionsPage() {
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
 
+  // Tri
+  const [sortBy, setSortBy] = useState<string>('dateDebut');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
   // Liste des organismes pour le filtre
   const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
   const [loadingOrganismes, setLoadingOrganismes] = useState(false);
@@ -213,6 +219,8 @@ export default function SessionsPage() {
         organismeId: organismeFilter ? parseInt(organismeFilter) : undefined,
         page,
         limit,
+        sortBy,
+        sortOrder,
       };
 
       // Use unified service for all types or collective only
@@ -260,12 +268,12 @@ export default function SessionsPage() {
   useEffect(() => {
     loadSessions();
     loadGlobalStats(); // Rafraîchir aussi les stats pour avoir des données à jour
-  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page]);
+  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter]);
+  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, sortBy, sortOrder]);
 
   const handleViewDetails = (session: any) => {
     // Validation: vérifier que les champs nécessaires existent
@@ -543,6 +551,35 @@ export default function SessionsPage() {
             </Group>
           </Grid.Col>
         </Grid>
+
+        {/* Tri */}
+        <Group mt="md" gap="sm">
+          <Group gap="xs">
+            {sortOrder === 'desc' ? <SortDescending size={18} /> : <SortAscending size={18} />}
+            <Text size="sm" fw={500}>Trier par :</Text>
+          </Group>
+          <Select
+            size="sm"
+            w={180}
+            data={[
+              { value: 'dateDebut', label: 'Date de début' },
+              { value: 'dateFin', label: 'Date de fin' },
+              { value: 'formationNom', label: 'Nom de formation' },
+              { value: 'dureeHeures', label: 'Durée' },
+              { value: 'coutTotal', label: 'Coût' },
+            ]}
+            value={sortBy}
+            onChange={(value) => setSortBy(value || 'dateDebut')}
+          />
+          <ActionIcon
+            variant="light"
+            size="lg"
+            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+            title={sortOrder === 'asc' ? 'Tri croissant' : 'Tri décroissant'}
+          >
+            {sortOrder === 'desc' ? <SortDescending size={18} /> : <SortAscending size={18} />}
+          </ActionIcon>
+        </Group>
         <Text size="sm" c="dimmed" mt="md">
           Affichage : {sessions.length} résultats sur cette page • Total : {globalStats.total} sessions
         </Text>

@@ -25,6 +25,7 @@ import {
   Table,
   Box,
   Flex,
+  Modal,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -35,6 +36,7 @@ import {
   Building,
   PencilSimple,
   XCircle,
+  Trash,
   Warning,
   CheckCircle,
   BookOpen,
@@ -66,6 +68,7 @@ import {
 } from '@phosphor-icons/react';
 import { sessionsService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import { CollectiveSessionsService } from '@/lib/services/collective-sessions.service';
 import { SessionFormationResponse, UnifiedSession, CollectiveSession } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
@@ -99,6 +102,12 @@ export default function SessionDetailPage({ params }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // États pour la modal de suppression
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<any>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   // Charger la session avec auto-détection du type
   const loadSession = async () => {
     setIsLoading(true);
@@ -131,29 +140,65 @@ export default function SessionDetailPage({ params }: Props) {
     loadSession();
   }, [params.id]);
   
-  const handleCancel = async () => {
-    if (!session) return;
-    
-    if (!confirm('Êtes-vous sûr de vouloir annuler cette session ?')) {
-      return;
-    }
-    
+  // Ouvrir la modal de suppression avec chargement de l'aperçu
+  const openDeleteModal = async () => {
+    setDeleteModalOpened(true);
+    setLoadingPreview(true);
     try {
-      await sessionsService.cancelSession(session.id);
+      if (session.type === 'collective') {
+        // Pour les sessions collectives
+        const preview = await CollectiveSessionsService.getDeletePreview(session.id);
+        setDeletePreview({
+          ...preview,
+          collaborateur: null, // Les sessions collectives n'ont pas un seul collaborateur
+        });
+      } else {
+        // Pour les sessions individuelles
+        const preview = await sessionsService.getDeletePreview(session.id);
+        setDeletePreview(preview);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'aperçu:', error);
+      // Créer un aperçu par défaut en cas d'erreur
+      setDeletePreview({
+        session: { id: session.id, statut: session.statut },
+        formation: null,
+        collaborateur: null,
+        avertissement: null,
+        canDelete: true,
+      });
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!session) return;
+
+    setIsDeleting(true);
+    try {
+      if (session.type === 'collective') {
+        await CollectiveSessionsService.deleteWithConfirmation(session.id);
+      } else {
+        await sessionsService.deleteSessionWithConfirmation(session.id);
+      }
       notifications.show({
         title: 'Succès',
-        message: 'Session annulée avec succès',
+        message: 'Session supprimée définitivement',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
-      loadSession(); // Recharger les données
+      router.push('/sessions');
     } catch (error: any) {
       notifications.show({
         title: 'Erreur',
-        message: error.response?.data?.message || 'Impossible d\'annuler la session',
+        message: error.message || 'Impossible de supprimer la session',
         color: 'red',
         icon: <Warning size={20} />,
       });
+    } finally {
+      setIsDeleting(false);
+      setDeleteModalOpened(false);
     }
   };
   
@@ -191,7 +236,104 @@ export default function SessionDetailPage({ params }: Props) {
   const coutTotal = coutTTC;
 
   return (
-    <Container size="xl">
+    <>
+      {/* Modal de confirmation de suppression */}
+      <Modal
+        opened={deleteModalOpened}
+        onClose={() => setDeleteModalOpened(false)}
+        title={<Group gap="xs"><Trash size={20} /> Supprimer la session</Group>}
+        centered
+        size="md"
+      >
+        <Stack>
+          {loadingPreview ? (
+            <Center py="xl">
+              <Loader size="md" />
+            </Center>
+          ) : deletePreview ? (
+            <>
+              <Text>
+                Êtes-vous sûr de vouloir supprimer cette session ?
+              </Text>
+
+              {/* Avertissement */}
+              {deletePreview.avertissement && (
+                <Alert color="orange" icon={<Warning size={20} />} variant="light">
+                  {deletePreview.avertissement}
+                </Alert>
+              )}
+
+              {/* Détails de la session */}
+              <Paper withBorder p="md" radius="md">
+                <Stack gap="xs">
+                  {deletePreview.formation && (
+                    <Group gap="xs">
+                      <BookOpen size={16} color="#868E96" />
+                      <Text size="sm">
+                        <Text span fw={500}>Formation :</Text> {deletePreview.formation.nomFormation}
+                      </Text>
+                    </Group>
+                  )}
+                  {/* Pour les sessions individuelles */}
+                  {deletePreview.collaborateur && (
+                    <Group gap="xs">
+                      <User size={16} color="#868E96" />
+                      <Text size="sm">
+                        <Text span fw={500}>Collaborateur :</Text> {deletePreview.collaborateur.prenom} {deletePreview.collaborateur.nom}
+                        {deletePreview.collaborateur.departement?.nomDepartement && (
+                          <Text span c="dimmed"> ({deletePreview.collaborateur.departement.nomDepartement})</Text>
+                        )}
+                      </Text>
+                    </Group>
+                  )}
+                  {/* Pour les sessions collectives */}
+                  {deletePreview.participants && deletePreview.participants.total > 0 && (
+                    <Group gap="xs">
+                      <UsersThree size={16} color="#868E96" />
+                      <Text size="sm">
+                        <Text span fw={500}>Participants :</Text> {deletePreview.participants.total}
+                        {deletePreview.participants.liste?.length > 0 && (
+                          <Text size="xs" c="dimmed">
+                            ({deletePreview.participants.liste.map((p: any) => `${p.prenom} ${p.nom}`).join(', ')}
+                            {deletePreview.participants.total > 10 && '...'})
+                          </Text>
+                        )}
+                      </Text>
+                    </Group>
+                  )}
+                  <Group gap="xs">
+                    <Badge color={StatutUtils.getStatusColor(deletePreview.session?.statut)} variant="light">
+                      {StatutUtils.getStatusLabel(deletePreview.session?.statut)}
+                    </Badge>
+                  </Group>
+                </Stack>
+              </Paper>
+
+              <Alert color="red" variant="light" icon={<Warning size={16} />}>
+                Cette action est irréversible. La session sera définitivement supprimée de la base de données.
+              </Alert>
+
+              <Group justify="flex-end" mt="md">
+                <Button variant="default" onClick={() => setDeleteModalOpened(false)}>
+                  Annuler
+                </Button>
+                <Button
+                  color="red"
+                  onClick={handleDelete}
+                  loading={isDeleting}
+                  leftSection={<Trash size={16} />}
+                >
+                  Supprimer la session
+                </Button>
+              </Group>
+            </>
+          ) : (
+            <Text c="dimmed">Impossible de charger les détails</Text>
+          )}
+        </Stack>
+      </Modal>
+
+      <Container size="xl">
       <Group justify="space-between" mb="xl">
         <Group>
           <Button
@@ -220,10 +362,10 @@ export default function SessionDetailPage({ params }: Props) {
             <Button
               color="red"
               variant="light"
-              leftSection={<XCircle size={16} />}
-              onClick={handleCancel}
+              leftSection={<Trash size={16} />}
+              onClick={openDeleteModal}
             >
-              Annuler
+              Supprimer
             </Button>
           )}
         </Group>
@@ -792,10 +934,10 @@ export default function SessionDetailPage({ params }: Props) {
                     fullWidth
                     variant="light"
                     color="red"
-                    leftSection={<XCircle size={16} />}
-                    onClick={handleCancel}
+                    leftSection={<Trash size={16} />}
+                    onClick={openDeleteModal}
                   >
-                    Annuler la session
+                    Supprimer la session
                   </Button>
                 )}
               </Stack>
@@ -812,5 +954,6 @@ export default function SessionDetailPage({ params }: Props) {
         </Grid.Col>
       </Grid>
     </Container>
+    </>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   AppShell,
   Group,
@@ -91,12 +91,18 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
     return () => clearInterval(interval);
   }, [isSyncing]);
 
-  // Animation de la navbar au scroll
+  // Animation de la navbar au scroll (avec throttle pour la performance)
+  const lastScrollState = useRef<boolean>(false);
   useEffect(() => {
     const header = document.getElementById('main-header');
     if (!header) return;
 
-    if (scroll.y > 50) {
+    // Throttle: ne pas animer si l'état n'a pas changé
+    const isScrolled = scroll.y > 50;
+    if (isScrolled === lastScrollState.current) return;
+    lastScrollState.current = isScrolled;
+
+    if (isScrolled) {
       gsap.to(header, {
         boxShadow: '0 1px 3px rgba(0, 0, 0, .1)',
         duration: 0.3,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Title,
@@ -131,7 +131,14 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<any[]>([]); // Can be GroupedSession[] or UnifiedSession[]
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
+    // Récupérer le mode de vue depuis localStorage au chargement
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sessions-view-mode');
+      return saved === 'list' ? 'list' : 'cards';
+    }
+    return 'cards';
+  });
 
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -142,32 +149,75 @@ export default function SessionsPage() {
     sessionsGroupees: 0,
   });
 
-  // Filtres et pagination - initialisés depuis l'URL
-  const [search, setSearch] = useState(searchParams.get('search') || '');
-  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
-  const [typeFilter, setTypeFilter] = useState<string>(searchParams.get('type') || ''); // '' = all, 'individuelle', 'collective'
-  const [dateDebut, setDateDebut] = useState<string>(searchParams.get('dateDebut') || '');
-  const [dateFin, setDateFin] = useState<string>(searchParams.get('dateFin') || '');
-  const [formationFilter, setFormationFilter] = useState<string>(searchParams.get('formation') || '');
-  const [departmentFilter, setDepartmentFilter] = useState<string>(searchParams.get('department') || '');
-  const [organismeFilter, setOrganismeFilter] = useState<string>(searchParams.get('organisme') || '');
-  const [page, setPage] = useState(parseInt(searchParams.get('page') || '1'));
+  // Filtres et pagination - lecture depuis l'URL (source unique de vérité)
+  const search = searchParams.get('search') || '';
+  const statusFilter = searchParams.get('status') || '';
+  const typeFilter = searchParams.get('type') || '';
+  const dateDebut = searchParams.get('dateDebut') || '';
+  const dateFin = searchParams.get('dateFin') || '';
+  const formationFilter = searchParams.get('formation') || '';
+  const departmentFilter = searchParams.get('department') || '';
+  const organismeFilter = searchParams.get('organisme') || '';
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const sortBy = searchParams.get('sortBy') || 'dateDebut';
+  const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
+
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
 
-  // Tri - initialisés depuis l'URL
-  const [sortBy, setSortBy] = useState<string>(searchParams.get('sortBy') || 'dateDebut');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>((searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc');
+  // Fonction pour mettre à jour l'URL avec les nouveaux paramètres
+  const updateUrlParams = (updates: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
 
-  // Flag pour éviter la synchronisation URL au premier render
-  const isFirstRender = useRef(true);
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value === null || value === '' || (key === 'page' && value === '1')) {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
+    });
+
+    // Réinitialiser la page à 1 si on change un filtre (sauf si on change la page elle-même)
+    if (!('page' in updates) && params.get('page')) {
+      params.delete('page');
+    }
+
+    const newUrl = params.toString() ? `/sessions?${params.toString()}` : '/sessions';
+    router.push(newUrl, { scroll: false });
+  };
+
+  // Setters pour les filtres (mettent à jour l'URL)
+  const setSearch = (value: string) => updateUrlParams({ search: value });
+  const setStatusFilter = (value: string) => updateUrlParams({ status: value });
+  const setTypeFilter = (value: string) => updateUrlParams({ type: value });
+  const setDateDebut = (value: string) => updateUrlParams({ dateDebut: value });
+  const setDateFin = (value: string) => updateUrlParams({ dateFin: value });
+  const setFormationFilter = (value: string) => updateUrlParams({ formation: value });
+  const setDepartmentFilter = (value: string) => updateUrlParams({ department: value });
+  const setOrganismeFilter = (value: string) => updateUrlParams({ organisme: value });
+  const setSortBy = (value: string) => updateUrlParams({ sortBy: value });
+  const setSortOrder = (value: 'asc' | 'desc') => updateUrlParams({ sortOrder: value });
 
   // Liste des organismes pour le filtre
   const [organismes, setOrganismes] = useState<{ value: string; label: string }[]>([]);
   const [loadingOrganismes, setLoadingOrganismes] = useState(false);
 
-  const debouncedSearch = useDebounce(search, 500);
+  // Debounce pour la recherche - état local temporaire
+  const [searchInput, setSearchInput] = useState(search);
+  const debouncedSearchInput = useDebounce(searchInput, 500);
+
+  // Synchroniser le debounced search avec l'URL
+  useEffect(() => {
+    if (debouncedSearchInput !== search) {
+      setSearch(debouncedSearchInput);
+    }
+  }, [debouncedSearchInput]);
+
+  // Synchroniser l'input avec l'URL quand on revient sur la page
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   // Charger les statistiques globales
   const loadGlobalStats = async () => {
@@ -213,7 +263,7 @@ export default function SessionsPage() {
 
     try {
       const filters: any = {
-        search: debouncedSearch,
+        search: search,
         statut: statusFilter || undefined,
         type: typeFilter || 'all', // 'individuelle', 'collective', or 'all'
         dateDebut: dateDebut || undefined,
@@ -262,6 +312,16 @@ export default function SessionsPage() {
     }
   };
 
+  // Sauvegarder le mode de vue dans localStorage
+  useEffect(() => {
+    localStorage.setItem('sessions-view-mode', viewMode);
+  }, [viewMode]);
+
+  // Fonction pour changer de page
+  const handlePageChange = (newPage: number) => {
+    updateUrlParams({ page: newPage.toString() });
+  };
+
   // Charger les données au montage
   useEffect(() => {
     loadGlobalStats();
@@ -272,38 +332,7 @@ export default function SessionsPage() {
   useEffect(() => {
     loadSessions();
     loadGlobalStats(); // Rafraîchir aussi les stats pour avoir des données à jour
-  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
-
-  // Réinitialiser la page quand les filtres changent (sauf au premier render)
-  useEffect(() => {
-    if (isFirstRender.current) return;
-    setPage(1);
-  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, sortBy, sortOrder]);
-
-  // Synchroniser les filtres avec l'URL (sauf au premier render)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-
-    const params = new URLSearchParams();
-
-    if (debouncedSearch) params.set('search', debouncedSearch);
-    if (statusFilter) params.set('status', statusFilter);
-    if (typeFilter) params.set('type', typeFilter);
-    if (dateDebut) params.set('dateDebut', dateDebut);
-    if (dateFin) params.set('dateFin', dateFin);
-    if (formationFilter) params.set('formation', formationFilter);
-    if (departmentFilter) params.set('department', departmentFilter);
-    if (organismeFilter) params.set('organisme', organismeFilter);
-    if (page > 1) params.set('page', String(page));
-    if (sortBy !== 'dateDebut') params.set('sortBy', sortBy);
-    if (sortOrder !== 'desc') params.set('sortOrder', sortOrder);
-
-    const newUrl = params.toString() ? `?${params.toString()}` : '/sessions';
-    router.replace(newUrl, { scroll: false });
-  }, [debouncedSearch, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder, router]);
+  }, [search, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
 
   const handleViewDetails = (session: any) => {
     // Validation: vérifier que les champs nécessaires existent
@@ -320,12 +349,16 @@ export default function SessionsPage() {
       }
       router.push(`/sessions/${session.id}?type=collective`);
     } else {
-      // Sinon, c'est une session groupée avec un groupKey
-      if (!session.groupKey) {
+      // Session individuelle
+      // Si c'est une session solo (un seul participant), aller directement à la page détail
+      if (session.stats?.total === 1 && session.participants?.[0]?.sessionId) {
+        router.push(`/sessions/${session.participants[0].sessionId}`);
+      } else if (session.groupKey) {
+        // Sinon, c'est une session groupée avec plusieurs participants
+        router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey)}`);
+      } else {
         console.error('GroupKey manquant pour session individuelle:', session);
-        return;
       }
-      router.push(`/sessions/grouped/${encodeURIComponent(session.groupKey)}`);
     }
   };
 
@@ -519,8 +552,8 @@ export default function SessionsPage() {
             <TextInput
               placeholder="Rechercher un collaborateur ou une formation..."
               leftSection={<MagnifyingGlass size={16} />}
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.currentTarget.value)}
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 2 }}>
@@ -827,7 +860,7 @@ export default function SessionsPage() {
                         <Group justify="space-between">
                           <Text size="xs" c="dimmed">Coût total estimé</Text>
                           <Text size="sm" fw={600} c="blue">
-                            {Number(session.coutTotal).toFixed(2)} €
+                            {Number(session.coutTotal).toLocaleString('fr-FR')} €
                           </Text>
                         </Group>
                       </Box>
@@ -1016,16 +1049,9 @@ export default function SessionsPage() {
 
                         <Table.Td style={{ textAlign: 'right' }}>
                           {session.coutTotal ? (
-                            <div>
-                              <Text size="sm" fw={600} c="blue">
-                                {Number(session.coutTotal).toFixed(0)} €
-                              </Text>
-                              {session.tarifHT && (
-                                <Text size="xs" c="dimmed">
-                                  {Number(session.tarifHT).toFixed(0)} € / pers.
-                                </Text>
-                              )}
-                            </div>
+                            <Text size="sm" fw={600} c="blue">
+                              {Number(session.coutTotal).toLocaleString('fr-FR')} €
+                            </Text>
                           ) : (
                             <Text size="xs" c="dimmed">
                               -
@@ -1103,7 +1129,7 @@ export default function SessionsPage() {
               </Text>
               <Pagination
                 value={page}
-                onChange={setPage}
+                onChange={handlePageChange}
                 total={totalPages}
                 siblings={1}
                 boundaries={1}

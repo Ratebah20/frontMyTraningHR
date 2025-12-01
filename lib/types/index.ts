@@ -361,6 +361,8 @@ export interface GroupedSession {
   dateDebut?: string;
   dateFin?: string;
   organisme?: string;
+  organismeId?: number;
+  anneeBudgetaire?: number;
   stats: GroupedSessionStats;
   participants: GroupedSessionParticipant[];
   tarifHT?: number;

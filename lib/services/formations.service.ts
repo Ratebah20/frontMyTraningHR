@@ -47,6 +47,28 @@ export const formationsService = {
     await api.delete(`/formations/${id}`);
   },
 
+  // Aperçu de la suppression d'une formation (données qui seront affectées)
+  async getDeletePreview(id: number): Promise<{
+    formation: { id: number; nomFormation: string; codeFormation: string };
+    sessionsIndividuelles: { total: number; inscrites: number; enCours: number; terminees: number; annulees: number };
+    sessionsCollectives: { total: number; totalParticipants: number };
+    collaborateursAffectes: { total: number; liste: Array<{ id: number; nom: string; prenom: string }> };
+    avertissement: string | null;
+  }> {
+    const response = await api.get(`/formations/${id}/delete-preview`);
+    return response.data;
+  },
+
+  // Supprimer une formation et toutes ses sessions en cascade
+  async deleteFormationCascade(id: number): Promise<{
+    success: boolean;
+    message: string;
+    details: { sessionsIndividuellesAnnulees: number; sessionsCollectivesAnnulees: number };
+  }> {
+    const response = await api.delete(`/formations/${id}/cascade`);
+    return response.data;
+  },
+
   // Récupérer les statistiques d'une formation
   async getFormationStats(id: number): Promise<FormationStats> {
     const response = await api.get(`/reports/formation/${id}`);

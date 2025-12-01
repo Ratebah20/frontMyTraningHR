@@ -67,6 +67,8 @@ export default function FormationDetailPage({ params }: Props) {
   const [activeTab, setActiveTab] = useState<string | null>('overview');
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deletePreview, setDeletePreview] = useState<any>(null);
+  const [loadingPreview, setLoadingPreview] = useState(false);
   
   const { page, limit, total, setTotal, goToPage, totalPages } = usePagination(1, 10);
   
@@ -100,18 +102,42 @@ export default function FormationDetailPage({ params }: Props) {
     }
   }, [sessionsData, setTotal]);
   
-  const handleDelete = async () => {
+  // Charger l'aperçu de suppression quand on ouvre la modal
+  const openDeleteModal = async () => {
+    setDeleteModalOpened(true);
+    setLoadingPreview(true);
+    try {
+      const preview = await formationsService.getDeletePreview(formation.id);
+      setDeletePreview(preview);
+    } catch (error) {
+      console.error('Erreur lors du chargement de l\'aperçu:', error);
+    } finally {
+      setLoadingPreview(false);
+    }
+  };
+
+  const handleDelete = async (cascade: boolean = false) => {
     if (!formation) return;
-    
+
     setIsDeleting(true);
     try {
-      await formationsService.deleteFormation(formation.id);
-      notifications.show({
-        title: 'Succès',
-        message: 'Formation désactivée avec succès',
-        color: 'green',
-        icon: <CheckCircle size={20} />,
-      });
+      if (cascade) {
+        const result = await formationsService.deleteFormationCascade(formation.id);
+        notifications.show({
+          title: 'Succès',
+          message: result.message,
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      } else {
+        await formationsService.deleteFormation(formation.id);
+        notifications.show({
+          title: 'Succès',
+          message: 'Formation désactivée avec succès',
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      }
       router.push('/formations');
     } catch (error: any) {
       notifications.show({
@@ -194,35 +220,118 @@ export default function FormationDetailPage({ params }: Props) {
 
   return (
     <>
-      {/* Modal de confirmation de suppression */}
+      {/* Modal de confirmation de suppression avec aperçu */}
       <Modal
         opened={deleteModalOpened}
         onClose={() => setDeleteModalOpened(false)}
-        title="Confirmer la suppression"
+        title={<Group gap="xs"><Trash size={20} /> Supprimer la formation</Group>}
         centered
+        size="lg"
       >
         <Stack>
-          <Text>
-            Êtes-vous sûr de vouloir supprimer la formation <strong>{formation?.nomFormation}</strong> ?
-          </Text>
-          {formation?.stats?.nombreSessions > 0 && (
-            <Alert color="yellow" icon={<Warning size={20} />}>
-              Cette formation a {formation.stats.nombreSessions} session(s) associée(s).
-              La suppression sera logique (désactivation).
-            </Alert>
+          {loadingPreview ? (
+            <Center py="xl">
+              <Loader size="md" />
+            </Center>
+          ) : deletePreview ? (
+            <>
+              <Text>
+                Êtes-vous sûr de vouloir supprimer la formation <strong>{deletePreview.formation?.nomFormation}</strong> ?
+              </Text>
+
+              {/* Avertissement si sessions actives */}
+              {deletePreview.avertissement && (
+                <Alert color="red" icon={<Warning size={20} />} variant="light">
+                  {deletePreview.avertissement}
+                </Alert>
+              )}
+
+              {/* Résumé des données affectées */}
+              {(deletePreview.sessionsIndividuelles?.total > 0 || deletePreview.sessionsCollectives?.total > 0) && (
+                <Paper withBorder p="md" radius="md">
+                  <Text fw={600} mb="sm">Données qui seront affectées :</Text>
+
+                  {deletePreview.sessionsIndividuelles?.total > 0 && (
+                    <Stack gap="xs" mb="sm">
+                      <Text size="sm" fw={500}>Sessions individuelles : {deletePreview.sessionsIndividuelles.total}</Text>
+                      <Group gap="xs">
+                        {deletePreview.sessionsIndividuelles.inscrites > 0 && (
+                          <Badge color="blue" variant="light" size="sm">
+                            {deletePreview.sessionsIndividuelles.inscrites} inscrite(s)
+                          </Badge>
+                        )}
+                        {deletePreview.sessionsIndividuelles.enCours > 0 && (
+                          <Badge color="yellow" variant="light" size="sm">
+                            {deletePreview.sessionsIndividuelles.enCours} en cours
+                          </Badge>
+                        )}
+                        {deletePreview.sessionsIndividuelles.terminees > 0 && (
+                          <Badge color="green" variant="light" size="sm">
+                            {deletePreview.sessionsIndividuelles.terminees} terminée(s)
+                          </Badge>
+                        )}
+                        {deletePreview.sessionsIndividuelles.annulees > 0 && (
+                          <Badge color="gray" variant="light" size="sm">
+                            {deletePreview.sessionsIndividuelles.annulees} annulée(s)
+                          </Badge>
+                        )}
+                      </Group>
+                    </Stack>
+                  )}
+
+                  {deletePreview.sessionsCollectives?.total > 0 && (
+                    <Text size="sm">
+                      Sessions collectives : {deletePreview.sessionsCollectives.total} ({deletePreview.sessionsCollectives.totalParticipants} participants)
+                    </Text>
+                  )}
+
+                  {deletePreview.collaborateursAffectes?.total > 0 && (
+                    <Text size="sm" mt="xs">
+                      Collaborateurs concernés : {deletePreview.collaborateursAffectes.total}
+                      {deletePreview.collaborateursAffectes.liste?.length > 0 && (
+                        <Text size="xs" c="dimmed">
+                          ({deletePreview.collaborateursAffectes.liste.map((c: any) => `${c.prenom} ${c.nom}`).join(', ')}
+                          {deletePreview.collaborateursAffectes.total > 10 && '...'})
+                        </Text>
+                      )}
+                    </Text>
+                  )}
+                </Paper>
+              )}
+
+              <Divider my="sm" />
+
+              <Group justify="flex-end" mt="md">
+                <Button variant="default" onClick={() => setDeleteModalOpened(false)}>
+                  Annuler
+                </Button>
+
+                {/* Suppression simple (bloquée si sessions actives) */}
+                {!deletePreview.avertissement && (
+                  <Button
+                    color="orange"
+                    onClick={() => handleDelete(false)}
+                    loading={isDeleting}
+                    leftSection={<Trash size={16} />}
+                  >
+                    Désactiver la formation
+                  </Button>
+                )}
+
+                {/* Suppression cascade (toujours disponible) */}
+                <Button
+                  color="red"
+                  onClick={() => handleDelete(true)}
+                  loading={isDeleting}
+                  leftSection={<Warning size={16} />}
+                >
+                  Supprimer tout
+                </Button>
+              </Group>
+            </>
+          ) : (
+            <Text c="dimmed">Impossible de charger l'aperçu</Text>
           )}
-          <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={() => setDeleteModalOpened(false)}>
-              Annuler
-            </Button>
-            <Button 
-              color="red" 
-              onClick={handleDelete}
-              loading={isDeleting}
-            >
-              Confirmer la suppression
-            </Button>
-          </Group>
         </Stack>
       </Modal>
 
@@ -259,8 +368,7 @@ export default function FormationDetailPage({ params }: Props) {
             color="red"
             variant="outline"
             leftSection={<Trash size={16} />}
-            onClick={() => setDeleteModalOpened(true)}
-            disabled={formation?.stats?.sessionsEnCours > 0 || formation?.stats?.sessionsInscrites > 0}
+            onClick={openDeleteModal}
           >
             Supprimer
           </Button>

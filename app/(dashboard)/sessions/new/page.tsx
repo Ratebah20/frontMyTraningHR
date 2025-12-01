@@ -307,7 +307,7 @@ export default function NewSessionPage() {
           formationId: values.formationId,
           collaborateurId: values.collaborateurId,
           dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut,
-          dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : undefined,
+          dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : (values.dateFin || undefined),
           dureePrevue: values.dureePrevue || undefined,
           dureeReelle: values.dureeReelle || undefined,
           uniteDuree: values.uniteDuree,

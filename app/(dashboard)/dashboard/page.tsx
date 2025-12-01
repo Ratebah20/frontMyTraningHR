@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   Container,
   Title,
@@ -136,6 +136,37 @@ export default function DashboardPage() {
       minute: '2-digit' 
     });
   };
+
+  // Calculs memoizés pour éviter les recalculs O(n²) dans les boucles
+  const evolutionStats = useMemo(() => {
+    if (!charts?.evolutionMensuelle?.length) return null;
+
+    const data = charts.evolutionMensuelle;
+    const sessions = data.map((d: any) => d.sessions);
+    const maxSessions = Math.max(...sessions);
+    const minSessions = Math.min(...sessions);
+    const avgSessions = Math.round(sessions.reduce((a: number, b: number) => a + b, 0) / sessions.length);
+
+    // Pré-calculer les variations de pourcentage
+    const percentageChanges = data.map((item: any, idx: number) => {
+      const prev = idx > 0 ? data[idx - 1].sessions : item.sessions;
+      return prev !== 0 ? Math.round(((item.sessions - prev) / prev) * 100) : 0;
+    });
+
+    const maxPercentageChange = Math.max(...percentageChanges.map((p: number) => Math.abs(p)));
+    const avgPercentageChange = Math.round(
+      percentageChanges.slice(1).reduce((a: number, b: number) => a + b, 0) / (percentageChanges.length - 1)
+    );
+
+    return {
+      maxSessions,
+      minSessions,
+      avgSessions,
+      percentageChanges,
+      maxPercentageChange,
+      avgPercentageChange,
+    };
+  }, [charts?.evolutionMensuelle]);
 
   // Définition des 8 KPIs optimisés
   const kpiCards = summary ? [
@@ -343,19 +374,12 @@ export default function DashboardPage() {
                 {/* Graphique simplifié avec barres */}
                 <SimpleGrid cols={12} spacing="xs">
                   {charts.evolutionMensuelle.map((item: any, idx: number) => {
-                    // Calculer le pourcentage de variation par rapport au mois précédent
-                    const previousSessions = idx > 0 ? charts.evolutionMensuelle[idx - 1].sessions : item.sessions;
-                    const percentageChange = previousSessions !== 0
-                      ? Math.round(((item.sessions - previousSessions) / previousSessions) * 100)
-                      : 0;
-
+                    // Utiliser les valeurs pré-calculées (memoizées)
+                    const percentageChange = evolutionStats?.percentageChanges[idx] || 0;
                     const displayValue = evolutionViewMode === 'numbers' ? item.sessions : percentageChange;
                     const maxValue = evolutionViewMode === 'numbers'
-                      ? Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))
-                      : Math.max(...charts.evolutionMensuelle.map((d: any, i: number) => {
-                          const prev = i > 0 ? charts.evolutionMensuelle[i - 1].sessions : d.sessions;
-                          return prev !== 0 ? Math.abs(((d.sessions - prev) / prev) * 100) : 0;
-                        }));
+                      ? evolutionStats?.maxSessions || 1
+                      : evolutionStats?.maxPercentageChange || 1;
 
                     const barHeight = evolutionViewMode === 'numbers'
                       ? Math.min((item.sessions / maxValue) * 100, 100)
@@ -412,21 +436,15 @@ export default function DashboardPage() {
                 <Group justify="space-between">
                   {evolutionViewMode === 'numbers' ? (
                     <>
-                      <Text size="xs" c="dimmed">Min: {Math.min(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
-                      <Text size="xs" c="dimmed">Max: {Math.max(...charts.evolutionMensuelle.map((d: any) => d.sessions))}</Text>
-                      <Text size="xs" c="dimmed">Moy: {Math.round(charts.evolutionMensuelle.reduce((sum: number, d: any) => sum + d.sessions, 0) / charts.evolutionMensuelle.length)}</Text>
+                      <Text size="xs" c="dimmed">Min: {evolutionStats?.minSessions}</Text>
+                      <Text size="xs" c="dimmed">Max: {evolutionStats?.maxSessions}</Text>
+                      <Text size="xs" c="dimmed">Moy: {evolutionStats?.avgSessions}</Text>
                     </>
                   ) : (
                     <>
                       <Text size="xs" c="dimmed">Variation mensuelle moyenne</Text>
                       <Text size="xs" c="dimmed" fw={600}>
-                        {Math.round(
-                          charts.evolutionMensuelle.reduce((sum: number, d: any, i: number) => {
-                            if (i === 0) return sum;
-                            const prev = charts.evolutionMensuelle[i - 1].sessions;
-                            return sum + (prev !== 0 ? ((d.sessions - prev) / prev) * 100 : 0);
-                          }, 0) / (charts.evolutionMensuelle.length - 1)
-                        )}%
+                        {evolutionStats?.avgPercentageChange}%
                       </Text>
                     </>
                   )}

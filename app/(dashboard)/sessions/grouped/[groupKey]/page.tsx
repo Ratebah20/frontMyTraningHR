@@ -8,7 +8,6 @@ import {
   Text,
   Group,
   Button,
-  Card,
   Table,
   Badge,
   Stack,
@@ -16,7 +15,6 @@ import {
   Grid,
   Avatar,
   ActionIcon,
-  Menu,
   Center,
   Loader,
   Alert,
@@ -38,10 +36,9 @@ import {
   Hourglass,
   Certificate,
   CalendarX,
-  DotsThreeVertical,
   Warning,
   ListChecks,
-  FilePdf,
+  CurrencyDollar,
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
 import { sessionsService } from '@/lib/services';
@@ -98,6 +95,14 @@ export default function GroupedSessionDetailPage({ params }: Props) {
 
       // Récupérer directement la session groupée par son groupKey
       const data = await sessionsService.getGroupedSessionByKey(groupKey);
+      
+      // Si une seule session, rediriger vers la page de détail
+      if (data.participants && data.participants.length === 1) {
+        const sessionId = data.participants[0].sessionId;
+        router.replace(`/sessions/${sessionId}`);
+        return;
+      }
+
       setSession(data);
     } catch (err: any) {
       console.error('Erreur lors du chargement de la session:', err);
@@ -155,7 +160,7 @@ export default function GroupedSessionDetailPage({ params }: Props) {
         <Group mt="xl">
           <Button
             leftSection={<ArrowLeft size={16} />}
-            onClick={() => router.push('/sessions')}
+            onClick={() => router.back()}
           >
             Retour aux sessions
           </Button>
@@ -171,7 +176,7 @@ export default function GroupedSessionDetailPage({ params }: Props) {
         <Button
           variant="subtle"
           leftSection={<ArrowLeft size={16} />}
-          onClick={() => router.push('/sessions')}
+          onClick={() => router.back()}
         >
           Retour
         </Button>
@@ -331,19 +336,58 @@ export default function GroupedSessionDetailPage({ params }: Props) {
             </Grid.Col>
           )}
 
-          {session.coutTotal && (
+          {session.anneeBudgetaire && (
             <Grid.Col span={{ base: 12, sm: 6 }}>
               <Group gap="xs">
+                <Calendar size={20} color="#228BE6" />
                 <div>
-                  <Text size="xs" c="dimmed">Coût total estimé</Text>
-                  <Text size="lg" fw={700} c="blue">
-                    {session.coutTotal.toFixed(2)} €
+                  <Text size="xs" c="dimmed">Année budgétaire</Text>
+                  <Text size="sm" fw={500}>
+                    {session.anneeBudgetaire}
                   </Text>
                 </div>
               </Group>
             </Grid.Col>
           )}
         </Grid>
+
+        {/* Informations budgétaires */}
+        {(session.tarifHT || session.coutTotal) && (
+          <>
+            <Divider my="lg" />
+            <Group mb="md">
+              <ThemeIcon size="lg" radius="md" variant="light" color="green">
+                <CurrencyDollar size={20} />
+              </ThemeIcon>
+              <Text fw={600} size="lg">Informations budgétaires</Text>
+            </Group>
+            <Grid>
+              {session.tarifHT && (
+                <Grid.Col span={{ base: 12, sm: 4 }}>
+                  <Paper withBorder p="md" radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Tarif HT / participant</Text>
+                    <Text size="xl" fw={700} c="blue">
+                      {Number(session.tarifHT).toLocaleString('fr-FR')} €
+                    </Text>
+                  </Paper>
+                </Grid.Col>
+              )}
+              {session.coutTotal && (
+                <Grid.Col span={{ base: 12, sm: 4 }}>
+                  <Paper withBorder p="md" radius="md">
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Coût total estimé</Text>
+                    <Text size="xl" fw={700} c="green">
+                      {Number(session.coutTotal).toLocaleString('fr-FR')} €
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      ({session.stats.total} participant{session.stats.total > 1 ? 's' : ''} × {Number(session.tarifHT || 0).toLocaleString('fr-FR')} €)
+                    </Text>
+                  </Paper>
+                </Grid.Col>
+              )}
+            </Grid>
+          </>
+        )}
       </Paper>
 
       {/* Tabs: Participants et Checklist */}

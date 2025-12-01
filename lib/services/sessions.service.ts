@@ -52,6 +52,28 @@ export const sessionsService = {
     await api.delete(`/sessions/${id}`);
   },
 
+  // Aperçu de la suppression d'une session
+  async getDeletePreview(id: number): Promise<{
+    session: { id: number; statut: string; dateDebut: string; dateFin: string };
+    formation: { id: number; nomFormation: string; codeFormation: string } | null;
+    collaborateur: { id: number; nom: string; prenom: string; email: string; departement: { nomDepartement: string } | null } | null;
+    avertissement: string | null;
+    canDelete: boolean;
+  }> {
+    const response = await api.get(`/sessions/${id}/delete-preview`);
+    return response.data;
+  },
+
+  // Supprimer une session avec confirmation et détails
+  async deleteSessionWithConfirmation(id: number): Promise<{
+    success: boolean;
+    message: string;
+    details: { collaborateurAffecte: string | null; formation: string | null };
+  }> {
+    const response = await api.delete(`/sessions/${id}/confirm`);
+    return response.data;
+  },
+
   // Récupérer le planning des sessions
   async getPlanning(filters?: SessionFilters): Promise<SessionPaginatedResponse> {
     const response = await api.get('/sessions/planning', { params: filters });

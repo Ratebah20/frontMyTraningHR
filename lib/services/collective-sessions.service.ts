@@ -123,10 +123,53 @@ export class CollectiveSessionsService {
   }
 
   /**
-   * Supprimer une session collective
+   * Supprimer une session collective (soft delete - annulation)
    */
   static async delete(id: number): Promise<{ message: string }> {
     const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Erreur lors de la suppression');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Aperçu de la suppression d'une session collective
+   */
+  static async getDeletePreview(id: number): Promise<{
+    session: { id: number; titre: string; statut: string; dateDebut: string; dateFin: string };
+    formation: { id: number; nomFormation: string; codeFormation: string } | null;
+    participants: { total: number; liste: Array<{ id: number; nom: string; prenom: string }> };
+    avertissement: string | null;
+    canDelete: boolean;
+  }> {
+    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}/delete-preview`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error('Erreur lors de la récupération de l\'aperçu');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Supprimer définitivement une session collective (hard delete)
+   */
+  static async deleteWithConfirmation(id: number): Promise<{
+    success: boolean;
+    message: string;
+    details: { participantsSupprimes: number; formation: string | null };
+  }> {
+    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}/confirm`, {
       method: 'DELETE',
       credentials: 'include',
     });

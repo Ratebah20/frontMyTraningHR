@@ -56,7 +56,7 @@ export const sessionsService = {
   async getDeletePreview(id: number): Promise<{
     session: { id: number; statut: string; dateDebut: string; dateFin: string };
     formation: { id: number; nomFormation: string; codeFormation: string } | null;
-    collaborateur: { id: number; nom: string; prenom: string; email: string; departement: { nomDepartement: string } | null } | null;
+    collaborateur: { id: number; nom: string; prenom: string; matricule: string; departement: { nomDepartement: string } | null } | null;
     avertissement: string | null;
     canDelete: boolean;
   }> {
@@ -122,6 +122,18 @@ export const sessionsService = {
   // Récupérer la liste des organismes de formation
   async getOrganismes(): Promise<any[]> {
     const response = await api.get('/common/organismes');
+    return response.data;
+  },
+
+  // Synchroniser les statuts des sessions individuelles passées
+  async syncPastStatus(): Promise<{ updated: number; message: string }> {
+    const response = await api.post('/sessions/sync-past-status');
+    return response.data;
+  },
+
+  // Synchroniser les statuts des sessions collectives passées
+  async syncPastCollectiveStatus(): Promise<{ updated: number; message: string }> {
+    const response = await api.post('/collective-sessions/sync-past-status');
     return response.data;
   },
 };

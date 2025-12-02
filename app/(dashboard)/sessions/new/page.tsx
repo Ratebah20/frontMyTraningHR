@@ -303,11 +303,19 @@ export default function NewSessionPage() {
     try {
       if (sessionType === 'individuelle') {
         // Session individuelle
+        // Formatage des dates - s'assurer que les dates sont bien converties en string YYYY-MM-DD
+        const formattedDateDebut = values.dateDebut
+          ? (values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut)
+          : undefined;
+        const formattedDateFin = values.dateFin
+          ? (values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : values.dateFin)
+          : undefined;
+
         const baseData: CreateSessionDto = {
           formationId: values.formationId,
           collaborateurId: values.collaborateurId,
-          dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut,
-          dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : (values.dateFin || undefined),
+          dateDebut: formattedDateDebut,
+          dateFin: formattedDateFin,
           dureePrevue: values.dureePrevue || undefined,
           dureeReelle: values.dureeReelle || undefined,
           uniteDuree: values.uniteDuree,

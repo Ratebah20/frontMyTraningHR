@@ -108,6 +108,54 @@ export default function SessionDetailPage({ params }: Props) {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Handler pour supprimer un participant
+  const handleRemoveParticipant = async (collaborateurId: number) => {
+    if (!session || session.type !== 'collective') return;
+
+    try {
+      await CollectiveSessionsService.removeParticipant(session.id, collaborateurId);
+      notifications.show({
+        title: 'Succès',
+        message: 'Participant retiré de la session',
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
+      // Recharger les données de la session
+      loadSession();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erreur',
+        message: error.message || 'Impossible de retirer le participant',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    }
+  };
+
+  // Handler pour marquer la présence d'un participant
+  const handleMarkPresence = async (collaborateurId: number, present: boolean) => {
+    if (!session || session.type !== 'collective') return;
+
+    try {
+      await CollectiveSessionsService.markPresence(session.id, collaborateurId, present);
+      notifications.show({
+        title: 'Succès',
+        message: `Présence ${present ? 'marquée' : 'retirée'}`,
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
+      // Recharger les données de la session
+      loadSession();
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erreur',
+        message: error.message || 'Impossible de modifier la présence',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    }
+  };
+
   // Charger la session avec auto-détection du type
   const loadSession = async () => {
     setIsLoading(true);
@@ -546,31 +594,6 @@ export default function SessionDetailPage({ params }: Props) {
               </>
               )}
 
-              {/* Participants (seulement pour sessions collectives) */}
-              {session.type === 'collective' && session.participants && (
-                <>
-                  <Box>
-                    <Group mb="md">
-                      <ThemeIcon size="lg" radius="md" variant="light" color="cyan">
-                        <UsersThree size={20} />
-                      </ThemeIcon>
-                      <Text fw={600} size="lg">
-                        Participants ({session.participants.length}
-                        {session.capaciteMax && ` / ${session.capaciteMax}`})
-                      </Text>
-                    </Group>
-
-                    <ParticipantList
-                      participants={session.participants}
-                      readonly={true}
-                      showPresence={session.statut === 'en_cours' || session.statut === 'complete'}
-                    />
-                  </Box>
-
-                  <Divider />
-                </>
-              )}
-
               {/* Formation avec plus d'infos */}
               <Box>
                 <Group mb="md">
@@ -689,6 +712,32 @@ export default function SessionDetailPage({ params }: Props) {
                         </Grid.Col>
                       )}
                     </Grid>
+                  </Box>
+                </>
+              )}
+
+              {/* Participants (seulement pour sessions collectives) */}
+              {session.type === 'collective' && session.participants && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Group mb="md">
+                      <ThemeIcon size="lg" radius="md" variant="light" color="teal">
+                        <UsersThree size={20} />
+                      </ThemeIcon>
+                      <Text fw={600} size="lg">
+                        Participants ({session.participants.length}
+                        {session.capaciteMax && ` / ${session.capaciteMax}`})
+                      </Text>
+                    </Group>
+
+                    <ParticipantList
+                      participants={session.participants}
+                      readonly={StatutUtils.isAnnule(session.statut)}
+                      showPresence={session.statut === 'en_cours' || session.statut === 'complete' || StatutUtils.isComplete(session.statut)}
+                      onRemoveParticipant={handleRemoveParticipant}
+                      onMarkPresence={handleMarkPresence}
+                    />
                   </Box>
                 </>
               )}

@@ -130,6 +130,7 @@ export default function SessionsPage() {
   // États
   const [sessions, setSessions] = useState<any[]>([]); // Can be GroupedSession[] or UnifiedSession[]
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'cards' | 'list'>(() => {
     // Récupérer le mode de vue depuis localStorage au chargement
@@ -391,6 +392,49 @@ export default function SessionsPage() {
     loadGlobalStats();
   };
 
+  // Synchroniser les statuts des sessions passées
+  const handleSyncPastStatus = async () => {
+    setIsSyncing(true);
+    try {
+      // Appeler les deux endpoints de synchronisation
+      const [indivResult, collectResult] = await Promise.all([
+        sessionsService.syncPastStatus(),
+        sessionsService.syncPastCollectiveStatus(),
+      ]);
+
+      const totalUpdated = (indivResult?.updated || 0) + (collectResult?.updated || 0);
+
+      if (totalUpdated > 0) {
+        notifications.show({
+          title: 'Synchronisation réussie',
+          message: `${totalUpdated} session(s) mise(s) à jour en "terminé"`,
+          color: 'green',
+          icon: <CheckCircle size={16} />,
+        });
+        // Rafraîchir les données
+        loadSessions();
+        loadGlobalStats();
+      } else {
+        notifications.show({
+          title: 'Aucune mise à jour',
+          message: 'Toutes les sessions passées sont déjà marquées comme terminées',
+          color: 'blue',
+          icon: <CheckCircle size={16} />,
+        });
+      }
+    } catch (err: any) {
+      console.error('Erreur lors de la synchronisation:', err);
+      notifications.show({
+        title: 'Erreur de synchronisation',
+        message: err.message || 'Une erreur est survenue',
+        color: 'red',
+        icon: <Warning size={16} />,
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // Fonction pour obtenir le statut dominant d'une session groupée
   const getDominantStatus = (stats: any) => {
     // Si pas de stats (session collective ou autre), retourner un statut par défaut
@@ -437,9 +481,9 @@ export default function SessionsPage() {
           </div>
           <Group>
             <Tooltip label="Basculer l'affichage">
-              <ActionIcon 
-                variant="light" 
-                size="lg" 
+              <ActionIcon
+                variant="light"
+                size="lg"
                 onClick={() => setViewMode(viewMode === 'cards' ? 'list' : 'cards')}
               >
                 {viewMode === 'cards' ? <List size={20} /> : <CalendarBlank size={20} />}
@@ -449,6 +493,18 @@ export default function SessionsPage() {
               <ActionIcon variant="light" size="lg" onClick={handleRefresh}>
                 <ArrowsClockwise size={20} />
               </ActionIcon>
+            </Tooltip>
+            <Tooltip label="Mettre à jour automatiquement les sessions passées en 'terminé'">
+              <Button
+                variant="light"
+                color="green"
+                leftSection={isSyncing ? <Loader size={16} /> : <CheckCircle size={16} />}
+                onClick={handleSyncPastStatus}
+                loading={isSyncing}
+                size="md"
+              >
+                Sync. statuts
+              </Button>
             </Tooltip>
             <Button
               leftSection={<Plus size={16} />}

@@ -131,7 +131,8 @@ export const statsService = {
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    includeInactifs?: boolean
   ): Promise<DetailedKPIsResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -140,6 +141,9 @@ export const statsService = {
       if (endDate) params.endDate = endDate;
     } else {
       if (date) params.date = date;
+    }
+    if (includeInactifs !== undefined) {
+      params.includeInactifs = includeInactifs.toString();
     }
     console.log('getCollaborateursDetailedKpis params:', params);
     const response = await api.get('/stats/collaborateurs-detailed-kpis', { params });

@@ -778,3 +778,522 @@
     align-items: flex-start;
   }
 }
+
+/* ============================================
+   NOUVEAUX STYLES - KPIs Heures & Organismes
+   ============================================ */
+
+/* Filter Options */
+.filterOptions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.toggleButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.toggleButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.toggleButton.toggleActive {
+  background: rgba(121, 80, 242, 0.15);
+  border-color: rgba(121, 80, 242, 0.3);
+  color: #9775FA;
+}
+
+.toggleBadge {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Hours Section */
+.hoursSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.hoursGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 640px) {
+  .hoursGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.hourCard {
+  background: linear-gradient(135deg, rgba(34, 139, 230, 0.1) 0%, rgba(77, 171, 247, 0.05) 100%);
+  border: 1px solid rgba(34, 139, 230, 0.2);
+  border-radius: 16px;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.hourCard:nth-child(2) {
+  background: linear-gradient(135deg, rgba(18, 184, 134, 0.1) 0%, rgba(56, 217, 169, 0.05) 100%);
+  border-color: rgba(18, 184, 134, 0.2);
+}
+
+.hourLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 0.5rem;
+}
+
+.hourValue {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #4DABF7;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.hourCard:nth-child(2) .hourValue {
+  color: #38D9A9;
+}
+
+.hourMeta {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.hoursDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hoursDetails span {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+}
+
+/* Organisme Section */
+.organismeSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.organismeList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.organismeItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.organismeItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.organismeRank {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(18, 184, 134, 0.15);
+  color: #38D9A9;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.organismeName {
+  flex: 1;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.organismeHours {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #12B886;
+}
+
+/* Collaborateurs Section */
+.collabSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.collabStats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.collabStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.collabStatValue {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #9775FA;
+}
+
+.collabStatLabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================
+   TABLEAU CROISÉ RÔLE × GENRE
+   ============================================ */
+
+.crossTableCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.crossTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.crossTable th,
+.crossTable td {
+  padding: 0.875rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.crossTable th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.crossTable th:first-child {
+  text-align: left;
+}
+
+.crossTable td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.crossTable tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.crossTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.crossTable td {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.headerMale {
+  background: linear-gradient(135deg, rgba(34, 139, 230, 0.15) 0%, rgba(34, 139, 230, 0.05) 100%);
+  color: #4DABF7 !important;
+}
+
+.headerFemale {
+  background: linear-gradient(135deg, rgba(230, 73, 128, 0.15) 0%, rgba(230, 73, 128, 0.05) 100%);
+  color: #F06595 !important;
+}
+
+.crossTableValue {
+  font-weight: 700;
+  color: #fff;
+}
+
+/* ============================================
+   STATS PAR DÉPARTEMENT
+   ============================================ */
+
+.departementCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.departementList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.departementItem {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.departementItem:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.departementHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  cursor: default;
+}
+
+.departementName {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+}
+
+.departementIcon {
+  color: #7950F2;
+  opacity: 0.8;
+}
+
+.departementStats {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.departementHeures {
+  font-weight: 700;
+  color: #12B886;
+  background: rgba(18, 184, 134, 0.15);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+}
+
+/* Sous-équipes */
+.sousEquipes {
+  padding: 0 1rem 1rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sousEquipeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  border-left: 3px solid rgba(121, 80, 242, 0.3);
+  transition: all 0.2s ease;
+}
+
+.sousEquipeItem:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: rgba(121, 80, 242, 0.6);
+}
+
+.sousEquipeName {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sousEquipeIcon {
+  color: rgba(121, 80, 242, 0.5);
+  font-size: 0.75rem;
+}
+
+.sousEquipeStats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ============================================
+   STATS PAR CATÉGORIE DE FORMATION
+   ============================================ */
+
+.categorieCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.categorieList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.categorieItem {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.categorieItem:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.categorieHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.categorieName {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.95rem;
+}
+
+.categoriePourcentage {
+  font-weight: 800;
+  font-size: 1.1rem;
+  color: #fff;
+}
+
+.categorieBar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.categorieProgress {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.categorieDetails {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.categorieHeures {
+  font-weight: 700;
+  color: #38D9A9;
+}
+
+/* Couleurs pour les catégories */
+.categorieColor0 { background: linear-gradient(90deg, #228BE6 0%, #4DABF7 100%); }
+.categorieColor1 { background: linear-gradient(90deg, #12B886 0%, #38D9A9 100%); }
+.categorieColor2 { background: linear-gradient(90deg, #7950F2 0%, #9775FA 100%); }
+.categorieColor3 { background: linear-gradient(90deg, #E64980 0%, #F06595 100%); }
+.categorieColor4 { background: linear-gradient(90deg, #ff7900 0%, #ff9500 100%); }
+.categorieColor5 { background: linear-gradient(90deg, #FAB005 0%, #FCC419 100%); }
+.categorieColor6 { background: linear-gradient(90deg, #20C997 0%, #63E6BE 100%); }
+.categorieColor7 { background: linear-gradient(90deg, #845EF7 0%, #B197FC 100%); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .crossTable {
+    font-size: 0.8rem;
+  }
+
+  .crossTable th,
+  .crossTable td {
+    padding: 0.625rem 0.5rem;
+  }
+
+  .departementHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .departementStats {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .sousEquipeItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

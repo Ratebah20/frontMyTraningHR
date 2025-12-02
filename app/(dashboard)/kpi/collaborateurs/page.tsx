@@ -12,7 +12,12 @@ import {
   UsersFour,
   Warning,
   Crown,
-  Handshake
+  Handshake,
+  Clock,
+  Buildings,
+  UserSwitch,
+  ToggleLeft,
+  ToggleRight
 } from '@phosphor-icons/react'
 import axios from 'axios'
 import { motion } from 'framer-motion'
@@ -214,13 +219,16 @@ export default function CollaborateursKPIsPage() {
   const [dateDebut, setDateDebut] = useState<Date | null>(null)
   const [dateFin, setDateFin] = useState<Date | null>(null)
 
+  // Nouveau : inclure collaborateurs inactifs
+  const [includeInactifs, setIncludeInactifs] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [])
 
   useEffect(() => {
     fetchDetailedData()
-  }, [periode, date, dateDebut, dateFin])
+  }, [periode, date, dateDebut, dateFin, includeInactifs])
 
   const fetchData = async () => {
     try {
@@ -246,7 +254,7 @@ export default function CollaborateursKPIsPage() {
                         dateDebut ? new Date(dateDebut).toISOString() : undefined
       const endDate = dateFin instanceof Date ? dateFin.toISOString() :
                       dateFin ? new Date(dateFin).toISOString() : undefined
-      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate)
+      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate, includeInactifs)
       setDetailedData(response)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs détaillés:', error)
@@ -346,6 +354,22 @@ export default function CollaborateursKPIsPage() {
               setDateFin(newDateFin)
             }}
           />
+          <div className={styles.filterOptions}>
+            <button
+              className={`${styles.toggleButton} ${includeInactifs ? styles.toggleActive : ''}`}
+              onClick={() => setIncludeInactifs(!includeInactifs)}
+            >
+              {includeInactifs ? <ToggleRight size={20} weight="fill" /> : <ToggleLeft size={20} />}
+              <span>Inclure inactifs</span>
+              {detailedData?.collaborateurs && (
+                <span className={styles.toggleBadge}>
+                  {includeInactifs
+                    ? `${detailedData.collaborateurs.formes} formés`
+                    : `${detailedData.collaborateurs.formesActifs} actifs`}
+                </span>
+              )}
+            </button>
+          </div>
           {detailedData && (
             <span className={styles.periodBadge}>
               {detailedData.periode.libelle}
@@ -367,6 +391,93 @@ export default function CollaborateursKPIsPage() {
           </motion.div>
         ) : detailedData ? (
           <>
+            {/* ===== NOUVEAUX KPIs : Heures de formation ===== */}
+            {detailedData.heuresFormation && (
+              <motion.div
+                className={styles.hoursSection}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
+              >
+                <h3 className={styles.sectionTitle}>
+                  <Clock size={20} weight="bold" style={{ color: '#4DABF7' }} />
+                  Heures de formation
+                </h3>
+                <div className={styles.hoursGrid}>
+                  <div className={styles.hourCard}>
+                    <div className={styles.hourLabel}>Heures dispensées</div>
+                    <div className={styles.hourValue}>{detailedData.heuresFormation.heuresDispensees.toLocaleString('fr-FR')}h</div>
+                    <div className={styles.hourMeta}>Sessions comptées 1 fois</div>
+                  </div>
+                  <div className={styles.hourCard}>
+                    <div className={styles.hourLabel}>Heures cumulées</div>
+                    <div className={styles.hourValue}>{detailedData.heuresFormation.heuresCumulees.toLocaleString('fr-FR')}h</div>
+                    <div className={styles.hourMeta}>Par participant (×N pour collectives)</div>
+                  </div>
+                </div>
+                <div className={styles.hoursDetails}>
+                  <span>Individuelles: {detailedData.heuresFormation.heuresIndividuelles.toLocaleString('fr-FR')}h</span>
+                  <span>Collectives dispensées: {detailedData.heuresFormation.heuresCollectivesDispensees.toLocaleString('fr-FR')}h</span>
+                  <span>Collectives cumulées: {detailedData.heuresFormation.heuresCollectivesCumulees.toLocaleString('fr-FR')}h</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ===== NOUVEAUX KPIs : Heures par organisme ===== */}
+            {detailedData.heuresParOrganisme && detailedData.heuresParOrganisme.length > 0 && (
+              <motion.div
+                className={styles.organismeSection}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <h3 className={styles.sectionTitle}>
+                  <Buildings size={20} weight="bold" style={{ color: '#38D9A9' }} />
+                  Heures par organisme
+                </h3>
+                <div className={styles.organismeList}>
+                  {detailedData.heuresParOrganisme.slice(0, 5).map((org, index) => (
+                    <div key={index} className={styles.organismeItem}>
+                      <div className={styles.organismeRank}>#{index + 1}</div>
+                      <div className={styles.organismeName}>{org.organisme}</div>
+                      <div className={styles.organismeHours}>{org.heuresDispensees.toLocaleString('fr-FR')}h</div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* ===== NOUVEAUX KPIs : Collaborateurs formés ===== */}
+            {detailedData.collaborateurs && (
+              <motion.div
+                className={styles.collabSection}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.25 }}
+              >
+                <h3 className={styles.sectionTitle}>
+                  <UserSwitch size={20} weight="bold" style={{ color: '#9775FA' }} />
+                  Collaborateurs formés
+                </h3>
+                <div className={styles.collabStats}>
+                  <div className={styles.collabStat}>
+                    <span className={styles.collabStatValue}>{detailedData.collaborateurs.formesActifs}</span>
+                    <span className={styles.collabStatLabel}>Actifs formés</span>
+                  </div>
+                  {includeInactifs && (
+                    <div className={styles.collabStat}>
+                      <span className={styles.collabStatValue}>{detailedData.collaborateurs.formesInactifs}</span>
+                      <span className={styles.collabStatLabel}>Inactifs formés</span>
+                    </div>
+                  )}
+                  <div className={styles.collabStat}>
+                    <span className={styles.collabStatValue}>{detailedData.collaborateurs.formes}</span>
+                    <span className={styles.collabStatLabel}>Total formés</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Hero Cards - Par Genre */}
             <div className={styles.heroGrid}>
               <HeroCard
@@ -514,6 +625,155 @@ export default function CollaborateursKPIsPage() {
                 </div>
               </motion.div>
             </div>
+
+            {/* Tableau Croisé Rôle × Genre */}
+            {detailedData.parRoleGenre && (
+              <motion.div
+                className={styles.crossTableCard}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.7 }}
+              >
+                <h3 className={styles.tableTitle}>
+                  <Users size={20} weight="bold" style={{ color: '#845EF7' }} />
+                  Répartition Rôle × Genre
+                </h3>
+                <div className={styles.tableWrapper}>
+                  <table className={styles.crossTable}>
+                    <thead>
+                      <tr>
+                        <th rowSpan={2}>Rôle</th>
+                        <th colSpan={3} className={styles.headerMale}>
+                          <GenderMale size={16} weight="bold" /> Hommes
+                        </th>
+                        <th colSpan={3} className={styles.headerFemale}>
+                          <GenderFemale size={16} weight="bold" /> Femmes
+                        </th>
+                      </tr>
+                      <tr>
+                        <th>Nb</th>
+                        <th>Form.</th>
+                        <th>Heures</th>
+                        <th>Nb</th>
+                        <th>Form.</th>
+                        <th>Heures</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><span className={styles.badgeViolet}>Directeur</span></td>
+                        <td>{detailedData.parRoleGenre.directeur.homme.nombre}</td>
+                        <td>{detailedData.parRoleGenre.directeur.homme.formations}</td>
+                        <td>{detailedData.parRoleGenre.directeur.homme.heures}h</td>
+                        <td>{detailedData.parRoleGenre.directeur.femme.nombre}</td>
+                        <td>{detailedData.parRoleGenre.directeur.femme.formations}</td>
+                        <td>{detailedData.parRoleGenre.directeur.femme.heures}h</td>
+                      </tr>
+                      <tr>
+                        <td><span className={styles.badgeTeal}>Manager</span></td>
+                        <td>{detailedData.parRoleGenre.manager.homme.nombre}</td>
+                        <td>{detailedData.parRoleGenre.manager.homme.formations}</td>
+                        <td>{detailedData.parRoleGenre.manager.homme.heures}h</td>
+                        <td>{detailedData.parRoleGenre.manager.femme.nombre}</td>
+                        <td>{detailedData.parRoleGenre.manager.femme.formations}</td>
+                        <td>{detailedData.parRoleGenre.manager.femme.heures}h</td>
+                      </tr>
+                      <tr>
+                        <td><span className={styles.badgeGray}>Non-manager</span></td>
+                        <td>{detailedData.parRoleGenre.nonManager.homme.nombre}</td>
+                        <td>{detailedData.parRoleGenre.nonManager.homme.formations}</td>
+                        <td>{detailedData.parRoleGenre.nonManager.homme.heures}h</td>
+                        <td>{detailedData.parRoleGenre.nonManager.femme.nombre}</td>
+                        <td>{detailedData.parRoleGenre.nonManager.femme.formations}</td>
+                        <td>{detailedData.parRoleGenre.nonManager.femme.heures}h</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Stats par Département */}
+            {detailedData.parDepartement && detailedData.parDepartement.length > 0 && (
+              <motion.div
+                className={styles.departementCard}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.8 }}
+              >
+                <h3 className={styles.tableTitle}>
+                  <Buildings size={20} weight="bold" style={{ color: '#20C997' }} />
+                  Par département
+                </h3>
+                <div className={styles.departementList}>
+                  {detailedData.parDepartement.map((dept) => (
+                    <div key={dept.id} className={styles.departementItem}>
+                      <div className={styles.departementHeader}>
+                        <span className={styles.departementName}>{dept.nom}</span>
+                        <div className={styles.departementStats}>
+                          <span>{dept.stats.nombre} pers.</span>
+                          <span>{dept.stats.formations} form.</span>
+                          <span className={styles.departementHeures}>{dept.stats.heures}h</span>
+                        </div>
+                      </div>
+                      {dept.sousEquipes && dept.sousEquipes.length > 0 && (
+                        <div className={styles.sousEquipes}>
+                          {dept.sousEquipes.map((sub) => (
+                            <div key={sub.id} className={styles.sousEquipeItem}>
+                              <span className={styles.sousEquipeName}>↳ {sub.nom}</span>
+                              <div className={styles.sousEquipeStats}>
+                                <span>{sub.stats.nombre} pers.</span>
+                                <span>{sub.stats.formations} form.</span>
+                                <span>{sub.stats.heures}h</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Stats par Catégorie de Formation */}
+            {detailedData.parCategorie && detailedData.parCategorie.length > 0 && (
+              <motion.div
+                className={styles.categorieCard}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.9 }}
+              >
+                <h3 className={styles.tableTitle}>
+                  <ChartBar size={20} weight="bold" style={{ color: '#F59F00' }} />
+                  Par catégorie de formation
+                </h3>
+                <div className={styles.categorieList}>
+                  {detailedData.parCategorie.map((cat, index) => (
+                    <div key={cat.id} className={styles.categorieItem}>
+                      <div className={styles.categorieHeader}>
+                        <span className={styles.categorieName}>{cat.nom}</span>
+                        <span className={styles.categoriePourcentage}>{cat.stats.pourcentage}%</span>
+                      </div>
+                      <div className={styles.categorieBar}>
+                        <div
+                          className={styles.categorieProgress}
+                          style={{
+                            width: `${cat.stats.pourcentage}%`,
+                            backgroundColor: `hsl(${(index * 45) % 360}, 70%, 55%)`
+                          }}
+                        />
+                      </div>
+                      <div className={styles.categorieDetails}>
+                        <span>{cat.stats.nombre} collaborateurs</span>
+                        <span>{cat.stats.formations} formations</span>
+                        <span className={styles.categorieHeures}>{cat.stats.heures}h</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
           </>
         ) : null}
 

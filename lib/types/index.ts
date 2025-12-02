@@ -735,13 +735,76 @@ export interface CategoryStats {
 }
 
 export interface DetailedKPIsPeriode {
-  annee: number;
+  annee: number | null;
   mois: number | null;
+  dateDebut?: string | null;
+  dateFin?: string | null;
   libelle: string;
+}
+
+// Nouveaux types pour heures de formation
+export interface HeuresFormationStats {
+  heuresDispensees: number;      // Sessions comptées 1 fois
+  heuresCumulees: number;        // Sessions × participants (collectives)
+  heuresIndividuelles: number;
+  heuresCollectivesDispensees: number;
+  heuresCollectivesCumulees: number;
+}
+
+// Nouveaux types pour collaborateurs formés
+export interface CollaborateursFormesStats {
+  total: number;
+  formes: number;
+  formesActifs: number;
+  formesInactifs: number;
+  includeInactifs: boolean;
+}
+
+// Heures par organisme
+export interface HeuresParOrganisme {
+  organisme: string;
+  heuresDispensees: number;
+}
+
+// Stats par rôle et genre (tableau croisé)
+export interface RoleGenreStats {
+  homme: CategoryStats;
+  femme: CategoryStats;
+}
+
+export interface ParRoleGenre {
+  directeur: RoleGenreStats;
+  manager: RoleGenreStats;
+  nonManager: RoleGenreStats;
+}
+
+// Stats par département
+export interface DepartementStatsItem {
+  id: number;
+  nom: string;
+  stats: CategoryStats;
+  sousEquipes?: DepartementStatsItem[];
+}
+
+// Stats par catégorie de formation
+export interface CategorieStatsItem {
+  id: number;
+  nom: string;
+  stats: {
+    nombre: number;
+    formations: number;
+    heures: number;
+    pourcentage: number;
+  };
 }
 
 export interface DetailedKPIsResponse {
   periode: DetailedKPIsPeriode;
+  // Nouveaux KPIs
+  heuresFormation?: HeuresFormationStats;
+  collaborateurs?: CollaborateursFormesStats;
+  heuresParOrganisme?: HeuresParOrganisme[];
+  // KPIs existants
   parGenre: {
     homme: CategoryStats;
     femme: CategoryStats;
@@ -752,6 +815,10 @@ export interface DetailedKPIsResponse {
     nonManager: CategoryStats;
     directeur: CategoryStats;
   };
+  // Nouveaux KPIs - Tableau croisé, Départements, Catégories
+  parRoleGenre?: ParRoleGenre;
+  parDepartement?: DepartementStatsItem[];
+  parCategorie?: CategorieStatsItem[];
 }
 
 // ==================== TYPES POUR LES SESSIONS COLLECTIVES ====================

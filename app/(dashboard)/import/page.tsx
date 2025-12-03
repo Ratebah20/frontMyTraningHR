@@ -39,9 +39,15 @@ import {
   BookOpen,
   CalendarCheck,
   FileText,
+  Eye,
+  Gear,
 } from '@phosphor-icons/react';
 import { importService } from '@/lib/services';
+import { importPreviewService } from '@/lib/services/import-preview.service';
 import type { ImportHistory, ImportResult } from '@/lib/services/import.service';
+import type { ImportPreviewResponse } from '@/lib/types/import-preview.types';
+import { ImportPreviewModal } from '@/components/import/ImportPreviewModal';
+import Link from 'next/link';
 
 export default function ImportPage() {
   const [activeTab, setActiveTab] = useState<string | null>('collaborateurs');
@@ -53,6 +59,11 @@ export default function ImportPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [importProgress, setImportProgress] = useState(0);
   const [currentImportStats, setCurrentImportStats] = useState<ImportResult | null>(null);
+
+  // States pour le mode preview OLU
+  const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
 
   // Charger l'historique des imports
   useEffect(() => {
@@ -205,6 +216,42 @@ export default function ImportPage() {
     } finally {
       setIsImporting(false);
     }
+  };
+
+  // Preview OLU avec détection de conflits
+  const handleOluPreview = async () => {
+    if (!oluFile) {
+      notifications.show({
+        title: 'Erreur',
+        message: 'Veuillez sélectionner un fichier',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+      return;
+    }
+
+    setIsGeneratingPreview(true);
+    try {
+      const preview = await importPreviewService.generatePreview(oluFile);
+      setPreviewData(preview);
+      setShowPreviewModal(true);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Erreur lors de la génération du preview';
+      notifications.show({
+        title: 'Erreur',
+        message: errorMessage,
+        color: 'red',
+        icon: <XCircle size={20} />,
+      });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
+
+  const handleImportSuccess = async () => {
+    await loadImportHistory();
+    setOluFile(null);
+    setPreviewData(null);
   };
 
   const handleCollaborateursImport = async () => {
@@ -533,13 +580,26 @@ export default function ImportPage() {
           {/* Import OLU */}
           <Tabs.Panel value="olu" pt="xl" px="lg" pb="lg">
             <Stack gap="lg">
-              <Alert icon={<Info size={16} />} color="blue" variant="light">
-                <Text fw={600} mb="xs">Import récurrent depuis l'export OLU</Text>
-                <Text size="sm">
-                  Utilisez cet import pour mettre à jour régulièrement les données depuis la plateforme OLU.
-                  Format attendu : Export Excel OLU standard
-                </Text>
-              </Alert>
+              <Group justify="space-between" align="flex-start">
+                <Alert icon={<Info size={16} />} color="blue" variant="light" style={{ flex: 1 }}>
+                  <Text fw={600} mb="xs">Import récurrent depuis l'export OLU</Text>
+                  <Text size="sm">
+                    Utilisez le mode <Text span fw={600}>Preview</Text> pour analyser le fichier et détecter les conflits avant import.
+                    Les décisions prises seront mémorisées pour les prochains imports.
+                  </Text>
+                </Alert>
+                <Tooltip label="Gérer les règles mémorisées">
+                  <ActionIcon
+                    component={Link}
+                    href="/import/rules"
+                    variant="light"
+                    size="lg"
+                    color="gray"
+                  >
+                    <Gear size={20} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
 
               <FileInput
                 label="Fichier Excel OLU"
@@ -573,13 +633,23 @@ export default function ImportPage() {
 
               <Group justify="flex-end">
                 <Button
+                  variant="light"
+                  leftSection={<Eye size={16} />}
+                  onClick={handleOluPreview}
+                  loading={isGeneratingPreview}
+                  disabled={!oluFile || isImporting}
+                  size="md"
+                >
+                  Preview
+                </Button>
+                <Button
                   leftSection={<ArrowsClockwise size={16} />}
                   onClick={handleOluImport}
                   loading={isImporting}
-                  disabled={!oluFile}
+                  disabled={!oluFile || isGeneratingPreview}
                   size="md"
                 >
-                  Lancer l'import OLU
+                  Import direct
                 </Button>
               </Group>
             </Stack>
@@ -669,6 +739,14 @@ export default function ImportPage() {
           </Tabs.Panel>
         </Tabs>
       </Paper>
+
+      {/* Modal Preview OLU */}
+      <ImportPreviewModal
+        opened={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        previewData={previewData}
+        onImportSuccess={handleImportSuccess}
+      />
     </Container>
   );
 }

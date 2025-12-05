@@ -399,6 +399,18 @@
   color: #ff7900;
 }
 
+.yearBadge {
+  margin-left: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, #ff7900 0%, #ff9500 100%);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* Tables Section */
 .tablesGrid {
   display: grid;

@@ -399,6 +399,7 @@ export default function CollaborateursKPIsPage() {
 
   // Helper pour obtenir le badge de catégorie
   const getCategoryBadgeClass = (categorie: string) => {
+    if (categorie.includes('Autres Collaborateurs')) return styles.badgeCollaborateur
     if (categorie.includes('B2B')) return styles.badgeB2B
     if (categorie.includes('B2C')) return styles.badgeB2C
     if (categorie.includes('Manager')) return styles.badgeManager
@@ -1006,6 +1007,9 @@ export default function CollaborateursKPIsPage() {
               <div className={styles.dividerContent}>
                 <Scales size={18} weight="bold" className={styles.dividerIcon} />
                 <span className={styles.dividerText}>Conformité & Éthique</span>
+                {complianceData?.periode?.libelle && (
+                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+                )}
               </div>
               <div className={styles.dividerLine} />
             </div>

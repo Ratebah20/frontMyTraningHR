@@ -997,6 +997,86 @@
   letter-spacing: 0.05em;
 }
 
+/* Tableau statut formation collaborateurs */
+.collabTable {
+  overflow-x: auto;
+}
+
+.collabTable table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+
+.collabTable th,
+.collabTable td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.collabTable th {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.collabTableHeaderFormes {
+  color: #51CF66 !important;
+}
+
+.collabTableHeaderNonFormes {
+  color: #FF6B6B !important;
+}
+
+.collabTableRowLabel {
+  text-align: left;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.collabTableValueFormes {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #51CF66;
+}
+
+.collabTableValueNonFormes {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #FF6B6B;
+}
+
+.collabTableValueTotal {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.collabTableRowTotal {
+  border-top: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.collabTableRowTotal td {
+  padding-top: 1rem;
+  font-weight: 800;
+}
+
+@media (max-width: 500px) {
+  .collabTable th,
+  .collabTable td {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .collabTableValueFormes,
+  .collabTableValueNonFormes,
+  .collabTableValueTotal {
+    font-size: 1rem;
+  }
+}
+
 /* ============================================
    TABLEAU CROISÉ RÔLE × GENRE
    ============================================ */

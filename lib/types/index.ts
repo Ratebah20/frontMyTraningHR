@@ -757,6 +757,9 @@ export interface CollaborateursFormesStats {
   formes: number;
   formesActifs: number;
   formesInactifs: number;
+  nonFormes: number;
+  nonFormesActifs: number;
+  nonFormesInactifs: number;
   includeInactifs: boolean;
 }
 

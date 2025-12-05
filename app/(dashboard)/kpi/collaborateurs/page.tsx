@@ -447,7 +447,7 @@ export default function CollaborateursKPIsPage() {
               </motion.div>
             )}
 
-            {/* ===== NOUVEAUX KPIs : Collaborateurs formés ===== */}
+            {/* ===== NOUVEAUX KPIs : Collaborateurs formés / non formés ===== */}
             {detailedData.collaborateurs && (
               <motion.div
                 className={styles.collabSection}
@@ -457,23 +457,41 @@ export default function CollaborateursKPIsPage() {
               >
                 <h3 className={styles.sectionTitle}>
                   <UserSwitch size={20} weight="bold" style={{ color: '#9775FA' }} />
-                  Collaborateurs formés
+                  Statut de formation des collaborateurs
                 </h3>
-                <div className={styles.collabStats}>
-                  <div className={styles.collabStat}>
-                    <span className={styles.collabStatValue}>{detailedData.collaborateurs.formesActifs}</span>
-                    <span className={styles.collabStatLabel}>Actifs formés</span>
-                  </div>
-                  {includeInactifs && (
-                    <div className={styles.collabStat}>
-                      <span className={styles.collabStatValue}>{detailedData.collaborateurs.formesInactifs}</span>
-                      <span className={styles.collabStatLabel}>Inactifs formés</span>
-                    </div>
-                  )}
-                  <div className={styles.collabStat}>
-                    <span className={styles.collabStatValue}>{detailedData.collaborateurs.formes}</span>
-                    <span className={styles.collabStatLabel}>Total formés</span>
-                  </div>
+                <div className={styles.collabTable}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th></th>
+                        <th className={styles.collabTableHeaderFormes}>Formés</th>
+                        <th className={styles.collabTableHeaderNonFormes}>Non formés</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td className={styles.collabTableRowLabel}>Actifs</td>
+                        <td className={styles.collabTableValueFormes}>{detailedData.collaborateurs.formesActifs}</td>
+                        <td className={styles.collabTableValueNonFormes}>{detailedData.collaborateurs.nonFormesActifs}</td>
+                        <td className={styles.collabTableValueTotal}>{detailedData.collaborateurs.formesActifs + detailedData.collaborateurs.nonFormesActifs}</td>
+                      </tr>
+                      {includeInactifs && (
+                        <tr>
+                          <td className={styles.collabTableRowLabel}>Inactifs</td>
+                          <td className={styles.collabTableValueFormes}>{detailedData.collaborateurs.formesInactifs}</td>
+                          <td className={styles.collabTableValueNonFormes}>{detailedData.collaborateurs.nonFormesInactifs}</td>
+                          <td className={styles.collabTableValueTotal}>{detailedData.collaborateurs.formesInactifs + detailedData.collaborateurs.nonFormesInactifs}</td>
+                        </tr>
+                      )}
+                      <tr className={styles.collabTableRowTotal}>
+                        <td className={styles.collabTableRowLabel}>Total</td>
+                        <td className={styles.collabTableValueFormes}>{includeInactifs ? detailedData.collaborateurs.formes : detailedData.collaborateurs.formesActifs}</td>
+                        <td className={styles.collabTableValueNonFormes}>{includeInactifs ? detailedData.collaborateurs.nonFormes : detailedData.collaborateurs.nonFormesActifs}</td>
+                        <td className={styles.collabTableValueTotal}>{includeInactifs ? detailedData.collaborateurs.total : (detailedData.collaborateurs.formesActifs + detailedData.collaborateurs.nonFormesActifs)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </motion.div>
             )}

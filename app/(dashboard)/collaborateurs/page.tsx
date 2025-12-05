@@ -74,6 +74,8 @@ export default function CollaborateursPage() {
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('');
+  const [contratFilter, setContratFilter] = useState<string>('');
+  const [typesContrats, setTypesContrats] = useState<{ value: string; label: string }[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -117,7 +119,12 @@ export default function CollaborateursPage() {
       if (roleFilter) {
         filters.typeUtilisateur = roleFilter;
       }
-      
+
+      // Ajouter le filtre par type de contrat
+      if (contratFilter) {
+        filters.contratId = parseInt(contratFilter);
+      }
+
       const response = await collaborateursService.getCollaborateurs(filters);
 
       if (response.data) {
@@ -145,7 +152,7 @@ export default function CollaborateursPage() {
     }
   };
 
-  // Charger les départements au montage
+  // Charger les départements et types de contrats au montage
   useEffect(() => {
     const loadDepartements = async () => {
       try {
@@ -162,18 +169,36 @@ export default function CollaborateursPage() {
         console.error('Erreur lors du chargement des départements:', error);
       }
     };
+
+    const loadTypesContrats = async () => {
+      try {
+        const types = await commonService.getTypesContrats();
+        const typesList = types.map((t: any) => ({
+          value: t.id.toString(),
+          label: t.typeContrat,
+        }));
+        setTypesContrats([
+          { value: '', label: 'Tous les contrats' },
+          ...typesList
+        ]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des types de contrats:', error);
+      }
+    };
+
     loadDepartements();
+    loadTypesContrats();
   }, []);
 
   // Charger les collaborateurs au montage et quand les filtres changent
   useEffect(() => {
     loadCollaborateurs();
-  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter, page]);
+  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter, contratFilter, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter]);
+  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter, contratFilter]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/collaborateurs/${id}`);
@@ -368,6 +393,9 @@ export default function CollaborateursPage() {
         >
           {collaborateur.typeUtilisateur || 'Collaborateur'}
         </Badge>
+      </Table.Td>
+      <Table.Td>
+        <Text size="sm">{collaborateur.contrat?.typeContrat || '-'}</Text>
       </Table.Td>
       <Table.Td>
         <Group gap="xs">
@@ -601,6 +629,16 @@ export default function CollaborateursPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
+              placeholder="Contrat"
+              data={typesContrats}
+              value={contratFilter}
+              onChange={(value) => setContratFilter(value || '')}
+              clearable
+              searchable
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
+            <Select
               placeholder="Statut"
               data={[
                 { value: '', label: 'Tous' },
@@ -635,6 +673,7 @@ export default function CollaborateursPage() {
                     <Table.Th>Département</Table.Th>
                     <Table.Th>Manager</Table.Th>
                     <Table.Th>Rôle</Table.Th>
+                    <Table.Th>Contrat</Table.Th>
                     <Table.Th>Formations</Table.Th>
                     <Table.Th>Statut</Table.Th>
                     <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>

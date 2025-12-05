@@ -3,6 +3,8 @@ import api from '../api';
 export interface ExportFilters {
   startDate?: string;
   endDate?: string;
+  actif?: boolean;
+  statut?: string;
 }
 
 export type ExportType = 'collaborateurs' | 'formations' | 'sessions';
@@ -12,6 +14,7 @@ export const exportsService = {
     const params = new URLSearchParams();
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.actif !== undefined) params.append('actif', String(filters.actif));
 
     const queryString = params.toString();
     const url = `/export/collaborateurs.csv${queryString ? `?${queryString}` : ''}`;
@@ -40,6 +43,8 @@ export const exportsService = {
     const params = new URLSearchParams();
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.actif !== undefined) params.append('actif', String(filters.actif));
+    if (filters?.statut) params.append('statut', filters.statut);
 
     const queryString = params.toString();
     const url = `/export/sessions.csv${queryString ? `?${queryString}` : ''}`;

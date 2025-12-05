@@ -16,6 +16,8 @@ import {
   Paper,
   Loader,
   Alert,
+  Select,
+  Switch,
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -49,6 +51,8 @@ export default function ExportsPage() {
   const [exportMode, setExportMode] = useState<ExportMode>('all');
   const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
   const [loadingExports, setLoadingExports] = useState<Record<string, boolean>>({});
+  const [filterActif, setFilterActif] = useState<boolean | undefined>(undefined);
+  const [filterStatut, setFilterStatut] = useState<string | null>(null);
 
   const exportTypes: ExportItem[] = [
     {
@@ -92,21 +96,30 @@ export default function ExportsPage() {
     return d.toLocaleDateString('fr-FR');
   };
 
-  const getFilters = (): ExportFilters | undefined => {
-    if (exportMode === 'all') {
-      return undefined;
+  const getFilters = (exportType: ExportType): ExportFilters | undefined => {
+    const filters: ExportFilters = {};
+
+    // Filtres de date si mode période
+    if (exportMode === 'period' && dateRange[0] && dateRange[1]) {
+      filters.startDate = formatDateForApi(dateRange[0]);
+      filters.endDate = formatDateForApi(dateRange[1]);
     }
-    if (dateRange[0] && dateRange[1]) {
-      return {
-        startDate: formatDateForApi(dateRange[0]),
-        endDate: formatDateForApi(dateRange[1]),
-      };
+
+    // Filtre actif/inactif (pour collaborateurs et sessions)
+    if (filterActif !== undefined && (exportType === 'collaborateurs' || exportType === 'sessions')) {
+      filters.actif = filterActif;
     }
-    return undefined;
+
+    // Filtre statut (uniquement pour sessions)
+    if (filterStatut && exportType === 'sessions') {
+      filters.statut = filterStatut;
+    }
+
+    return Object.keys(filters).length > 0 ? filters : undefined;
   };
 
   const handleExport = async (exportType: ExportItem) => {
-    const filters = getFilters();
+    const filters = getFilters(exportType.id);
 
     if (exportMode === 'period' && (!dateRange[0] || !dateRange[1])) {
       notifications.show({
@@ -238,6 +251,40 @@ export default function ExportsPage() {
                 </Stack>
               </Paper>
             )}
+
+            <Paper p="md" radius="sm" bg="var(--mantine-color-gray-light)">
+              <Stack gap="sm">
+                <Text size="sm" fw={500}>
+                  Filtres avancés
+                </Text>
+                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                  <Select
+                    label="Statut collaborateur"
+                    placeholder="Tous"
+                    clearable
+                    data={[
+                      { value: 'true', label: 'Actifs uniquement' },
+                      { value: 'false', label: 'Inactifs uniquement' },
+                    ]}
+                    value={filterActif === undefined ? null : String(filterActif)}
+                    onChange={(value) => setFilterActif(value === null ? undefined : value === 'true')}
+                  />
+                  <Select
+                    label="Statut session (export sessions)"
+                    placeholder="Tous les statuts"
+                    clearable
+                    data={[
+                      { value: 'Terminé', label: 'Terminé' },
+                      { value: 'En cours', label: 'En cours' },
+                      { value: 'Planifié', label: 'Planifié' },
+                      { value: 'Annulé', label: 'Annulé' },
+                    ]}
+                    value={filterStatut}
+                    onChange={setFilterStatut}
+                  />
+                </SimpleGrid>
+              </Stack>
+            </Paper>
           </Stack>
         </Paper>
 

@@ -630,7 +630,10 @@ export default function CollaborateursPage() {
           <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
               placeholder="Contrat"
-              data={typesContrats}
+              data={[
+                { value: '', label: 'Tous les contrats' },
+                ...typesContrats.filter(t => t.value !== '')
+              ]}
               value={contratFilter}
               onChange={(value) => setContratFilter(value || '')}
               clearable

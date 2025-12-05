@@ -1145,6 +1145,7 @@ export interface ComplianceFormationStats {
     b2c: number;
     managers: number;
     directeurs: number;
+    collaborateurs: number;
     total: number;
   };
 }
@@ -1168,6 +1169,7 @@ export interface ComplianceEthicsKPIsResponse {
     b2c: ComplianceCategoryStats;
     managers: ComplianceCategoryStats;
     directeurs: ComplianceCategoryStats;
+    collaborateurs: ComplianceCategoryStats;
   };
 
   parCategorieCroisee: ComplianceCrossCategory[];

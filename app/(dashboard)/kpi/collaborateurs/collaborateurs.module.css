@@ -1733,6 +1733,15 @@
   font-weight: 600;
 }
 
+.badgeCollaborateur {
+  background: rgba(134, 142, 150, 0.2);
+  color: #ADB5BD;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .badgeCrossCategory {
   background: rgba(255, 121, 0, 0.2);
   color: #ff9500;

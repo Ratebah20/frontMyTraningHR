@@ -1293,6 +1293,18 @@ export default function CollaborateursKPIsPage() {
                       </strong>
                     </td>
                   </tr>
+                  <tr>
+                    <td><span className={styles.badgeCollaborateur}>Collaborateurs</span></td>
+                    <td>{complianceData.parCategorieSimple.collaborateurs.total}</td>
+                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.collaborateurs.formes}</td>
+                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.collaborateurs.nonFormes}</td>
+                    <td>{complianceData.parCategorieSimple.collaborateurs.heures}h</td>
+                    <td>
+                      <strong style={{ color: complianceData.parCategorieSimple.collaborateurs.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
+                        {complianceData.parCategorieSimple.collaborateurs.tauxCouverture}%
+                      </strong>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </motion.div>
@@ -1356,6 +1368,7 @@ export default function CollaborateursKPIsPage() {
                       <th>B2C</th>
                       <th>Managers</th>
                       <th>Directeurs</th>
+                      <th>Collab.</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1367,6 +1380,7 @@ export default function CollaborateursKPIsPage() {
                         <td>{f.participants.b2c}</td>
                         <td>{f.participants.managers}</td>
                         <td>{f.participants.directeurs}</td>
+                        <td>{f.participants.collaborateurs}</td>
                       </tr>
                     ))}
                   </tbody>

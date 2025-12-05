@@ -17,12 +17,16 @@ import {
   Buildings,
   UserSwitch,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Scales,
+  ShieldCheck,
+  CheckCircle,
+  XCircle
 } from '@phosphor-icons/react'
 import axios from 'axios'
 import { motion } from 'framer-motion'
 import { statsService } from '@/lib/services'
-import { DetailedKPIsResponse } from '@/lib/types'
+import { DetailedKPIsResponse, ComplianceEthicsKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import styles from './collaborateurs.module.css'
 
@@ -222,12 +226,20 @@ export default function CollaborateursKPIsPage() {
   // Nouveau : inclure collaborateurs inactifs
   const [includeInactifs, setIncludeInactifs] = useState(false)
 
+  // État pour les KPIs Compliance/Éthique
+  const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
+  const [complianceLoading, setComplianceLoading] = useState(false)
+
   useEffect(() => {
     fetchData()
   }, [])
 
   useEffect(() => {
     fetchDetailedData()
+  }, [periode, date, dateDebut, dateFin, includeInactifs])
+
+  useEffect(() => {
+    fetchComplianceData()
   }, [periode, date, dateDebut, dateFin, includeInactifs])
 
   const fetchData = async () => {
@@ -261,6 +273,42 @@ export default function CollaborateursKPIsPage() {
     } finally {
       setDetailedLoading(false)
     }
+  }
+
+  const fetchComplianceData = async () => {
+    if (periode === 'plage' && (!dateDebut || !dateFin)) {
+      return
+    }
+
+    setComplianceLoading(true)
+    try {
+      const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
+                        dateDebut ? new Date(dateDebut).toISOString() : undefined
+      const endDate = dateFin instanceof Date ? dateFin.toISOString() :
+                      dateFin ? new Date(dateFin).toISOString() : undefined
+      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs)
+      setComplianceData(response)
+    } catch (error) {
+      console.error('Erreur lors du chargement des KPIs compliance:', error)
+    } finally {
+      setComplianceLoading(false)
+    }
+  }
+
+  // Helper pour déterminer la classe CSS du taux de couverture
+  const getCoverageClass = (taux: number) => {
+    if (taux >= 80) return styles.coverageHigh
+    if (taux >= 50) return styles.coverageMedium
+    return styles.coverageLow
+  }
+
+  // Helper pour obtenir le badge de catégorie
+  const getCategoryBadgeClass = (categorie: string) => {
+    if (categorie.includes('B2B')) return styles.badgeB2B
+    if (categorie.includes('B2C')) return styles.badgeB2C
+    if (categorie.includes('Manager')) return styles.badgeManager
+    if (categorie.includes('Directeur')) return styles.badgeDirecteur
+    return styles.badgeCrossCategory
   }
 
   if (loading) {
@@ -790,6 +838,292 @@ export default function CollaborateursKPIsPage() {
                     </div>
                   ))}
                 </div>
+              </motion.div>
+            )}
+          </>
+        ) : null}
+
+        {/* ===== SECTION CONFORMITÉ/ÉTHIQUE ===== */}
+        {complianceLoading ? (
+          <motion.div
+            className={styles.complianceSection}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <div className={styles.loadingContainer}>
+              <div className={styles.loadingSpinner} />
+              <span className={styles.loadingText}>Chargement des KPIs Conformité...</span>
+            </div>
+          </motion.div>
+        ) : complianceData && complianceData.formationsEthique.nombreFormations > 0 ? (
+          <>
+            {/* Divider Section Éthique */}
+            <div className={styles.divider}>
+              <div className={styles.dividerLine} />
+              <div className={styles.dividerContent}>
+                <Scales size={18} weight="bold" className={styles.dividerIcon} />
+                <span className={styles.dividerText}>Conformité & Éthique</span>
+              </div>
+              <div className={styles.dividerLine} />
+            </div>
+
+            {/* Formations éthique identifiées */}
+            <motion.div
+              className={styles.complianceSection}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+            >
+              <h3 className={styles.tableTitle}>
+                <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
+                Formations Éthique Identifiées ({complianceData.formationsEthique.nombreFormations})
+              </h3>
+              <div className={styles.formationsEthiqueList}>
+                {complianceData.formationsEthique.liste.map(f => (
+                  <span key={f.id} className={styles.formationEthiqueTag}>{f.nom}</span>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Stats globales compliance */}
+            <motion.div
+              className={styles.complianceSection}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.1 }}
+            >
+              <div className={styles.complianceGlobalStats}>
+                <div className={styles.complianceGlobalStat}>
+                  <span className={styles.complianceGlobalStatValue}>
+                    {complianceData.comparatifGlobal.tauxCouverture}%
+                  </span>
+                  <span className={styles.complianceGlobalStatLabel}>Taux couverture</span>
+                </div>
+                <div className={styles.complianceGlobalStat}>
+                  <span className={styles.complianceGlobalStatValue}>
+                    {complianceData.comparatifGlobal.formes}
+                  </span>
+                  <span className={styles.complianceGlobalStatLabel}>Formés</span>
+                </div>
+                <div className={styles.complianceGlobalStat}>
+                  <span className={styles.complianceGlobalStatValue} style={{ color: '#FA5252' }}>
+                    {complianceData.comparatifGlobal.nonFormes}
+                  </span>
+                  <span className={styles.complianceGlobalStatLabel}>Non formés</span>
+                </div>
+                <div className={styles.complianceGlobalStat}>
+                  <span className={styles.complianceGlobalStatValue} style={{ color: '#4DABF7' }}>
+                    {complianceData.comparatifGlobal.totalEmployesRisque}
+                  </span>
+                  <span className={styles.complianceGlobalStatLabel}>Employés à risque</span>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Cards par catégorie croisée */}
+            {complianceData.parCategorieCroisee.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <div className={styles.riskCategoriesGrid}>
+                  {complianceData.parCategorieCroisee.map((cat, index) => (
+                    <div key={cat.categorie} className={styles.riskCategoryCard}>
+                      <div className={styles.riskCategoryHeader}>
+                        <span className={styles.riskCategoryLabel}>{cat.categorie}</span>
+                        <span className={`${styles.riskCategoryBadge} ${getCategoryBadgeClass(cat.categorie)}`}>
+                          {cat.tauxCouverture}%
+                        </span>
+                      </div>
+                      <div className={styles.riskCategoryStats}>
+                        <div className={styles.riskCategoryStat}>
+                          <span>Effectif</span>
+                          <span className={styles.riskCategoryStatValue}>{cat.total}</span>
+                        </div>
+                        <div className={styles.riskCategoryStat}>
+                          <span>Formés</span>
+                          <span className={styles.riskCategoryStatValue} style={{ color: '#38D9A9' }}>
+                            {cat.formes}
+                          </span>
+                        </div>
+                        <div className={styles.riskCategoryStat}>
+                          <span>Non formés</span>
+                          <span className={styles.riskCategoryStatValue} style={{ color: '#FA5252' }}>
+                            {cat.nonFormes}
+                          </span>
+                        </div>
+                        <div className={styles.riskCategoryStat}>
+                          <span>Heures</span>
+                          <span className={styles.riskCategoryStatValue}>{cat.heures}h</span>
+                        </div>
+                      </div>
+                      <div className={styles.coverageIndicator}>
+                        <div className={styles.coverageBar}>
+                          <div
+                            className={`${styles.coverageProgress} ${getCoverageClass(cat.tauxCouverture)}`}
+                            style={{ width: `${cat.tauxCouverture}%` }}
+                          />
+                        </div>
+                        <span className={styles.coveragePercent}>{cat.tauxCouverture}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Tableau comparatif Formés vs Non-Formés */}
+            <motion.div
+              className={styles.comparisonTableCard}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.3 }}
+            >
+              <h3 className={styles.tableTitle}>
+                <CheckCircle size={20} weight="bold" style={{ color: '#38D9A9' }} />
+                Comparatif Formés vs Non-Formés par Catégorie
+              </h3>
+              <table className={styles.comparisonTable}>
+                <thead>
+                  <tr>
+                    <th>Catégorie</th>
+                    <th>Total</th>
+                    <th>Formés</th>
+                    <th>Non formés</th>
+                    <th>Heures</th>
+                    <th>Taux</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Catégories simples */}
+                  <tr>
+                    <td><span className={styles.badgeB2B}>B2B</span></td>
+                    <td>{complianceData.parCategorieSimple.b2b.total}</td>
+                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.b2b.formes}</td>
+                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.b2b.nonFormes}</td>
+                    <td>{complianceData.parCategorieSimple.b2b.heures}h</td>
+                    <td>
+                      <strong style={{ color: complianceData.parCategorieSimple.b2b.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
+                        {complianceData.parCategorieSimple.b2b.tauxCouverture}%
+                      </strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><span className={styles.badgeB2C}>B2C</span></td>
+                    <td>{complianceData.parCategorieSimple.b2c.total}</td>
+                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.b2c.formes}</td>
+                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.b2c.nonFormes}</td>
+                    <td>{complianceData.parCategorieSimple.b2c.heures}h</td>
+                    <td>
+                      <strong style={{ color: complianceData.parCategorieSimple.b2c.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
+                        {complianceData.parCategorieSimple.b2c.tauxCouverture}%
+                      </strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><span className={styles.badgeManager}>Managers</span></td>
+                    <td>{complianceData.parCategorieSimple.managers.total}</td>
+                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.managers.formes}</td>
+                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.managers.nonFormes}</td>
+                    <td>{complianceData.parCategorieSimple.managers.heures}h</td>
+                    <td>
+                      <strong style={{ color: complianceData.parCategorieSimple.managers.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
+                        {complianceData.parCategorieSimple.managers.tauxCouverture}%
+                      </strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><span className={styles.badgeDirecteur}>Directeurs</span></td>
+                    <td>{complianceData.parCategorieSimple.directeurs.total}</td>
+                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.directeurs.formes}</td>
+                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.directeurs.nonFormes}</td>
+                    <td>{complianceData.parCategorieSimple.directeurs.heures}h</td>
+                    <td>
+                      <strong style={{ color: complianceData.parCategorieSimple.directeurs.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
+                        {complianceData.parCategorieSimple.directeurs.tauxCouverture}%
+                      </strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </motion.div>
+
+            {/* Répartition par genre dans les catégories croisées */}
+            {complianceData.parCategorieCroisee.length > 0 && (
+              <motion.div
+                className={styles.comparisonTableCard}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.4 }}
+              >
+                <h3 className={styles.tableTitle}>
+                  <GenderMale size={20} weight="bold" style={{ color: '#4DABF7' }} />
+                  <GenderFemale size={20} weight="bold" style={{ color: '#F06595', marginLeft: '-8px' }} />
+                  Répartition par Genre (employés formés)
+                </h3>
+                <table className={styles.comparisonTable}>
+                  <thead>
+                    <tr>
+                      <th>Catégorie</th>
+                      <th>Hommes</th>
+                      <th>Heures H</th>
+                      <th>Femmes</th>
+                      <th>Heures F</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {complianceData.parCategorieCroisee.map(cat => (
+                      <tr key={cat.categorie}>
+                        <td><span className={getCategoryBadgeClass(cat.categorie)}>{cat.categorie}</span></td>
+                        <td style={{ color: '#4DABF7' }}>{cat.parGenre.homme.nombre}</td>
+                        <td>{cat.parGenre.homme.heures}h</td>
+                        <td style={{ color: '#F06595' }}>{cat.parGenre.femme.nombre}</td>
+                        <td>{cat.parGenre.femme.heures}h</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </motion.div>
+            )}
+
+            {/* Détail par formation */}
+            {complianceData.parFormation.length > 0 && (
+              <motion.div
+                className={styles.comparisonTableCard}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.5 }}
+              >
+                <h3 className={styles.tableTitle}>
+                  <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
+                  Participation par Formation Éthique
+                </h3>
+                <table className={styles.comparisonTable}>
+                  <thead>
+                    <tr>
+                      <th>Formation</th>
+                      <th>Total</th>
+                      <th>B2B</th>
+                      <th>B2C</th>
+                      <th>Managers</th>
+                      <th>Directeurs</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {complianceData.parFormation.map(f => (
+                      <tr key={f.formationId}>
+                        <td>{f.nomFormation}</td>
+                        <td><strong>{f.participants.total}</strong></td>
+                        <td>{f.participants.b2b}</td>
+                        <td>{f.participants.b2c}</td>
+                        <td>{f.participants.managers}</td>
+                        <td>{f.participants.directeurs}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </motion.div>
             )}
           </>

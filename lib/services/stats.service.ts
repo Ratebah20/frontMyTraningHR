@@ -5,7 +5,8 @@ import {
   CollaborateurStats,
   DepartementStats,
   ChartData,
-  DetailedKPIsResponse
+  DetailedKPIsResponse,
+  ComplianceEthicsKPIsResponse
 } from '../types';
 
 export const statsService = {
@@ -147,6 +148,29 @@ export const statsService = {
     }
     console.log('getCollaborateursDetailedKpis params:', params);
     const response = await api.get('/stats/collaborateurs-detailed-kpis', { params });
+    return response.data;
+  },
+
+  // Récupérer les KPIs de conformité/éthique
+  async getComplianceEthicsKpis(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string,
+    includeInactifs?: boolean
+  ): Promise<ComplianceEthicsKPIsResponse> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
+    if (includeInactifs !== undefined) {
+      params.includeInactifs = includeInactifs.toString();
+    }
+    const response = await api.get('/stats/compliance-ethics-kpis', { params });
     return response.data;
   },
 };

@@ -1377,3 +1377,366 @@
     gap: 0.5rem;
   }
 }
+
+/* ============================================
+   SECTION CONFORMITÉ/ÉTHIQUE
+   ============================================ */
+
+/* Filtre par catégorie de risque */
+.complianceFilters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.complianceFilterBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.complianceFilterBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.complianceFilterBtnActive {
+  background: linear-gradient(135deg, #12B886 0%, #38D9A9 100%);
+  border-color: transparent;
+  color: #000;
+  font-weight: 700;
+}
+
+/* Section Compliance Card */
+.complianceSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Cards catégories de risque */
+.riskCategoriesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .riskCategoriesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .riskCategoriesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Risk Category Card */
+.riskCategoryCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.riskCategoryCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.riskCategoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.riskCategoryLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.riskCategoryBadge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.riskCategoryStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.riskCategoryStat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.riskCategoryStatValue {
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Coverage Indicator */
+.coverageIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.coverageBar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.coverageProgress {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.coverageHigh {
+  background: linear-gradient(90deg, #12B886, #38D9A9);
+}
+
+.coverageMedium {
+  background: linear-gradient(90deg, #F59F00, #FAB005);
+}
+
+.coverageLow {
+  background: linear-gradient(90deg, #FA5252, #FF6B6B);
+}
+
+.coveragePercent {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 45px;
+  text-align: right;
+}
+
+/* Comparison Table */
+.comparisonTableCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.comparisonTable th {
+  text-align: left;
+  padding: 0.875rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.comparisonTable td {
+  padding: 0.875rem 1rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.comparisonTable tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.comparisonTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badge catégories */
+.badgeB2B {
+  background: rgba(34, 139, 230, 0.2);
+  color: #4DABF7;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeB2C {
+  background: rgba(230, 73, 128, 0.2);
+  color: #F06595;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeManager {
+  background: rgba(18, 184, 134, 0.2);
+  color: #38D9A9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeDirecteur {
+  background: rgba(121, 80, 242, 0.2);
+  color: #9775FA;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeCrossCategory {
+  background: rgba(255, 121, 0, 0.2);
+  color: #ff9500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Icône éthique/conformité */
+.iconEthics {
+  background: rgba(18, 184, 134, 0.15);
+  color: #38D9A9;
+}
+
+/* Gender breakdown grid */
+.genderBreakdownGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .genderBreakdownGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.genderCard {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.genderCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.genderCardValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.genderCardMeta {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Formations éthique liste */
+.formationsEthiqueList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.formationEthiqueTag {
+  background: rgba(18, 184, 134, 0.1);
+  border: 1px solid rgba(18, 184, 134, 0.2);
+  color: #38D9A9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Stats globales compliance */
+.complianceGlobalStats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 1rem 0;
+}
+
+.complianceGlobalStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.complianceGlobalStatValue {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #38D9A9;
+}
+
+.complianceGlobalStatLabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Responsive compliance */
+@media (max-width: 768px) {
+  .complianceFilters {
+    justify-content: center;
+  }
+
+  .complianceGlobalStats {
+    gap: 1.5rem;
+  }
+
+  .complianceGlobalStatValue {
+    font-size: 2rem;
+  }
+}

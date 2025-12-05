@@ -1109,3 +1109,75 @@ export interface GlobalSessionStats {
     hybride: number;
   };
 }
+
+// ==================== TYPES POUR LES KPIs CONFORMITÉ/ÉTHIQUE ====================
+
+export interface ComplianceGenreStats {
+  nombre: number;
+  heures: number;
+  formations: number;
+  moyenne: number;
+}
+
+export interface ComplianceCategoryStats {
+  total: number;
+  formes: number;
+  nonFormes: number;
+  heures: number;
+  formations: number;
+  tauxCouverture: number;
+  moyenneHeuresParPersonne: number;
+  parGenre: {
+    homme: ComplianceGenreStats;
+    femme: ComplianceGenreStats;
+  };
+}
+
+export interface ComplianceCrossCategory extends ComplianceCategoryStats {
+  categorie: string;
+}
+
+export interface ComplianceFormationStats {
+  formationId: number;
+  nomFormation: string;
+  participants: {
+    b2b: number;
+    b2c: number;
+    managers: number;
+    directeurs: number;
+    total: number;
+  };
+}
+
+export interface ComplianceEthicsKPIsResponse {
+  periode: {
+    annee: number | null;
+    mois: number | null;
+    dateDebut: string | null;
+    dateFin: string | null;
+    libelle: string;
+  };
+
+  formationsEthique: {
+    liste: Array<{ id: number; nom: string }>;
+    nombreFormations: number;
+  };
+
+  parCategorieSimple: {
+    b2b: ComplianceCategoryStats;
+    b2c: ComplianceCategoryStats;
+    managers: ComplianceCategoryStats;
+    directeurs: ComplianceCategoryStats;
+  };
+
+  parCategorieCroisee: ComplianceCrossCategory[];
+
+  comparatifGlobal: {
+    totalEmployesRisque: number;
+    formes: number;
+    nonFormes: number;
+    tauxCouverture: number;
+  };
+
+  parFormation: ComplianceFormationStats[];
+}

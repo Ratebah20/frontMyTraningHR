@@ -157,7 +157,8 @@ export const statsService = {
     date?: string,
     startDate?: string,
     endDate?: string,
-    includeInactifs?: boolean
+    includeInactifs?: boolean,
+    formationIds?: number[]  // IDs des formations à inclure
   ): Promise<ComplianceEthicsKPIsResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -169,6 +170,9 @@ export const statsService = {
     }
     if (includeInactifs !== undefined) {
       params.includeInactifs = includeInactifs.toString();
+    }
+    if (formationIds && formationIds.length > 0) {
+      params.formationIds = formationIds.join(',');
     }
     const response = await api.get('/stats/compliance-ethics-kpis', { params });
     return response.data;

@@ -33,7 +33,7 @@ import {
   IdentificationCard,
 } from '@phosphor-icons/react';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
-import { Collaborateur } from '@/lib/types';
+import { Collaborateur, TypeUtilisateur } from '@/lib/types';
 
 interface Props {
   params: {
@@ -64,6 +64,7 @@ export default function CollaborateurEditPage({ params }: Props) {
       departementId: '',
       managerId: '',
       contratId: '',
+      typeUtilisateur: TypeUtilisateur.COLLABORATEUR,
       actif: true,
     },
     validate: {
@@ -136,6 +137,7 @@ export default function CollaborateurEditPage({ params }: Props) {
           departementId: collabData.departementId ? collabData.departementId.toString() : '',
           managerId: collabData.managerId ? collabData.managerId.toString() : '',
           contratId: collabData.contratId ? collabData.contratId.toString() : '',
+          typeUtilisateur: (collabData.typeUtilisateur as TypeUtilisateur) || TypeUtilisateur.COLLABORATEUR,
           actif: collabData.actif !== false,
         });
         
@@ -190,6 +192,7 @@ export default function CollaborateurEditPage({ params }: Props) {
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
+        typeUtilisateur: values.typeUtilisateur,
         actif: values.actif,
       };
 
@@ -375,6 +378,19 @@ export default function CollaborateurEditPage({ params }: Props) {
                     clearable
                     searchable
                     {...form.getInputProps('managerId')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Rôle"
+                    placeholder="Sélectionner le rôle"
+                    description="Définit le niveau hiérarchique du collaborateur"
+                    data={[
+                      { value: TypeUtilisateur.COLLABORATEUR, label: 'Collaborateur' },
+                      { value: TypeUtilisateur.MANAGER, label: 'Manager' },
+                      { value: TypeUtilisateur.DIRECTEUR, label: 'Directeur' },
+                    ]}
+                    {...form.getInputProps('typeUtilisateur')}
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>

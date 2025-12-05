@@ -471,7 +471,7 @@ export enum SessionStatut {
 export enum TypeUtilisateur {
   COLLABORATEUR = 'Collaborateur',
   MANAGER = 'Manager',
-  ADMIN = 'Admin',
+  DIRECTEUR = 'Directeur',
 }
 
 export enum ImportType {

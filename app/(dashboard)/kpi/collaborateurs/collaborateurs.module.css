@@ -1680,6 +1680,37 @@
 }
 
 /* Formations éthique liste */
+.formationSelectionHeader {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.formationSelectAllBtn,
+.formationDeselectAllBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationSelectAllBtn:hover:not(:disabled),
+.formationDeselectAllBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.formationSelectAllBtn:disabled,
+.formationDeselectAllBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .formationsEthiqueList {
   display: flex;
   flex-wrap: wrap;
@@ -1688,6 +1719,8 @@
 }
 
 .formationEthiqueTag {
+  display: inline-flex;
+  align-items: center;
   background: rgba(18, 184, 134, 0.1);
   border: 1px solid rgba(18, 184, 134, 0.2);
   color: #38D9A9;
@@ -1695,6 +1728,199 @@
   border-radius: 16px;
   font-size: 0.8rem;
   font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationEthiqueTag:hover {
+  transform: translateY(-1px);
+}
+
+.formationSelected {
+  background: rgba(18, 184, 134, 0.2);
+  border-color: rgba(18, 184, 134, 0.5);
+  color: #38D9A9;
+  box-shadow: 0 0 8px rgba(18, 184, 134, 0.3);
+}
+
+.formationUnselected {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.formationUnselected:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.noSelectionMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: rgba(250, 82, 82, 0.1);
+  border: 1px solid rgba(250, 82, 82, 0.2);
+  border-radius: 8px;
+  color: #FA5252;
+  font-size: 0.85rem;
+}
+
+/* Bouton ajouter formation */
+.formationAddBtn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(56, 217, 169, 0.1);
+  border: 1px solid rgba(56, 217, 169, 0.3);
+  color: #38D9A9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationAddBtn:hover {
+  background: rgba(56, 217, 169, 0.2);
+  border-color: rgba(56, 217, 169, 0.5);
+}
+
+/* Container de recherche */
+.formationSearchContainer {
+  position: relative;
+  margin: 0.75rem 0;
+}
+
+.formationSearchInputWrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.searchIcon {
+  color: rgba(255, 255, 255, 0.4);
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.formationSearchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.formationSearchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.searchCloseBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.searchCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Résultats de recherche */
+.formationSearchResults {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.25rem;
+  background: rgba(20, 20, 30, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.formationSearchResultItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationSearchResultItem:last-child {
+  border-bottom: none;
+}
+
+.formationSearchResultItem:hover {
+  background: rgba(56, 217, 169, 0.1);
+  color: #38D9A9;
+}
+
+.formationSearchNoResults {
+  padding: 1rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+}
+
+/* Wrapper pour le tag avec bouton de suppression */
+.formationTagWrapper {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.formationRemoveBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(250, 82, 82, 0.9);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease;
+}
+
+.formationTagWrapper:hover .formationRemoveBtn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.formationRemoveBtn:hover {
+  background: #FA5252;
 }
 
 /* Stats globales compliance */

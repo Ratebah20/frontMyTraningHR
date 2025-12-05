@@ -21,11 +21,14 @@ import {
   Scales,
   ShieldCheck,
   CheckCircle,
-  XCircle
+  XCircle,
+  MagnifyingGlass,
+  Plus,
+  X
 } from '@phosphor-icons/react'
 import axios from 'axios'
 import { motion } from 'framer-motion'
-import { statsService } from '@/lib/services'
+import { statsService, formationsService } from '@/lib/services'
 import { DetailedKPIsResponse, ComplianceEthicsKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import styles from './collaborateurs.module.css'
@@ -229,9 +232,19 @@ export default function CollaborateursKPIsPage() {
   // État pour les KPIs Compliance/Éthique
   const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
   const [complianceLoading, setComplianceLoading] = useState(false)
+  const [selectedFormationIds, setSelectedFormationIds] = useState<number[]>([])
+  const [availableFormations, setAvailableFormations] = useState<{ id: number; nom: string }[]>([])
+
+  // État pour la recherche et ajout de formations
+  const [allFormations, setAllFormations] = useState<{ id: number; nom: string }[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const [hasInitialized, setHasInitialized] = useState(false) // Pour éviter reset après suppression
 
   useEffect(() => {
     fetchData()
+    fetchAllFormations()
   }, [])
 
   useEffect(() => {
@@ -240,7 +253,7 @@ export default function CollaborateursKPIsPage() {
 
   useEffect(() => {
     fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs])
+  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized])
 
   const fetchData = async () => {
     try {
@@ -252,6 +265,39 @@ export default function CollaborateursKPIsPage() {
       setLoading(false)
     }
   }
+
+  const fetchAllFormations = async () => {
+    try {
+      const response = await formationsService.getFormations({ limit: 1000 })
+      setAllFormations(response.data.map(f => ({ id: f.id, nom: f.nomFormation })))
+    } catch (error) {
+      console.error('Erreur lors du chargement des formations:', error)
+    }
+  }
+
+  // Ajouter une formation à la liste des formations disponibles
+  const addFormationToList = (formation: { id: number; nom: string }) => {
+    if (!availableFormations.find(f => f.id === formation.id)) {
+      const newAvailable = [...availableFormations, formation]
+      const newSelected = [...selectedFormationIds, formation.id]
+      setAvailableFormations(newAvailable)
+      setSelectedFormationIds(newSelected)
+    }
+    setSearchQuery('')
+    setShowSearch(false)
+  }
+
+  // Retirer une formation de la liste
+  const removeFormationFromList = (formationId: number) => {
+    setAvailableFormations(availableFormations.filter(f => f.id !== formationId))
+    setSelectedFormationIds(selectedFormationIds.filter(id => id !== formationId))
+  }
+
+  // Filtrer les formations pour la recherche (exclure celles déjà dans la liste)
+  const filteredSearchResults = allFormations.filter(f =>
+    !availableFormations.find(af => af.id === f.id) &&
+    f.nom.toLowerCase().includes(searchQuery.toLowerCase())
+  ).slice(0, 10)
 
   const fetchDetailedData = async () => {
     // En mode plage, attendre que les deux dates soient sélectionnées
@@ -280,14 +326,48 @@ export default function CollaborateursKPIsPage() {
       return
     }
 
+    // Si l'utilisateur a explicitement désélectionné toutes les formations (après initialisation), afficher des zéros
+    if (hasInitialized && selectedFormationIds.length === 0) {
+      const zeroGenre = { nombre: 0, heures: 0, formations: 0, moyenne: 0 }
+      const zeroCategory = {
+        total: 0, formes: 0, nonFormes: 0, heures: 0, formations: 0,
+        tauxCouverture: 0, moyenneHeuresParPersonne: 0,
+        parGenre: { homme: zeroGenre, femme: zeroGenre }
+      }
+      setComplianceData({
+        periode: { annee: parseInt(date) || new Date().getFullYear(), mois: null, dateDebut: null, dateFin: null, libelle: 'Aucune formation sélectionnée' },
+        formationsEthique: { liste: [], nombreFormations: 0 },
+        parCategorieSimple: {
+          b2b: zeroCategory,
+          b2c: zeroCategory,
+          managers: zeroCategory,
+          directeurs: zeroCategory
+        },
+        parCategorieCroisee: [],
+        comparatifGlobal: { totalEmployesRisque: 0, formes: 0, nonFormes: 0, tauxCouverture: 0 },
+        parFormation: []
+      })
+      return
+    }
+
     setComplianceLoading(true)
     try {
       const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
                         dateDebut ? new Date(dateDebut).toISOString() : undefined
       const endDate = dateFin instanceof Date ? dateFin.toISOString() :
                       dateFin ? new Date(dateFin).toISOString() : undefined
-      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs)
+
+      // Passer les formations sélectionnées (ou undefined pour le premier chargement)
+      const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
+      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds)
       setComplianceData(response)
+
+      // Si c'est le premier chargement (pas encore initialisé), initialiser les formations disponibles
+      if (!hasInitialized && response.formationsEthique.liste.length > 0) {
+        setAvailableFormations(response.formationsEthique.liste)
+        setSelectedFormationIds(response.formationsEthique.liste.map(f => f.id))
+        setHasInitialized(true)
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs compliance:', error)
     } finally {
@@ -856,7 +936,7 @@ export default function CollaborateursKPIsPage() {
               <span className={styles.loadingText}>Chargement des KPIs Conformité...</span>
             </div>
           </motion.div>
-        ) : complianceData && complianceData.formationsEthique.nombreFormations > 0 ? (
+        ) : complianceData || availableFormations.length > 0 ? (
           <>
             {/* Divider Section Éthique */}
             <div className={styles.divider}>
@@ -868,7 +948,7 @@ export default function CollaborateursKPIsPage() {
               <div className={styles.dividerLine} />
             </div>
 
-            {/* Formations éthique identifiées */}
+            {/* Formations éthique identifiées - sélectionnables */}
             <motion.div
               className={styles.complianceSection}
               initial={{ opacity: 0, y: 20 }}
@@ -877,16 +957,121 @@ export default function CollaborateursKPIsPage() {
             >
               <h3 className={styles.tableTitle}>
                 <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                Formations Éthique Identifiées ({complianceData.formationsEthique.nombreFormations})
+                Formations Éthique ({selectedFormationIds.length}/{availableFormations.length} sélectionnées)
               </h3>
+              <div className={styles.formationSelectionHeader}>
+                <button
+                  className={styles.formationSelectAllBtn}
+                  onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
+                  disabled={selectedFormationIds.length === availableFormations.length}
+                >
+                  Tout sélectionner
+                </button>
+                <button
+                  className={styles.formationDeselectAllBtn}
+                  onClick={() => setSelectedFormationIds([])}
+                  disabled={selectedFormationIds.length === 0}
+                >
+                  Tout désélectionner
+                </button>
+                <button
+                  className={styles.formationAddBtn}
+                  onClick={() => {
+                    setShowSearch(!showSearch)
+                    setTimeout(() => searchInputRef.current?.focus(), 100)
+                  }}
+                >
+                  <Plus size={14} weight="bold" style={{ marginRight: '4px' }} />
+                  Ajouter une formation
+                </button>
+              </div>
+
+              {/* Champ de recherche pour ajouter des formations */}
+              {showSearch && (
+                <div className={styles.formationSearchContainer}>
+                  <div className={styles.formationSearchInputWrapper}>
+                    <MagnifyingGlass size={16} className={styles.searchIcon} />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      className={styles.formationSearchInput}
+                      placeholder="Rechercher une formation..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                    <button
+                      className={styles.searchCloseBtn}
+                      onClick={() => {
+                        setShowSearch(false)
+                        setSearchQuery('')
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  {searchQuery && filteredSearchResults.length > 0 && (
+                    <div className={styles.formationSearchResults}>
+                      {filteredSearchResults.map(f => (
+                        <button
+                          key={f.id}
+                          className={styles.formationSearchResultItem}
+                          onClick={() => addFormationToList(f)}
+                        >
+                          <Plus size={14} style={{ marginRight: '8px', opacity: 0.6 }} />
+                          {f.nom}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchQuery && filteredSearchResults.length === 0 && (
+                    <div className={styles.formationSearchNoResults}>
+                      Aucune formation trouvée
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className={styles.formationsEthiqueList}>
-                {complianceData.formationsEthique.liste.map(f => (
-                  <span key={f.id} className={styles.formationEthiqueTag}>{f.nom}</span>
+                {availableFormations.map(f => (
+                  <div key={f.id} className={styles.formationTagWrapper}>
+                    <button
+                      className={`${styles.formationEthiqueTag} ${selectedFormationIds.includes(f.id) ? styles.formationSelected : styles.formationUnselected}`}
+                      onClick={() => {
+                        if (selectedFormationIds.includes(f.id)) {
+                          setSelectedFormationIds(selectedFormationIds.filter(id => id !== f.id))
+                        } else {
+                          setSelectedFormationIds([...selectedFormationIds, f.id])
+                        }
+                      }}
+                    >
+                      {selectedFormationIds.includes(f.id) ? (
+                        <CheckCircle size={14} weight="fill" style={{ marginRight: '4px' }} />
+                      ) : (
+                        <XCircle size={14} weight="regular" style={{ marginRight: '4px', opacity: 0.5 }} />
+                      )}
+                      {f.nom}
+                    </button>
+                    <button
+                      className={styles.formationRemoveBtn}
+                      onClick={() => removeFormationFromList(f.id)}
+                      title="Retirer de la liste"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
+              {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
+                <div className={styles.noSelectionMessage}>
+                  <Warning size={16} style={{ marginRight: '8px' }} />
+                  Aucune formation sélectionnée - Utilisez "Ajouter une formation" pour en ajouter
+                </div>
+              )}
             </motion.div>
 
-            {/* Stats globales compliance */}
+            {/* Stats globales compliance - affiché uniquement si des formations sont sélectionnées */}
+            {complianceData && (
+            <>
             <motion.div
               className={styles.complianceSection}
               initial={{ opacity: 0, y: 20 }}
@@ -1125,6 +1310,8 @@ export default function CollaborateursKPIsPage() {
                   </tbody>
                 </table>
               </motion.div>
+            )}
+            </>
             )}
           </>
         ) : null}

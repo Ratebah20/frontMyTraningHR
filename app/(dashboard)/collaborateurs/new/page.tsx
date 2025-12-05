@@ -35,6 +35,7 @@ import {
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
+import { TypeUtilisateur } from '@/lib/types';
 
 export default function CollaborateurNewPage() {
   const router = useRouter();
@@ -58,6 +59,7 @@ export default function CollaborateurNewPage() {
       departementId: '',
       managerId: '',
       contratId: '',
+      typeUtilisateur: TypeUtilisateur.COLLABORATEUR,
       actif: true,
     },
     validate: {
@@ -178,6 +180,7 @@ export default function CollaborateurNewPage() {
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
+        typeUtilisateur: values.typeUtilisateur,
         actif: values.actif,
       };
 
@@ -380,6 +383,19 @@ export default function CollaborateurNewPage() {
                     data={managers}
                     searchable
                     {...form.getInputProps('managerId')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Rôle"
+                    placeholder="Sélectionner le rôle"
+                    description="Définit le niveau hiérarchique du collaborateur"
+                    data={[
+                      { value: TypeUtilisateur.COLLABORATEUR, label: 'Collaborateur' },
+                      { value: TypeUtilisateur.MANAGER, label: 'Manager' },
+                      { value: TypeUtilisateur.DIRECTEUR, label: 'Directeur' },
+                    ]}
+                    {...form.getInputProps('typeUtilisateur')}
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>

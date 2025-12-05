@@ -51,7 +51,7 @@ import {
 } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
-import { Collaborateur, CollaborateurFilters } from '@/lib/types';
+import { Collaborateur, CollaborateurFilters, TypeUtilisateur } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
 export default function CollaborateursPage() {
@@ -73,6 +73,7 @@ export default function CollaborateursPage() {
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
+  const [roleFilter, setRoleFilter] = useState<string>('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -107,10 +108,15 @@ export default function CollaborateursPage() {
         // Envoyer comme chaîne pour que axios le transmette correctement
         filters.actif = 'true' as any;
       } else if (statusFilter === 'inactif') {
-        // Envoyer comme chaîne pour que axios le transmette correctement  
+        // Envoyer comme chaîne pour que axios le transmette correctement
         filters.actif = 'false' as any;
       }
       // Pour 'tous', on n'envoie pas de paramètre actif
+
+      // Ajouter le filtre par rôle
+      if (roleFilter) {
+        filters.typeUtilisateur = roleFilter;
+      }
       
       const response = await collaborateursService.getCollaborateurs(filters);
 
@@ -162,12 +168,12 @@ export default function CollaborateursPage() {
   // Charger les collaborateurs au montage et quand les filtres changent
   useEffect(() => {
     loadCollaborateurs();
-  }, [debouncedSearch, departmentFilter, statusFilter, page]);
+  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, departmentFilter, statusFilter]);
+  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/collaborateurs/${id}`);
@@ -347,6 +353,21 @@ export default function CollaborateursPage() {
       </Table.Td>
       <Table.Td>
         <Text size="sm">{collaborateur.manager?.nomComplet || '-'}</Text>
+      </Table.Td>
+      <Table.Td>
+        <Badge
+          color={
+            collaborateur.typeUtilisateur === TypeUtilisateur.DIRECTEUR
+              ? 'violet'
+              : collaborateur.typeUtilisateur === TypeUtilisateur.MANAGER
+              ? 'blue'
+              : 'gray'
+          }
+          variant="light"
+          size="sm"
+        >
+          {collaborateur.typeUtilisateur || 'Collaborateur'}
+        </Badge>
       </Table.Td>
       <Table.Td>
         <Group gap="xs">
@@ -545,7 +566,7 @@ export default function CollaborateursPage() {
           <Text fw={600}>Filtres et Recherche</Text>
         </Group>
         <Grid align="flex-end">
-          <Grid.Col span={{ base: 12, sm: 6 }}>
+          <Grid.Col span={{ base: 12, sm: 4 }}>
             <TextInput
               label=" "
               placeholder="Rechercher par nom, prénom, matricule..."
@@ -554,9 +575,9 @@ export default function CollaborateursPage() {
               onChange={(event) => setSearch(event.currentTarget.value)}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
-              placeholder="Tous les départements"
+              placeholder="Département"
               data={departements}
               value={departmentFilter}
               onChange={(value) => setDepartmentFilter(value || '')}
@@ -564,16 +585,31 @@ export default function CollaborateursPage() {
               searchable
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
-              placeholder="Tous les statuts"
+              placeholder="Rôle"
+              data={[
+                { value: '', label: 'Tous les rôles' },
+                { value: TypeUtilisateur.COLLABORATEUR, label: 'Collaborateurs' },
+                { value: TypeUtilisateur.MANAGER, label: 'Managers' },
+                { value: TypeUtilisateur.DIRECTEUR, label: 'Directeurs' },
+              ]}
+              value={roleFilter}
+              onChange={(value) => setRoleFilter(value || '')}
+              clearable
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
+            <Select
+              placeholder="Statut"
               data={[
                 { value: '', label: 'Tous' },
-                { value: 'actif', label: 'Actifs seulement' },
-                { value: 'inactif', label: 'Inactifs seulement' },
+                { value: 'actif', label: 'Actifs' },
+                { value: 'inactif', label: 'Inactifs' },
               ]}
               value={statusFilter}
               onChange={(value) => setStatusFilter(value || '')}
+              clearable
             />
           </Grid.Col>
         </Grid>
@@ -598,6 +634,7 @@ export default function CollaborateursPage() {
                     <Table.Th>Collaborateur / Matricule</Table.Th>
                     <Table.Th>Département</Table.Th>
                     <Table.Th>Manager</Table.Th>
+                    <Table.Th>Rôle</Table.Th>
                     <Table.Th>Formations</Table.Th>
                     <Table.Th>Statut</Table.Th>
                     <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>

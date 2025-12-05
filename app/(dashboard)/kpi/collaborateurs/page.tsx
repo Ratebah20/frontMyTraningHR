@@ -1144,6 +1144,12 @@ export default function CollaborateursKPIsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
+              <h3 className={styles.globalStatsTitle}>
+                Statistiques Globales
+                {complianceData?.periode?.libelle && (
+                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+                )}
+              </h3>
               <div className={styles.complianceGlobalStats}>
                 <div className={styles.complianceGlobalStat}>
                   <span className={styles.complianceGlobalStatValue}>
@@ -1179,6 +1185,12 @@ export default function CollaborateursKPIsPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
+                <h3 className={styles.globalStatsTitle}>
+                  Catégories à Risque
+                  {complianceData?.periode?.libelle && (
+                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+                  )}
+                </h3>
                 <div className={styles.riskCategoriesGrid}>
                   {complianceData.parCategorieCroisee.map((cat, index) => (
                     <div key={cat.categorie} className={styles.riskCategoryCard}>
@@ -1235,6 +1247,9 @@ export default function CollaborateursKPIsPage() {
               <h3 className={styles.tableTitle}>
                 <CheckCircle size={20} weight="bold" style={{ color: '#38D9A9' }} />
                 Comparatif Formés vs Non-Formés par Catégorie
+                {complianceData?.periode?.libelle && (
+                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+                )}
               </h3>
               <table className={styles.comparisonTable}>
                 <thead>
@@ -1298,7 +1313,7 @@ export default function CollaborateursKPIsPage() {
                     </td>
                   </tr>
                   <tr>
-                    <td><span className={styles.badgeCollaborateur}>Collaborateurs</span></td>
+                    <td><span className={styles.badgeCollaborateur}>Autres Collaborateurs</span></td>
                     <td>{complianceData.parCategorieSimple.collaborateurs.total}</td>
                     <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.collaborateurs.formes}</td>
                     <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.collaborateurs.nonFormes}</td>
@@ -1325,6 +1340,9 @@ export default function CollaborateursKPIsPage() {
                   <GenderMale size={20} weight="bold" style={{ color: '#4DABF7' }} />
                   <GenderFemale size={20} weight="bold" style={{ color: '#F06595', marginLeft: '-8px' }} />
                   Répartition par Genre (employés formés)
+                  {complianceData?.periode?.libelle && (
+                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+                  )}
                 </h3>
                 <table className={styles.comparisonTable}>
                   <thead>

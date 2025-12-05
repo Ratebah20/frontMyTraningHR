@@ -2057,6 +2057,16 @@
 }
 
 /* Stats globales compliance */
+.globalStatsTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1.25rem;
+}
+
 .complianceGlobalStats {
   display: flex;
   gap: 2rem;

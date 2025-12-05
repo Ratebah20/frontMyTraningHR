@@ -229,6 +229,10 @@ export default function CollaborateursKPIsPage() {
   // Nouveau : inclure collaborateurs inactifs
   const [includeInactifs, setIncludeInactifs] = useState(false)
 
+  // Filtre par type de contrat
+  const [contratFilter, setContratFilter] = useState<number | null>(null)
+  const [typesContrats, setTypesContrats] = useState<{ id: number; typeContrat: string }[]>([])
+
   // État pour les KPIs Compliance/Éthique
   const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
   const [complianceLoading, setComplianceLoading] = useState(false)
@@ -245,15 +249,25 @@ export default function CollaborateursKPIsPage() {
   useEffect(() => {
     fetchData()
     fetchAllFormations()
+    fetchTypesContrats()
   }, [])
+
+  const fetchTypesContrats = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/common/types-contrats`)
+      setTypesContrats(response.data)
+    } catch (error) {
+      console.error('Erreur lors du chargement des types de contrats:', error)
+    }
+  }
 
   useEffect(() => {
     fetchDetailedData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs])
+  }, [periode, date, dateDebut, dateFin, includeInactifs, contratFilter])
 
   useEffect(() => {
     fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized])
+  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized, contratFilter])
 
   const fetchData = async () => {
     try {
@@ -312,7 +326,7 @@ export default function CollaborateursKPIsPage() {
                         dateDebut ? new Date(dateDebut).toISOString() : undefined
       const endDate = dateFin instanceof Date ? dateFin.toISOString() :
                       dateFin ? new Date(dateFin).toISOString() : undefined
-      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate, includeInactifs)
+      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate, includeInactifs, contratFilter || undefined)
       setDetailedData(response)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs détaillés:', error)
@@ -359,7 +373,7 @@ export default function CollaborateursKPIsPage() {
 
       // Passer les formations sélectionnées (ou undefined pour le premier chargement)
       const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
-      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds)
+      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds, contratFilter || undefined)
       setComplianceData(response)
 
       // Si c'est le premier chargement (pas encore initialisé), initialiser les formations disponibles
@@ -483,6 +497,16 @@ export default function CollaborateursKPIsPage() {
             }}
           />
           <div className={styles.filterOptions}>
+            <select
+              className={styles.contratSelect}
+              value={contratFilter || ''}
+              onChange={(e) => setContratFilter(e.target.value ? parseInt(e.target.value) : null)}
+            >
+              <option value="">Tous les contrats</option>
+              {typesContrats.map(tc => (
+                <option key={tc.id} value={tc.id}>{tc.typeContrat}</option>
+              ))}
+            </select>
             <button
               className={`${styles.toggleButton} ${includeInactifs ? styles.toggleActive : ''}`}
               onClick={() => setIncludeInactifs(!includeInactifs)}

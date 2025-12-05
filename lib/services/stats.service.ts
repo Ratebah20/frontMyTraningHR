@@ -133,7 +133,8 @@ export const statsService = {
     date?: string,
     startDate?: string,
     endDate?: string,
-    includeInactifs?: boolean
+    includeInactifs?: boolean,
+    contratId?: number
   ): Promise<DetailedKPIsResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -145,6 +146,9 @@ export const statsService = {
     }
     if (includeInactifs !== undefined) {
       params.includeInactifs = includeInactifs.toString();
+    }
+    if (contratId) {
+      params.contratId = contratId.toString();
     }
     console.log('getCollaborateursDetailedKpis params:', params);
     const response = await api.get('/stats/collaborateurs-detailed-kpis', { params });
@@ -158,7 +162,8 @@ export const statsService = {
     startDate?: string,
     endDate?: string,
     includeInactifs?: boolean,
-    formationIds?: number[]  // IDs des formations à inclure
+    formationIds?: number[],  // IDs des formations à inclure
+    contratId?: number
   ): Promise<ComplianceEthicsKPIsResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -173,6 +178,9 @@ export const statsService = {
     }
     if (formationIds && formationIds.length > 0) {
       params.formationIds = formationIds.join(',');
+    }
+    if (contratId) {
+      params.contratId = contratId.toString();
     }
     const response = await api.get('/stats/compliance-ethics-kpis', { params });
     return response.data;

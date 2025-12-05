@@ -123,6 +123,8 @@
 
 /* Filter Card */
 .filterCard {
+  position: relative;
+  z-index: 100;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -818,6 +820,87 @@
 .contratSelect option {
   background: #1a1b1e;
   color: rgba(255, 255, 255, 0.9);
+}
+
+/* Multi-select dropdown pour types de contrat */
+.contratMultiSelectContainer {
+  position: relative;
+}
+
+.contratMultiSelectBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 180px;
+}
+
+.contratMultiSelectBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.contratDropdownIcon {
+  font-size: 0.65rem;
+  opacity: 0.6;
+}
+
+.contratDropdownMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 9999;
+  min-width: 200px;
+  background: rgba(26, 27, 30, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  padding: 0.5rem 0;
+  overflow: hidden;
+}
+
+.contratDropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.contratDropdownItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.contratCheckbox {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.contratCheckboxChecked {
+  background: linear-gradient(135deg, #228BE6 0%, #4DABF7 100%);
+  border-color: #228BE6;
+  color: #fff;
 }
 
 .toggleButton {

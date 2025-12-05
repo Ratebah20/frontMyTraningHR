@@ -229,9 +229,10 @@ export default function CollaborateursKPIsPage() {
   // Nouveau : inclure collaborateurs inactifs
   const [includeInactifs, setIncludeInactifs] = useState(false)
 
-  // Filtre par type de contrat
-  const [contratFilter, setContratFilter] = useState<number | null>(null)
+  // Filtre par types de contrats (multi-select)
+  const [contratFilters, setContratFilters] = useState<number[]>([])
   const [typesContrats, setTypesContrats] = useState<{ id: number; typeContrat: string }[]>([])
+  const [showContratDropdown, setShowContratDropdown] = useState(false)
 
   // État pour les KPIs Compliance/Éthique
   const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
@@ -263,11 +264,11 @@ export default function CollaborateursKPIsPage() {
 
   useEffect(() => {
     fetchDetailedData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs, contratFilter])
+  }, [periode, date, dateDebut, dateFin, includeInactifs, contratFilters])
 
   useEffect(() => {
     fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized, contratFilter])
+  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized, contratFilters])
 
   const fetchData = async () => {
     try {
@@ -326,7 +327,7 @@ export default function CollaborateursKPIsPage() {
                         dateDebut ? new Date(dateDebut).toISOString() : undefined
       const endDate = dateFin instanceof Date ? dateFin.toISOString() :
                       dateFin ? new Date(dateFin).toISOString() : undefined
-      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate, includeInactifs, contratFilter || undefined)
+      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate, includeInactifs, contratFilters.length > 0 ? contratFilters : undefined)
       setDetailedData(response)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs détaillés:', error)
@@ -373,7 +374,7 @@ export default function CollaborateursKPIsPage() {
 
       // Passer les formations sélectionnées (ou undefined pour le premier chargement)
       const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
-      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds, contratFilter || undefined)
+      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds, contratFilters.length > 0 ? contratFilters : undefined)
       setComplianceData(response)
 
       // Si c'est le premier chargement (pas encore initialisé), initialiser les formations disponibles
@@ -497,16 +498,53 @@ export default function CollaborateursKPIsPage() {
             }}
           />
           <div className={styles.filterOptions}>
-            <select
-              className={styles.contratSelect}
-              value={contratFilter || ''}
-              onChange={(e) => setContratFilter(e.target.value ? parseInt(e.target.value) : null)}
-            >
-              <option value="">Tous les contrats</option>
-              {typesContrats.map(tc => (
-                <option key={tc.id} value={tc.id}>{tc.typeContrat}</option>
-              ))}
-            </select>
+            <div className={styles.contratMultiSelectContainer}>
+              <button
+                className={styles.contratMultiSelectBtn}
+                onClick={() => setShowContratDropdown(!showContratDropdown)}
+              >
+                {contratFilters.length === 0
+                  ? 'Tous les contrats'
+                  : contratFilters.length === 1
+                    ? typesContrats.find(tc => tc.id === contratFilters[0])?.typeContrat || 'Contrat'
+                    : `${contratFilters.length} contrats sélectionnés`}
+                <span className={styles.contratDropdownIcon}>{showContratDropdown ? '▲' : '▼'}</span>
+              </button>
+              {showContratDropdown && (
+                <div className={styles.contratDropdownMenu}>
+                  <div
+                    className={styles.contratDropdownItem}
+                    onClick={() => {
+                      setContratFilters([])
+                      setShowContratDropdown(false)
+                    }}
+                  >
+                    <span className={`${styles.contratCheckbox} ${contratFilters.length === 0 ? styles.contratCheckboxChecked : ''}`}>
+                      {contratFilters.length === 0 && '✓'}
+                    </span>
+                    Tous les contrats
+                  </div>
+                  {typesContrats.map(tc => (
+                    <div
+                      key={tc.id}
+                      className={styles.contratDropdownItem}
+                      onClick={() => {
+                        if (contratFilters.includes(tc.id)) {
+                          setContratFilters(contratFilters.filter(id => id !== tc.id))
+                        } else {
+                          setContratFilters([...contratFilters, tc.id])
+                        }
+                      }}
+                    >
+                      <span className={`${styles.contratCheckbox} ${contratFilters.includes(tc.id) ? styles.contratCheckboxChecked : ''}`}>
+                        {contratFilters.includes(tc.id) && '✓'}
+                      </span>
+                      {tc.typeContrat}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               className={`${styles.toggleButton} ${includeInactifs ? styles.toggleActive : ''}`}
               onClick={() => setIncludeInactifs(!includeInactifs)}

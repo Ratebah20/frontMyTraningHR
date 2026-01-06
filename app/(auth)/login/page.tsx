@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Paper,
   TextInput,
@@ -43,8 +43,11 @@ import Lottie from 'lottie-react';
 // Import animation JSON (vous devrez ajouter un fichier animation)
 // import loginAnimation from '@/assets/animations/login.json';
 
-export default function LoginPage() {
+// Composant principal avec useSearchParams
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/dashboard';
   const { login, isAuthenticated } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
@@ -84,9 +87,9 @@ export default function LoginPage() {
   // Rediriger si déjà connecté
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard');
+      router.push(redirectUrl);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, redirectUrl]);
 
   // Fonction pour suivre la position du curseur dans le champ email
   const handleEmailInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -210,7 +213,7 @@ export default function LoginPage() {
           duration: 0.3,
           ease: "power2.in",
           onComplete: () => {
-            router.push('/dashboard');
+            router.push(redirectUrl);
           }
         });
       }
@@ -465,5 +468,18 @@ export default function LoginPage() {
         </div>
       </Container>
     </div>
+  );
+}
+
+// Wrapper avec Suspense pour useSearchParams (requis Next.js 14+)
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gray-400">Chargement...</div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

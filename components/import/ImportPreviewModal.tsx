@@ -35,9 +35,14 @@ import type {
   ImportPreviewResponse,
   ConflictItem,
   ResolutionConflict,
+  ResolutionCollaborateur,
+  CollaborateurInactif,
+  ResolutionOrganisme,
 } from '@/lib/types/import-preview.types';
 import { importPreviewService } from '@/lib/services/import-preview.service';
 import { ConflictResolutionList } from './ConflictResolutionList';
+import { CollaborateurConflictList } from './CollaborateurConflictList';
+import { OrganismeConflictList } from './OrganismeConflictList';
 
 interface ImportPreviewModalProps {
   opened: boolean;
@@ -56,6 +61,12 @@ export function ImportPreviewModal({
   const [resolutions, setResolutions] = useState<Map<string, ResolutionConflict>>(
     new Map(),
   );
+  const [collabResolutions, setCollabResolutions] = useState<Map<string, ResolutionCollaborateur>>(
+    new Map(),
+  );
+  const [organismeResolutions, setOrganismeResolutions] = useState<Map<string, ResolutionOrganisme>>(
+    new Map(),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -65,6 +76,8 @@ export function ImportPreviewModal({
   useEffect(() => {
     if (opened && previewData) {
       setResolutions(new Map());
+      setCollabResolutions(new Map());
+      setOrganismeResolutions(new Map());
       setCanImport(previewData.peutImporterDirectement);
       setActiveTab(previewData.conflits.length > 0 ? 'conflicts' : 'stats');
       setImportProgress(0);
@@ -140,6 +153,22 @@ export function ImportPreviewModal({
           previewId: previewData.previewId,
           resolutions: Array.from(resolutions.values()),
         });
+      }
+
+      // Soumettre les résolutions collaborateurs si elles existent
+      if (collabResolutions.size > 0) {
+        await importPreviewService.submitCollaborateurResolutions(
+          previewData.previewId,
+          Array.from(collabResolutions.values()),
+        );
+      }
+
+      // Soumettre les résolutions organismes si elles existent
+      if (organismeResolutions.size > 0) {
+        await importPreviewService.submitOrganismeResolutions(
+          previewData.previewId,
+          Array.from(organismeResolutions.values()),
+        );
       }
 
       const result = await importPreviewService.confirmImport(previewData.previewId);
@@ -312,7 +341,7 @@ export function ImportPreviewModal({
                 </Grid.Col>
               )}
 
-              {stats.collaborateursNonTrouves.length > 0 && (
+              {stats.collaborateursNonTrouves.length > 0 && !previewData.collaborateursProblemes?.length && (
                 <Grid.Col span={12}>
                   <Alert icon={<Warning size={16} />} color="orange" variant="light">
                     <Text size="sm" fw={500} mb="xs">
@@ -333,6 +362,50 @@ export function ImportPreviewModal({
                       </Group>
                     </ScrollArea>
                   </Alert>
+                </Grid.Col>
+              )}
+
+              {/* Info collaborateurs inactifs - Sessions SERONT importees */}
+              {previewData.collaborateursInactifs && previewData.collaborateursInactifs.length > 0 && (
+                <Grid.Col span={12}>
+                  <Alert icon={<Info size={16} />} color="blue" variant="light">
+                    <Text size="sm" fw={500} mb="xs">
+                      {previewData.collaborateursInactifs.length} collaborateur(s) inactif(s)
+                    </Text>
+                    <Text size="sm" c="dimmed" mb="xs">
+                      Les sessions seront importees normalement. Ces collaborateurs ont quitte
+                      l'entreprise mais leurs formations historiques sont conservees.
+                    </Text>
+                    <ScrollArea h={60}>
+                      <Group gap="xs" wrap="wrap">
+                        {previewData.collaborateursInactifs.map((c) => (
+                          <Badge key={c.idExterne} variant="light" color="blue" size="sm">
+                            {c.nomComplet || c.idExterne} ({c.nombreSessionsAffectees} sessions)
+                          </Badge>
+                        ))}
+                      </Group>
+                    </ScrollArea>
+                  </Alert>
+                </Grid.Col>
+              )}
+
+              {/* Problemes collaborateurs NON_TROUVE avec resolution */}
+              {previewData.collaborateursProblemes && previewData.collaborateursProblemes.length > 0 && (
+                <Grid.Col span={12}>
+                  <CollaborateurConflictList
+                    problemes={previewData.collaborateursProblemes}
+                    onResolutionsChange={setCollabResolutions}
+                  />
+                </Grid.Col>
+              )}
+
+              {/* Organismes non trouves avec resolution */}
+              {previewData.organismesNonTrouves && previewData.organismesNonTrouves.length > 0 && (
+                <Grid.Col span={12}>
+                  <OrganismeConflictList
+                    organismes={previewData.organismesNonTrouves}
+                    onResolutionsChange={setOrganismeResolutions}
+                  />
                 </Grid.Col>
               )}
             </Grid>

@@ -8,6 +8,10 @@ import type {
   TypeEntiteImport,
   UpdateRegleImportRequest,
   RulesStats,
+  ResolutionCollaborateur,
+  SubmitCollaborateurResolutionsResponse,
+  ResolutionOrganisme,
+  SubmitOrganismeResolutionsResponse,
 } from '../types/import-preview.types';
 import type { ImportResult } from './import.service';
 
@@ -36,6 +40,34 @@ export const importPreviewService = {
     data: SubmitResolutionsRequest,
   ): Promise<SubmitResolutionsResponse> {
     const response = await api.post('/import/olu/preview/resolve', data);
+    return response.data;
+  },
+
+  /**
+   * Soumet les resolutions de conflits collaborateurs
+   */
+  async submitCollaborateurResolutions(
+    previewId: string,
+    resolutions: ResolutionCollaborateur[],
+  ): Promise<SubmitCollaborateurResolutionsResponse> {
+    const response = await api.post('/import/olu/preview/resolve-collaborateurs', {
+      previewId,
+      resolutions,
+    });
+    return response.data;
+  },
+
+  /**
+   * Soumet les resolutions pour les organismes non trouves
+   */
+  async submitOrganismeResolutions(
+    previewId: string,
+    resolutions: ResolutionOrganisme[],
+  ): Promise<SubmitOrganismeResolutionsResponse> {
+    const response = await api.post('/import/olu/preview/resolve-organismes', {
+      previewId,
+      resolutions,
+    });
     return response.data;
   },
 

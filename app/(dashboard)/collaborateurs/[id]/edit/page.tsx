@@ -31,9 +31,12 @@ import {
   Users,
   Building,
   IdentificationCard,
+  Calendar,
 } from '@phosphor-icons/react';
+import { DateInput } from '@mantine/dates';
+import 'dayjs/locale/fr';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
-import { Collaborateur, TypeUtilisateur } from '@/lib/types';
+import { Collaborateur } from '@/lib/types';
 
 interface Props {
   params: {
@@ -64,8 +67,8 @@ export default function CollaborateurEditPage({ params }: Props) {
       departementId: '',
       managerId: '',
       contratId: '',
-      typeUtilisateur: TypeUtilisateur.COLLABORATEUR,
       actif: true,
+      dateInactivation: null as Date | null,
     },
     validate: {
       nom: (value) => (!value?.trim() ? 'Le nom est requis' : null),
@@ -137,8 +140,8 @@ export default function CollaborateurEditPage({ params }: Props) {
           departementId: collabData.departementId ? collabData.departementId.toString() : '',
           managerId: collabData.managerId ? collabData.managerId.toString() : '',
           contratId: collabData.contratId ? collabData.contratId.toString() : '',
-          typeUtilisateur: (collabData.typeUtilisateur as TypeUtilisateur) || TypeUtilisateur.COLLABORATEUR,
           actif: collabData.actif !== false,
+          dateInactivation: collabData.dateInactivation ? new Date(collabData.dateInactivation) : null,
         });
         
         // Charger uniquement les vrais managers (qui ont des subordonnés)
@@ -176,9 +179,17 @@ export default function CollaborateurEditPage({ params }: Props) {
     }
   }, [departementType, allDepartements]);
 
+  // Helper pour formater une date en YYYY-MM-DD
+  const formatDateOnly = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const handleSubmit = async (values: typeof form.values) => {
     setIsSaving(true);
-    
+
     try {
       // Préparer les données pour l'envoi
       const updateData: any = {
@@ -192,8 +203,10 @@ export default function CollaborateurEditPage({ params }: Props) {
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
-        typeUtilisateur: values.typeUtilisateur,
         actif: values.actif,
+        dateInactivation: values.dateInactivation
+          ? formatDateOnly(values.dateInactivation)
+          : null,
       };
 
       // Retirer les champs undefined
@@ -382,19 +395,6 @@ export default function CollaborateurEditPage({ params }: Props) {
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>
                   <Select
-                    label="Rôle"
-                    placeholder="Sélectionner le rôle"
-                    description="Définit le niveau hiérarchique du collaborateur"
-                    data={[
-                      { value: TypeUtilisateur.COLLABORATEUR, label: 'Collaborateur' },
-                      { value: TypeUtilisateur.MANAGER, label: 'Manager' },
-                      { value: TypeUtilisateur.DIRECTEUR, label: 'Directeur' },
-                    ]}
-                    {...form.getInputProps('typeUtilisateur')}
-                  />
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 6 }}>
-                  <Select
                     label="Type de contrat"
                     placeholder="Sélectionner le type de contrat"
                     data={typeContrats}
@@ -428,6 +428,32 @@ export default function CollaborateurEditPage({ params }: Props) {
                 size="md"
               />
             </div>
+
+            {/* Section Inactivation - visible seulement si inactif ou si date définie */}
+            {(!form.values.actif || form.values.dateInactivation) && (
+              <>
+                <Divider />
+                <div>
+                  <Group gap="xs" mb="md">
+                    <Calendar size={20} />
+                    <Text fw={600}>Date d'inactivation</Text>
+                  </Group>
+                  <Grid gutter="md">
+                    <Grid.Col span={{ base: 12, md: 6 }}>
+                      <DateInput
+                        label="Date d'inactivation"
+                        placeholder="Sélectionner une date"
+                        locale="fr"
+                        valueFormat="DD/MM/YYYY"
+                        clearable
+                        {...form.getInputProps('dateInactivation')}
+                        description="Date à laquelle le collaborateur est devenu inactif"
+                      />
+                    </Grid.Col>
+                  </Grid>
+                </div>
+              </>
+            )}
 
             {/* Boutons d'action */}
             <Group justify="flex-end" mt="xl">

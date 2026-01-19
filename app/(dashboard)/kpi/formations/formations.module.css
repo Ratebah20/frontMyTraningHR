@@ -787,3 +787,362 @@
     padding: 0.5rem 1rem;
   }
 }
+
+/* ===================================================
+   Taux de Formation par Contrat Section
+   =================================================== */
+
+.contratSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 10;
+}
+
+/* Loading overlay */
+.contratLoadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  z-index: 100;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+}
+
+.contratLoadingSpinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #ff7900;
+  border-radius: 50%;
+}
+
+.contratHeader {
+  margin-bottom: 1.5rem;
+}
+
+/* Filtres */
+.contratFilters {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+}
+
+.contratFiltersRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.contratFilterGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.contratFilterLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+}
+
+.contratChips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.contratMultiSelect {
+  min-width: 200px;
+  max-width: 400px;
+}
+
+/* Graphique - Vue année unique */
+.contratChartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.contratRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.contratRow:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.contratRowTotal {
+  background: rgba(255, 121, 0, 0.08);
+  border: 1px solid rgba(255, 121, 0, 0.2);
+  margin-top: 0.5rem;
+}
+
+.contratRowTotal:hover {
+  background: rgba(255, 121, 0, 0.12);
+}
+
+.contratInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 180px;
+}
+
+.contratColorDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.contratName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+}
+
+.contratEffectif {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-left: auto;
+}
+
+.contratBarContainer {
+  flex: 1;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.contratBar {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.8s ease-out;
+}
+
+.contratTaux {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* Graphique - Vue multi-années */
+.contratMultiYearContainer {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.contratMultiYearRow {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.contratMultiYearHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.contratYearBars {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 120px;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.contratYearBarWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  flex: 1;
+  cursor: pointer;
+}
+
+.contratYearBar {
+  width: 100%;
+  max-width: 40px;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+  margin-top: auto;
+}
+
+.contratYearBarWrapper:hover .contratYearBar {
+  filter: brightness(1.2);
+  transform: scaleY(1.02);
+}
+
+.contratYearLabel {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 0.5rem;
+}
+
+/* Responsive adjustments for contrat section */
+@media (max-width: 900px) {
+  .contratFilters {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .contratFilterGroup {
+    width: 100%;
+  }
+
+  .contratMultiSelect {
+    flex: 1;
+    max-width: 100%;
+  }
+
+  .contratInfo {
+    min-width: 120px;
+  }
+}
+
+@media (max-width: 600px) {
+  .contratRow {
+    flex-wrap: wrap;
+  }
+
+  .contratInfo {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .contratBarContainer {
+    width: 100%;
+    order: 3;
+  }
+
+  .contratTaux {
+    order: 2;
+    margin-left: auto;
+  }
+
+  .contratMultiYearContainer {
+    grid-template-columns: 1fr;
+  }
+
+  .contratFiltersRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
+
+/* ===================================================
+   Chart Container (Recharts)
+   =================================================== */
+
+.chartContainer {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 0.5rem;
+}
+
+.chartContainer :global(.recharts-cartesian-grid-horizontal line),
+.chartContainer :global(.recharts-cartesian-grid-vertical line) {
+  stroke: rgba(255, 255, 255, 0.08);
+}
+
+.chartContainer :global(.recharts-legend-item-text) {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.chartContainer :global(.recharts-default-legend) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.chartContainer :global(.recharts-bar-rectangle) {
+  transition: opacity 0.2s ease;
+}
+
+.chartContainer :global(.recharts-bar-rectangle:hover) {
+  opacity: 0.8;
+}
+
+.chartContainer :global(.recharts-line-dot) {
+  transition: r 0.2s ease;
+}
+
+.chartContainer :global(.recharts-active-dot) {
+  filter: drop-shadow(0 0 4px currentColor);
+}
+
+/* Force white color for all labels and text in the chart */
+.chartContainer :global(.recharts-label),
+.chartContainer :global(.recharts-label-list text),
+.chartContainer :global(.recharts-label-list tspan),
+.chartContainer :global(.recharts-bar-rectangle text),
+.chartContainer :global(text.recharts-text),
+.chartContainer :global(text.recharts-text tspan),
+.chartContainer :global(.recharts-text tspan) {
+  fill: #ffffff !important;
+  color: #ffffff !important;
+}
+
+.chartContainer :global(.recharts-cartesian-axis-tick-value),
+.chartContainer :global(.recharts-cartesian-axis-tick-value tspan) {
+  fill: #ffffff !important;
+}
+
+/* ===================================================
+   Warning Banner
+   =================================================== */
+
+.warningBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  color: #fbbf24;
+  font-size: 0.875rem;
+}
+
+.warningBanner strong {
+  color: #f59e0b;
+}

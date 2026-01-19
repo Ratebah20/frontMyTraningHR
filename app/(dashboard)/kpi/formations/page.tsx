@@ -1,13 +1,44 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Text, Badge, RingProgress, Tooltip, useMantineColorScheme } from '@mantine/core'
-import { Clock, Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire } from '@phosphor-icons/react'
+import { Text, Badge, RingProgress, Tooltip, useMantineColorScheme, MultiSelect, Chip, Switch, SegmentedControl } from '@mantine/core'
+import { Clock, Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire, Funnel, UsersFour, ChartLine, ListBullets, UserMinus, WarningCircle } from '@phosphor-icons/react'
 import { motion } from 'framer-motion'
 import axios from 'axios'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, LabelList, Cell } from 'recharts'
 import styles from './formations.module.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+// Interface pour le taux de formation par contrat
+interface TauxFormationContrat {
+  annees: number[]
+  typesContrat: Array<{ id: number; nom: string }>
+  parContrat: Array<{
+    typeContrat: string
+    contratId: number
+    annees: {
+      [annee: number]: {
+        effectif: number
+        formes: number
+        tauxFormation: number
+      }
+    }
+  }>
+  totauxParAnnee: {
+    [annee: number]: {
+      effectif: number
+      formes: number
+      tauxFormation: number
+    }
+  }
+  meta: {
+    includeInactifs: boolean
+    inactifsSansDate: number
+    nombreContrats: number
+    periodeAnalysee: string
+  }
+}
 
 interface FormationsKPIs {
   summary: {
@@ -309,14 +340,365 @@ function CategoryRow({
   )
 }
 
+// Couleurs pour les types de contrat
+const CONTRACT_COLORS: { [key: string]: string } = {
+  'CDI': '#10b981',
+  'CDD': '#0ea5e9',
+  'Alternant': '#8b5cf6',
+  'Stagiaire': '#f59e0b',
+  'Interim': '#ec4899',
+  'Prestataire': '#14b8a6',
+  'default': '#6b7280'
+}
+
+function getContractColor(type: string): string {
+  return CONTRACT_COLORS[type] || CONTRACT_COLORS['default']
+}
+
+// Composant pour le graphique de taux de formation par contrat
+function TauxFormationContratChart({
+  data,
+  selectedContrats,
+  selectedAnnee
+}: {
+  data: TauxFormationContrat
+  selectedContrats: string[]
+  selectedAnnee: number | 'all'
+}) {
+  // Filtrer les contrats à afficher
+  const contratsAffiches = data.parContrat.filter(c =>
+    selectedContrats.length === 0 || selectedContrats.includes(c.contratId.toString())
+  )
+
+  // Si une année spécifique est sélectionnée
+  if (selectedAnnee !== 'all') {
+    return (
+      <div className={styles.contratChartContainer}>
+        {contratsAffiches.map((contrat, index) => {
+          const stats = contrat.annees[selectedAnnee]
+          if (!stats || stats.effectif === 0) return null
+
+          return (
+            <motion.div
+              key={contrat.contratId}
+              className={styles.contratRow}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className={styles.contratInfo}>
+                <div
+                  className={styles.contratColorDot}
+                  style={{ backgroundColor: getContractColor(contrat.typeContrat) }}
+                />
+                <span className={styles.contratName}>{contrat.typeContrat}</span>
+                <span className={styles.contratEffectif}>
+                  {stats.formes}/{stats.effectif}
+                </span>
+              </div>
+              <div className={styles.contratBarContainer}>
+                <motion.div
+                  className={styles.contratBar}
+                  initial={{ width: 0 }}
+                  animate={{ width: `${stats.tauxFormation}%` }}
+                  transition={{ duration: 0.8, delay: index * 0.1, ease: 'easeOut' }}
+                  style={{ backgroundColor: getContractColor(contrat.typeContrat) }}
+                />
+              </div>
+              <span className={styles.contratTaux}>{stats.tauxFormation}%</span>
+            </motion.div>
+          )
+        })}
+
+        {/* Total */}
+        {data.totauxParAnnee[selectedAnnee] && (
+          <motion.div
+            className={`${styles.contratRow} ${styles.contratRowTotal}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: contratsAffiches.length * 0.1 }}
+          >
+            <div className={styles.contratInfo}>
+              <span className={styles.contratName}>Total</span>
+              <span className={styles.contratEffectif}>
+                {data.totauxParAnnee[selectedAnnee].formes}/{data.totauxParAnnee[selectedAnnee].effectif}
+              </span>
+            </div>
+            <div className={styles.contratBarContainer}>
+              <motion.div
+                className={styles.contratBar}
+                initial={{ width: 0 }}
+                animate={{ width: `${data.totauxParAnnee[selectedAnnee].tauxFormation}%` }}
+                transition={{ duration: 0.8, delay: contratsAffiches.length * 0.1, ease: 'easeOut' }}
+                style={{ backgroundColor: '#ff7900' }}
+              />
+            </div>
+            <span className={styles.contratTaux}>
+              {data.totauxParAnnee[selectedAnnee].tauxFormation}%
+            </span>
+          </motion.div>
+        )}
+      </div>
+    )
+  }
+
+  // Vue multi-années (comparaison)
+  return (
+    <div className={styles.contratMultiYearContainer}>
+      {contratsAffiches.map((contrat, contratIndex) => (
+        <motion.div
+          key={contrat.contratId}
+          className={styles.contratMultiYearRow}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: contratIndex * 0.15 }}
+        >
+          <div className={styles.contratMultiYearHeader}>
+            <div
+              className={styles.contratColorDot}
+              style={{ backgroundColor: getContractColor(contrat.typeContrat) }}
+            />
+            <span className={styles.contratName}>{contrat.typeContrat}</span>
+          </div>
+          <div className={styles.contratYearBars}>
+            {data.annees.map((annee, anneeIndex) => {
+              const stats = contrat.annees[annee]
+              if (!stats) return null
+
+              return (
+                <Tooltip
+                  key={annee}
+                  label={`${annee}: ${stats.formes}/${stats.effectif} formes (${stats.tauxFormation}%)`}
+                  withArrow
+                >
+                  <div className={styles.contratYearBarWrapper}>
+                    <motion.div
+                      className={styles.contratYearBar}
+                      initial={{ height: 0 }}
+                      animate={{ height: `${stats.tauxFormation}%` }}
+                      transition={{ duration: 0.8, delay: contratIndex * 0.1 + anneeIndex * 0.05 }}
+                      style={{
+                        backgroundColor: getContractColor(contrat.typeContrat),
+                        opacity: 0.6 + (anneeIndex / data.annees.length) * 0.4
+                      }}
+                    />
+                    <span className={styles.contratYearLabel}>{annee}</span>
+                  </div>
+                </Tooltip>
+              )
+            })}
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
+// Composant graphique Recharts pour le taux de formation par contrat
+function TauxFormationContratGraphique({
+  data,
+  selectedContrats,
+  selectedAnnee
+}: {
+  data: TauxFormationContrat
+  selectedContrats: string[]
+  selectedAnnee: number | 'all'
+}) {
+  // Filtrer les contrats à afficher
+  const contratsAffiches = data.parContrat.filter(c =>
+    selectedContrats.length === 0 || selectedContrats.includes(c.contratId.toString())
+  )
+
+  // Préparer les données pour le graphique
+  if (selectedAnnee !== 'all') {
+    // Vue année unique - Bar chart horizontal
+    const chartData = contratsAffiches
+      .map(contrat => {
+        const stats = contrat.annees[selectedAnnee]
+        if (!stats || stats.effectif === 0) return null
+        return {
+          name: contrat.typeContrat,
+          taux: stats.tauxFormation,
+          formes: stats.formes,
+          effectif: stats.effectif,
+          fill: getContractColor(contrat.typeContrat)
+        }
+      })
+      .filter(Boolean)
+
+    // Ajouter le total
+    if (data.totauxParAnnee[selectedAnnee]) {
+      chartData.push({
+        name: 'Total',
+        taux: data.totauxParAnnee[selectedAnnee].tauxFormation,
+        formes: data.totauxParAnnee[selectedAnnee].formes,
+        effectif: data.totauxParAnnee[selectedAnnee].effectif,
+        fill: '#ff7900'
+      })
+    }
+
+    return (
+      <motion.div
+        className={styles.chartContainer}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
+        <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 50)}>
+          <BarChart
+            data={chartData}
+            layout="vertical"
+            margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <XAxis
+              type="number"
+              domain={[0, 100]}
+              tickFormatter={(value) => `${value}%`}
+              stroke="rgba(255,255,255,0.7)"
+              tick={{ fill: 'white' }}
+              fontSize={12}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              stroke="rgba(255,255,255,0.7)"
+              tick={{ fill: 'white' }}
+              fontSize={12}
+              width={90}
+            />
+            <RechartsTooltip
+              contentStyle={{
+                backgroundColor: 'rgba(26, 26, 46, 0.95)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: '8px',
+                color: 'white'
+              }}
+              formatter={(value: number, name: string, props: any) => [
+                `${value}% (${props.payload.formes}/${props.payload.effectif} formés)`,
+                'Taux de formation'
+              ]}
+            />
+            <Bar dataKey="taux" radius={[0, 4, 4, 0]}>
+              {chartData.map((entry: any, index: number) => (
+                <Cell key={`cell-${index}`} fill={entry?.fill || '#6b7280'} />
+              ))}
+              <LabelList
+                dataKey="taux"
+                position="right"
+                fill="#ffffff"
+                fontSize={12}
+                fontWeight={600}
+                formatter={(value: number) => `${value}%`}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </motion.div>
+    )
+  }
+
+  // Vue multi-années - Line chart ou grouped bar chart
+  const chartData = data.annees.map(annee => {
+    const point: any = { annee: annee.toString() }
+
+    contratsAffiches.forEach(contrat => {
+      const stats = contrat.annees[annee]
+      if (stats) {
+        point[contrat.typeContrat] = stats.tauxFormation
+      }
+    })
+
+    // Ajouter le total
+    if (data.totauxParAnnee[annee]) {
+      point['Total'] = data.totauxParAnnee[annee].tauxFormation
+    }
+
+    return point
+  })
+
+  return (
+    <motion.div
+      className={styles.chartContainer}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+    >
+      <ResponsiveContainer width="100%" height={400}>
+        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+          <XAxis
+            dataKey="annee"
+            stroke="rgba(255,255,255,0.7)"
+            tick={{ fill: 'white' }}
+            fontSize={12}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tickFormatter={(value) => `${value}%`}
+            stroke="rgba(255,255,255,0.7)"
+            tick={{ fill: 'white' }}
+            fontSize={12}
+          />
+          <RechartsTooltip
+            contentStyle={{
+              backgroundColor: 'rgba(26, 26, 46, 0.95)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: '8px',
+              color: 'white'
+            }}
+            formatter={(value: number) => [`${value}%`, '']}
+          />
+          <Legend
+            wrapperStyle={{ color: 'white', paddingTop: '20px' }}
+          />
+          {contratsAffiches.map(contrat => (
+            <Line
+              key={contrat.contratId}
+              type="monotone"
+              dataKey={contrat.typeContrat}
+              stroke={getContractColor(contrat.typeContrat)}
+              strokeWidth={2}
+              dot={{ fill: getContractColor(contrat.typeContrat), strokeWidth: 2, r: 4 }}
+              activeDot={{ r: 6 }}
+            />
+          ))}
+          <Line
+            type="monotone"
+            dataKey="Total"
+            stroke="#ff7900"
+            strokeWidth={3}
+            strokeDasharray="5 5"
+            dot={{ fill: '#ff7900', strokeWidth: 2, r: 5 }}
+            activeDot={{ r: 7 }}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+    </motion.div>
+  )
+}
+
 export default function FormationsKPIsPage() {
   const [data, setData] = useState<FormationsKPIs | null>(null)
   const [loading, setLoading] = useState(true)
   const { colorScheme } = useMantineColorScheme()
 
+  // États pour le taux de formation par contrat
+  const [tauxContratData, setTauxContratData] = useState<TauxFormationContrat | null>(null)
+  const [tauxContratLoading, setTauxContratLoading] = useState(true)
+  const [selectedContrats, setSelectedContrats] = useState<string[]>([])
+  const [selectedAnnee, setSelectedAnnee] = useState<number | 'all'>('all')
+  const [includeInactifs, setIncludeInactifs] = useState(false)
+  const [viewMode, setViewMode] = useState<'list' | 'chart'>('list')
+
   useEffect(() => {
     fetchData()
   }, [])
+
+  // Recharger les données quand includeInactifs change
+  useEffect(() => {
+    fetchTauxContratData()
+  }, [includeInactifs])
 
   const fetchData = async () => {
     try {
@@ -326,6 +708,26 @@ export default function FormationsKPIsPage() {
       console.error('Erreur lors du chargement des KPIs formations:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTauxContratData = async () => {
+    setTauxContratLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (includeInactifs) {
+        params.append('includeInactifs', 'true')
+      }
+      const response = await axios.get(`${API_URL}/stats/taux-formation-contrat?${params.toString()}`)
+      setTauxContratData(response.data)
+      // Sélectionner l'année la plus récente par défaut (seulement si pas déjà défini)
+      if (response.data.annees?.length > 0 && selectedAnnee === 'all') {
+        setSelectedAnnee(response.data.annees[response.data.annees.length - 1])
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des taux par contrat:', error)
+    } finally {
+      setTauxContratLoading(false)
     }
   }
 
@@ -545,6 +947,196 @@ export default function FormationsKPIsPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Taux de Formation par Type de Contrat */}
+      {(tauxContratData || tauxContratLoading) && (
+        <motion.section
+          className={styles.contratSection}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.75 }}
+        >
+          {/* Overlay de chargement */}
+          {tauxContratLoading && (
+            <div className={styles.contratLoadingOverlay}>
+              <motion.div
+                className={styles.contratLoadingSpinner}
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+              />
+              <span>Chargement des donnees...</span>
+            </div>
+          )}
+          <div className={styles.contratHeader}>
+            <div>
+              <h3 className={styles.sectionTitle}>
+                <UsersFour size={24} weight="bold" style={{ marginRight: 8, verticalAlign: 'middle' }} />
+                Taux de formation par type de contrat
+              </h3>
+              <p className={styles.sectionSubtitle}>
+                Pourcentage d'effectif forme par type de contrat et par annee
+              </p>
+            </div>
+          </div>
+
+          {/* Filtres et contenu - seulement si données disponibles */}
+          {tauxContratData && (
+            <>
+              {/* Filtres */}
+              <div className={styles.contratFilters}>
+                {/* Ligne 1: Année et Vue */}
+                <div className={styles.contratFiltersRow}>
+                  {/* Sélection de l'année */}
+                  <div className={styles.contratFilterGroup}>
+                    <span className={styles.contratFilterLabel}>Annee :</span>
+                    <div className={styles.contratChips}>
+                      <Chip
+                        checked={selectedAnnee === 'all'}
+                        onChange={() => setSelectedAnnee('all')}
+                        color="orange"
+                        variant="filled"
+                        size="sm"
+                      >
+                        Toutes
+                      </Chip>
+                      {tauxContratData.annees.map(annee => (
+                        <Chip
+                          key={annee}
+                          checked={selectedAnnee === annee}
+                          onChange={() => setSelectedAnnee(annee)}
+                          color="orange"
+                          variant="filled"
+                          size="sm"
+                        >
+                          {annee}
+                        </Chip>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mode de vue */}
+                  <div className={styles.contratFilterGroup}>
+                    <SegmentedControl
+                      value={viewMode}
+                      onChange={(value) => setViewMode(value as 'list' | 'chart')}
+                      data={[
+                        {
+                          value: 'list',
+                          label: (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <ListBullets size={16} weight="bold" />
+                              <span>Liste</span>
+                            </div>
+                          )
+                        },
+                        {
+                          value: 'chart',
+                          label: (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <ChartLine size={16} weight="bold" />
+                              <span>Graphique</span>
+                            </div>
+                          )
+                        }
+                      ]}
+                      size="sm"
+                      color="orange"
+                      styles={{
+                        root: {
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Ligne 2: Contrats et Inactifs */}
+                <div className={styles.contratFiltersRow}>
+                  {/* Sélection des types de contrat */}
+                  <div className={styles.contratFilterGroup}>
+                    <span className={styles.contratFilterLabel}>
+                      <Funnel size={16} weight="bold" style={{ marginRight: 4 }} />
+                      Contrats :
+                    </span>
+                    <MultiSelect
+                      data={tauxContratData.typesContrat.map(c => ({
+                        value: c.id.toString(),
+                        label: c.nom
+                      }))}
+                      value={selectedContrats}
+                      onChange={setSelectedContrats}
+                      placeholder="Tous les contrats"
+                      clearable
+                      searchable
+                      size="sm"
+                      className={styles.contratMultiSelect}
+                      styles={{
+                        input: {
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          color: 'white'
+                        },
+                        dropdown: {
+                          backgroundColor: '#1a1a2e',
+                          border: '1px solid rgba(255, 255, 255, 0.1)'
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Switch pour inclure les inactifs */}
+                  <div className={styles.contratFilterGroup}>
+                    <Switch
+                      checked={includeInactifs}
+                      onChange={(event) => setIncludeInactifs(event.currentTarget.checked)}
+                      color="orange"
+                      size="sm"
+                      label={
+                        <span className={styles.contratFilterLabel} style={{ marginLeft: 8 }}>
+                          <UserMinus size={16} weight="bold" style={{ marginRight: 4 }} />
+                          Inclure inactifs
+                        </span>
+                      }
+                      styles={{
+                        track: {
+                          backgroundColor: includeInactifs ? undefined : 'rgba(255, 255, 255, 0.1)'
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bandeau d'avertissement pour les inactifs sans date */}
+              {includeInactifs && tauxContratData?.meta?.inactifsSansDate > 0 && (
+                <div className={styles.warningBanner}>
+                  <WarningCircle size={20} weight="fill" />
+                  <span>
+                    <strong>{tauxContratData.meta.inactifsSansDate}</strong> collaborateurs inactifs
+                    n'ont pas de date d'inactivation renseignee. Ils sont comptes sur toutes les annees.
+                  </span>
+                </div>
+              )}
+
+              {/* Graphique ou Liste selon le mode */}
+              {viewMode === 'list' ? (
+                <TauxFormationContratChart
+                  data={tauxContratData}
+                  selectedContrats={selectedContrats}
+                  selectedAnnee={selectedAnnee}
+                />
+              ) : (
+                <TauxFormationContratGraphique
+                  data={tauxContratData}
+                  selectedContrats={selectedContrats}
+                  selectedAnnee={selectedAnnee}
+                />
+              )}
+            </>
+          )}
+        </motion.section>
+      )}
 
       {/* Top Formations */}
       <motion.section

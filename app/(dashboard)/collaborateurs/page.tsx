@@ -21,6 +21,7 @@ import {
   Alert,
   Avatar,
   Select,
+  MultiSelect,
   Grid,
   Card,
   Tooltip,
@@ -48,10 +49,13 @@ import {
   Trash,
   UserCheck,
   UserCircleMinus,
+  Calendar,
 } from '@phosphor-icons/react';
+import { DateInput } from '@mantine/dates';
+import 'dayjs/locale/fr';
 import { useRouter } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
-import { Collaborateur, CollaborateurFilters, TypeUtilisateur } from '@/lib/types';
+import { Collaborateur, CollaborateurFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
 export default function CollaborateursPage() {
@@ -63,25 +67,41 @@ export default function CollaborateursPage() {
   const [error, setError] = useState<string | null>(null);
   const [globalStats, setGlobalStats] = useState<any>(null);
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
+  const [typesContrats, setTypesContrats] = useState<{ value: string; label: string }[]>([]);
 
   // Modal de suppression
   const [deleteModalOpened, setDeleteModalOpened] = useState(false);
   const [collaborateurToDelete, setCollaborateurToDelete] = useState<Collaborateur | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Modal de désactivation avec date
+  const [deactivateModalOpened, setDeactivateModalOpened] = useState(false);
+  const [collaborateurToDeactivate, setCollaborateurToDeactivate] = useState<Collaborateur | null>(null);
+  const [dateInactivation, setDateInactivation] = useState<Date | null>(new Date());
+  const [isDeactivating, setIsDeactivating] = useState(false);
+
   // Filtres et pagination
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [roleFilter, setRoleFilter] = useState<string>('');
+  const [missingFieldsFilter, setMissingFieldsFilter] = useState<string[]>([]);
   const [contratFilter, setContratFilter] = useState<string>('');
-  const [typesContrats, setTypesContrats] = useState<{ value: string; label: string }[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
   
   const debouncedSearch = useDebounce(search, 500);
+
+  // Options pour le filtre des informations manquantes
+  const missingFieldsOptions = [
+    { value: 'idExterne', label: 'ID Orange Learning' },
+    { value: 'matricule', label: 'Matricule RH' },
+    { value: 'departement', label: 'Département' },
+    { value: 'manager', label: 'Manager' },
+    { value: 'genre', label: 'Genre' },
+    { value: 'contrat', label: 'Type de contrat' },
+  ];
 
   // Charger les collaborateurs
   const loadCollaborateurs = async () => {
@@ -104,7 +124,12 @@ export default function CollaborateursPage() {
       if (departmentFilter) {
         filters.departementId = parseInt(departmentFilter);
       }
-      
+
+      // Ajouter le filtre type de contrat
+      if (contratFilter) {
+        filters.contratId = parseInt(contratFilter);
+      }
+
       // Gérer le filtre de statut avec le nouveau paramètre actif
       if (statusFilter === 'actif') {
         // Envoyer comme chaîne pour que axios le transmette correctement
@@ -115,14 +140,9 @@ export default function CollaborateursPage() {
       }
       // Pour 'tous', on n'envoie pas de paramètre actif
 
-      // Ajouter le filtre par rôle
-      if (roleFilter) {
-        filters.typeUtilisateur = roleFilter;
-      }
-
-      // Ajouter le filtre par type de contrat
-      if (contratFilter) {
-        filters.contratId = parseInt(contratFilter);
+      // Filtre des informations manquantes
+      if (missingFieldsFilter.length > 0) {
+        filters.missingFields = missingFieldsFilter.join(',');
       }
 
       const response = await collaborateursService.getCollaborateurs(filters);
@@ -172,14 +192,14 @@ export default function CollaborateursPage() {
 
     const loadTypesContrats = async () => {
       try {
-        const types = await commonService.getTypesContrats();
-        const typesList = types.map((t: any) => ({
-          value: t.id.toString(),
-          label: t.typeContrat,
+        const contrats = await commonService.getTypesContrats();
+        const contratsList = contrats.map(c => ({
+          value: c.id.toString(),
+          label: c.typeContrat,
         }));
         setTypesContrats([
           { value: '', label: 'Tous les contrats' },
-          ...typesList
+          ...contratsList
         ]);
       } catch (error) {
         console.error('Erreur lors du chargement des types de contrats:', error);
@@ -193,12 +213,12 @@ export default function CollaborateursPage() {
   // Charger les collaborateurs au montage et quand les filtres changent
   useEffect(() => {
     loadCollaborateurs();
-  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter, contratFilter, page]);
+  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, departmentFilter, statusFilter, roleFilter, contratFilter]);
+  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/collaborateurs/${id}`);
@@ -324,6 +344,82 @@ export default function CollaborateursPage() {
     }
   };
 
+  // Ouvrir la modal de désactivation/modification date
+  const handleOpenDeactivateModal = (collaborateur: Collaborateur) => {
+    setCollaborateurToDeactivate(collaborateur);
+    // Si le collaborateur a déjà une date d'inactivation, l'utiliser, sinon date du jour
+    setDateInactivation(
+      collaborateur.dateInactivation
+        ? new Date(collaborateur.dateInactivation)
+        : new Date()
+    );
+    setDeactivateModalOpened(true);
+  };
+
+  // Helper pour formater une date en YYYY-MM-DD
+  const formatDateOnly = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Désactiver un collaborateur avec date ou modifier la date d'inactivation
+  const handleDeactivateWithDate = async () => {
+    if (!collaborateurToDeactivate) return;
+
+    setIsDeactivating(true);
+    try {
+      const updateData: any = {
+        dateInactivation: dateInactivation ? formatDateOnly(dateInactivation) : null,
+      };
+
+      // Si le collaborateur est actif, on le désactive
+      if (collaborateurToDeactivate.actif) {
+        updateData.actif = false;
+      }
+
+      await collaborateursService.updateCollaborateur(collaborateurToDeactivate.id, updateData);
+
+      const message = collaborateurToDeactivate.actif
+        ? `${collaborateurToDeactivate.nomComplet} a été désactivé avec succès`
+        : `Date d'inactivation de ${collaborateurToDeactivate.nomComplet} mise à jour`;
+
+      notifications.show({
+        title: 'Succès',
+        message,
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
+
+      setDeactivateModalOpened(false);
+      setCollaborateurToDeactivate(null);
+      loadCollaborateurs();
+    } catch (error: any) {
+      console.error('Erreur lors de la désactivation:', error);
+      notifications.show({
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Erreur lors de la désactivation',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setIsDeactivating(false);
+    }
+  };
+
+  // Fonction pour obtenir les infos manquantes d'un collaborateur
+  const getMissingInfo = (collaborateur: Collaborateur): string[] => {
+    const missing: string[] = [];
+    if (!collaborateur.idExterne) missing.push('ID Orange Learning');
+    if (!collaborateur.matricule) missing.push('Matricule RH');
+    if (!collaborateur.departementId && !collaborateur.departement) missing.push('Département');
+    if (!collaborateur.managerId && !collaborateur.manager) missing.push('Manager');
+    if (!collaborateur.genre) missing.push('Genre');
+    if (!collaborateur.contratId) missing.push('Type de contrat');
+    return missing;
+  };
+
   // Utiliser les statistiques globales du backend ou calculer localement
   const stats = globalStats ? {
     total: globalStats.total || (globalStats.totalActifs + globalStats.totalInactifs) || total,
@@ -340,7 +436,9 @@ export default function CollaborateursPage() {
     }).filter(Boolean))].length,
   };
 
-  const rows = collaborateurs.map((collaborateur) => (
+  const rows = collaborateurs.map((collaborateur) => {
+    const missingInfo = getMissingInfo(collaborateur);
+    return (
     <Table.Tr key={collaborateur.id}>
       <Table.Td>
         <Group gap="sm">
@@ -352,10 +450,10 @@ export default function CollaborateursPage() {
               <Text size="sm" fw={500}>
                 {collaborateur.nomComplet}
               </Text>
-              {!collaborateur.idExterne && (
-                <Tooltip label="ID Orange Learning manquant - À ajouter dès que disponible">
-                  <Badge color="orange" variant="light" size="xs">
-                    ID Orange Learning manquant
+              {missingInfo.length > 0 && (
+                <Tooltip label={`Informations manquantes : ${missingInfo.join(', ')}`}>
+                  <Badge color="red" variant="light" size="xs" leftSection={<Warning size={10} />}>
+                    {missingInfo.length} info(s) manquante(s)
                   </Badge>
                 </Tooltip>
               )}
@@ -378,21 +476,6 @@ export default function CollaborateursPage() {
       </Table.Td>
       <Table.Td>
         <Text size="sm">{collaborateur.manager?.nomComplet || '-'}</Text>
-      </Table.Td>
-      <Table.Td>
-        <Badge
-          color={
-            collaborateur.typeUtilisateur === TypeUtilisateur.DIRECTEUR
-              ? 'violet'
-              : collaborateur.typeUtilisateur === TypeUtilisateur.MANAGER
-              ? 'blue'
-              : 'gray'
-          }
-          variant="light"
-          size="sm"
-        >
-          {collaborateur.typeUtilisateur || 'Collaborateur'}
-        </Badge>
       </Table.Td>
       <Table.Td>
         <Text size="sm">{collaborateur.contrat?.typeContrat || '-'}</Text>
@@ -464,6 +547,13 @@ export default function CollaborateursPage() {
               >
                 {collaborateur.actif ? 'Désactiver' : 'Activer'}
               </Menu.Item>
+              <Menu.Item
+                leftSection={<Calendar size={14} />}
+                color="orange"
+                onClick={() => handleOpenDeactivateModal(collaborateur)}
+              >
+                {collaborateur.actif ? 'Désactiver avec date' : 'Modifier date inactivation'}
+              </Menu.Item>
               <Menu.Divider />
               <Menu.Item
                 leftSection={<Trash size={14} />}
@@ -477,7 +567,8 @@ export default function CollaborateursPage() {
         </Group>
       </Table.Td>
     </Table.Tr>
-  ));
+    );
+  });
 
   return (
     <Container size="xl">
@@ -594,7 +685,7 @@ export default function CollaborateursPage() {
           <Text fw={600}>Filtres et Recherche</Text>
         </Group>
         <Grid align="flex-end">
-          <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Grid.Col span={{ base: 12, sm: 6 }}>
             <TextInput
               label=" "
               placeholder="Rechercher par nom, prénom, matricule..."
@@ -603,9 +694,9 @@ export default function CollaborateursPage() {
               onChange={(event) => setSearch(event.currentTarget.value)}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 2 }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Département"
+              placeholder="Tous les départements"
               data={departements}
               value={departmentFilter}
               onChange={(value) => setDepartmentFilter(value || '')}
@@ -613,44 +704,37 @@ export default function CollaborateursPage() {
               searchable
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 2 }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Rôle"
+              placeholder="Tous les statuts"
               data={[
-                { value: '', label: 'Tous les rôles' },
-                { value: TypeUtilisateur.COLLABORATEUR, label: 'Collaborateurs' },
-                { value: TypeUtilisateur.MANAGER, label: 'Managers' },
-                { value: TypeUtilisateur.DIRECTEUR, label: 'Directeurs' },
+                { value: '', label: 'Tous' },
+                { value: 'actif', label: 'Actifs seulement' },
+                { value: 'inactif', label: 'Inactifs seulement' },
               ]}
-              value={roleFilter}
-              onChange={(value) => setRoleFilter(value || '')}
-              clearable
+              value={statusFilter}
+              onChange={(value) => setStatusFilter(value || '')}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 2 }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Contrat"
-              data={[
-                { value: '', label: 'Tous les contrats' },
-                ...typesContrats.filter(t => t.value !== '')
-              ]}
+              placeholder="Tous les contrats"
+              data={typesContrats}
               value={contratFilter}
               onChange={(value) => setContratFilter(value || '')}
               clearable
               searchable
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 2 }}>
-            <Select
-              placeholder="Statut"
-              data={[
-                { value: '', label: 'Tous' },
-                { value: 'actif', label: 'Actifs' },
-                { value: 'inactif', label: 'Inactifs' },
-              ]}
-              value={statusFilter}
-              onChange={(value) => setStatusFilter(value || '')}
+          <Grid.Col span={{ base: 12, sm: 3 }}>
+            <MultiSelect
+              placeholder="Infos manquantes..."
+              data={missingFieldsOptions}
+              value={missingFieldsFilter}
+              onChange={setMissingFieldsFilter}
               clearable
+              searchable
+              leftSection={<Warning size={16} />}
             />
           </Grid.Col>
         </Grid>
@@ -668,14 +752,13 @@ export default function CollaborateursPage() {
           </Alert>
         ) : collaborateurs.length > 0 ? (
           <>
-            <Table.ScrollContainer minWidth={800}>
+            <Table.ScrollContainer minWidth={900}>
               <Table verticalSpacing="sm">
                 <Table.Thead>
                   <Table.Tr>
                     <Table.Th>Collaborateur / Matricule</Table.Th>
                     <Table.Th>Département</Table.Th>
                     <Table.Th>Manager</Table.Th>
-                    <Table.Th>Rôle</Table.Th>
                     <Table.Th>Contrat</Table.Th>
                     <Table.Th>Formations</Table.Th>
                     <Table.Th>Statut</Table.Th>
@@ -791,6 +874,64 @@ export default function CollaborateursPage() {
               leftSection={<Trash size={16} />}
             >
               Supprimer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Modal de désactivation avec date / modification date inactivation */}
+      <Modal
+        opened={deactivateModalOpened}
+        onClose={() => !isDeactivating && setDeactivateModalOpened(false)}
+        title={collaborateurToDeactivate?.actif ? "Désactiver le collaborateur" : "Modifier la date d'inactivation"}
+        centered
+      >
+        <Stack gap="md">
+          <Text>
+            {collaborateurToDeactivate?.actif
+              ? "Vous allez désactiver le collaborateur "
+              : "Modifier la date d'inactivation de "}
+            <Text span fw={600}>
+              {collaborateurToDeactivate?.prenom} {collaborateurToDeactivate?.nom}
+            </Text>
+          </Text>
+
+          <DateInput
+            label="Date d'inactivation"
+            placeholder="Sélectionner une date"
+            locale="fr"
+            valueFormat="DD/MM/YYYY"
+            value={dateInactivation}
+            onChange={setDateInactivation}
+            clearable
+            description="Date à laquelle le collaborateur est devenu inactif"
+            leftSection={<Calendar size={16} />}
+          />
+
+          {collaborateurToDeactivate?.actif && (
+            <Alert icon={<Warning size={20} />} color="orange" variant="light">
+              <Text size="sm">
+                Le collaborateur sera marqué comme inactif et ne sera plus comptabilisé dans les statistiques actives.
+              </Text>
+            </Alert>
+          )}
+
+          <Group justify="flex-end" mt="md">
+            <Button
+              variant="subtle"
+              color="gray"
+              onClick={() => setDeactivateModalOpened(false)}
+              disabled={isDeactivating}
+            >
+              Annuler
+            </Button>
+            <Button
+              color="orange"
+              onClick={handleDeactivateWithDate}
+              loading={isDeactivating}
+              leftSection={collaborateurToDeactivate?.actif ? <UserCircleMinus size={16} /> : <Calendar size={16} />}
+            >
+              {collaborateurToDeactivate?.actif ? 'Désactiver' : 'Enregistrer'}
             </Button>
           </Group>
         </Stack>

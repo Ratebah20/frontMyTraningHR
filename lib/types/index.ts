@@ -25,6 +25,7 @@ export interface Collaborateur {
   dateCreation: string;
   dateModification: string;
   actif: boolean;
+  dateInactivation?: string | null;
   manager?: Collaborateur;
   departement?: Departement | string;
   contrat?: TypeContrat;

@@ -55,6 +55,7 @@ import {
   Wallet,
   ListChecks,
   Building,
+  Robot,
 } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
 import { spotlight } from '@mantine/spotlight';
@@ -175,9 +176,16 @@ const navigationItems: NavigationItem[] = [
     href: '/documents',
     color: 'pink'
   },
-  { 
-    icon: Gear, 
-    label: 'Paramètres', 
+  {
+    icon: Robot,
+    label: 'Assistant IA',
+    href: '/ai-assistant',
+    color: 'grape',
+    badge: undefined,
+  },
+  {
+    icon: Gear,
+    label: 'Paramètres',
     href: '/settings',
     color: 'gray'
   },

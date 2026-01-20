@@ -10,12 +10,17 @@ interface AuthTokens {
 }
 
 interface LoginResponse {
-  accessToken: string;
-  refreshToken: string;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+  };
   user: {
     id: number;
-    username: string;
     email: string;
+    nom: string;
+    prenom: string;
+    role: string;
   };
 }
 
@@ -239,9 +244,11 @@ export const authService = {
       email,
       password,
     });
-    
-    const { accessToken, refreshToken, user } = response.data;
-    
+
+    // Le backend retourne { user, tokens: { accessToken, refreshToken, expiresIn } }
+    const { tokens, user } = response.data;
+    const { accessToken, refreshToken } = tokens;
+
     saveTokens({ accessToken, refreshToken });
     
     if (typeof window !== 'undefined') {

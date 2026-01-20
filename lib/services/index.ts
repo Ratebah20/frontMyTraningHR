@@ -12,6 +12,8 @@ export { departementsService } from './departements.service';
 export { organismesService } from './organismes.service';
 export { exportsService } from './exports.service';
 export type { ExportFilters, ExportType } from './exports.service';
+export { aiAssistantService } from './ai-assistant.service';
+export type { AIQueryRequest, AIResponse, AICapability, AICapabilitiesResponse, AIHealthResponse } from './ai-assistant.service';
 
 // Ré-export des types pour faciliter l'import
 export * from '../types';

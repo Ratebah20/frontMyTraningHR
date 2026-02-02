@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Text, Badge, RingProgress, Tooltip, useMantineColorScheme, MultiSelect, Chip, Switch, SegmentedControl } from '@mantine/core'
-import { Clock, Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire, Funnel, UsersFour, ChartLine, ListBullets, UserMinus, WarningCircle } from '@phosphor-icons/react'
+import { Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire, Funnel, UsersFour, ChartLine, ListBullets, UserMinus, WarningCircle } from '@phosphor-icons/react'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion } from 'framer-motion'
 import axios from 'axios'
@@ -126,75 +126,8 @@ const numberVariants = {
 }
 
 // Animated counter hook
-function useAnimatedCounter(end: number, duration: number = 2000) {
-  const [count, setCount] = useState(0)
-  const startedRef = useRef(false)
-
-  useEffect(() => {
-    if (startedRef.current || end === 0) return
-    startedRef.current = true
-
-    let startTime: number
-    let animationFrame: number
-
-    const animate = (timestamp: number) => {
-      if (!startTime) startTime = timestamp
-      const progress = Math.min((timestamp - startTime) / duration, 1)
-      const easeOutExpo = 1 - Math.pow(2, -10 * progress)
-      setCount(Math.floor(easeOutExpo * end))
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate)
-      }
-    }
-
-    animationFrame = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(animationFrame)
-  }, [end, duration])
-
-  return count
-}
-
-// Hero KPI Card - Large featured metric
-function HeroKPICard({
-  title,
-  value,
-  suffix = '',
-  subtitle,
-  icon,
-  gradient
-}: {
-  title: string
-  value: number
-  suffix?: string
-  subtitle?: string
-  icon: React.ReactNode
-  gradient: string
-}) {
-  const animatedValue = useAnimatedCounter(value)
-
-  return (
-    <motion.div
-      className={styles.heroCard}
-      variants={cardVariants}
-      whileHover={{ scale: 1.02, y: -8 }}
-      style={{ background: gradient }}
-    >
-      <div className={styles.heroGlow} />
-      <div className={styles.heroContent}>
-        <div className={styles.heroIcon}>{icon}</div>
-        <motion.div className={styles.heroValue} variants={numberVariants}>
-          <span className={styles.heroNumber}>{animatedValue.toLocaleString('fr-FR')}</span>
-          {suffix && <span className={styles.heroSuffix}>{suffix}</span>}
-        </motion.div>
-        <div className={styles.heroLabel}>
-          <span className={styles.heroTitle}>{title}</span>
-          {subtitle && <span className={styles.heroSubtitle}>{subtitle}</span>}
-        </div>
-      </div>
-      <div className={styles.heroPattern} />
-    </motion.div>
-  )
+function useAnimatedCounter(end: number) {
+  return end
 }
 
 // Standard KPI Card
@@ -308,35 +241,6 @@ function TopFormationRow({
           </span>
         </div>
       </div>
-    </motion.div>
-  )
-}
-
-// Category item with color indicator
-function CategoryRow({
-  category,
-  index
-}: {
-  category: FormationsKPIs['repartitionCategories'][0]
-  index: number
-}) {
-  const colors = ['orange', 'cyan', 'violet', 'pink', 'teal', 'yellow']
-  const color = colors[index % colors.length]
-
-  return (
-    <motion.div
-      className={styles.categoryRow}
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.3 + index * 0.08 }}
-      whileHover={{ scale: 1.02 }}
-    >
-      <div className={styles.categoryIndicator} data-color={color} />
-      <div className={styles.categoryInfo}>
-        <span className={styles.categoryName}>{category.nom}</span>
-        <span className={styles.categoryCount}>{category.formations} formations</span>
-      </div>
-      <div className={styles.categoryValue}>{category.pourcentage}%</div>
     </motion.div>
   )
 }
@@ -794,8 +698,6 @@ export default function FormationsKPIsPage() {
   }
 
   // Calculate derived metrics
-  const totalParticipants = data.catalogue.reduce((sum: number, f) => sum + f.participants, 0)
-  const totalHeures = data.catalogue.reduce((sum: number, f) => sum + f.heuresTotal, 0)
   const tauxUtilisation = data.summary.formationsAvecSessions > 0
     ? Math.round((data.summary.formationsAvecSessions / data.summary.totalFormations) * 100)
     : 0
@@ -863,31 +765,7 @@ export default function FormationsKPIsPage() {
         </motion.div>
       </motion.header>
 
-      {/* Hero Section - Main KPIs */}
-      <motion.section
-        className={styles.heroSection}
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <HeroKPICard
-          title="Heures de formation"
-          value={totalHeures}
-          suffix="h"
-          subtitle="Temps total investi"
-          icon={<Clock size={32} weight="bold" />}
-          gradient="linear-gradient(135deg, #ff7900 0%, #ff9a44 50%, #ffb366 100%)"
-        />
-        <HeroKPICard
-          title="Participants"
-          value={totalParticipants}
-          subtitle="Collaborateurs formes"
-          icon={<Users size={32} weight="bold" />}
-          gradient="linear-gradient(135deg, #0ea5e9 0%, #38bdf8 50%, #7dd3fc 100%)"
-        />
-      </motion.section>
-
-      {/* Secondary KPIs */}
+      {/* KPIs */}
       <motion.section
         className={styles.kpiGrid}
         variants={containerVariants}
@@ -958,22 +836,6 @@ export default function FormationsKPIsPage() {
           </div>
         </motion.div>
 
-        {/* Categories */}
-        <motion.div
-          className={styles.categoriesCard}
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.7 }}
-        >
-          <h3 className={styles.sectionTitle}>Categories</h3>
-          <p className={styles.sectionSubtitle}>Distribution du catalogue</p>
-
-          <div className={styles.categoryList}>
-            {data.repartitionCategories.slice(0, 5).map((category, index) => (
-              <CategoryRow key={category.nom} category={category} index={index} />
-            ))}
-          </div>
-        </motion.div>
       </div>
 
       {/* Taux de Formation par Type de Contrat */}

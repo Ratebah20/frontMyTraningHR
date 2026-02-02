@@ -975,7 +975,7 @@ export default function CollaborateursKPIsPage() {
                       </div>
                       <div className={styles.categorieDetails}>
                         <span>{cat.stats.nombre} collaborateurs</span>
-                        <span>{cat.stats.formations} formations</span>
+                        <span>{cat.stats.formations} formation{cat.stats.formations > 1 ? 's' : ''}</span>
                         <span className={styles.categorieHeures}>{cat.stats.heures}h</span>
                       </div>
                     </div>

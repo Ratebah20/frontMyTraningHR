@@ -50,7 +50,7 @@ import { ImportPreviewModal } from '@/components/import/ImportPreviewModal';
 import Link from 'next/link';
 
 export default function ImportPage() {
-  const [activeTab, setActiveTab] = useState<string | null>('collaborateurs');
+  const [activeTab, setActiveTab] = useState<string | null>('olu');
   const [initialFile, setInitialFile] = useState<File | null>(null);
   const [oluFile, setOluFile] = useState<File | null>(null);
   const [collaborateursFile, setCollaborateursFile] = useState<File | null>(null);
@@ -453,12 +453,6 @@ export default function ImportPage() {
       <Paper shadow="xs" radius="md" mb="xl">
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Tab value="collaborateurs" leftSection={<Users size={16} />}>
-              Import Collaborateurs
-            </Tabs.Tab>
-            <Tabs.Tab value="initial" leftSection={<Database size={16} />}>
-              Import Initial (SUIVI_FORMATIONS)
-            </Tabs.Tab>
             <Tabs.Tab value="olu" leftSection={<ArrowsClockwise size={16} />}>
               Import Récurrent (OLU)
             </Tabs.Tab>
@@ -466,116 +460,6 @@ export default function ImportPage() {
               Historique
             </Tabs.Tab>
           </Tabs.List>
-
-          {/* Import Collaborateurs */}
-          <Tabs.Panel value="collaborateurs" pt="xl" px="lg" pb="lg">
-            <Stack gap="lg">
-              <Alert icon={<Info size={16} />} color="blue" variant="light">
-                <Text fw={600} mb="xs">Import du fichier collaborateurs</Text>
-                <Text size="sm">
-                  Utilisez cet import pour charger ou mettre à jour les données des collaborateurs.
-                  Format attendu : Excel avec colonnes spécifiques (Matricule, Nom, Prénom, Département, Manager, etc.)
-                </Text>
-              </Alert>
-
-              <FileInput
-                label="Fichier Excel collaborateurs"
-                placeholder="Cliquez pour sélectionner un fichier"
-                accept=".xlsx,.xls"
-                leftSection={<FileXls size={20} />}
-                value={collaborateursFile}
-                onChange={setCollaborateursFile}
-                disabled={isImporting}
-                required
-              />
-
-              {importProgress > 0 && (
-                <div>
-                  <Text size="sm" mb="xs">Progression de l'import...</Text>
-                  <Progress value={importProgress} animated />
-                </div>
-              )}
-
-              {currentImportStats && (
-                <Alert icon={<CheckCircle size={16} />} color="green" variant="light">
-                  <Text fw={600} mb="xs">Import terminé avec succès !</Text>
-                  <Group gap="xl">
-                    <Text size="sm">Total traité: {currentImportStats.stats?.total || 0}</Text>
-                    <Text size="sm">Créés: {currentImportStats.stats?.created || 0}</Text>
-                    <Text size="sm">Mis à jour: {currentImportStats.stats?.updated || 0}</Text>
-                    <Text size="sm">Échecs: {currentImportStats.stats?.failed || 0}</Text>
-                  </Group>
-                </Alert>
-              )}
-
-              <Group justify="flex-end">
-                <Button
-                  leftSection={<Upload size={16} />}
-                  onClick={handleCollaborateursImport}
-                  loading={isImporting}
-                  disabled={!collaborateursFile}
-                  size="md"
-                >
-                  Lancer l'import collaborateurs
-                </Button>
-              </Group>
-            </Stack>
-          </Tabs.Panel>
-
-          {/* Import Initial */}
-          <Tabs.Panel value="initial" pt="xl" px="lg" pb="lg">
-            <Stack gap="lg">
-              <Alert icon={<Info size={16} />} color="blue" variant="light">
-                <Text fw={600} mb="xs">Import initial depuis le fichier SUIVI_FORMATIONS</Text>
-                <Text size="sm">
-                  Utilisez cet import pour charger les données historiques de formation.
-                  Format attendu : Excel avec colonnes spécifiques (ID_SALARIE, NOM, PRENOM, etc.)
-                </Text>
-              </Alert>
-
-              <FileInput
-                label="Fichier Excel à importer"
-                placeholder="Cliquez pour sélectionner un fichier"
-                accept=".xlsx,.xls"
-                leftSection={<FileXls size={20} />}
-                value={initialFile}
-                onChange={setInitialFile}
-                disabled={isImporting}
-                required
-              />
-
-              {importProgress > 0 && (
-                <div>
-                  <Text size="sm" mb="xs">Progression de l'import...</Text>
-                  <Progress value={importProgress} animated />
-                </div>
-              )}
-
-              {currentImportStats && (
-                <Alert icon={<CheckCircle size={16} />} color="green" variant="light">
-                  <Text fw={600} mb="xs">Import terminé avec succès !</Text>
-                  <Group gap="xl">
-                    <Text size="sm">Total traité: {currentImportStats.stats?.total || 0}</Text>
-                    <Text size="sm">Créés: {currentImportStats.stats?.created || 0}</Text>
-                    <Text size="sm">Mis à jour: {currentImportStats.stats?.updated || 0}</Text>
-                    <Text size="sm">Échecs: {currentImportStats.stats?.failed || 0}</Text>
-                  </Group>
-                </Alert>
-              )}
-
-              <Group justify="flex-end">
-                <Button
-                  leftSection={<Upload size={16} />}
-                  onClick={handleInitialImport}
-                  loading={isImporting}
-                  disabled={!initialFile}
-                  size="md"
-                >
-                  Lancer l'import initial
-                </Button>
-              </Group>
-            </Stack>
-          </Tabs.Panel>
 
           {/* Import OLU */}
           <Tabs.Panel value="olu" pt="xl" px="lg" pb="lg">
@@ -641,15 +525,6 @@ export default function ImportPage() {
                   size="md"
                 >
                   Preview
-                </Button>
-                <Button
-                  leftSection={<ArrowsClockwise size={16} />}
-                  onClick={handleOluImport}
-                  loading={isImporting}
-                  disabled={!oluFile || isGeneratingPreview}
-                  size="md"
-                >
-                  Import direct
                 </Button>
               </Group>
             </Stack>

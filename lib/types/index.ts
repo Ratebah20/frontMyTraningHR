@@ -267,9 +267,7 @@ export interface CreateSessionDto {
   organismeId?: number;
   dateDebut?: string;
   dateFin?: string;
-  dureePrevue?: number;
-  dureeReelle?: number;
-  uniteDuree?: string;
+  duree?: number;
   statut?: string;
   tarifHT?: number;
   anneeBudgetaire?: number;
@@ -913,8 +911,6 @@ export interface CreateCollectiveSessionDto {
   lieu?: string;
   dateDebut?: string;
   dateFin?: string;
-  heureDebut?: string;
-  heureFin?: string;
   dureePrevue?: number;
   statut?: string;
   modalite?: string;
@@ -936,8 +932,6 @@ export interface UpdateCollectiveSessionDto {
   lieu?: string;
   dateDebut?: string;
   dateFin?: string;
-  heureDebut?: string;
-  heureFin?: string;
   dureePrevue?: number;
   statut?: string;
   modalite?: string;

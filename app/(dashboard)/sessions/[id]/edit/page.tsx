@@ -91,8 +91,6 @@ interface FormValues {
   // Champs collectifs
   titre?: string;
   lieu?: string;
-  heureDebut?: string;
-  heureFin?: string;
   dureePrevueHeures?: number;
   modalite?: string;
   tarifUnitaireHT?: number;
@@ -124,8 +122,6 @@ export default function EditSessionPage({ params }: Props) {
       // Collectifs
       titre: '',
       lieu: '',
-      heureDebut: '',
-      heureFin: '',
       dureePrevueHeures: undefined,
       modalite: 'presentiel',
       tarifUnitaireHT: undefined,
@@ -203,8 +199,6 @@ export default function EditSessionPage({ params }: Props) {
             // Champs collectifs
             titre: sessionData.titre || '',
             lieu: sessionData.lieu || '',
-            heureDebut: sessionData.heureDebut || '',
-            heureFin: sessionData.heureFin || '',
             dureePrevueHeures: sessionData.dureePrevue ? Number(sessionData.dureePrevue) : undefined,
             modalite: sessionData.modalite || 'presentiel',
             tarifUnitaireHT: sessionData.tarifUnitaireHT ? Number(sessionData.tarifUnitaireHT) : undefined,
@@ -237,8 +231,6 @@ export default function EditSessionPage({ params }: Props) {
             // Champs collectifs (vides)
             titre: '',
             lieu: '',
-            heureDebut: '',
-            heureFin: '',
             dureePrevueHeures: undefined,
             modalite: 'presentiel',
             tarifUnitaireHT: undefined,
@@ -309,8 +301,6 @@ export default function EditSessionPage({ params }: Props) {
           dateFin: values.dateFin || undefined,
           titre: values.titre || undefined,
           lieu: values.lieu || undefined,
-          heureDebut: values.heureDebut || undefined,
-          heureFin: values.heureFin || undefined,
           dureePrevue: values.dureePrevueHeures || undefined,
           modalite: values.modalite || undefined,
           tarifUnitaireHT: values.tarifUnitaireHT || undefined,
@@ -695,7 +685,7 @@ export default function EditSessionPage({ params }: Props) {
                     <Grid>
                       <Grid.Col span={{ base: 12, sm: 6 }}>
                         <NumberInput
-                          label="Durée réelle (heures)"
+                          label="Durée (heures)"
                           description="Nombre d'heures effectivement suivies"
                           placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
                           min={0}
@@ -798,39 +788,15 @@ export default function EditSessionPage({ params }: Props) {
                         </Grid.Col>
                       </Grid>
 
-                      <Grid>
-                        <Grid.Col span={{ base: 12, sm: 4 }}>
-                          <TextInput
-                            label="Heure de début"
-                            placeholder="Ex: 09:00"
-                            type="time"
-                            leftSection={<Clock size={16} />}
-                            {...form.getInputProps('heureDebut')}
-                          />
-                        </Grid.Col>
-
-                        <Grid.Col span={{ base: 12, sm: 4 }}>
-                          <TextInput
-                            label="Heure de fin"
-                            placeholder="Ex: 17:00"
-                            type="time"
-                            leftSection={<Clock size={16} />}
-                            {...form.getInputProps('heureFin')}
-                          />
-                        </Grid.Col>
-
-                        <Grid.Col span={{ base: 12, sm: 4 }}>
-                          <NumberInput
-                            label="Durée (heures)"
-                            placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
-                            min={0}
-                            step={0.5}
-                            decimalScale={1}
-                            leftSection={<Clock size={16} />}
-                            {...form.getInputProps('dureePrevueHeures')}
-                          />
-                        </Grid.Col>
-                      </Grid>
+                      <NumberInput
+                        label="Durée (heures)"
+                        placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
+                        min={0}
+                        step={0.5}
+                        decimalScale={1}
+                        leftSection={<Clock size={16} />}
+                        {...form.getInputProps('dureePrevueHeures')}
+                      />
 
                     </Stack>
                   </Paper>

@@ -96,9 +96,7 @@ export default function NewSessionPage() {
 
       // Champs individuels
       collaborateurId: preselectedCollaborateurId ? parseInt(preselectedCollaborateurId) : 0,
-      dureePrevue: undefined,
-      dureeReelle: undefined,
-      uniteDuree: 'heures',
+      duree: undefined,
       statut: 'inscrit',
       tarifHT: undefined,
       commentaire: '',
@@ -106,8 +104,6 @@ export default function NewSessionPage() {
       // Champs collectifs
       titre: '',
       lieu: '',
-      heureDebut: '',
-      heureFin: '',
       dureePrevueHeures: undefined,
 
 
@@ -313,9 +309,7 @@ export default function NewSessionPage() {
           collaborateurId: values.collaborateurId,
           dateDebut: formattedDateDebut,
           dateFin: formattedDateFin,
-          dureePrevue: values.dureePrevue || undefined,
-          dureeReelle: values.dureeReelle || undefined,
-          uniteDuree: values.uniteDuree,
+          duree: values.duree || undefined,
           statut: values.statut,
           organismeId: values.organismeId || undefined,
           tarifHT: values.tarifHT || undefined,
@@ -360,8 +354,6 @@ export default function NewSessionPage() {
           lieu: values.lieu || undefined,
           dateDebut: values.dateDebut instanceof Date ? formatDateOnly(values.dateDebut) : values.dateDebut || undefined,
           dateFin: values.dateFin instanceof Date ? formatDateOnly(values.dateFin) : values.dateFin || undefined,
-          heureDebut: values.heureDebut || undefined,
-          heureFin: values.heureFin || undefined,
           dureePrevue: values.dureePrevueHeures || undefined,
           statut: values.statutCollectif,
           modalite: values.modalite,
@@ -505,6 +497,61 @@ export default function NewSessionPage() {
               </Group>
             </Paper>
           )}
+
+          {/* Dates et durée */}
+          <Paper shadow="xs" p="lg" radius="md" withBorder>
+            <Group align="center" mb="md">
+              <Calendar size={20} />
+              <Text fw={600}>Dates et durée</Text>
+            </Group>
+
+            <Stack gap="md">
+              <Group grow>
+                <DateInput
+                  label="Date de début"
+                  placeholder="Sélectionner une date"
+                  required
+                  locale="fr"
+                  valueFormat="DD/MM/YYYY"
+                  {...form.getInputProps('dateDebut')}
+                />
+
+                <DateInput
+                  label="Date de fin"
+                  placeholder="Sélectionner une date"
+                  locale="fr"
+                  valueFormat="DD/MM/YYYY"
+                  {...form.getInputProps('dateFin')}
+                />
+              </Group>
+
+              {/* Champs SESSION INDIVIDUELLE */}
+              {sessionType === 'individuelle' && (
+                <NumberInput
+                  label="Durée (heures)"
+                  placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
+                  min={0}
+                  step={0.5}
+                  decimalScale={1}
+                  {...form.getInputProps('duree')}
+                  leftSection={<Clock size={16} />}
+                />
+              )}
+
+              {/* Champs SESSION COLLECTIVE */}
+              {sessionType === 'collective' && (
+                <NumberInput
+                  label="Durée (heures)"
+                  placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
+                  min={0}
+                  step={0.5}
+                  decimalScale={1}
+                  {...form.getInputProps('dureePrevueHeures')}
+                  leftSection={<Clock size={16} />}
+                />
+              )}
+            </Stack>
+          </Paper>
 
           {/* Informations principales */}
           <Paper shadow="xs" p="lg" radius="md" withBorder>
@@ -666,99 +713,6 @@ export default function NewSessionPage() {
                     {...form.getInputProps('description')}
                   />
                 </>
-              )}
-            </Stack>
-          </Paper>
-
-          {/* Dates et durée */}
-          <Paper shadow="xs" p="lg" radius="md" withBorder>
-            <Group align="center" mb="md">
-              <Calendar size={20} />
-              <Text fw={600}>Dates et durée</Text>
-            </Group>
-
-            <Stack gap="md">
-              <Group grow>
-                <DateInput
-                  label="Date de début"
-                  placeholder="Sélectionner une date"
-                  required
-                  locale="fr"
-                  valueFormat="DD/MM/YYYY"
-                  {...form.getInputProps('dateDebut')}
-                />
-
-                <DateInput
-                  label="Date de fin"
-                  placeholder="Sélectionner une date"
-                  locale="fr"
-                  valueFormat="DD/MM/YYYY"
-                  {...form.getInputProps('dateFin')}
-                />
-              </Group>
-
-              {/* Champs SESSION INDIVIDUELLE */}
-              {sessionType === 'individuelle' && (
-                <Group grow>
-                  <NumberInput
-                    label="Durée prévue"
-                    placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
-                    min={0}
-                    step={0.5}
-                    decimalScale={1}
-                    {...form.getInputProps('dureePrevue')}
-                    leftSection={<Clock size={16} />}
-                  />
-
-                  <NumberInput
-                    label="Durée réelle"
-                    placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
-                    min={0}
-                    step={0.5}
-                    decimalScale={1}
-                    {...form.getInputProps('dureeReelle')}
-                    leftSection={<Clock size={16} />}
-                  />
-
-                  <Select
-                    label="Unité"
-                    data={[
-                      { value: 'heures', label: 'Heures' },
-                      { value: 'jours', label: 'Jours' },
-                      { value: 'semaines', label: 'Semaines' },
-                    ]}
-                    {...form.getInputProps('uniteDuree')}
-                  />
-                </Group>
-              )}
-
-              {/* Champs SESSION COLLECTIVE */}
-              {sessionType === 'collective' && (
-                <Group grow>
-                  <TextInput
-                    label="Heure de début"
-                    placeholder="Ex: 09:00"
-                    {...form.getInputProps('heureDebut')}
-                    leftSection={<Clock size={16} />}
-                  />
-
-                  <TextInput
-                    label="Heure de fin"
-                    placeholder="Ex: 17:00"
-                    {...form.getInputProps('heureFin')}
-                    leftSection={<Clock size={16} />}
-                  />
-
-                  <NumberInput
-                    label="Durée (heures)"
-                    placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
-                    min={0}
-                    step={0.5}
-                    decimalScale={1}
-                    {...form.getInputProps('dureePrevueHeures')}
-                    leftSection={<Clock size={16} />}
-                  />
-                </Group>
               )}
             </Stack>
           </Paper>

@@ -449,6 +449,37 @@ export default function ImportPage() {
         </Grid>
       </Paper>
 
+      {/* Bannière dernier import */}
+      {!isLoadingHistory && historyArray.length > 0 && (() => {
+        const last = historyArray[0];
+        const date = new Date(last.createdAt);
+        return (
+          <Alert
+            icon={<Clock size={16} />}
+            color={getStatusColor(last.status)}
+            variant="light"
+            mb="xl"
+            radius="md"
+          >
+            <Group justify="space-between" wrap="wrap">
+              <Group gap="xs">
+                <Text fw={600} size="sm">Dernier import :</Text>
+                <Badge variant="light" size="sm">{last.type}</Badge>
+                <Text size="sm">
+                  le {date.toLocaleDateString('fr-FR')} à {date.toLocaleTimeString('fr-FR')}
+                </Text>
+                <Badge color={getStatusColor(last.status)} variant="light" size="sm" leftSection={getStatusIcon(last.status)}>
+                  {last.status}
+                </Badge>
+                <Text size="sm" c="dimmed">
+                  — {last.recordsProcessed || 0} lignes traitées
+                </Text>
+              </Group>
+            </Group>
+          </Alert>
+        );
+      })()}
+
       {/* Tabs d'import */}
       <Paper shadow="xs" radius="md" mb="xl">
         <Tabs value={activeTab} onChange={setActiveTab}>

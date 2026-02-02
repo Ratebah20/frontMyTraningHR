@@ -232,7 +232,9 @@ export default function DashboardPage() {
     {
       title: "Collaborateurs formés",
       value: summary.nombreDepartements || 0,
-      subtitle: periode === 'mois' ? 'Ce mois' : 'Cette année',
+      subtitle: summary.collaborateursFormesParGenre
+        ? `${summary.collaborateursFormesParGenre.hommes || 0}H / ${summary.collaborateursFormesParGenre.femmes || 0}F`
+        : (periode === 'mois' ? 'Ce mois' : 'Cette année'),
       icon: Users,
       color: "pink",
     },
@@ -481,7 +483,7 @@ export default function DashboardPage() {
                       color="orange"
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/collaborateurs')}
+                      onClick={() => router.push('/collaborateurs?filter=sansFormation')}
                     >
                       <Group justify="space-between">
                         <div>
@@ -500,11 +502,13 @@ export default function DashboardPage() {
                       icon={<Clock size={16} />}
                       color="yellow"
                       variant="light"
+                      styles={{ root: { cursor: 'pointer' } }}
+                      onClick={() => router.push('/sessions?status=en_cours')}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{alerts.alertes.sessionsLongues} sessions en cours depuis +30 jours</Text>
-                          <Text size="xs" c="dimmed">Vérifier leur progression</Text>
+                          <Text size="xs" c="dimmed">Cliquez pour voir les sessions en retard</Text>
                         </div>
                         <Badge size="lg" color="yellow" variant="filled">
                           {alerts.alertes.sessionsLongues}
@@ -518,11 +522,13 @@ export default function DashboardPage() {
                       icon={<Info size={16} />}
                       color="blue"
                       variant="light"
+                      styles={{ root: { cursor: 'pointer' } }}
+                      onClick={() => router.push('/formations?filter=sansSession')}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{alerts.alertes.formationsSansSession} formations sans sessions</Text>
-                          <Text size="xs" c="dimmed">Formations jamais dispensées</Text>
+                          <Text size="xs" c="dimmed">Cliquez pour voir les formations inactives</Text>
                         </div>
                         <Badge size="lg" color="blue" variant="filled">
                           {alerts.alertes.formationsSansSession}
@@ -536,11 +542,13 @@ export default function DashboardPage() {
                       icon={<CheckCircle size={16} />}
                       color="green"
                       variant="light"
+                      styles={{ root: { cursor: 'pointer' } }}
+                      onClick={() => router.push('/sessions?status=inscrit')}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{alerts.alertes.nouvellesInscriptions} nouvelles inscriptions</Text>
-                          <Text size="xs" c="dimmed">Ces 30 derniers jours</Text>
+                          <Text size="xs" c="dimmed">Cliquez pour voir les inscriptions récentes</Text>
                         </div>
                         <Badge size="lg" color="green" variant="filled">
                           {alerts.alertes.nouvellesInscriptions}

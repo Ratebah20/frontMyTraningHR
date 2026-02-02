@@ -51,8 +51,9 @@ import {
   FunnelSimple,
   List,
   SquaresFour,
+  Info,
 } from '@phosphor-icons/react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { formationsService, commonService } from '@/lib/services';
 import { Formation, FormationFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
@@ -88,7 +89,8 @@ const typeColors: Record<string, string> = {
 
 export default function FormationsPage() {
   const router = useRouter();
-  
+  const searchParams = useSearchParams();
+
   // États
   const [formations, setFormations] = useState<Formation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -116,6 +118,7 @@ export default function FormationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(''); // Changé de showInactive à statusFilter
   const [createdAtDebut, setCreatedAtDebut] = useState<Date | null>(null);
   const [createdAtFin, setCreatedAtFin] = useState<Date | null>(null);
+  const [sansSession, setSansSession] = useState(searchParams.get('filter') === 'sansSession');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -141,6 +144,11 @@ export default function FormationsPage() {
         sortBy: 'nomFormation',
         order: 'asc',
       };
+
+      // Filtre sans session
+      if (sansSession) {
+        filters.sansSession = 'true';
+      }
 
       // Nettoyer les valeurs undefined pour que axios les envoie correctement
       const cleanFilters = Object.fromEntries(
@@ -202,12 +210,12 @@ export default function FormationsPage() {
   // Charger les formations au montage et quand les filtres changent
   useEffect(() => {
     loadFormations();
-  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin, page]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin, sansSession, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin, sansSession]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/formations/${id}`);
@@ -530,6 +538,25 @@ export default function FormationsPage() {
           </Grid.Col>
         </Grid>
       </Paper>
+
+      {/* Bannière filtre sans session */}
+      {sansSession && (
+        <Alert
+          icon={<Info size={16} />}
+          color="blue"
+          variant="light"
+          mb="lg"
+          withCloseButton
+          onClose={() => {
+            setSansSession(false);
+            router.replace('/formations', { scroll: false });
+          }}
+        >
+          <Text fw={500} size="sm">
+            Filtre actif : formations sans aucune session
+          </Text>
+        </Alert>
+      )}
 
       {/* Liste des formations */}
       {isLoading ? (

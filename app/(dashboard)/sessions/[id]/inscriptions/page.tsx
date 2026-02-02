@@ -147,21 +147,6 @@ export default function SessionInscriptionsPage({ params }: Props) {
       return;
     }
 
-    // Vérifier la capacité
-    if (session.capaciteMax) {
-      const currentParticipants = existingParticipants.length;
-      const placesDisponibles = session.capaciteMax - currentParticipants;
-
-      if (selectedCollaborateurs.length > placesDisponibles) {
-        notifications.show({
-          title: 'Places insuffisantes',
-          message: `Il ne reste que ${placesDisponibles} places disponibles`,
-          color: 'red',
-          icon: <Warning size={20} />,
-        });
-        return;
-      }
-    }
 
     try {
       setIsSubmitting(true);
@@ -223,11 +208,6 @@ export default function SessionInscriptionsPage({ params }: Props) {
     );
   }
 
-  const placesDisponibles = session.capaciteMax
-    ? session.capaciteMax - existingParticipants.length
-    : Infinity;
-  const isPlacesLimited = session.capaciteMax !== null && session.capaciteMax !== undefined;
-  const isFull = isPlacesLimited && placesDisponibles <= 0;
 
   return (
     <Container size="xl">
@@ -268,39 +248,9 @@ export default function SessionInscriptionsPage({ params }: Props) {
             </Group>
           </Stack>
 
-          {isPlacesLimited && (
-            <Paper p="md" radius="md" withBorder>
-              <Stack gap="xs" align="center">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                  Places disponibles
-                </Text>
-                <Text size="2xl" fw={700} c={isFull ? 'red' : placesDisponibles < 5 ? 'orange' : 'green'}>
-                  {placesDisponibles} / {session.capaciteMax}
-                </Text>
-                <Progress
-                  value={(existingParticipants.length / session.capaciteMax) * 100}
-                  color={isFull ? 'red' : placesDisponibles < 5 ? 'orange' : 'blue'}
-                  size="sm"
-                  radius="xl"
-                  w={120}
-                />
-              </Stack>
-            </Paper>
-          )}
         </Group>
       </Card>
 
-      {isFull && (
-        <Alert
-          icon={<Info size={20} />}
-          title="Session complète"
-          color="red"
-          variant="light"
-          mb="xl"
-        >
-          Cette session est complète. Vous ne pouvez plus ajouter de participants.
-        </Alert>
-      )}
 
       {/* Liste des collaborateurs */}
       <Card shadow="sm" radius="md" withBorder>

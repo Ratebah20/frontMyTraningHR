@@ -53,14 +53,15 @@ import {
 } from '@phosphor-icons/react';
 import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
 import { Collaborateur, CollaborateurFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
 export default function CollaborateursPage() {
   const router = useRouter();
-  
+  const searchParams = useSearchParams();
+
   // États
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,6 +87,7 @@ export default function CollaborateursPage() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [missingFieldsFilter, setMissingFieldsFilter] = useState<string[]>([]);
   const [contratFilter, setContratFilter] = useState<string>('');
+  const [sansFormation, setSansFormation] = useState(searchParams.get('filter') === 'sansFormation');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -143,6 +145,11 @@ export default function CollaborateursPage() {
       // Filtre des informations manquantes
       if (missingFieldsFilter.length > 0) {
         filters.missingFields = missingFieldsFilter.join(',');
+      }
+
+      // Filtre sans formation
+      if (sansFormation) {
+        filters.sansFormation = 'true';
       }
 
       const response = await collaborateursService.getCollaborateurs(filters);
@@ -213,12 +220,12 @@ export default function CollaborateursPage() {
   // Charger les collaborateurs au montage et quand les filtres changent
   useEffect(() => {
     loadCollaborateurs();
-  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter, page]);
+  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter, sansFormation, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter]);
+  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter, sansFormation]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/collaborateurs/${id}`);
@@ -739,6 +746,25 @@ export default function CollaborateursPage() {
           </Grid.Col>
         </Grid>
       </Paper>
+
+      {/* Bannière filtre sans formation */}
+      {sansFormation && (
+        <Alert
+          icon={<Warning size={16} />}
+          color="orange"
+          variant="light"
+          mb="xl"
+          withCloseButton
+          onClose={() => {
+            setSansFormation(false);
+            router.replace('/collaborateurs', { scroll: false });
+          }}
+        >
+          <Text fw={500} size="sm">
+            Filtre actif : collaborateurs sans aucune formation
+          </Text>
+        </Alert>
+      )}
 
       {/* Table des collaborateurs */}
       <Paper shadow="xs" radius="md" withBorder>

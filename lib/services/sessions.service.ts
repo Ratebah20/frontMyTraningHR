@@ -74,6 +74,12 @@ export const sessionsService = {
     return response.data;
   },
 
+  // Supprimer plusieurs sessions en lot
+  async batchDelete(ids: number[]): Promise<{ deleted: number; message: string }> {
+    const response = await api.delete('/sessions/batch', { data: { ids } });
+    return response.data;
+  },
+
   // Récupérer le planning des sessions
   async getPlanning(filters?: SessionFilters): Promise<SessionPaginatedResponse> {
     const response = await api.get('/sessions/planning', { params: filters });

@@ -94,7 +94,6 @@ interface FormValues {
   heureDebut?: string;
   heureFin?: string;
   dureePrevueHeures?: number;
-  capaciteMax?: number;
   modalite?: string;
   tarifUnitaireHT?: number;
   tarifTotalHT?: number;
@@ -128,7 +127,6 @@ export default function EditSessionPage({ params }: Props) {
       heureDebut: '',
       heureFin: '',
       dureePrevueHeures: undefined,
-      capaciteMax: undefined,
       modalite: 'presentiel',
       tarifUnitaireHT: undefined,
       tarifTotalHT: undefined,
@@ -208,7 +206,6 @@ export default function EditSessionPage({ params }: Props) {
             heureDebut: sessionData.heureDebut || '',
             heureFin: sessionData.heureFin || '',
             dureePrevueHeures: sessionData.dureePrevue ? Number(sessionData.dureePrevue) : undefined,
-            capaciteMax: sessionData.capaciteMax || undefined,
             modalite: sessionData.modalite || 'presentiel',
             tarifUnitaireHT: sessionData.tarifUnitaireHT ? Number(sessionData.tarifUnitaireHT) : undefined,
             tarifTotalHT: sessionData.tarifTotalHT ? Number(sessionData.tarifTotalHT) : undefined,
@@ -243,7 +240,6 @@ export default function EditSessionPage({ params }: Props) {
             heureDebut: '',
             heureFin: '',
             dureePrevueHeures: undefined,
-            capaciteMax: undefined,
             modalite: 'presentiel',
             tarifUnitaireHT: undefined,
             tarifTotalHT: undefined,
@@ -316,7 +312,6 @@ export default function EditSessionPage({ params }: Props) {
           heureDebut: values.heureDebut || undefined,
           heureFin: values.heureFin || undefined,
           dureePrevue: values.dureePrevueHeures || undefined,
-          capaciteMax: values.capaciteMax || undefined,
           modalite: values.modalite || undefined,
           tarifUnitaireHT: values.tarifUnitaireHT || undefined,
           tarifTotalHT: values.tarifTotalHT || undefined,
@@ -480,6 +475,9 @@ export default function EditSessionPage({ params }: Props) {
             <Title order={1}>Modifier la session</Title>
             <Badge color="gray" variant="light">#{session.id}</Badge>
             {session.type && <SessionTypeBadge type={session.type} />}
+            {session.sourceImport === 'OLU' && (
+              <Badge color="violet" variant="light">OL</Badge>
+            )}
           </Group>
           <Text c="dimmed" mt="xs">
             Modification de la session {session.type === 'collective' ? 'collective' : 'individuelle'}
@@ -493,6 +491,13 @@ export default function EditSessionPage({ params }: Props) {
           Retour
         </Button>
       </Group>
+
+      {session.sourceImport === 'OLU' && (
+        <Alert icon={<Info size={16} />} color="violet" variant="light" mb="lg">
+          Cette session a été importée depuis Open Learning (OL). Les modifications manuelles
+          peuvent être écrasées lors du prochain import.
+        </Alert>
+      )}
 
       <Grid gutter="lg">
         <Grid.Col span={{ base: 12, md: 4 }}>
@@ -545,11 +550,6 @@ export default function EditSessionPage({ params }: Props) {
                           Session collective
                         </Text>
                       </Group>
-                      {session.capaciteMax && (
-                        <Text size="sm" fw={500}>
-                          Capacité: {session.participants?.length || 0} / {session.capaciteMax} participants
-                        </Text>
-                      )}
                       {session.modalite && (
                         <Badge size="sm" variant="light" color="grape" mt={2}>
                           {session.modalite === 'presentiel' ? 'Présentiel' :
@@ -697,9 +697,10 @@ export default function EditSessionPage({ params }: Props) {
                         <NumberInput
                           label="Durée réelle (heures)"
                           description="Nombre d'heures effectivement suivies"
-                          placeholder="Ex: 14"
+                          placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
                           min={0}
                           max={1000}
+                          step={0.5}
                           decimalScale={1}
                           {...form.getInputProps('dureeHeures')}
                         />
@@ -821,24 +822,16 @@ export default function EditSessionPage({ params }: Props) {
                         <Grid.Col span={{ base: 12, sm: 4 }}>
                           <NumberInput
                             label="Durée (heures)"
-                            placeholder="Ex: 7"
+                            placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
                             min={0}
-                            decimalScale={2}
+                            step={0.5}
+                            decimalScale={1}
                             leftSection={<Clock size={16} />}
                             {...form.getInputProps('dureePrevueHeures')}
                           />
                         </Grid.Col>
                       </Grid>
 
-                      <NumberInput
-                        label="Capacité maximale"
-                        placeholder="Ex: 15"
-                        description="Nombre maximum de participants"
-                        min={1}
-                        max={1000}
-                        leftSection={<Users size={16} />}
-                        {...form.getInputProps('capaciteMax')}
-                      />
                     </Stack>
                   </Paper>
 

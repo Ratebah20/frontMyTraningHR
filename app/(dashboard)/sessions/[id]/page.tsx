@@ -485,11 +485,6 @@ export default function SessionDetailPage({ params }: Props) {
 
                       <Grid.Col span={{ base: 12, sm: 6 }}>
                         <Stack gap="xs">
-                          {session.capaciteMax && (
-                            <Text size="sm">
-                              <Text span c="dimmed" size="xs">Capacité maximale:</Text> {session.capaciteMax} participants
-                            </Text>
-                          )}
                           {session.formateurNom && (
                             <Text size="sm">
                               <Text span c="dimmed" size="xs">Formateur:</Text> {session.formateurNom}
@@ -726,8 +721,7 @@ export default function SessionDetailPage({ params }: Props) {
                         <UsersThree size={20} />
                       </ThemeIcon>
                       <Text fw={600} size="lg">
-                        Participants ({session.participants.length}
-                        {session.capaciteMax && ` / ${session.capaciteMax}`})
+                        Participants ({session.participants.length})
                       </Text>
                     </Group>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Text, Badge, RingProgress, Tooltip, useMantineColorScheme, MultiSelect, Chip, Switch, SegmentedControl } from '@mantine/core'
 import { Clock, Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire, Funnel, UsersFour, ChartLine, ListBullets, UserMinus, WarningCircle } from '@phosphor-icons/react'
+import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion } from 'framer-motion'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, LabelList, Cell } from 'recharts'
@@ -683,6 +684,12 @@ export default function FormationsKPIsPage() {
   const [loading, setLoading] = useState(true)
   const { colorScheme } = useMantineColorScheme()
 
+  // Period selector state
+  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee')
+  const [date, setDate] = useState<string>(new Date().getFullYear().toString())
+  const [dateDebut, setDateDebut] = useState<Date | null>(null)
+  const [dateFin, setDateFin] = useState<Date | null>(null)
+
   // États pour le taux de formation par contrat
   const [tauxContratData, setTauxContratData] = useState<TauxFormationContrat | null>(null)
   const [tauxContratLoading, setTauxContratLoading] = useState(true)
@@ -693,7 +700,7 @@ export default function FormationsKPIsPage() {
 
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [periode, date, dateDebut, dateFin])
 
   // Recharger les données quand includeInactifs change
   useEffect(() => {
@@ -702,7 +709,14 @@ export default function FormationsKPIsPage() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${API_URL}/stats/formations-kpis`)
+      const params = new URLSearchParams()
+      params.append('periode', periode)
+      params.append('date', date)
+      if (periode === 'plage' && dateDebut && dateFin) {
+        params.append('startDate', dateDebut.toISOString().split('T')[0])
+        params.append('endDate', dateFin.toISOString().split('T')[0])
+      }
+      const response = await axios.get(`${API_URL}/stats/formations-kpis?${params.toString()}`)
       setData(response.data)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs formations:', error)
@@ -833,6 +847,20 @@ export default function FormationsKPIsPage() {
             Temps reel
           </motion.div>
         </div>
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+        >
+          <PeriodSelector
+            periode={periode}
+            date={date}
+            dateDebut={dateDebut}
+            dateFin={dateFin}
+            onChange={(p, d) => { setPeriode(p); setDate(d); }}
+            onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
+          />
+        </motion.div>
       </motion.header>
 
       {/* Hero Section - Main KPIs */}

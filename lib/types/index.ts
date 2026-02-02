@@ -859,7 +859,6 @@ export interface CollectiveSession {
   heureDebut?: string;
   heureFin?: string;
   dureePrevue?: number;
-  capaciteMax?: number;
   statut: string;
   modalite: string;
   tarifUnitaireHT?: number;
@@ -917,7 +916,6 @@ export interface CreateCollectiveSessionDto {
   heureDebut?: string;
   heureFin?: string;
   dureePrevue?: number;
-  capaciteMax?: number;
   statut?: string;
   modalite?: string;
   tarifUnitaireHT?: number;
@@ -941,7 +939,6 @@ export interface UpdateCollectiveSessionDto {
   heureDebut?: string;
   heureFin?: string;
   dureePrevue?: number;
-  capaciteMax?: number;
   statut?: string;
   modalite?: string;
   tarifUnitaireHT?: number;
@@ -1060,7 +1057,6 @@ export interface UnifiedSession {
   titre?: string;
   lieu?: string;
   modalite?: string;
-  capaciteMax?: number;
   nombreParticipants?: number;
   participants?: CollectiveSessionParticipant[] | GroupedSessionParticipant[];
   // Propriétés communes

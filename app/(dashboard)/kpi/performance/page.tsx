@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, LineChart, BarChart, Tabs } from '@mantine/core'
 import { ChartLine, TrendUp, TrendDown, Calendar, Target, Medal, ArrowUp, ArrowDown } from '@phosphor-icons/react'
+import { PeriodSelector } from '@/components/PeriodSelector'
 import axios from 'axios'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -47,13 +48,26 @@ export default function PerformanceKPIsPage() {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<string | null>('global')
 
+  // Period selector state
+  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee')
+  const [date, setDate] = useState<string>(new Date().getFullYear().toString())
+  const [dateDebut, setDateDebut] = useState<Date | null>(null)
+  const [dateFin, setDateFin] = useState<Date | null>(null)
+
   useEffect(() => {
     fetchData()
-  }, [])
+  }, [periode, date, dateDebut, dateFin])
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${API_URL}/stats/performance-kpis`)
+      const params = new URLSearchParams()
+      params.append('periode', periode)
+      params.append('date', date)
+      if (periode === 'plage' && dateDebut && dateFin) {
+        params.append('startDate', dateDebut.toISOString().split('T')[0])
+        params.append('endDate', dateFin.toISOString().split('T')[0])
+      }
+      const response = await axios.get(`${API_URL}/stats/performance-kpis?${params.toString()}`)
       setData(response.data)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs performance:', error)
@@ -122,7 +136,17 @@ export default function PerformanceKPIsPage() {
 
   return (
     <div style={{ padding: '1.5rem' }}>
-      <Title order={2} mb="xl">📈 KPIs Performance</Title>
+      <Group justify="space-between" mb="xl">
+        <Title order={2}>📈 KPIs Performance</Title>
+        <PeriodSelector
+          periode={periode}
+          date={date}
+          dateDebut={dateDebut}
+          dateFin={dateFin}
+          onChange={(p, d) => { setPeriode(p); setDate(d); }}
+          onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
+        />
+      </Group>
 
       {/* Métriques principales */}
       <Grid mb="xl">

@@ -497,7 +497,6 @@ export class SessionsUnifiedService {
         titre: session.titre,
         lieu: session.lieu,
         modalite: session.modalite,
-        capaciteMax: session.capaciteMax,
         nombreParticipants: session._count?.participants || 0,
         participants: session.participants,
         tarifHT: session.tarifTotalHT,

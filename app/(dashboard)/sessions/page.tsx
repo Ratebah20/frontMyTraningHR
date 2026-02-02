@@ -31,6 +31,7 @@ import {
   Divider,
   Modal,
   Table,
+  Checkbox,
 } from '@mantine/core';
 // import { DatePickerInput } from '@mantine/dates'; // Module non installé
 import { notifications } from '@mantine/notifications';
@@ -61,6 +62,7 @@ import {
   CalendarBlank,
   SortAscending,
   SortDescending,
+  Trash,
 } from '@phosphor-icons/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
@@ -70,7 +72,8 @@ import { formatDuration } from '@/lib/utils/duration.utils';
 import { SessionFormationResponse, SessionFilters, GroupedSession, UnifiedSession } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
-import { CapacityIndicator } from '@/components/sessions/CapacityIndicator';
+
+
 
 // Couleurs par statut
 const statusColors: Record<string, string> = {
@@ -140,6 +143,79 @@ export default function SessionsPage() {
     }
     return 'cards';
   });
+
+  // Batch selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false);
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === sessions.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(sessions.map(s =>
+        s.type === 'collective' ? `collective-${s.id}` : `grouped-${s.groupKey}`
+      )));
+    }
+  };
+
+  const getSelectedSessionIds = (): number[] => {
+    const ids: number[] = [];
+    sessions.forEach(session => {
+      const key = session.type === 'collective' ? `collective-${session.id}` : `grouped-${session.groupKey}`;
+      if (selectedIds.has(key)) {
+        if (session.type === 'collective') {
+          ids.push(session.id);
+        } else if (session.participants) {
+          session.participants.forEach((p: any) => {
+            if (p.sessionId) ids.push(p.sessionId);
+          });
+        }
+      }
+    });
+    return ids;
+  };
+
+  const handleBatchDelete = async () => {
+    const ids = getSelectedSessionIds();
+    if (ids.length === 0) return;
+
+    setIsBatchDeleting(true);
+    try {
+      const result = await sessionsService.batchDelete(ids);
+      notifications.show({
+        title: 'Suppression en lot',
+        message: result.message,
+        color: 'green',
+        icon: <CheckCircle size={16} />,
+      });
+      setSelectedIds(new Set());
+      setBatchDeleteModalOpen(false);
+      loadSessions();
+      loadGlobalStats();
+    } catch (err: any) {
+      notifications.show({
+        title: 'Erreur',
+        message: err.message || 'Erreur lors de la suppression en lot',
+        color: 'red',
+        icon: <Warning size={16} />,
+      });
+    } finally {
+      setIsBatchDeleting(false);
+    }
+  };
 
   // Statistiques globales
   const [globalStats, setGlobalStats] = useState({
@@ -506,6 +582,17 @@ export default function SessionsPage() {
                 Sync. statuts
               </Button>
             </Tooltip>
+            {selectedIds.size > 0 && (
+              <Button
+                variant="light"
+                color="red"
+                leftSection={<Trash size={16} />}
+                onClick={() => setBatchDeleteModalOpen(true)}
+                size="md"
+              >
+                Supprimer ({selectedIds.size})
+              </Button>
+            )}
             <Button
               leftSection={<Plus size={16} />}
               onClick={() => router.push('/sessions/new')}
@@ -745,6 +832,9 @@ export default function SessionsPage() {
                     <Group justify="space-between" mb="md">
                       <Group gap="xs">
                         {session.type && <SessionTypeBadge type={session.type} />}
+                        {session.sourceImport === 'OLU' && (
+                          <Badge color="violet" variant="light" size="sm">OL</Badge>
+                        )}
                         <Badge
                           leftSection={<StatusIcon size={14} />}
                           color={statusInfo.color}
@@ -822,12 +912,6 @@ export default function SessionsPage() {
                         <Text size="sm" fw={500}>
                           {formatParticipantCount(session)}
                         </Text>
-                        {session.type === 'collective' && session.capaciteMax && (
-                          <CapacityIndicator
-                            current={getParticipantCount(session)}
-                            max={session.capaciteMax}
-                          />
-                        )}
                         {session.stats && (
                           <Group gap="xs" mt={2}>
                             {session.stats.inscrit > 0 && (
@@ -931,6 +1015,14 @@ export default function SessionsPage() {
               <Table highlightOnHover verticalSpacing="md">
                 <Table.Thead>
                   <Table.Tr>
+                    <Table.Th style={{ width: 40 }}>
+                      <Checkbox
+                        checked={sessions.length > 0 && selectedIds.size === sessions.length}
+                        indeterminate={selectedIds.size > 0 && selectedIds.size < sessions.length}
+                        onChange={toggleSelectAll}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </Table.Th>
                     <Table.Th>Formation</Table.Th>
                     <Table.Th>Organisme</Table.Th>
                     <Table.Th>Dates</Table.Th>
@@ -953,6 +1045,13 @@ export default function SessionsPage() {
                         onClick={() => handleViewDetails(session)}
                       >
                         <Table.Td>
+                          <Checkbox
+                            checked={selectedIds.has(session.type === 'collective' ? `collective-${session.id}` : `grouped-${session.groupKey}`)}
+                            onChange={() => toggleSelection(session.type === 'collective' ? `collective-${session.id}` : `grouped-${session.groupKey}`)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </Table.Td>
+                        <Table.Td>
                           <div>
                             <Group gap="xs" mb={4}>
                               <BookOpen size={16} color="#228BE6" />
@@ -962,6 +1061,9 @@ export default function SessionsPage() {
                             </Group>
                             <Group gap="xs" mt={4}>
                               {session.type && <SessionTypeBadge type={session.type} size="xs" />}
+                              {session.sourceImport === 'OLU' && (
+                                <Badge color="violet" variant="light" size="xs">OL</Badge>
+                              )}
                               {session.categorie && (
                                 <Badge variant="dot" color="gray" size="xs">
                                   {session.categorie}
@@ -1029,13 +1131,6 @@ export default function SessionsPage() {
                                 {getParticipantCount(session)}
                               </Text>
                             </Group>
-                            {session.type === 'collective' && session.capaciteMax && (
-                              <CapacityIndicator
-                                current={getParticipantCount(session)}
-                                max={session.capaciteMax}
-                                size="xs"
-                              />
-                            )}
                             {session.lieu && (
                               <Group gap={2}>
                                 <MapPin size={12} color="#868E96" />
@@ -1214,6 +1309,35 @@ export default function SessionsPage() {
           </Center>
         </Paper>
       )}
+      {/* Modal de confirmation suppression en lot */}
+      <Modal
+        opened={batchDeleteModalOpen}
+        onClose={() => setBatchDeleteModalOpen(false)}
+        title={<Group gap="xs"><Trash size={20} /> Suppression en lot</Group>}
+        centered
+      >
+        <Stack>
+          <Text>
+            Vous êtes sur le point de supprimer <strong>{getSelectedSessionIds().length}</strong> session(s).
+          </Text>
+          <Alert color="red" variant="light" icon={<Warning size={16} />}>
+            Cette action est irréversible. Les sessions seront définitivement supprimées.
+          </Alert>
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={() => setBatchDeleteModalOpen(false)}>
+              Annuler
+            </Button>
+            <Button
+              color="red"
+              onClick={handleBatchDelete}
+              loading={isBatchDeleting}
+              leftSection={<Trash size={16} />}
+            >
+              Confirmer la suppression
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

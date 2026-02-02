@@ -109,7 +109,8 @@ export default function NewSessionPage() {
       heureDebut: '',
       heureFin: '',
       dureePrevueHeures: undefined,
-      capaciteMax: undefined,
+
+
       statutCollectif: 'inscrit',
       modalite: 'presentiel',
       tarifUnitaireHT: undefined,
@@ -156,12 +157,8 @@ export default function NewSessionPage() {
         }
         return null;
       },
-      capaciteMax: (value) => {
-        if (sessionType === 'collective' && value !== undefined && value < 1) {
-          return 'La capacité doit être au moins 1';
-        }
-        return null;
-      },
+
+
     },
   });
 
@@ -366,7 +363,6 @@ export default function NewSessionPage() {
           heureDebut: values.heureDebut || undefined,
           heureFin: values.heureFin || undefined,
           dureePrevue: values.dureePrevueHeures || undefined,
-          capaciteMax: values.capaciteMax || undefined,
           statut: values.statutCollectif,
           modalite: values.modalite,
           tarifUnitaireHT: values.tarifUnitaireHT || undefined,
@@ -625,33 +621,21 @@ export default function NewSessionPage() {
                     />
                   </Group>
 
-                  <Group grow>
-                    <NumberInput
-                      label="Capacité maximale"
-                      placeholder="Ex: 15"
-                      min={1}
-                      max={1000}
-                      {...form.getInputProps('capaciteMax')}
-                      description="Nombre maximum de participants"
-                    />
-
-                    <Select
-                      label="Statut"
-                      required
-                      data={[
-                        { value: 'inscrit', label: 'Inscrit' },
-                        { value: 'en_cours', label: 'En cours' },
-                        { value: 'complete', label: 'Terminé' },
-                        { value: 'annule', label: 'Annulé' },
-                      ]}
-                      {...form.getInputProps('statutCollectif')}
-                    />
-                  </Group>
+                  <Select
+                    label="Statut"
+                    required
+                    data={[
+                      { value: 'inscrit', label: 'Inscrit' },
+                      { value: 'en_cours', label: 'En cours' },
+                      { value: 'complete', label: 'Terminé' },
+                      { value: 'annule', label: 'Annulé' },
+                    ]}
+                    {...form.getInputProps('statutCollectif')}
+                  />
 
                   <ParticipantSelector
                     value={participantIds}
                     onChange={setParticipantIds}
-                    maxCapacity={form.values.capaciteMax}
                   />
 
                   <Group grow>
@@ -718,16 +702,20 @@ export default function NewSessionPage() {
                 <Group grow>
                   <NumberInput
                     label="Durée prévue"
-                    placeholder="Ex: 14"
+                    placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
                     min={0}
+                    step={0.5}
+                    decimalScale={1}
                     {...form.getInputProps('dureePrevue')}
                     leftSection={<Clock size={16} />}
                   />
 
                   <NumberInput
                     label="Durée réelle"
-                    placeholder="Ex: 12"
+                    placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
                     min={0}
+                    step={0.5}
+                    decimalScale={1}
                     {...form.getInputProps('dureeReelle')}
                     leftSection={<Clock size={16} />}
                   />
@@ -763,9 +751,10 @@ export default function NewSessionPage() {
 
                   <NumberInput
                     label="Durée (heures)"
-                    placeholder="Ex: 7"
+                    placeholder="Par pas de 0.5 (ex: 1.5, 2, 2.5)"
                     min={0}
-                    decimalScale={2}
+                    step={0.5}
+                    decimalScale={1}
                     {...form.getInputProps('dureePrevueHeures')}
                     leftSection={<Clock size={16} />}
                   />
@@ -886,9 +875,6 @@ export default function NewSessionPage() {
             <Alert color="blue" title="Récapitulatif" icon={<Users size={16} />}>
               <Text size="sm">
                 Session collective avec <strong>{participantIds.length}</strong> participant(s) sélectionné(s).
-                {form.values.capaciteMax && (
-                  <> Capacité : {participantIds.length}/{form.values.capaciteMax}</>
-                )}
               </Text>
             </Alert>
           )}

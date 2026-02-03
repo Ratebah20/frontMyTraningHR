@@ -32,6 +32,7 @@ import {
   Building,
   IdentificationCard,
   Info,
+  Envelope,
 } from '@phosphor-icons/react';
 import { notifications } from '@mantine/notifications';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
@@ -55,6 +56,7 @@ export default function CollaborateurNewPage() {
       nom: '',
       prenom: '',
       genre: '',
+      email: '',
       departementId: '',
       managerId: '',
       contratId: '',
@@ -81,6 +83,13 @@ export default function CollaborateurNewPage() {
       },
       workerSubType: (value) => {
         // Sous-type de contrat optionnel
+        return null;
+      },
+      email: (value) => {
+        if (!value?.trim()) return null; // Optionnel
+        // Validation simple d'email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return 'L\'email n\'est pas valide';
         return null;
       },
     },
@@ -175,6 +184,7 @@ export default function CollaborateurNewPage() {
         prenom: values.prenom,
         // N'inclure genre que s'il est valide
         ...(values.genre && ['M', 'F', 'Autre'].includes(values.genre) ? { genre: values.genre } : {}),
+        email: values.email || undefined,
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
@@ -314,6 +324,15 @@ export default function CollaborateurNewPage() {
                       { value: 'Autre', label: 'Autre' },
                     ]}
                     {...form.getInputProps('genre')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <TextInput
+                    label="Email"
+                    placeholder="prenom.nom@orange.lu"
+                    description="Optionnel - utilisé pour les notifications"
+                    leftSection={<Envelope size={16} />}
+                    {...form.getInputProps('email')}
                   />
                 </Grid.Col>
               </Grid>

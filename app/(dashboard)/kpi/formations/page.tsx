@@ -684,6 +684,8 @@ export default function FormationsKPIsPage() {
   const [selectedDept, setSelectedDept] = useState<string | null>(null)
   const [selectedManagers, setSelectedManagers] = useState<number[]>([])
   const [showReminderModal, setShowReminderModal] = useState(false)
+  const [emailStatus, setEmailStatus] = useState<{ configured: boolean; connectionValid: boolean; message: string } | null>(null)
+  const [sendingReminders, setSendingReminders] = useState(false)
 
   // Read tab from URL parameter
   useEffect(() => {
@@ -703,6 +705,20 @@ export default function FormationsKPIsPage() {
       router.push('/kpi/formations', { scroll: false })
     }
   }
+
+  // Check email status on component mount
+  useEffect(() => {
+    const checkEmail = async () => {
+      try {
+        const status = await statsService.checkEmailStatus()
+        setEmailStatus(status)
+      } catch (error) {
+        console.error('Erreur lors de la verification du statut email:', error)
+        setEmailStatus({ configured: false, connectionValid: false, message: 'Impossible de verifier le statut' })
+      }
+    }
+    checkEmail()
+  }, [])
 
   // Load mandatory trainings data when tab is selected
   useEffect(() => {
@@ -796,18 +812,52 @@ export default function FormationsKPIsPage() {
     }
   }
 
-  // Simuler l'envoi de rappels
-  const handleSendReminders = () => {
-    setShowReminderModal(false)
+  // Envoyer les rappels via l'API
+  const handleSendReminders = async () => {
+    setSendingReminders(true)
 
-    notifications.show({
-      title: 'Rappels simules',
-      message: `${selectedManagers.length} rappels auraient ete envoyes. Configuration SMTP requise pour l'envoi reel.`,
-      color: 'green',
-      icon: <CheckCircle size={20} weight="fill" />
-    })
+    try {
+      const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
+      const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
-    setSelectedManagers([])
+      const result = await statsService.sendMandatoryTrainingReminders(
+        selectedManagers,
+        periode,
+        date,
+        startDateStr,
+        endDateStr
+      )
+
+      setShowReminderModal(false)
+
+      if (result.success) {
+        notifications.show({
+          title: 'Rappels envoyes',
+          message: result.message,
+          color: 'green',
+          icon: <CheckCircle size={20} weight="fill" />
+        })
+      } else {
+        notifications.show({
+          title: 'Envoi partiel',
+          message: result.message,
+          color: 'orange',
+          icon: <WarningCircle size={20} weight="fill" />
+        })
+      }
+
+      setSelectedManagers([])
+    } catch (error: any) {
+      console.error('Erreur lors de l\'envoi des rappels:', error)
+      notifications.show({
+        title: 'Erreur',
+        message: error.response?.data?.message || 'Erreur lors de l\'envoi des rappels',
+        color: 'red',
+        icon: <X size={20} weight="fill" />
+      })
+    } finally {
+      setSendingReminders(false)
+    }
   }
 
   // Récupérer les infos des managers sélectionnés pour le modal
@@ -1697,13 +1747,15 @@ export default function FormationsKPIsPage() {
         </div>
       )}
 
-      {/* Modal for reminder simulation */}
+      {/* Modal for sending reminders */}
       <Modal
         opened={showReminderModal}
-        onClose={() => setShowReminderModal(false)}
+        onClose={() => !sendingReminders && setShowReminderModal(false)}
         title="Envoyer des rappels aux managers"
         size="lg"
         centered
+        closeOnClickOutside={!sendingReminders}
+        closeOnEscape={!sendingReminders}
         styles={{
           header: { backgroundColor: '#1a1a2e', borderBottom: '1px solid rgba(255,255,255,0.1)' },
           title: { color: 'white', fontWeight: 700 },
@@ -1712,10 +1764,22 @@ export default function FormationsKPIsPage() {
         }}
       >
         <Stack>
-          <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
-            Cette fonctionnalite est en mode simulation. Les emails ne seront pas
-            reellement envoyes tant que la configuration SMTP n'est pas en place.
-          </Alert>
+          {/* Alert based on email configuration status */}
+          {emailStatus && !emailStatus.configured ? (
+            <Alert color="red" icon={<WarningCircle size={20} weight="bold" />} variant="light">
+              Le service email n'est pas configure. Les rappels ne peuvent pas etre envoyes.
+              Veuillez configurer SMTP_HOST dans le fichier .env du backend.
+            </Alert>
+          ) : emailStatus && !emailStatus.connectionValid ? (
+            <Alert color="orange" icon={<WarningCircle size={20} weight="bold" />} variant="light">
+              Le service email est configure mais la connexion SMTP a echoue.
+              Les rappels pourraient ne pas etre envoyes correctement.
+            </Alert>
+          ) : (
+            <Alert color="green" icon={<CheckCircle size={20} weight="bold" />} variant="light">
+              Le service email est configure et pret a envoyer des rappels.
+            </Alert>
+          )}
 
           <Text fw={500} c="white">Managers selectionnes : {selectedManagers.length}</Text>
 
@@ -1727,7 +1791,7 @@ export default function FormationsKPIsPage() {
               Bonjour [Nom du manager],<br/><br/>
               Certains membres de votre equipe n'ont pas encore complete
               les formations obligatoires suivantes :<br/>
-              - [Liste des formations]<br/><br/>
+              - [Liste des formations par collaborateur]<br/><br/>
               Merci de vous assurer qu'ils completent ces formations
               dans les meilleurs delais.<br/><br/>
               Cordialement,<br/>
@@ -1755,15 +1819,17 @@ export default function FormationsKPIsPage() {
           </Accordion>
 
           <Group justify="flex-end" mt="md">
-            <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)}>
+            <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)} disabled={sendingReminders}>
               Annuler
             </Button>
             <Button
               color="orange"
               leftSection={<EnvelopeSimple size={18} weight="bold" />}
               onClick={handleSendReminders}
+              loading={sendingReminders}
+              disabled={!emailStatus?.configured}
             >
-              Simuler l'envoi
+              {emailStatus?.configured ? 'Envoyer les rappels' : 'Service email non configure'}
             </Button>
           </Group>
         </Stack>

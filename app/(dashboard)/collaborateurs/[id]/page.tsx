@@ -38,6 +38,7 @@ import {
   Star,
   Download,
   ArrowsLeftRight,
+  Envelope,
 } from '@phosphor-icons/react';
 import { collaborateursService } from '@/lib/services';
 import { Collaborateur, SessionFormation } from '@/lib/types';
@@ -243,12 +244,21 @@ export default function CollaborateurDetailPage({ params }: Props) {
                   </ActionIcon>
                 </Tooltip>
               </Group>
-              
+
               {collaborateur.manager && (
                 <Group gap="xs">
                   <User size={16} color="#868E96" />
                   <Text size="sm">
                     Manager: {collaborateur.manager.nomComplet}
+                  </Text>
+                </Group>
+              )}
+
+              {collaborateur.email && (
+                <Group gap="xs">
+                  <Envelope size={16} color="#868E96" />
+                  <Text size="sm">
+                    {collaborateur.email}
                   </Text>
                 </Group>
               )}

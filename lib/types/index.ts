@@ -18,6 +18,7 @@ export interface Collaborateur {
   prenom: string;
   nomComplet: string;
   genre?: string;
+  email?: string;
   managerId?: number;
   departementId?: number;
   contratId?: number;

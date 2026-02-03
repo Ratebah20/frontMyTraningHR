@@ -32,6 +32,7 @@ import {
   Building,
   IdentificationCard,
   Calendar,
+  Envelope,
 } from '@phosphor-icons/react';
 import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
@@ -64,6 +65,7 @@ export default function CollaborateurEditPage({ params }: Props) {
       nom: '',
       prenom: '',
       genre: '',
+      email: '',
       departementId: '',
       managerId: '',
       contratId: '',
@@ -81,6 +83,12 @@ export default function CollaborateurEditPage({ params }: Props) {
       idExterne: (value) => {
         if (!value?.trim()) return null; // Optionnel
         if (value.length > 50) return 'L\'ID Orange Learning ne peut pas dépasser 50 caractères';
+        return null;
+      },
+      email: (value) => {
+        if (!value?.trim()) return null; // Optionnel
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return 'L\'email n\'est pas valide';
         return null;
       },
     },
@@ -137,6 +145,7 @@ export default function CollaborateurEditPage({ params }: Props) {
           nom: collabData.nom || '',
           prenom: collabData.prenom || '',
           genre: collabData.genre || '',
+          email: collabData.email || '',
           departementId: collabData.departementId ? collabData.departementId.toString() : '',
           managerId: collabData.managerId ? collabData.managerId.toString() : '',
           contratId: collabData.contratId ? collabData.contratId.toString() : '',
@@ -200,6 +209,7 @@ export default function CollaborateurEditPage({ params }: Props) {
         prenom: values.prenom,
         // N'inclure genre que s'il est valide
         ...(values.genre && ['M', 'F', 'Autre'].includes(values.genre) ? { genre: values.genre } : {}),
+        email: values.email || undefined,
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
@@ -325,6 +335,15 @@ export default function CollaborateurEditPage({ params }: Props) {
                     label="ID Orange Learning"
                     placeholder="Ex: COL001"
                     {...form.getInputProps('idExterne')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <TextInput
+                    label="Email"
+                    placeholder="prenom.nom@orange.lu"
+                    description="Utilisé pour les notifications et rappels"
+                    leftSection={<Envelope size={16} />}
+                    {...form.getInputProps('email')}
                   />
                 </Grid.Col>
               </Grid>

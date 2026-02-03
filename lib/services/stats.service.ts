@@ -225,4 +225,61 @@ export const statsService = {
     const response = await api.get('/stats/compliance-ethics-kpis', { params });
     return response.data;
   },
+
+  // Envoyer des rappels de formations obligatoires aux managers
+  async sendMandatoryTrainingReminders(
+    managerIds: number[],
+    periode: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    success: boolean;
+    message: string;
+    periode: string;
+    totalManagers: number;
+    envoyesAvecSucces: number;
+    erreurs: number;
+    details: Array<{
+      managerId: number;
+      managerNom: string;
+      managerEmail: string;
+      success: boolean;
+      messageId?: string;
+      error?: string;
+      collaborateursCount: number;
+      formationsCount: number;
+    }>;
+  }> {
+    const body: any = { managerIds, periode };
+    if (periode === 'plage') {
+      if (startDate) body.startDate = startDate;
+      if (endDate) body.endDate = endDate;
+    } else {
+      if (date) body.date = date;
+    }
+    const response = await api.post('/notifications/send-mandatory-training-reminders', body);
+    return response.data;
+  },
+
+  // Vérifier le statut du service email
+  async checkEmailStatus(): Promise<{
+    configured: boolean;
+    connectionValid: boolean;
+    message: string;
+  }> {
+    const response = await api.get('/notifications/email-status');
+    return response.data;
+  },
+
+  // Récupérer l'historique des rappels
+  async getReminderHistory(params?: {
+    managerId?: number;
+    startDate?: string;
+    endDate?: string;
+    limit?: number;
+  }): Promise<any[]> {
+    const response = await api.get('/notifications/reminder-history', { params });
+    return response.data;
+  },
 };

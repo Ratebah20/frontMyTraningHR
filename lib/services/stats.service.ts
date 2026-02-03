@@ -155,6 +155,46 @@ export const statsService = {
     return response.data;
   },
 
+  // Récupérer les KPIs détaillés des formations obligatoires
+  async getMandatoryTrainingsKPIs(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
+    const response = await api.get('/stats/mandatory-trainings-kpis', { params });
+    return response.data;
+  },
+
+  // Récupérer les formations obligatoires manquantes groupées par manager
+  async getMandatoryTrainingsByManager(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string,
+    departementId?: number
+  ): Promise<any> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
+    if (departementId) params.departementId = departementId;
+    const response = await api.get('/stats/mandatory-trainings-by-manager', { params });
+    return response.data;
+  },
+
   // Récupérer les KPIs de conformité/éthique
   async getComplianceEthicsKpis(
     periode?: 'annee' | 'mois' | 'plage',

@@ -1146,3 +1146,713 @@
 .warningBanner strong {
   color: #f59e0b;
 }
+
+/* ===================================================
+   Tabs Navigation
+   =================================================== */
+
+.tabsContainer {
+  position: relative;
+  z-index: 10;
+  margin-bottom: 1.5rem;
+}
+
+/* ===================================================
+   Formations Obligatoires Tab Content
+   =================================================== */
+
+.mandatorySection {
+  position: relative;
+  z-index: 10;
+}
+
+.mandatoryLoadingOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 300px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Stats cards grid for mandatory formations */
+.mandatoryStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .mandatoryStatsGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .mandatoryStatsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .mandatoryTableSection {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .mandatoryTable th,
+  .mandatoryTable td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  .detailButton {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.75rem;
+  }
+
+  .mandatoryDeptSection {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .deptProgressRow {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .deptName {
+    min-width: 100%;
+    margin-bottom: 0.25rem;
+  }
+
+  .deptStats,
+  .deptTaux {
+    min-width: auto;
+  }
+}
+
+/* Formations table section */
+.mandatoryTableSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.mandatoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.mandatoryTable th {
+  text-align: left;
+  padding: 1rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mandatoryTable td {
+  padding: 1rem 0.75rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.9);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+
+.mandatoryTable tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.mandatoryTable th:last-child,
+.mandatoryTable td:last-child {
+  text-align: center;
+}
+
+.tauxBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 60px;
+}
+
+.tauxBadge[data-level="high"] {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.tauxBadge[data-level="medium"] {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.tauxBadge[data-level="low"] {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.detailButton {
+  padding: 0.5rem 1rem;
+  background: rgba(255, 121, 0, 0.15);
+  border: 1px solid rgba(255, 121, 0, 0.3);
+  border-radius: 8px;
+  color: #ff7900;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.detailButton:hover {
+  background: rgba(255, 121, 0, 0.25);
+  border-color: rgba(255, 121, 0, 0.5);
+  transform: translateY(-1px);
+}
+
+/* Department progress section */
+.mandatoryDeptSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.deptProgressList {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.deptProgressRow {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.deptName {
+  min-width: 150px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+}
+
+.deptBarContainer {
+  flex: 1;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.deptBar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.8s ease-out;
+}
+
+.deptBar[data-level="high"] {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+.deptBar[data-level="medium"] {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+.deptBar[data-level="low"] {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+.deptStats {
+  min-width: 100px;
+  text-align: right;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.deptTaux {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: white;
+  min-width: 50px;
+  text-align: right;
+}
+
+/* Modal styles */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalContent {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modalTitle {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 0.25rem 0;
+}
+
+.modalSubtitle {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.modalClose {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalClose:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.modalBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.modalTabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modalTab {
+  padding: 0.75rem 1.25rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalTab:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modalTab[data-active="true"] {
+  background: rgba(255, 121, 0, 0.15);
+  border-color: rgba(255, 121, 0, 0.3);
+  color: #ff7900;
+}
+
+.modalList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.modalListItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.875rem 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.modalListItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.modalListName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+}
+
+.modalListDept {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 0.5rem;
+}
+
+.modalListDate {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.modalEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+.modalEmptyIcon {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  color: #10b981;
+}
+
+/* Responsive modal */
+@media (max-width: 768px) {
+  .modalContent {
+    max-height: 90vh;
+  }
+
+  .modalHeader {
+    padding: 1rem;
+  }
+
+  .modalBody {
+    padding: 1rem;
+  }
+
+  .modalTabs {
+    flex-direction: column;
+  }
+
+  .modalTab {
+    text-align: center;
+  }
+}
+
+/* Empty state for no mandatory formations */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.emptyStateIcon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  margin-bottom: 1.5rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.emptyState h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 0.5rem 0;
+}
+
+.emptyState p {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+/* ===================================================
+   Vue par Manager Section
+   =================================================== */
+
+.managerViewSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.managerViewHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.managerActions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.managerStatsBar {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 121, 0, 0.08);
+  border: 1px solid rgba(255, 121, 0, 0.2);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+
+.managerStat {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.managerStat svg {
+  color: #ff7900;
+}
+
+/* Loading state */
+.managerLoadingState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  min-height: 200px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Empty state */
+.managerEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.managerEmptyIcon {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16, 185, 129, 0.15);
+  border-radius: 50%;
+  margin-bottom: 1rem;
+  color: #10b981;
+}
+
+.managerEmptyState h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 0.5rem 0;
+}
+
+.managerEmptyState p {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+/* Accordion styles */
+.managerAccordion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.accordionItem {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.accordionControl {
+  background: transparent;
+  padding: 1rem 1.25rem;
+  transition: all 0.2s ease;
+}
+
+.accordionControl:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.accordionContent {
+  padding: 0 1.25rem 1.25rem;
+}
+
+.accordionChevron {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Manager list and rows */
+.managerList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.managerRow {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+.managerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.managerHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* Collaborateurs list inside manager row */
+.collaborateursList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.collaborateurItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.formationsManquantes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+/* Sans manager section */
+.sansManagerSection {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 12px;
+}
+
+.sansManagerTitle {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fbbf24;
+  margin: 0 0 1rem 0;
+}
+
+.sansManagerList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sansManagerItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .managerViewHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .managerActions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .managerStatsBar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .managerRow {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .collaborateurItem {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

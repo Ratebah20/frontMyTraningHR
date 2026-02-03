@@ -133,6 +133,7 @@ export interface Formation {
   dateCreation: string;
   actif: boolean;
   estCertifiante: boolean;
+  estObligatoire: boolean;
   categorie?: CategorieFormation;
   organisme?: OrganismeFormation;
   sessions?: SessionFormation[];
@@ -249,6 +250,7 @@ export interface CreateFormationDto {
   uniteDuree?: string;
   actif?: boolean;
   estCertifiante?: boolean;
+  estObligatoire?: boolean;
 }
 
 export interface UpdateFormationDto {
@@ -259,6 +261,7 @@ export interface UpdateFormationDto {
   uniteDuree?: string;
   actif?: boolean;
   estCertifiante?: boolean;
+  estObligatoire?: boolean;
 }
 
 export interface CreateSessionDto {
@@ -438,6 +441,7 @@ export interface FormationFilters {
   categorieId?: number;
   typeFormation?: string;
   actif?: boolean;
+  estObligatoire?: boolean;
   page?: number;
   limit?: number;
   sortBy?: string;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Container,
   Title,
@@ -13,35 +14,86 @@ import {
   Stack,
   Tabs,
   Alert,
-  Progress,
   SimpleGrid,
   ThemeIcon,
+  Center,
+  Loader,
+  ActionIcon,
+  Tooltip,
 } from '@mantine/core';
-import { MagnifyingGlass, Warning, CheckCircle, Clock, Certificate } from '@phosphor-icons/react';
-import { mockData } from '@/lib/mock-data';
+import { MagnifyingGlass, Warning, CheckCircle, Clock, Certificate, Eye } from '@phosphor-icons/react';
+import { formationsService } from '@/lib/services';
+import { Formation } from '@/lib/types';
 
 export default function FormationsObligatoiresPage() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string | null>('formations');
-  
-  // Mock formations obligatoires
-  const obligatoireFormations = [
-    { id: 1, titre: 'Sécurité au travail', categorie: 'Sécurité', duree: 1, conformite: 85 },
-    { id: 2, titre: 'RGPD et protection des données', categorie: 'Réglementaire', duree: 0.5, conformite: 72 },
-    { id: 3, titre: 'Premiers secours', categorie: 'Sécurité', duree: 2, conformite: 90 },
-  ];
+  const [formations, setFormations] = useState<Formation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredFormations = obligatoireFormations.filter(
-    f => f.titre.toLowerCase().includes(search.toLowerCase())
+  // Charger les formations obligatoires
+  useEffect(() => {
+    const loadFormations = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await formationsService.getFormations({
+          estObligatoire: true,
+          limit: 100, // Charger toutes les formations obligatoires
+        });
+        setFormations(response.data);
+      } catch (err) {
+        console.error('Erreur lors du chargement des formations obligatoires:', err);
+        setError('Impossible de charger les formations obligatoires');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFormations();
+  }, []);
+
+  const filteredFormations = formations.filter(
+    f => f.nomFormation.toLowerCase().includes(search.toLowerCase()) ||
+         f.codeFormation.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Mock stats
+  // Note: Les stats de conformité restent en mock car le calcul réel
+  // nécessite de savoir quels collaborateurs doivent suivre quelles formations (T14/T20)
   const conformiteStats = {
-    total_collaborateurs: mockData.collaborateurs.length,
-    conforme: 2,
-    non_conforme: 1,
-    tauxConformite: 66.7,
+    total_collaborateurs: 0,
+    conforme: 0,
+    non_conforme: 0,
+    tauxConformite: 0,
   };
+
+  const formatDuree = (duree?: number, unite?: string) => {
+    if (!duree) return '-';
+    const uniteAffichee = unite || 'Heures';
+    return `${duree} ${uniteAffichee.toLowerCase()}`;
+  };
+
+  if (loading) {
+    return (
+      <Container size="xl">
+        <Center h={400}>
+          <Loader size="lg" />
+        </Center>
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container size="xl">
+        <Alert color="red" title="Erreur" icon={<Warning size={20} />}>
+          {error}
+        </Alert>
+      </Container>
+    );
+  }
 
   return (
     <Container size="xl">
@@ -61,7 +113,7 @@ export default function FormationsObligatoiresPage() {
                   Total obligatoires
                 </Text>
                 <Text size="xl" fw={700}>
-                  {obligatoireFormations.length}
+                  {formations.length}
                 </Text>
               </div>
               <ThemeIcon color="blue" size="lg" radius="md">
@@ -76,11 +128,12 @@ export default function FormationsObligatoiresPage() {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Taux conformité
                 </Text>
-                <Text size="xl" fw={700} c="green">
-                  {conformiteStats.tauxConformite.toFixed(1)}%
+                <Text size="xl" fw={700} c="dimmed">
+                  -
                 </Text>
+                <Text size="xs" c="dimmed">Configuration requise</Text>
               </div>
-              <ThemeIcon color="green" size="lg" radius="md">
+              <ThemeIcon color="gray" size="lg" radius="md">
                 <CheckCircle size={24} />
               </ThemeIcon>
             </Group>
@@ -92,11 +145,12 @@ export default function FormationsObligatoiresPage() {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Non conformes
                 </Text>
-                <Text size="xl" fw={700} c="red">
-                  {conformiteStats.non_conforme}
+                <Text size="xl" fw={700} c="dimmed">
+                  -
                 </Text>
+                <Text size="xs" c="dimmed">Configuration requise</Text>
               </div>
-              <ThemeIcon color="red" size="lg" radius="md">
+              <ThemeIcon color="gray" size="lg" radius="md">
                 <Warning size={24} />
               </ThemeIcon>
             </Group>
@@ -108,20 +162,29 @@ export default function FormationsObligatoiresPage() {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Certifications expirées
                 </Text>
-                <Text size="xl" fw={700} c="orange">
-                  0
+                <Text size="xl" fw={700} c="dimmed">
+                  -
                 </Text>
+                <Text size="xs" c="dimmed">Configuration requise</Text>
               </div>
-              <ThemeIcon color="orange" size="lg" radius="md">
+              <ThemeIcon color="gray" size="lg" radius="md">
                 <Clock size={24} />
               </ThemeIcon>
             </Group>
           </Card>
         </SimpleGrid>
 
+        <Alert color="blue" variant="light" icon={<Warning size={20} />}>
+          <Text size="sm">
+            <strong>Note :</strong> Les statistiques de conformité (taux de conformité, collaborateurs non conformes,
+            certifications expirées) nécessitent une configuration supplémentaire pour définir quels collaborateurs
+            doivent suivre quelles formations obligatoires. Cette fonctionnalité sera disponible dans une prochaine version.
+          </Text>
+        </Alert>
+
         <Tabs value={activeTab} onChange={setActiveTab}>
           <Tabs.List>
-            <Tabs.Tab value="formations">Formations obligatoires</Tabs.Tab>
+            <Tabs.Tab value="formations">Formations obligatoires ({formations.length})</Tabs.Tab>
             <Tabs.Tab value="conformite">Suivi conformité</Tabs.Tab>
           </Tabs.List>
 
@@ -139,32 +202,53 @@ export default function FormationsObligatoiresPage() {
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Formation</Table.Th>
+                      <Table.Th>Code</Table.Th>
                       <Table.Th>Catégorie</Table.Th>
+                      <Table.Th>Type</Table.Th>
                       <Table.Th>Durée</Table.Th>
-                      <Table.Th>Fréquence</Table.Th>
-                      <Table.Th>Conformité</Table.Th>
+                      <Table.Th>Statut</Table.Th>
+                      <Table.Th>Actions</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
                     {filteredFormations.map((formation) => (
                       <Table.Tr key={formation.id}>
                         <Table.Td>
-                          <Text size="sm" fw={500}>{formation.titre}</Text>
+                          <Text size="sm" fw={500}>{formation.nomFormation}</Text>
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light">{formation.categorie}</Badge>
-                        </Table.Td>
-                        <Table.Td>{formation.duree} jour(s)</Table.Td>
-                        <Table.Td>
-                          <Badge variant="outline">Annuelle</Badge>
+                          <Text size="sm" c="dimmed">{formation.codeFormation}</Text>
                         </Table.Td>
                         <Table.Td>
-                          <Progress
-                            value={formation.conformite}
-                            size="sm"
-                            color={formation.conformite >= 80 ? 'green' : formation.conformite >= 50 ? 'yellow' : 'red'}
-                          />
-                          <Text size="xs" ta="center" mt={2}>{formation.conformite}%</Text>
+                          <Badge variant="light">
+                            {typeof formation.categorie === 'string'
+                              ? formation.categorie
+                              : formation.categorie?.nomCategorie || 'Non catégorisé'}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{formation.typeFormation || '-'}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{formatDuree(formation.dureePrevue, formation.uniteDuree)}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            color={formation.actif ? 'green' : 'gray'}
+                            variant="light"
+                          >
+                            {formation.actif ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Tooltip label="Voir les détails">
+                            <ActionIcon
+                              variant="subtle"
+                              onClick={() => router.push(`/formations/${formation.id}`)}
+                            >
+                              <Eye size={18} />
+                            </ActionIcon>
+                          </Tooltip>
                         </Table.Td>
                       </Table.Tr>
                     ))}
@@ -173,7 +257,9 @@ export default function FormationsObligatoiresPage() {
 
                 {filteredFormations.length === 0 && (
                   <Text ta="center" p="xl" c="dimmed">
-                    Aucune formation obligatoire trouvée
+                    {formations.length === 0
+                      ? 'Aucune formation n\'est marquée comme obligatoire. Éditez une formation pour la marquer comme obligatoire.'
+                      : 'Aucune formation obligatoire ne correspond à votre recherche'}
                   </Text>
                 )}
               </Card>
@@ -184,31 +270,28 @@ export default function FormationsObligatoiresPage() {
             <Stack gap="lg">
               <Alert
                 icon={<Warning size={20} />}
-                title="Résumé de conformité"
-                color={conformiteStats.tauxConformite >= 80 ? 'green' : 'red'}
+                title="Fonctionnalité en attente de configuration"
+                color="orange"
                 variant="light"
               >
                 <Text size="sm">
-                  {conformiteStats.non_conforme} collaborateurs n'ont pas suivi toutes les formations obligatoires.
+                  Le suivi de conformité nécessite de définir :
+                </Text>
+                <ul style={{ margin: '8px 0', paddingLeft: '20px' }}>
+                  <li>Quels collaborateurs doivent suivre quelles formations obligatoires</li>
+                  <li>La fréquence de renouvellement (si applicable)</li>
+                  <li>Les règles d'alerte pour les managers</li>
+                </ul>
+                <Text size="sm" c="dimmed">
+                  Ces fonctionnalités seront disponibles dans les tâches T14 et T20.
                 </Text>
               </Alert>
 
               <Card shadow="sm" p="lg" radius="md" withBorder>
                 <Title order={4} mb="md">Par département</Title>
-                <Stack gap="sm">
-                  <Group justify="space-between">
-                    <Text>IT</Text>
-                    <Progress value={80} w={200} color="green" />
-                  </Group>
-                  <Group justify="space-between">
-                    <Text>RH</Text>
-                    <Progress value={100} w={200} color="green" />
-                  </Group>
-                  <Group justify="space-between">
-                    <Text>Finance</Text>
-                    <Progress value={20} w={200} color="red" />
-                  </Group>
-                </Stack>
+                <Text c="dimmed" size="sm">
+                  Le suivi par département sera disponible une fois les règles de conformité configurées.
+                </Text>
               </Card>
             </Stack>
           </Tabs.Panel>

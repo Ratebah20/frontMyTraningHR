@@ -62,6 +62,7 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
       tarifHT: undefined,
       actif: true,
       estCertifiante: false,
+      estObligatoire: false,
     },
     validate: {
       nomFormation: (value) => {
@@ -507,6 +508,14 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
                 description="Cette formation délivre une certification ou un diplôme"
                 checked={form.values.estCertifiante}
                 {...form.getInputProps('estCertifiante', { type: 'checkbox' })}
+                size="md"
+              />
+
+              <Switch
+                label="Formation obligatoire"
+                description="Cette formation est obligatoire pour certains collaborateurs"
+                checked={form.values.estObligatoire}
+                {...form.getInputProps('estObligatoire', { type: 'checkbox' })}
                 size="md"
               />
             </Stack>

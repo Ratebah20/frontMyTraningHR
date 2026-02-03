@@ -63,6 +63,7 @@ export default function NewFormationPage() {
       tarifHT: undefined,
       actif: true,
       estCertifiante: false,
+      estObligatoire: false,
     },
     validate: {
       // Le code est généré automatiquement, pas de validation nécessaire
@@ -509,6 +510,14 @@ export default function NewFormationPage() {
                 description="Cette formation délivre une certification ou un diplôme"
                 checked={form.values.estCertifiante}
                 {...form.getInputProps('estCertifiante', { type: 'checkbox' })}
+                size="md"
+              />
+
+              <Switch
+                label="Formation obligatoire"
+                description="Cette formation est obligatoire pour certains collaborateurs"
+                checked={form.values.estObligatoire}
+                {...form.getInputProps('estObligatoire', { type: 'checkbox' })}
                 size="md"
               />
             </Stack>

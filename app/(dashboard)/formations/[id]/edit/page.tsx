@@ -72,6 +72,7 @@ export default function EditFormationPage() {
       tarifHT: undefined,
       actif: true,
       estCertifiante: false,
+      estObligatoire: false,
     },
     validate: {
       codeFormation: (value) => {
@@ -242,6 +243,7 @@ export default function EditFormationPage() {
         tarifHT: data.tarifHT,
         actif: data.actif !== false,
         estCertifiante: data.estCertifiante || false,
+        estObligatoire: data.estObligatoire || false,
       });
     } catch (error) {
       console.error('Erreur lors du chargement de la formation:', error);
@@ -545,6 +547,14 @@ export default function EditFormationPage() {
                 description="Cette formation délivre une certification ou un diplôme"
                 checked={form.values.estCertifiante}
                 {...form.getInputProps('estCertifiante', { type: 'checkbox' })}
+                size="md"
+              />
+
+              <Switch
+                label="Formation obligatoire"
+                description="Cette formation est obligatoire pour certains collaborateurs"
+                checked={form.values.estObligatoire}
+                {...form.getInputProps('estObligatoire', { type: 'checkbox' })}
                 size="md"
               />
             </Stack>

@@ -214,11 +214,15 @@ export default function DashboardPage() {
     // Ligne 3 : Performance & Qualité (1 KPI)
     {
       title: "Formations obligatoires",
-      value: `${summary.tauxObligatoires || 0}%`,
-      subtitle: `${summary.formationsObligatoiresCompletees || 0}/${summary.formationsObligatoiresTotal || 0}`,
+      value: summary.nombreFormationsObligatoires || 0,
+      subtitle: summary.formationsObligatoiresTotal > 0
+        ? `${summary.formationsObligatoiresCompletees || 0}/${summary.formationsObligatoiresTotal || 0} sessions terminées`
+        : "Aucune session sur la période",
       icon: WarningCircle,
-      color: summary.tauxObligatoires < 100 ? "red" : "green",
-      progress: summary.tauxObligatoires || 0,
+      color: summary.nombreFormationsObligatoires > 0
+        ? (summary.tauxObligatoires < 100 ? "orange" : "green")
+        : "gray",
+      link: "/kpi/formations?tab=obligatoires",
     },
 
     // Ligne 4 : Volumétrie (2 KPIs)
@@ -314,32 +318,53 @@ export default function DashboardPage() {
             radius="md"
             withBorder
             p="md"
+            style={kpi.link ? { cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s' } : undefined}
+            onClick={kpi.link ? () => router.push(kpi.link) : undefined}
+            onMouseEnter={kpi.link ? (e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+            } : undefined}
+            onMouseLeave={kpi.link ? (e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '';
+            } : undefined}
           >
             <Group justify="space-between" mb="xs">
               <ThemeIcon size={32} radius="md" variant="light" color={kpi.color}>
                 <kpi.icon size={18} weight="duotone" />
               </ThemeIcon>
-              {kpi.progress !== undefined && (
+              {kpi.progress !== undefined ? (
                 <RingProgress
                   size={40}
                   thickness={3}
                   roundCaps
                   sections={[{ value: kpi.progress, color: kpi.color }]}
                 />
-              )}
+              ) : kpi.link ? (
+                <ThemeIcon size={24} radius="xl" variant="light" color="gray">
+                  <ArrowUpRight size={14} weight="bold" />
+                </ThemeIcon>
+              ) : null}
             </Group>
-            
+
             <Text size="xs" c="dimmed" fw={600} tt="uppercase">
               {kpi.title}
             </Text>
-            
+
             <Text size="xl" fw={700}>
               {kpi.value}
             </Text>
-            
-            <Text size="xs" c="dimmed">
-              {kpi.subtitle}
-            </Text>
+
+            <Group justify="space-between" align="center">
+              <Text size="xs" c="dimmed">
+                {kpi.subtitle}
+              </Text>
+              {kpi.link && (
+                <Text size="xs" c={kpi.color} fw={500}>
+                  Voir details
+                </Text>
+              )}
+            </Group>
           </Card>
         ))}
       </SimpleGrid>

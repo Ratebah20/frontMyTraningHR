@@ -605,9 +605,6 @@ export default function SessionDetailPage({ params }: Props) {
                         <Text span c="dimmed" size="xs">Nom:</Text> {session.formation?.nom || session.formation?.nomFormation || session.formationNom || 'Non renseignée'}
                       </Text>
                       <Text size="sm">
-                        <Text span c="dimmed" size="xs">Code:</Text> {session.formation?.code || session.formation?.codeFormation || session.formationCode || 'N/A'}
-                      </Text>
-                      <Text size="sm">
                         <Text span c="dimmed" size="xs">Catégorie:</Text> {session.formation?.categorie || session.categorie || 'Non définie'}
                       </Text>
                     </Stack>
@@ -816,14 +813,6 @@ export default function SessionDetailPage({ params }: Props) {
             <Card shadow="xs" radius="md" withBorder>
               <Text fw={600} mb="md">Récapitulatif</Text>
               <Stack gap="sm">
-                <Flex justify="space-between">
-                  <Group gap="xs">
-                    <Hash size={16} color="#868E96" />
-                    <Text size="sm" c="dimmed">ID Session</Text>
-                  </Group>
-                  <Text size="sm" fw={500}>{session.id}</Text>
-                </Flex>
-                
                 {session.idImportOLU && (
                   <Flex justify="space-between">
                     <Group gap="xs">

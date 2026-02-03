@@ -425,6 +425,17 @@ export default function FormationDetailPage({ params }: Props) {
                 </Badge>
               </Group>
 
+              <Group gap="xs">
+                <Warning size={20} weight="duotone" />
+                <Text fw={500}>Formation obligatoire:</Text>
+                <Badge
+                  color={formation.estObligatoire ? 'orange' : 'gray'}
+                  variant="light"
+                >
+                  {formation.estObligatoire ? 'Oui' : 'Non'}
+                </Badge>
+              </Group>
+
               {formation.stats?.premiereSession && (
                 <Group gap="xs">
                   <Calendar size={20} weight="duotone" />

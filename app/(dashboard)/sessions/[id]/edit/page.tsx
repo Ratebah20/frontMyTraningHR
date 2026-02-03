@@ -484,8 +484,9 @@ export default function EditSessionPage({ params }: Props) {
 
       {session.sourceImport === 'OLU' && (
         <Alert icon={<Info size={16} />} color="violet" variant="light" mb="lg">
-          Cette session a été importée depuis Open Learning (OL). Les modifications manuelles
-          peuvent être écrasées lors du prochain import.
+          Cette session a été importée depuis Open Learning (OL). Vos modifications manuelles
+          (tarifs, commentaires, dates) sont préservées lors des imports suivants.
+          Seul le statut peut être mis à jour par OL (sans jamais régresser).
         </Alert>
       )}
 

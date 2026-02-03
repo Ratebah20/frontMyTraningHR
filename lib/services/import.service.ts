@@ -17,7 +17,20 @@ export interface ImportHistory {
 
 export interface ImportResult {
   success: boolean;
-  message: string;
+  totalRows: number;
+  processedRows: number;
+  collaborateursAdded: number;
+  collaborateursUpdated: number;
+  formationsAdded: number;
+  formationsUpdated: number;
+  sessionsAdded: number;
+  sessionsUpdated: number;
+  errors: { line: number; column?: string; value?: any; message: string; type: 'error' | 'warning' }[];
+  warnings: { line: number; column?: string; value?: any; message: string; type: 'error' | 'warning' }[];
+  duration: number;
+  importLogId?: number;
+  // Legacy stats format for backward compatibility
+  message?: string;
   stats?: {
     total: number;
     created: number;

@@ -12,6 +12,8 @@ import type {
   SubmitCollaborateurResolutionsResponse,
   ResolutionOrganisme,
   SubmitOrganismeResolutionsResponse,
+  ResolutionCategorie,
+  SubmitCategorieResolutionsResponse,
 } from '../types/import-preview.types';
 import type { ImportResult } from './import.service';
 
@@ -65,6 +67,20 @@ export const importPreviewService = {
     resolutions: ResolutionOrganisme[],
   ): Promise<SubmitOrganismeResolutionsResponse> {
     const response = await api.post('/import/olu/preview/resolve-organismes', {
+      previewId,
+      resolutions,
+    });
+    return response.data;
+  },
+
+  /**
+   * Soumet les resolutions pour les categories OL non mappees
+   */
+  async submitCategorieResolutions(
+    previewId: string,
+    resolutions: ResolutionCategorie[],
+  ): Promise<SubmitCategorieResolutionsResponse> {
+    const response = await api.post('/import/olu/preview/resolve-categories', {
       previewId,
       resolutions,
     });

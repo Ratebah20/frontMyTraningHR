@@ -38,11 +38,13 @@ import type {
   ResolutionCollaborateur,
   CollaborateurInactif,
   ResolutionOrganisme,
+  ResolutionCategorie,
 } from '@/lib/types/import-preview.types';
 import { importPreviewService } from '@/lib/services/import-preview.service';
 import { ConflictResolutionList } from './ConflictResolutionList';
 import { CollaborateurConflictList } from './CollaborateurConflictList';
 import { OrganismeConflictList } from './OrganismeConflictList';
+import { CategorieConflictList } from './CategorieConflictList';
 
 interface ImportPreviewModalProps {
   opened: boolean;
@@ -67,6 +69,9 @@ export function ImportPreviewModal({
   const [organismeResolutions, setOrganismeResolutions] = useState<Map<string, ResolutionOrganisme>>(
     new Map(),
   );
+  const [categorieResolutions, setCategorieResolutions] = useState<Map<string, ResolutionCategorie>>(
+    new Map(),
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importProgress, setImportProgress] = useState(0);
@@ -78,6 +83,7 @@ export function ImportPreviewModal({
       setResolutions(new Map());
       setCollabResolutions(new Map());
       setOrganismeResolutions(new Map());
+      setCategorieResolutions(new Map());
       setCanImport(previewData.peutImporterDirectement);
       setActiveTab(previewData.conflits.length > 0 ? 'conflicts' : 'stats');
       setImportProgress(0);
@@ -168,6 +174,14 @@ export function ImportPreviewModal({
         await importPreviewService.submitOrganismeResolutions(
           previewData.previewId,
           Array.from(organismeResolutions.values()),
+        );
+      }
+
+      // Soumettre les résolutions catégories si elles existent
+      if (categorieResolutions.size > 0) {
+        await importPreviewService.submitCategorieResolutions(
+          previewData.previewId,
+          Array.from(categorieResolutions.values()),
         );
       }
 
@@ -405,6 +419,17 @@ export function ImportPreviewModal({
                   <OrganismeConflictList
                     organismes={previewData.organismesNonTrouves}
                     onResolutionsChange={setOrganismeResolutions}
+                  />
+                </Grid.Col>
+              )}
+
+              {/* Categories OL non mappees avec resolution */}
+              {previewData.categoriesNonMappees && previewData.categoriesNonMappees.length > 0 && (
+                <Grid.Col span={12}>
+                  <CategorieConflictList
+                    categories={previewData.categoriesNonMappees}
+                    categoriesCibles={previewData.categoriesCiblesDisponibles || []}
+                    onResolutionsChange={setCategorieResolutions}
                   />
                 </Grid.Col>
               )}

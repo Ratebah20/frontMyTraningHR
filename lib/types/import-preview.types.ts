@@ -63,6 +63,38 @@ export enum ActionResolutionOrganisme {
   CREER = 'CREER',
 }
 
+export enum ActionResolutionCategorie {
+  MAPPER = 'MAPPER',      // Mapper vers une catégorie existante
+  CREER = 'CREER',        // Créer une nouvelle catégorie avec ce nom
+  IGNORER = 'IGNORER',    // Ne pas assigner de catégorie
+}
+
+// Catégories OL non mappées (action requise)
+export interface CategorieNonMappee {
+  categorieOL: string;
+  nombreFormationsAffectees: number;
+  formationsExemples: string[];
+}
+
+export interface ResolutionCategorie {
+  categorieOL: string;
+  action: ActionResolutionCategorie;
+  categorieCibleId?: number;
+  categorieCibleNom?: string;
+  memoriser?: boolean;
+}
+
+export interface SubmitCategorieResolutionsRequest {
+  previewId: string;
+  resolutions: ResolutionCategorie[];
+}
+
+export interface SubmitCategorieResolutionsResponse {
+  success: boolean;
+  mapped: number;
+  created: number;
+}
+
 export interface ResolutionOrganisme {
   emailFormateur: string;
   action: ActionResolutionOrganisme;
@@ -112,6 +144,8 @@ export interface ImportPreviewResponse {
   collaborateursProblemes?: CollaborateurProbleme[];       // NON_TROUVE uniquement
   collaborateursInactifs?: CollaborateurInactif[];         // Info seulement
   organismesNonTrouves?: OrganismeNonTrouve[];             // Organismes à créer/ignorer
+  categoriesNonMappees?: CategorieNonMappee[];             // Catégories OL non reconnues
+  categoriesCiblesDisponibles?: string[];                  // Catégories cibles disponibles pour le mapping
   sessionsIgnoreesTotal?: number;                          // NON_TROUVE uniquement
 }
 

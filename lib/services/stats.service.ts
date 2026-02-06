@@ -214,6 +214,18 @@ export const statsService = {
     return response.data;
   },
 
+  // Récupérer les objectifs cibles par catégorie
+  async getLdObjectiveTargets(): Promise<{ categorieId: number; categorieNom: string; objectifCible: number }[]> {
+    const response = await api.get('/stats/ld-objectives/targets');
+    return response.data;
+  },
+
+  // Mettre à jour les objectifs cibles par catégorie
+  async updateLdObjectiveTargets(targets: { categorieId: number; objectifCible: number }[]): Promise<any> {
+    const response = await api.put('/stats/ld-objectives/targets', targets);
+    return response.data;
+  },
+
   // Récupérer les KPIs de conformité/éthique
   async getComplianceEthicsKpis(
     periode?: 'annee' | 'mois' | 'plage',

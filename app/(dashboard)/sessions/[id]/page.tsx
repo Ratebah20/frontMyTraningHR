@@ -981,8 +981,8 @@ export default function SessionDetailPage({ params }: Props) {
         {/* Checklist de préparation (Todos) - Full width */}
         <Grid.Col span={12}>
           <TodoList
-            sessionId={session.id}
-            typeFormation={session.formation?.type}
+            groupKey={session.groupKey || `${session.formationId}_${session.dateDebut || 'null'}_${session.dateFin || 'null'}`}
+            typeFormation={session.formation?.typeFormation || session.formation?.type}
           />
         </Grid.Col>
 

@@ -16,7 +16,12 @@ import {
   Table,
   ThemeIcon,
   Alert,
+  Button,
+  Modal,
+  NumberInput,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
+import { notifications } from '@mantine/notifications';
 import {
   Target,
   ChartBar,
@@ -32,6 +37,8 @@ import {
   Desktop,
   Brain,
   Briefcase,
+  PencilSimple,
+  CurrencyDollar,
 } from '@phosphor-icons/react';
 import {
   RadarChart,
@@ -69,6 +76,7 @@ interface LdObjectivesData {
     collaborateursFormes: number;
     totalCollaborateurs: number;
     heuresTotales: number;
+    budgetTotal: number;
   };
   categories: CategoryKpi[];
 }
@@ -100,6 +108,11 @@ export default function ObjectifsLdPage() {
   const [dateDebut, setDateDebut] = useState<Date | null>(null);
   const [dateFin, setDateFin] = useState<Date | null>(null);
 
+  // Modal state
+  const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
+  const [editTargets, setEditTargets] = useState<Record<number, number>>({});
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, [periode, date, dateDebut, dateFin]);
@@ -115,6 +128,44 @@ export default function ObjectifsLdPage() {
       console.error('Erreur lors du chargement des objectifs L&D:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenModal = () => {
+    if (data) {
+      const targets: Record<number, number> = {};
+      data.categories.forEach(c => {
+        targets[c.categorieId] = c.objectifCible;
+      });
+      setEditTargets(targets);
+    }
+    openModal();
+  };
+
+  const handleSaveTargets = async () => {
+    setSaving(true);
+    try {
+      const targets = Object.entries(editTargets).map(([categorieId, objectifCible]) => ({
+        categorieId: Number(categorieId),
+        objectifCible,
+      }));
+      await statsService.updateLdObjectiveTargets(targets);
+      notifications.show({
+        title: 'Objectifs mis à jour',
+        message: 'Les objectifs cibles ont été sauvegardés avec succès.',
+        color: 'green',
+      });
+      closeModal();
+      fetchData();
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      notifications.show({
+        title: 'Erreur',
+        message: 'Impossible de sauvegarder les objectifs.',
+        color: 'red',
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -162,14 +213,23 @@ export default function ObjectifsLdPage() {
               Suivi des objectifs de formation par catégorie
             </Text>
           </div>
-          <PeriodSelector
-            periode={periode}
-            date={date}
-            dateDebut={dateDebut}
-            dateFin={dateFin}
-            onChange={(p, d) => { setPeriode(p); setDate(d); }}
-            onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
-          />
+          <Group gap="sm">
+            <Button
+              variant="light"
+              leftSection={<PencilSimple size={16} />}
+              onClick={handleOpenModal}
+            >
+              Modifier les objectifs
+            </Button>
+            <PeriodSelector
+              periode={periode}
+              date={date}
+              dateDebut={dateDebut}
+              dateFin={dateFin}
+              onChange={(p, d) => { setPeriode(p); setDate(d); }}
+              onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
+            />
+          </Group>
         </Group>
 
         {/* Global Summary Cards */}
@@ -203,12 +263,12 @@ export default function ObjectifsLdPage() {
           <Card shadow="sm" p="lg" radius="md" withBorder>
             <Group justify="space-between">
               <div>
-                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Taux complétion</Text>
-                <Text size="xl" fw={700}>{data.global.tauxCompletionGlobal}%</Text>
-                <Text size="xs" c="dimmed">{data.global.sessionsCompleted}/{data.global.totalSessions} terminées</Text>
+                <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Budget formation</Text>
+                <Text size="xl" fw={700}>{data.global.budgetTotal.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</Text>
+                <Text size="xs" c="dimmed">sessions complétées</Text>
               </div>
               <ThemeIcon color="orange" size="lg" radius="md">
-                <ChartBar size={24} />
+                <CurrencyDollar size={24} />
               </ThemeIcon>
             </Group>
           </Card>
@@ -298,25 +358,38 @@ export default function ObjectifsLdPage() {
             </Text>
             <ResponsiveContainer width="100%" height={400}>
               <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="category" tick={{ fontSize: 11 }} />
-                <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
-                <Radar
-                  name="Taux d'atteinte (%)"
-                  dataKey="atteinte"
-                  stroke="#ff7900"
-                  fill="#ff7900"
-                  fillOpacity={0.3}
+                <PolarGrid stroke="#555" />
+                <PolarAngleAxis
+                  dataKey="category"
+                  tick={({ x, y, payload, textAnchor }: any) => (
+                    <text x={x} y={y} fill="#ffffff" fontSize={12} textAnchor={textAnchor} dy={4}>
+                      {payload.value}
+                    </text>
+                  )}
                 />
+                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
                 <Radar
                   name="Objectif cible (%)"
                   dataKey="objectif"
                   stroke="#228be6"
                   fill="#228be6"
-                  fillOpacity={0.1}
+                  fillOpacity={0.15}
                   strokeDasharray="5 5"
+                  strokeWidth={2}
                 />
-                <RechartsTooltip />
+                <Radar
+                  name="Taux d'atteinte (%)"
+                  dataKey="atteinte"
+                  stroke="#ff7900"
+                  fill="#ff7900"
+                  fillOpacity={0.4}
+                  strokeWidth={2}
+                />
+                <RechartsTooltip
+                  contentStyle={{ backgroundColor: '#1a1b1e', border: '1px solid #373A40', borderRadius: 8 }}
+                  labelStyle={{ color: '#c1c2c5' }}
+                  formatter={(value: number) => `${value}%`}
+                />
                 <Legend />
               </RadarChart>
             </ResponsiveContainer>
@@ -388,6 +461,45 @@ export default function ObjectifsLdPage() {
           </Table>
         </Card>
       </Stack>
+
+      {/* Edit Objectives Modal */}
+      <Modal
+        opened={modalOpened}
+        onClose={closeModal}
+        title="Modifier les objectifs cibles"
+        size="lg"
+      >
+        <Stack gap="md">
+          <Text size="sm" c="dimmed">
+            Définissez le pourcentage cible de collaborateurs formés pour chaque catégorie.
+          </Text>
+          {data.categories.map((cat, index) => (
+            <Group key={cat.categorieId} justify="space-between" align="center">
+              <Group gap="sm" style={{ flex: 1 }}>
+                <ThemeIcon color={getCategoryColor(index)} size="sm" radius="md" variant="light">
+                  {getCategoryIcon(cat.categorieNom)}
+                </ThemeIcon>
+                <Text size="sm" fw={500}>{cat.categorieNom}</Text>
+              </Group>
+              <NumberInput
+                value={editTargets[cat.categorieId] ?? cat.objectifCible}
+                onChange={(val) => setEditTargets(prev => ({ ...prev, [cat.categorieId]: Number(val) || 0 }))}
+                min={0}
+                max={100}
+                suffix="%"
+                w={120}
+                size="sm"
+              />
+            </Group>
+          ))}
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={closeModal}>Annuler</Button>
+            <Button onClick={handleSaveTargets} loading={saving}>
+              Sauvegarder
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

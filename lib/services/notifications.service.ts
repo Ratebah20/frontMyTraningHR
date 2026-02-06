@@ -46,6 +46,11 @@ export const notificationsService = {
     return response.data;
   },
 
+  async sendSessionNotification(sessionId: number, type: 'individuelle' | 'collective'): Promise<{ success: boolean; message: string; recipients?: number }> {
+    const response = await api.post('/notifications/send-session-notification', { sessionId, type });
+    return response.data;
+  },
+
   async getReminderHistory(params?: {
     managerId?: number;
     startDate?: string;

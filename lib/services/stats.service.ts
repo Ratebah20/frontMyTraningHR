@@ -195,6 +195,25 @@ export const statsService = {
     return response.data;
   },
 
+  // Récupérer les KPIs des objectifs L&D
+  async getLdObjectivesKpis(
+    periode?: 'annee' | 'mois' | 'plage',
+    date?: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<any> {
+    const params: any = {};
+    if (periode) params.periode = periode;
+    if (periode === 'plage') {
+      if (startDate) params.startDate = startDate;
+      if (endDate) params.endDate = endDate;
+    } else {
+      if (date) params.date = date;
+    }
+    const response = await api.get('/stats/ld-objectives', { params });
+    return response.data;
+  },
+
   // Récupérer les KPIs de conformité/éthique
   async getComplianceEthicsKpis(
     periode?: 'annee' | 'mois' | 'plage',

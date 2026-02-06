@@ -76,6 +76,7 @@ import { TodoList } from '@/components/session-todos/TodoList';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
 import { ParticipantList } from '@/components/sessions/ParticipantList';
 import { DocumentGenerator } from '@/components/documents';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
 
 interface Props {
   params: {
@@ -983,6 +984,16 @@ export default function SessionDetailPage({ params }: Props) {
             sessionId={session.id}
             typeFormation={session.formation?.type}
           />
+        </Grid.Col>
+
+        {/* Pièces jointes de la session */}
+        <Grid.Col span={12}>
+          <Paper shadow="xs" p="lg" radius="md" withBorder>
+            <AttachmentManager
+              targetType={session.type === 'collective' ? 'sessionCollective' : 'session'}
+              targetId={session.id}
+            />
+          </Paper>
         </Grid.Col>
       </Grid>
     </Container>

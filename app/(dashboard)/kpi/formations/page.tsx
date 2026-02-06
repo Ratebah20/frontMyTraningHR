@@ -9,7 +9,7 @@ import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, LabelList, Cell } from 'recharts'
-import { statsService } from '@/lib/services'
+import { statsService, notificationsService } from '@/lib/services'
 import styles from './formations.module.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -796,18 +796,78 @@ export default function FormationsKPIsPage() {
     }
   }
 
-  // Simuler l'envoi de rappels
-  const handleSendReminders = () => {
-    setShowReminderModal(false)
+  // État pour le statut SMTP
+  const [smtpStatus, setSmtpStatus] = useState<{ configured: boolean; connectionValid: boolean; message: string } | null>(null)
+  const [smtpLoading, setSmtpLoading] = useState(false)
+  const [sendingReminders, setSendingReminders] = useState(false)
 
-    notifications.show({
-      title: 'Rappels simules',
-      message: `${selectedManagers.length} rappels auraient ete envoyes. Configuration SMTP requise pour l'envoi reel.`,
-      color: 'green',
-      icon: <CheckCircle size={20} weight="fill" />
-    })
+  // Vérifier le statut SMTP
+  const handleCheckSmtp = async () => {
+    setSmtpLoading(true)
+    try {
+      const status = await notificationsService.checkEmailStatus()
+      setSmtpStatus(status)
+      notifications.show({
+        title: status.configured ? 'SMTP configuré' : 'SMTP non configuré',
+        message: status.message,
+        color: status.connectionValid ? 'green' : status.configured ? 'orange' : 'red',
+        icon: status.connectionValid ? <CheckCircle size={20} weight="fill" /> : <WarningCircle size={20} weight="fill" />
+      })
+    } catch (error) {
+      notifications.show({
+        title: 'Erreur',
+        message: 'Impossible de vérifier le statut SMTP',
+        color: 'red'
+      })
+    } finally {
+      setSmtpLoading(false)
+    }
+  }
 
-    setSelectedManagers([])
+  // Envoyer les rappels via l'API réelle
+  const handleSendReminders = async () => {
+    setSendingReminders(true)
+    try {
+      const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
+      const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
+
+      const result = await notificationsService.sendMandatoryTrainingReminders({
+        managerIds: selectedManagers,
+        periode,
+        date,
+        startDate: startDateStr,
+        endDate: endDateStr,
+      })
+
+      setShowReminderModal(false)
+
+      if (result.success) {
+        notifications.show({
+          title: 'Rappels envoyés',
+          message: `${result.envoyesAvecSucces}/${result.totalManagers} rappels envoyés avec succès.${result.erreurs > 0 ? ` ${result.erreurs} erreur(s).` : ''}`,
+          color: result.erreurs > 0 ? 'orange' : 'green',
+          icon: <CheckCircle size={20} weight="fill" />
+        })
+      } else {
+        notifications.show({
+          title: 'Erreur',
+          message: result.message,
+          color: 'red',
+          icon: <WarningCircle size={20} weight="fill" />
+        })
+      }
+
+      setSelectedManagers([])
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erreur d\'envoi',
+        message: error?.response?.data?.message || 'Impossible d\'envoyer les rappels. Vérifiez la configuration SMTP.',
+        color: 'red',
+        icon: <WarningCircle size={20} weight="fill" />
+      })
+    } finally {
+      setSendingReminders(false)
+    }
   }
 
   // Récupérer les infos des managers sélectionnés pour le modal
@@ -1713,8 +1773,8 @@ export default function FormationsKPIsPage() {
       >
         <Stack>
           <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
-            Cette fonctionnalite est en mode simulation. Les emails ne seront pas
-            reellement envoyes tant que la configuration SMTP n'est pas en place.
+            Les rappels seront envoyés par email aux managers sélectionnés.
+            Assurez-vous que la configuration SMTP est en place.
           </Alert>
 
           <Text fw={500} c="white">Managers selectionnes : {selectedManagers.length}</Text>
@@ -1754,17 +1814,29 @@ export default function FormationsKPIsPage() {
             </Accordion.Item>
           </Accordion>
 
-          <Group justify="flex-end" mt="md">
-            <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)}>
-              Annuler
-            </Button>
+          <Group justify="space-between" mt="md">
             <Button
-              color="orange"
-              leftSection={<EnvelopeSimple size={18} weight="bold" />}
-              onClick={handleSendReminders}
+              variant="light"
+              color="blue"
+              onClick={handleCheckSmtp}
+              loading={smtpLoading}
+              size="xs"
             >
-              Simuler l'envoi
+              Vérifier config SMTP
             </Button>
+            <Group>
+              <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)}>
+                Annuler
+              </Button>
+              <Button
+                color="orange"
+                leftSection={<EnvelopeSimple size={18} weight="bold" />}
+                onClick={handleSendReminders}
+                loading={sendingReminders}
+              >
+                Envoyer les rappels
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Modal>

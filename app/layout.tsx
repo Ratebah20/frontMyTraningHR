@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
+import { ColorSchemeScript } from '@mantine/core';
 import '@/styles/globals.css';
 import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
@@ -29,6 +30,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head>
+        <ColorSchemeScript defaultColorScheme="light" />
+      </head>
       <body className={inter.className}>
         <Providers>{children}</Providers>
       </body>

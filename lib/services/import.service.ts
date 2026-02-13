@@ -41,6 +41,15 @@ export interface ImportResult {
   processingTime?: number;
 }
 
+// Mapper les statuts backend vers les statuts frontend
+function mapStatus(backendStatus: string | null): 'SUCCESS' | 'PARTIAL' | 'ERROR' {
+  if (!backendStatus) return 'ERROR';
+  const s = backendStatus.toUpperCase();
+  if (s === 'SUCCESS' || s === 'COMPLETED') return 'SUCCESS';
+  if (s === 'PARTIAL' || s === 'IN_PROGRESS') return 'PARTIAL';
+  return 'ERROR';
+}
+
 export const importService = {
   // Import initial depuis fichier SUIVI_FORMATIONS
   async importInitial(file: File): Promise<ImportResult> {
@@ -92,7 +101,24 @@ export const importService = {
     const response = await api.get('/import/history', {
       params: { limit, offset },
     });
-    
-    return response.data;
+
+    // Le backend retourne { data: [...], total, limit, offset }
+    const raw = response.data;
+    const logs = Array.isArray(raw) ? raw : (raw.data || []);
+
+    // Mapper les noms de champs du backend vers le frontend
+    return logs.map((log: any) => ({
+      id: log.id,
+      type: log.typeImport || 'OLU',
+      filename: log.nomFichier || '-',
+      status: mapStatus(log.statut),
+      recordsProcessed: log.nbLignesTraitees || 0,
+      recordsCreated: (log.nbCollaborateursAjoutes || 0) + (log.nbFormationsAjoutees || 0) + (log.nbSessionsAjoutees || 0),
+      recordsUpdated: 0,
+      recordsFailed: 0,
+      errorDetails: log.messageErreur,
+      createdAt: log.dateImport,
+      processingTimeMs: undefined,
+    }));
   },
 };

@@ -30,6 +30,8 @@ import {
   ArrowsClockwise,
   Eye,
   ListChecks,
+  Tag,
+  ArrowRight,
 } from '@phosphor-icons/react';
 import type {
   ImportPreviewResponse,
@@ -332,6 +334,70 @@ export function ImportPreviewModal({
                   </Group>
                 </Card>
               </Grid.Col>
+
+              <Grid.Col span={6}>
+                <Card withBorder p="sm">
+                  <Group>
+                    <ThemeIcon size="lg" variant="light" color="grape">
+                      <Tag size={20} />
+                    </ThemeIcon>
+                    <div>
+                      <Text size="xs" c="dimmed">
+                        Categories OL
+                      </Text>
+                      <Text fw={600}>
+                        {previewData.categoriesMappees?.length || 0} mappee(s)
+                        {(previewData.categoriesNonMappees?.length || 0) > 0 && (
+                          <Text span c="orange" ml="xs">
+                            / {previewData.categoriesNonMappees?.length} non mappee(s)
+                          </Text>
+                        )}
+                      </Text>
+                    </div>
+                  </Group>
+                </Card>
+              </Grid.Col>
+
+              {/* Detail des categories mappees */}
+              {previewData.categoriesMappees && previewData.categoriesMappees.length > 0 && (
+                <Grid.Col span={12}>
+                  <Alert icon={<CheckCircle size={16} />} color="green" variant="light">
+                    <Text size="sm" fw={500} mb="xs">
+                      Categories OL mappees ({previewData.categoriesMappees.length}) :
+                    </Text>
+                    <ScrollArea h={previewData.categoriesMappees.length > 5 ? 150 : undefined}>
+                      <Stack gap={4}>
+                        {previewData.categoriesMappees.map((c) => (
+                          <Group key={c.categorieOL} gap="xs">
+                            <Badge variant="light" color="grape" size="sm">
+                              {c.categorieOL}
+                            </Badge>
+                            <ArrowRight size={12} style={{ flexShrink: 0 }} />
+                            <Badge variant="filled" color="green" size="sm">
+                              {c.categorieCible}
+                            </Badge>
+                            <Text size="xs" c="dimmed">
+                              ({c.nombreFormations} formation{c.nombreFormations > 1 ? 's' : ''})
+                            </Text>
+                          </Group>
+                        ))}
+                      </Stack>
+                    </ScrollArea>
+                  </Alert>
+                </Grid.Col>
+              )}
+
+              {/* Formations sans categorie */}
+              {previewData.categoriesMappees?.length === 0 && previewData.categoriesNonMappees?.length === 0 && (
+                <Grid.Col span={12}>
+                  <Alert icon={<Warning size={16} />} color="yellow" variant="light">
+                    <Text size="sm">
+                      Aucune categorie trouvee dans le fichier. Verifiez que la colonne
+                      &quot;Formation - Matieres de la formation parent&quot; est presente.
+                    </Text>
+                  </Alert>
+                </Grid.Col>
+              )}
 
               {stats.nouveauxOrganismes.length > 0 && (
                 <Grid.Col span={12}>

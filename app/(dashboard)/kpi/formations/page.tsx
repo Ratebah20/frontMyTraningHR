@@ -9,7 +9,7 @@ import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, LabelList, Cell } from 'recharts'
-import { statsService } from '@/lib/services'
+import { statsService, notificationsService } from '@/lib/services'
 import styles from './formations.module.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -812,48 +812,73 @@ export default function FormationsKPIsPage() {
     }
   }
 
-  // Envoyer les rappels via l'API
+  // État pour le statut SMTP
+  const [smtpStatus, setSmtpStatus] = useState<{ configured: boolean; connectionValid: boolean; message: string } | null>(null)
+  const [smtpLoading, setSmtpLoading] = useState(false)
+
+  // Vérifier le statut SMTP
+  const handleCheckSmtp = async () => {
+    setSmtpLoading(true)
+    try {
+      const status = await notificationsService.checkEmailStatus()
+      setSmtpStatus(status)
+      notifications.show({
+        title: status.configured ? 'SMTP configuré' : 'SMTP non configuré',
+        message: status.message,
+        color: status.connectionValid ? 'green' : status.configured ? 'orange' : 'red',
+        icon: status.connectionValid ? <CheckCircle size={20} weight="fill" /> : <WarningCircle size={20} weight="fill" />
+      })
+    } catch (error) {
+      notifications.show({
+        title: 'Erreur',
+        message: 'Impossible de vérifier le statut SMTP',
+        color: 'red'
+      })
+    } finally {
+      setSmtpLoading(false)
+    }
+  }
+
+  // Envoyer les rappels via l'API réelle
   const handleSendReminders = async () => {
     setSendingReminders(true)
-
     try {
       const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
       const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
-      const result = await statsService.sendMandatoryTrainingReminders(
-        selectedManagers,
+      const result = await notificationsService.sendMandatoryTrainingReminders({
+        managerIds: selectedManagers,
         periode,
         date,
-        startDateStr,
-        endDateStr
-      )
+        startDate: startDateStr,
+        endDate: endDateStr,
+      })
 
       setShowReminderModal(false)
 
       if (result.success) {
         notifications.show({
-          title: 'Rappels envoyes',
-          message: result.message,
-          color: 'green',
+          title: 'Rappels envoyés',
+          message: `${result.envoyesAvecSucces}/${result.totalManagers} rappels envoyés avec succès.${result.erreurs > 0 ? ` ${result.erreurs} erreur(s).` : ''}`,
+          color: result.erreurs > 0 ? 'orange' : 'green',
           icon: <CheckCircle size={20} weight="fill" />
         })
       } else {
         notifications.show({
-          title: 'Envoi partiel',
+          title: 'Erreur',
           message: result.message,
-          color: 'orange',
+          color: 'red',
           icon: <WarningCircle size={20} weight="fill" />
         })
       }
 
       setSelectedManagers([])
     } catch (error: any) {
-      console.error('Erreur lors de l\'envoi des rappels:', error)
       notifications.show({
-        title: 'Erreur',
-        message: error.response?.data?.message || 'Erreur lors de l\'envoi des rappels',
+        title: 'Erreur d\'envoi',
+        message: error?.response?.data?.message || 'Impossible d\'envoyer les rappels. Vérifiez la configuration SMTP.',
         color: 'red',
-        icon: <X size={20} weight="fill" />
+        icon: <WarningCircle size={20} weight="fill" />
       })
     } finally {
       setSendingReminders(false)
@@ -1764,22 +1789,10 @@ export default function FormationsKPIsPage() {
         }}
       >
         <Stack>
-          {/* Alert based on email configuration status */}
-          {emailStatus && !emailStatus.configured ? (
-            <Alert color="red" icon={<WarningCircle size={20} weight="bold" />} variant="light">
-              Le service email n'est pas configure. Les rappels ne peuvent pas etre envoyes.
-              Veuillez configurer SMTP_HOST dans le fichier .env du backend.
-            </Alert>
-          ) : emailStatus && !emailStatus.connectionValid ? (
-            <Alert color="orange" icon={<WarningCircle size={20} weight="bold" />} variant="light">
-              Le service email est configure mais la connexion SMTP a echoue.
-              Les rappels pourraient ne pas etre envoyes correctement.
-            </Alert>
-          ) : (
-            <Alert color="green" icon={<CheckCircle size={20} weight="bold" />} variant="light">
-              Le service email est configure et pret a envoyer des rappels.
-            </Alert>
-          )}
+          <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
+            Les rappels seront envoyés par email aux managers sélectionnés.
+            Assurez-vous que la configuration SMTP est en place.
+          </Alert>
 
           <Text fw={500} c="white">Managers selectionnes : {selectedManagers.length}</Text>
 
@@ -1818,19 +1831,29 @@ export default function FormationsKPIsPage() {
             </Accordion.Item>
           </Accordion>
 
-          <Group justify="flex-end" mt="md">
-            <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)} disabled={sendingReminders}>
-              Annuler
-            </Button>
+          <Group justify="space-between" mt="md">
             <Button
-              color="orange"
-              leftSection={<EnvelopeSimple size={18} weight="bold" />}
-              onClick={handleSendReminders}
-              loading={sendingReminders}
-              disabled={!emailStatus?.configured}
+              variant="light"
+              color="blue"
+              onClick={handleCheckSmtp}
+              loading={smtpLoading}
+              size="xs"
             >
-              {emailStatus?.configured ? 'Envoyer les rappels' : 'Service email non configure'}
+              Vérifier config SMTP
             </Button>
+            <Group>
+              <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)}>
+                Annuler
+              </Button>
+              <Button
+                color="orange"
+                leftSection={<EnvelopeSimple size={18} weight="bold" />}
+                onClick={handleSendReminders}
+                loading={sendingReminders}
+              >
+                Envoyer les rappels
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Modal>

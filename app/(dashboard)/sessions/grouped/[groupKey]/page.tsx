@@ -45,6 +45,8 @@ import { sessionsService } from '@/lib/services';
 import { GroupedSession } from '@/lib/types';
 import { TodoList } from '@/components/session-todos/TodoList';
 import { DocumentGenerator } from '@/components/documents';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
+import { Paperclip } from '@phosphor-icons/react';
 
 interface Props {
   params: {
@@ -400,6 +402,11 @@ export default function GroupedSessionDetailPage({ params }: Props) {
             <Tabs.Tab value="checklist" leftSection={<ListChecks size={16} />}>
               Checklist de préparation
             </Tabs.Tab>
+            {session.participants.length > 0 && (
+              <Tabs.Tab value="attachments" leftSection={<Paperclip size={16} />}>
+                Pièces jointes
+              </Tabs.Tab>
+            )}
           </Tabs.List>
 
           <Tabs.Panel value="participants" pt="xl">
@@ -497,6 +504,15 @@ export default function GroupedSessionDetailPage({ params }: Props) {
           <Tabs.Panel value="checklist" pt="xl">
             <TodoList groupKey={session.groupKey} typeFormation={session.typeFormation} />
           </Tabs.Panel>
+
+          {session.participants.length > 0 && (
+            <Tabs.Panel value="attachments" pt="xl">
+              <AttachmentManager
+                targetType="session"
+                targetId={session.participants[0].sessionId}
+              />
+            </Tabs.Panel>
+          )}
         </Tabs>
       </Paper>
     </Container>

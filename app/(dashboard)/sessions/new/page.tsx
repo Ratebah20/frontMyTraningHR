@@ -24,6 +24,7 @@ import {
   MultiSelect,
   Switch,
   Tooltip,
+  Checkbox,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -41,6 +42,9 @@ import {
   Clock,
   FileText,
   Users,
+  EnvelopeSimple,
+  ListChecks,
+  Paperclip,
 } from '@phosphor-icons/react';
 import { formatDateOnly } from '@/lib/utils/date.utils';
 import {
@@ -57,9 +61,12 @@ import {
   OrganismeFormation,
   CreateCollectiveSessionDto
 } from '@/lib/types';
+import { notificationsService } from '@/lib/services/notifications.service';
 import { FormationFormModal } from '@/components/formations/FormationFormModal';
 import { SessionTypeSelector } from '@/components/sessions/SessionTypeSelector';
 import { ParticipantSelector } from '@/components/sessions/ParticipantSelector';
+import { TodoList } from '@/components/session-todos/TodoList';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
 
 export default function NewSessionPage() {
   const router = useRouter();
@@ -68,6 +75,14 @@ export default function NewSessionPage() {
   const [sessionType, setSessionType] = useState<'individuelle' | 'collective'>('individuelle');
   const [batchMode, setBatchMode] = useState(false);
   const [formationModalOpened, setFormationModalOpened] = useState(false);
+  const [sendEmail, setSendEmail] = useState(false);
+  const [addDocuments, setAddDocuments] = useState(false);
+  const [addTemplate, setAddTemplate] = useState(false);
+  const [createdSession, setCreatedSession] = useState<{
+    id: number;
+    type: 'individuelle' | 'collective';
+    groupKey: string;
+  } | null>(null);
 
   // Données pour les selects
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -267,6 +282,17 @@ export default function NewSessionPage() {
     loadFormationDetails();
   }, [form.values.formationId, sessionType]);
 
+  const needsPostCreation = addDocuments || addTemplate;
+
+  function buildGroupKey(formationId: number, dateDebut: any, dateFin: any): string {
+    const fmt = (d: any) => {
+      if (!d) return 'null';
+      if (d instanceof Date) return formatDateOnly(d) || 'null';
+      return String(d);
+    };
+    return `${formationId}_${fmt(dateDebut)}_${fmt(dateFin)}`;
+  }
+
   const handleSubmit = async (values: any) => {
     // Validation spécifique selon le type
     if (sessionType === 'individuelle') {
@@ -326,7 +352,7 @@ export default function NewSessionPage() {
             }, 'individuelle')
           );
 
-          await Promise.all(promises);
+          const results = await Promise.all(promises);
 
           notifications.show({
             title: 'Succès',
@@ -334,9 +360,23 @@ export default function NewSessionPage() {
             color: 'green',
             icon: <CheckCircle size={20} />,
           });
+
+          // Envoyer les emails si coché
+          if (sendEmail) {
+            try {
+              for (const r of results) {
+                await notificationsService.sendSessionNotification(r.id, 'individuelle');
+              }
+              notifications.show({ title: 'Email', message: `${results.length} notification(s) envoyée(s)`, color: 'blue', icon: <EnvelopeSimple size={20} /> });
+            } catch {
+              notifications.show({ title: 'Email', message: 'Erreur lors de l\'envoi des notifications', color: 'orange', icon: <Warning size={20} /> });
+            }
+          }
+
+          router.push(returnTo || '/sessions');
         } else {
           // Mode simple : créer une seule session
-          await SessionsUnifiedService.create(baseData, 'individuelle');
+          const result = await SessionsUnifiedService.create(baseData, 'individuelle');
 
           notifications.show({
             title: 'Succès',
@@ -344,6 +384,26 @@ export default function NewSessionPage() {
             color: 'green',
             icon: <CheckCircle size={20} />,
           });
+
+          // Envoyer l'email si coché
+          if (sendEmail) {
+            try {
+              const emailResult = await notificationsService.sendSessionNotification(result.id, 'individuelle');
+              notifications.show({ title: 'Email', message: emailResult.message, color: emailResult.success ? 'blue' : 'orange', icon: <EnvelopeSimple size={20} /> });
+            } catch {
+              notifications.show({ title: 'Email', message: 'Erreur lors de l\'envoi de la notification', color: 'orange', icon: <Warning size={20} /> });
+            }
+          }
+
+          if (needsPostCreation) {
+            setCreatedSession({
+              id: result.id,
+              type: 'individuelle',
+              groupKey: buildGroupKey(values.formationId, values.dateDebut, values.dateFin),
+            });
+          } else {
+            router.push(`/sessions/${result.id}?type=individuelle`);
+          }
         }
       } else {
         // Session collective
@@ -367,7 +427,7 @@ export default function NewSessionPage() {
           participantIds: participantIds,
         };
 
-        await SessionsUnifiedService.create(collectiveData, 'collective');
+        const result = await SessionsUnifiedService.create(collectiveData, 'collective');
 
         notifications.show({
           title: 'Succès',
@@ -375,9 +435,27 @@ export default function NewSessionPage() {
           color: 'green',
           icon: <CheckCircle size={20} />,
         });
-      }
 
-      router.push(returnTo || '/sessions');
+        // Envoyer l'email si coché
+        if (sendEmail) {
+          try {
+            const emailResult = await notificationsService.sendSessionNotification(result.id, 'collective');
+            notifications.show({ title: 'Email', message: emailResult.message, color: emailResult.success ? 'blue' : 'orange', icon: <EnvelopeSimple size={20} /> });
+          } catch {
+            notifications.show({ title: 'Email', message: 'Erreur lors de l\'envoi des notifications', color: 'orange', icon: <Warning size={20} /> });
+          }
+        }
+
+        if (needsPostCreation) {
+          setCreatedSession({
+            id: result.id,
+            type: 'collective',
+            groupKey: buildGroupKey(values.formationId, values.dateDebut, values.dateFin),
+          });
+        } else {
+          router.push(`/sessions/${result.id}?type=collective`);
+        }
+      }
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || `Erreur lors de la création de la session ${sessionType}`;
 
@@ -436,24 +514,30 @@ export default function NewSessionPage() {
     <Container size="md">
       <Group justify="space-between" mb="xl">
         <div>
-          <Title order={2}>Nouvelle session</Title>
+          <Title order={2}>{createdSession ? 'Session créée' : 'Nouvelle session'}</Title>
           <Text c="dimmed">
-            {sessionType === 'collective'
-              ? 'Créer une session collective avec plusieurs participants'
-              : batchMode
-                ? 'Inscrire plusieurs collaborateurs à une formation'
-                : 'Inscrire un collaborateur à une formation'}
+            {createdSession
+              ? 'Complétez votre session avec des tâches et documents'
+              : sessionType === 'collective'
+                ? 'Créer une session collective avec plusieurs participants'
+                : batchMode
+                  ? 'Inscrire plusieurs collaborateurs à une formation'
+                  : 'Inscrire un collaborateur à une formation'}
           </Text>
         </div>
         <Button
           variant="subtle"
           leftSection={<ArrowLeft size={20} />}
-          onClick={() => router.back()}
+          onClick={() => createdSession
+            ? router.push(`/sessions/${createdSession.id}?type=${createdSession.type}`)
+            : router.back()
+          }
         >
-          Retour
+          {createdSession ? 'Voir la session' : 'Retour'}
         </Button>
       </Group>
 
+      {!createdSession && (
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="lg">
           {/* Sélecteur de type de session */}
@@ -833,7 +917,35 @@ export default function NewSessionPage() {
             </Alert>
           )}
 
-          {/* Actions */}
+          {/* Options post-création */}
+          <Paper shadow="xs" p="lg" radius="md" withBorder>
+            <Stack gap="sm">
+              <Checkbox
+                label="Appliquer un template de tâches"
+                description="Ajouter une checklist de préparation après la création"
+                checked={addTemplate}
+                onChange={(event) => setAddTemplate(event.currentTarget.checked)}
+              />
+              <Checkbox
+                label="Ajouter des pièces jointes"
+                description="Uploader des documents après la création"
+                checked={addDocuments}
+                onChange={(event) => setAddDocuments(event.currentTarget.checked)}
+              />
+              <Checkbox
+                label="Envoyer un email de notification"
+                description={sessionType === 'collective'
+                  ? 'Notifier les participants par email'
+                  : batchMode
+                    ? 'Notifier les collaborateurs par email'
+                    : 'Notifier le collaborateur par email'}
+                checked={sendEmail}
+                onChange={(event) => setSendEmail(event.currentTarget.checked)}
+              />
+            </Stack>
+          </Paper>
+
+          {/* Boutons */}
           <Group justify="flex-end">
             <Button
               variant="subtle"
@@ -856,6 +968,57 @@ export default function NewSessionPage() {
           </Group>
         </Stack>
       </form>
+      )}
+
+      {/* Vue post-création : template + documents */}
+      {createdSession && (
+        <Stack gap="lg">
+          <Alert color="green" title="Session créée avec succès" icon={<CheckCircle size={20} />}>
+            <Text size="sm">
+              {addTemplate && addDocuments
+                ? 'Ajoutez vos tâches et documents ci-dessous, puis accédez à la session.'
+                : addTemplate
+                  ? 'Ajoutez vos tâches ci-dessous, puis accédez à la session.'
+                  : 'Ajoutez vos documents ci-dessous, puis accédez à la session.'}
+            </Text>
+          </Alert>
+
+          {addTemplate && (
+            <Paper shadow="xs" p="lg" radius="md" withBorder>
+              <Group align="center" mb="md">
+                <ListChecks size={20} />
+                <Text fw={600}>Checklist de préparation</Text>
+              </Group>
+              <TodoList
+                groupKey={createdSession.groupKey}
+                typeFormation={selectedFormation?.typeFormation}
+              />
+            </Paper>
+          )}
+
+          {addDocuments && (
+            <Paper shadow="xs" p="lg" radius="md" withBorder>
+              <Group align="center" mb="md">
+                <Paperclip size={20} />
+                <Text fw={600}>Pièces jointes</Text>
+              </Group>
+              <AttachmentManager
+                targetType={createdSession.type === 'collective' ? 'sessionCollective' : 'session'}
+                targetId={createdSession.id}
+              />
+            </Paper>
+          )}
+
+          <Group justify="flex-end">
+            <Button
+              onClick={() => router.push(`/sessions/${createdSession.id}?type=${createdSession.type}`)}
+              leftSection={<CheckCircle size={16} />}
+            >
+              Voir la session
+            </Button>
+          </Group>
+        </Stack>
+      )}
 
       {/* Modale de création de formation */}
       <FormationFormModal

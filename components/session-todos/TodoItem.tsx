@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { Paper, Group, Checkbox, Text, Badge, ActionIcon, Menu, Tooltip } from '@mantine/core';
-import { PencilSimple, Trash, DotsThree, CalendarBlank } from '@phosphor-icons/react';
+import { PencilSimple, Trash, DotsThree, CalendarBlank, Paperclip } from '@phosphor-icons/react';
 import { format, isPast } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { SessionTodo } from '@/lib/types';
+import AttachmentManager from '@/components/attachments/AttachmentManager';
 
 interface TodoItemProps {
   todo: SessionTodo;
@@ -125,6 +126,8 @@ export default function TodoItem({ todo, onToggle, onEdit, onDelete, draggable }
                   </Badge>
                 </Tooltip>
               )}
+
+              <AttachmentManager targetType="todo" targetId={todo.id} compact />
             </Group>
 
             {todo.description && (

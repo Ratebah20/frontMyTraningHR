@@ -30,7 +30,6 @@ import { useDisclosure } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Progress } from '@mantine/core';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   House,
   UsersThree,
@@ -201,8 +200,6 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
   const sidebarRef = useRef<HTMLDivElement>(null);
   const linksRef = useRef<HTMLDivElement[]>([]);
 
-  // Mount and collapse animations are handled via framer-motion props below
-
   const toggleExpanded = (label: string) => {
     setExpandedItems(prev => 
       prev.includes(label) 
@@ -277,9 +274,15 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
     const isParentOrActive = isParentActive(item);
 
     return (
-      <div key={item.label} ref={(el) => {
-        if (el) linksRef.current[index] = el;
-      }}>
+      <div
+        key={item.label}
+        ref={(el) => {
+          if (el) linksRef.current[index] = el;
+        }}
+        style={{
+          animation: `sidebarSlideIn 0.3s cubic-bezier(0.33, 1, 0.68, 1) ${0.2 + index * 0.05}s both`,
+        }}
+      >
         <UnstyledButton
           onClick={() => {
             if (item.subItems) {
@@ -314,12 +317,14 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
                   </Badge>
                 )}
                 {item.subItems && (
-                  <motion.div
-                    animate={{ rotate: isExpanded ? 90 : 0 }}
-                    transition={{ duration: 0.2 }}
+                  <div
+                    style={{
+                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                      transition: 'transform 0.2s ease',
+                    }}
                   >
                     <CaretRight size={14} />
-                  </motion.div>
+                  </div>
                 )}
               </>
             )}
@@ -347,22 +352,23 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
   });
 
   return (
-    <motion.div
+    <div
       ref={sidebarRef}
-      style={navbarStyles}
-      initial={{ x: -300, opacity: 0 }}
-      animate={{ x: 0, opacity: 1, width: collapsed ? 80 : 300 }}
-      transition={{ duration: 0.3, ease: [0.33, 1, 0.68, 1] }}
+      style={{
+        ...navbarStyles,
+        width: collapsed ? 80 : 300,
+        animation: 'sidebarContainerIn 0.3s cubic-bezier(0.33, 1, 0.68, 1) both',
+      }}
     >
       <Stack h="100%" gap={0}>
         {/* Header */}
         <Box p="md" pb={0}>
           <Flex align="center" justify="space-between">
             {!collapsed ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
+              <div
+                style={{
+                  animation: 'sidebarFadeIn 0.3s ease 0.3s both',
+                }}
               >
                 <Group>
                   <ThemeIcon size="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
@@ -373,7 +379,7 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
                     <Text size="xs" c="dimmed">Gestion des formations</Text>
                   </div>
                 </Group>
-              </motion.div>
+              </div>
             ) : (
               <ThemeIcon size="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
                 <GraduationCap size={28} weight="duotone" />
@@ -505,6 +511,6 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
           )}
         </Box>
       </Stack>
-    </motion.div>
+    </div>
   );
 }

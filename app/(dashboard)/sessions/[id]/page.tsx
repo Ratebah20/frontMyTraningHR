@@ -75,7 +75,11 @@ import { formatDuration } from '@/lib/utils/duration.utils';
 import { TodoList } from '@/components/session-todos/TodoList';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
 import { ParticipantList } from '@/components/sessions/ParticipantList';
-import { DocumentGenerator } from '@/components/documents';
+import dynamic from 'next/dynamic';
+const DocumentGenerator = dynamic(
+  () => import('@/components/documents/DocumentGenerator').then(mod => mod.DocumentGenerator),
+  { ssr: false, loading: () => null }
+);
 import AttachmentManager from '@/components/attachments/AttachmentManager';
 
 interface Props {

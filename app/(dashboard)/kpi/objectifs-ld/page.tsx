@@ -40,16 +40,11 @@ import {
   PencilSimple,
   CurrencyDollar,
 } from '@phosphor-icons/react';
-import {
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ResponsiveContainer,
-  Tooltip as RechartsTooltip,
-  Legend,
-} from 'recharts';
+import dynamic from 'next/dynamic';
+const LazyObjectifsRadarChart = dynamic(
+  () => import('@/components/charts/ObjectifsRadarChart').then(mod => mod.ObjectifsRadarChart),
+  { ssr: false, loading: () => <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>Chargement du graphique...</div> }
+);
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { statsService } from '@/lib/services';
 
@@ -356,43 +351,7 @@ export default function ObjectifsLdPage() {
             <Text c="dimmed" size="sm" mb="lg">
               Comparaison entre les taux d'atteinte et les objectifs cibles par catégorie
             </Text>
-            <ResponsiveContainer width="100%" height={400}>
-              <RadarChart data={radarData}>
-                <PolarGrid stroke="#555" />
-                <PolarAngleAxis
-                  dataKey="category"
-                  tick={({ x, y, payload, textAnchor }: any) => (
-                    <text x={x} y={y} fill="#ffffff" fontSize={12} textAnchor={textAnchor} dy={4}>
-                      {payload.value}
-                    </text>
-                  )}
-                />
-                <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
-                <Radar
-                  name="Objectif cible (%)"
-                  dataKey="objectif"
-                  stroke="#228be6"
-                  fill="#228be6"
-                  fillOpacity={0.15}
-                  strokeDasharray="5 5"
-                  strokeWidth={2}
-                />
-                <Radar
-                  name="Taux d'atteinte (%)"
-                  dataKey="atteinte"
-                  stroke="#ff7900"
-                  fill="#ff7900"
-                  fillOpacity={0.4}
-                  strokeWidth={2}
-                />
-                <RechartsTooltip
-                  contentStyle={{ backgroundColor: '#1a1b1e', border: '1px solid #373A40', borderRadius: 8 }}
-                  labelStyle={{ color: '#c1c2c5' }}
-                  formatter={(value: number) => `${value}%`}
-                />
-                <Legend />
-              </RadarChart>
-            </ResponsiveContainer>
+            <LazyObjectifsRadarChart data={radarData} />
           </Card>
         )}
 

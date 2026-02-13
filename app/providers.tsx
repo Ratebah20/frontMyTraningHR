@@ -5,7 +5,6 @@ import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { mantineTheme } from '@/lib/mantine-theme';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { GSAPProvider } from '@/components/providers/gsap-provider';
 import { Spotlight } from '@mantine/spotlight';
 import { MagnifyingGlass, House, ChartBar, FileText, UsersThree } from '@phosphor-icons/react';
 import { NavigationProgress } from '@mantine/nprogress';
@@ -48,12 +47,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ModalsProvider>
         <Notifications position="top-right" />
         <AuthProvider>
-          <GSAPProvider>
-            {children}
-            <Spotlight
-              actions={spotlightActions}
-            />
-          </GSAPProvider>
+          {children}
+          <Spotlight
+            actions={spotlightActions}
+          />
         </AuthProvider>
       </ModalsProvider>
     </MantineProvider>

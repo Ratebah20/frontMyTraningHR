@@ -25,7 +25,7 @@ import {
   Table,
   SegmentedControl,
 } from '@mantine/core';
-import { AreaChart, DonutChart, BarChart } from '@tremor/react';
+// @tremor/react charts removed - were imported but never used in JSX
 import { 
   Users, 
   GraduationCap, 

@@ -44,7 +44,11 @@ import { notifications } from '@mantine/notifications';
 import { sessionsService } from '@/lib/services';
 import { GroupedSession } from '@/lib/types';
 import { TodoList } from '@/components/session-todos/TodoList';
-import { DocumentGenerator } from '@/components/documents';
+import dynamic from 'next/dynamic';
+const DocumentGenerator = dynamic(
+  () => import('@/components/documents/DocumentGenerator').then(mod => mod.DocumentGenerator),
+  { ssr: false, loading: () => null }
+);
 import AttachmentManager from '@/components/attachments/AttachmentManager';
 import { Paperclip } from '@phosphor-icons/react';
 

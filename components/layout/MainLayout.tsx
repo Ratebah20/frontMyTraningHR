@@ -24,8 +24,6 @@ import { useDisclosure, useWindowScroll, useHotkeys } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
 import { NavigationProgress, nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
-import { gsap } from 'gsap';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Bell,
   ChatCircle,
@@ -102,17 +100,8 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
     if (isScrolled === lastScrollState.current) return;
     lastScrollState.current = isScrolled;
 
-    if (isScrolled) {
-      gsap.to(header, {
-        boxShadow: '0 1px 3px rgba(0, 0, 0, .1)',
-        duration: 0.3,
-      });
-    } else {
-      gsap.to(header, {
-        boxShadow: 'none',
-        duration: 0.3,
-      });
-    }
+    header.style.transition = 'box-shadow 0.3s ease';
+    header.style.boxShadow = isScrolled ? '0 1px 3px rgba(0, 0, 0, .1)' : 'none';
   }, [scroll]);
 
   // Raccourcis clavier
@@ -155,11 +144,11 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
               {/* Breadcrumbs */}
               <Group>
                 {getBreadcrumbs().map((crumb, index) => (
-                  <motion.div
+                  <div
                     key={crumb.href}
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
+                    style={{
+                      animation: `breadcrumbIn 0.3s ease ${index * 0.1}s both`,
+                    }}
                   >
                     <Text
                       component="a"
@@ -173,7 +162,7 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
                     {index < getBreadcrumbs().length - 1 && (
                       <Text span size="sm" c="dimmed" mx="xs">/</Text>
                     )}
-                  </motion.div>
+                  </div>
                 ))}
               </Group>
 
@@ -226,28 +215,19 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
                   variant="light"
                   size="lg"
                   onClick={() => toggleColorScheme()}
+                  style={{ overflow: 'hidden' }}
                 >
-                  <AnimatePresence mode="wait">
-                    {colorScheme === 'dark' ? (
-                      <motion.div
-                        key="sun"
-                        initial={{ rotate: -90, opacity: 0 }}
-                        animate={{ rotate: 0, opacity: 1 }}
-                        exit={{ rotate: 90, opacity: 0 }}
-                      >
-                        <Sun size={20} />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="moon"
-                        initial={{ rotate: 90, opacity: 0 }}
-                        animate={{ rotate: 0, opacity: 1 }}
-                        exit={{ rotate: -90, opacity: 0 }}
-                      >
-                        <Moon size={20} />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <div
+                    key={colorScheme}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      animation: 'themeIconIn 0.3s ease both',
+                    }}
+                  >
+                    {colorScheme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                  </div>
                 </ActionIcon>
 
                 {/* Menu utilisateur */}
@@ -359,13 +339,9 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
 
         <AppShell.Main>
           <Container size="xl" px="xl">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-            >
+            <div style={{ animation: 'pageContentIn 0.3s ease both' }}>
               {children}
-            </motion.div>
+            </div>
           </Container>
         </AppShell.Main>
       </AppShell>

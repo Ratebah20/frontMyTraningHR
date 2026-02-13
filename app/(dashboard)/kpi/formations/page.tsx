@@ -8,7 +8,11 @@ import { Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire, Funnel, UsersFour,
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, LineChart, Line, LabelList, Cell } from 'recharts'
+import dynamic from 'next/dynamic'
+const LazyTauxFormationContratGraphique = dynamic(
+  () => import('@/components/charts/TauxFormationContratGraphique').then(mod => mod.TauxFormationContratGraphique),
+  { ssr: false, loading: () => <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>Chargement du graphique...</div> }
+)
 import { statsService, notificationsService } from '@/lib/services'
 import styles from './formations.module.css'
 
@@ -402,189 +406,8 @@ function TauxFormationContratChart({
   )
 }
 
-// Composant graphique Recharts pour le taux de formation par contrat
-function TauxFormationContratGraphique({
-  data,
-  selectedContrats,
-  selectedAnnee
-}: {
-  data: TauxFormationContrat
-  selectedContrats: string[]
-  selectedAnnee: number | 'all'
-}) {
-  // Filtrer les contrats à afficher
-  const contratsAffiches = data.parContrat.filter(c =>
-    selectedContrats.length === 0 || selectedContrats.includes(c.contratId.toString())
-  )
-
-  // Préparer les données pour le graphique
-  if (selectedAnnee !== 'all') {
-    // Vue année unique - Bar chart horizontal
-    const chartData = contratsAffiches
-      .map(contrat => {
-        const stats = contrat.annees[selectedAnnee]
-        if (!stats || stats.effectif === 0) return null
-        return {
-          name: contrat.typeContrat,
-          taux: stats.tauxFormation,
-          formes: stats.formes,
-          effectif: stats.effectif,
-          fill: getContractColor(contrat.typeContrat)
-        }
-      })
-      .filter(Boolean)
-
-    // Ajouter le total
-    if (data.totauxParAnnee[selectedAnnee]) {
-      chartData.push({
-        name: 'Total',
-        taux: data.totauxParAnnee[selectedAnnee].tauxFormation,
-        formes: data.totauxParAnnee[selectedAnnee].formes,
-        effectif: data.totauxParAnnee[selectedAnnee].effectif,
-        fill: '#ff7900'
-      })
-    }
-
-    return (
-      <motion.div
-        className={styles.chartContainer}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 50)}>
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{ top: 20, right: 30, left: 100, bottom: 20 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis
-              type="number"
-              domain={[0, 100]}
-              tickFormatter={(value) => `${value}%`}
-              stroke="rgba(255,255,255,0.7)"
-              tick={{ fill: 'white' }}
-              fontSize={12}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              stroke="rgba(255,255,255,0.7)"
-              tick={{ fill: 'white' }}
-              fontSize={12}
-              width={90}
-            />
-            <RechartsTooltip
-              contentStyle={{
-                backgroundColor: 'rgba(26, 26, 46, 0.95)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: '8px',
-                color: 'white'
-              }}
-              formatter={(value: number, name: string, props: any) => [
-                `${value}% (${props.payload.formes}/${props.payload.effectif} formés)`,
-                'Taux de formation'
-              ]}
-            />
-            <Bar dataKey="taux" radius={[0, 4, 4, 0]}>
-              {chartData.map((entry: any, index: number) => (
-                <Cell key={`cell-${index}`} fill={entry?.fill || '#6b7280'} />
-              ))}
-              <LabelList
-                dataKey="taux"
-                position="right"
-                fill="#ffffff"
-                fontSize={12}
-                fontWeight={600}
-                formatter={(value: number) => `${value}%`}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </motion.div>
-    )
-  }
-
-  // Vue multi-années - Line chart ou grouped bar chart
-  const chartData = data.annees.map(annee => {
-    const point: any = { annee: annee.toString() }
-
-    contratsAffiches.forEach(contrat => {
-      const stats = contrat.annees[annee]
-      if (stats) {
-        point[contrat.typeContrat] = stats.tauxFormation
-      }
-    })
-
-    // Ajouter le total
-    if (data.totauxParAnnee[annee]) {
-      point['Total'] = data.totauxParAnnee[annee].tauxFormation
-    }
-
-    return point
-  })
-
-  return (
-    <motion.div
-      className={styles.chartContainer}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <ResponsiveContainer width="100%" height={400}>
-        <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-          <XAxis
-            dataKey="annee"
-            stroke="rgba(255,255,255,0.7)"
-            tick={{ fill: 'white' }}
-            fontSize={12}
-          />
-          <YAxis
-            domain={[0, 100]}
-            tickFormatter={(value) => `${value}%`}
-            stroke="rgba(255,255,255,0.7)"
-            tick={{ fill: 'white' }}
-            fontSize={12}
-          />
-          <RechartsTooltip
-            contentStyle={{
-              backgroundColor: 'rgba(26, 26, 46, 0.95)',
-              border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '8px',
-              color: 'white'
-            }}
-            formatter={(value: number) => [`${value}%`, '']}
-          />
-          <Legend
-            wrapperStyle={{ color: 'white', paddingTop: '20px' }}
-          />
-          {contratsAffiches.map(contrat => (
-            <Line
-              key={contrat.contratId}
-              type="monotone"
-              dataKey={contrat.typeContrat}
-              stroke={getContractColor(contrat.typeContrat)}
-              strokeWidth={2}
-              dot={{ fill: getContractColor(contrat.typeContrat), strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6 }}
-            />
-          ))}
-          <Line
-            type="monotone"
-            dataKey="Total"
-            stroke="#ff7900"
-            strokeWidth={3}
-            strokeDasharray="5 5"
-            dot={{ fill: '#ff7900', strokeWidth: 2, r: 5 }}
-            activeDot={{ r: 7 }}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-    </motion.div>
-  )
-}
+// TauxFormationContratGraphique moved to @/components/charts/TauxFormationContratGraphique
+// and loaded via next/dynamic (LazyTauxFormationContratGraphique) for code splitting
 
 // Interface for mandatory trainings KPIs
 interface MandatoryTrainingsKPIs {
@@ -1341,10 +1164,11 @@ export default function FormationsKPIsPage() {
                   selectedAnnee={selectedAnnee}
                 />
               ) : (
-                <TauxFormationContratGraphique
+                <LazyTauxFormationContratGraphique
                   data={tauxContratData}
                   selectedContrats={selectedContrats}
                   selectedAnnee={selectedAnnee}
+                  chartContainerClass={styles.chartContainer}
                 />
               )}
             </>

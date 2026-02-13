@@ -10,23 +10,16 @@ import {
   Button,
   Title,
   Text,
-  Anchor,
   Container,
   Group,
-  Center,
-  Box,
-  BackgroundImage,
-  Overlay,
   Stack,
   ThemeIcon,
-  Divider,
   Alert,
   useMantineColorScheme,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { gsap } from 'gsap';
-import { motion } from 'framer-motion';
+import { motion, useAnimate } from 'framer-motion';
 import { 
   GraduationCap, 
   User, 
@@ -38,11 +31,6 @@ import {
 } from '@phosphor-icons/react';
 import { WarningCircle } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/AuthContext';
-import Lottie from 'lottie-react';
-
-// Import animation JSON (vous devrez ajouter un fichier animation)
-// import loginAnimation from '@/assets/animations/login.json';
-
 // Composant principal avec useSearchParams
 function LoginContent() {
   const router = useRouter();
@@ -52,7 +40,12 @@ function LoginContent() {
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('rememberMe') === 'true';
+    }
+    return false;
+  });
   const [isLogging, setIsLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -63,15 +56,16 @@ function LoginContent() {
   const emailInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
   
-  // Refs pour animations GSAP
+  // Refs pour animations
   const formRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
   const bearContainerRef = useRef<HTMLDivElement>(null);
+  const [formScope, formAnimate] = useAnimate();
 
   const form = useForm({
     initialValues: {
-      email: '',
+      email: typeof window !== 'undefined' ? (localStorage.getItem('rememberedEmail') || '') : '',
       password: '',
     },
     validate: {
@@ -143,52 +137,7 @@ function LoginContent() {
     }
   }, [form.values.email, isPasswordFocused]);
 
-  // Animations au montage
-  useEffect(() => {
-    const tl = gsap.timeline();
-
-    // Animation du titre
-    if (titleRef.current) {
-      tl.fromTo(titleRef.current,
-        { opacity: 0, y: -50 },
-        { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }
-      );
-    }
-
-    // Animation du formulaire
-    if (formRef.current) {
-      tl.fromTo(formRef.current,
-        { opacity: 0, scale: 0.9 },
-        { opacity: 1, scale: 1, duration: 0.6, ease: "back.out(1.7)" },
-        "-=0.4"
-      );
-    }
-
-    // Animation de l'ours
-    if (bearContainerRef.current) {
-      tl.fromTo(bearContainerRef.current,
-        { opacity: 0, y: -30, rotate: -10 },
-        { opacity: 1, y: 0, rotate: 0, duration: 0.8, ease: "bounce.out" },
-        "-=0.5"
-      );
-    }
-
-    // Animation des features
-    if (featuresRef.current) {
-      const features = featuresRef.current.querySelectorAll('.feature-item');
-      tl.fromTo(features,
-        { opacity: 0, x: -30 },
-        { 
-          opacity: 1, 
-          x: 0, 
-          duration: 0.5, 
-          stagger: 0.1,
-          ease: "power2.out" 
-        },
-        "-=0.3"
-      );
-    }
-  }, []);
+  // Animations are handled via framer-motion initial/animate props on components below
 
   const handleSubmit = async (values: typeof form.values) => {
     setIsLogging(true);
@@ -196,7 +145,16 @@ function LoginContent() {
     
     try {
       await login(values.email, values.password);
-      
+
+      // Sauvegarder ou supprimer l'email selon "Se souvenir de moi"
+      if (rememberMe) {
+        localStorage.setItem('rememberMe', 'true');
+        localStorage.setItem('rememberedEmail', values.email);
+      } else {
+        localStorage.removeItem('rememberMe');
+        localStorage.removeItem('rememberedEmail');
+      }
+
       // Notification de succès
       notifications.show({
         title: 'Connexion réussie',
@@ -206,17 +164,10 @@ function LoginContent() {
       });
       
       // Animation de succès
-      if (formRef.current) {
-        gsap.to(formRef.current, {
-          scale: 0.95,
-          opacity: 0,
-          duration: 0.3,
-          ease: "power2.in",
-          onComplete: () => {
-            router.push(redirectUrl);
-          }
-        });
+      if (formScope.current) {
+        await formAnimate(formScope.current, { scale: 0.95, opacity: 0 }, { duration: 0.3, ease: "easeIn" });
       }
+      router.push(redirectUrl);
     } catch (error: any) {
       console.error('Erreur de connexion:', error);
       const errorMessage = error.message || 'Identifiants invalides';
@@ -230,13 +181,9 @@ function LoginContent() {
         icon: <WarningCircle size={20} />,
       });
       
-      // Animation d'erreur
-      if (formRef.current) {
-        gsap.to(formRef.current, {
-          x: [-10, 10, -10, 10, 0],
-          duration: 0.4,
-          ease: "power2.inOut"
-        });
+      // Animation d'erreur (shake)
+      if (formScope.current) {
+        await formAnimate(formScope.current, { x: [-10, 10, -10, 10, 0] }, { duration: 0.4, ease: "easeInOut" });
       }
     } finally {
       setIsLogging(false);
@@ -330,7 +277,13 @@ function LoginContent() {
                   <GraduationCap size={35} weight="duotone" />
                 </ThemeIcon>
                 <div>
-                  <Title order={1} ref={titleRef}>My Training HQ</Title>
+                  <motion.div
+                    initial={{ opacity: 0, y: -50 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.8, ease: [0.33, 1, 0.68, 1] }}
+                  >
+                    <Title order={1} ref={titleRef}>My Training HQ</Title>
+                  </motion.div>
                   <Text size="lg" c="dimmed">Système de gestion des formations</Text>
                 </div>
               </Group>
@@ -338,27 +291,33 @@ function LoginContent() {
 
             <Stack gap="xl" mt="xl">
               {features.map((feature, index) => (
-                <Group key={index} className="feature-item">
-                  <ThemeIcon size="lg" radius="md" variant="light" color={feature.color}>
-                    <feature.icon size={24} weight="duotone" />
-                  </ThemeIcon>
-                  <Text size="lg">{feature.text}</Text>
-                </Group>
+                <motion.div
+                  key={index}
+                  className="feature-item"
+                  initial={{ opacity: 0, x: -30 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 + index * 0.1, ease: [0.33, 1, 0.68, 1] }}
+                >
+                  <Group>
+                    <ThemeIcon size="lg" radius="md" variant="light" color={feature.color}>
+                      <feature.icon size={24} weight="duotone" />
+                    </ThemeIcon>
+                    <Text size="lg">{feature.text}</Text>
+                  </Group>
+                </motion.div>
               ))}
             </Stack>
 
-            <Divider my="xl" />
-
-            <Alert icon={<WarningCircle size={16} />} title="Compte de test" color="blue" variant="light">
-              <Text size="sm">
-                Email: <strong>admin@mytraininghq.com</strong><br />
-                Mot de passe: <strong>Admin@123456</strong>
-              </Text>
-            </Alert>
           </div>
 
           {/* Section droite - Formulaire */}
           <div className="relative pt-24">
+            <motion.div
+              ref={formScope}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.6, delay: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+            >
             <Paper
               ref={formRef}
               radius="lg"
@@ -367,9 +326,12 @@ function LoginContent() {
               className="backdrop-blur-sm relative"
             >
               {/* Ours animé */}
-              <div 
+              <motion.div
                 ref={bearContainerRef}
                 className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-32 h-32 z-20"
+                initial={{ opacity: 0, y: -30, rotate: -10 }}
+                animate={{ opacity: 1, y: 0, rotate: 0 }}
+                transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.5 }}
               >
                 <img 
                   src={bearImage} 
@@ -379,7 +341,7 @@ function LoginContent() {
                     filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))'
                   }}
                 />
-              </div>
+              </motion.div>
               <Title order={2} ta="center" mb="md">
                 Connexion
               </Title>
@@ -426,16 +388,12 @@ function LoginContent() {
                     disabled={isLogging}
                   />
 
-                  <Group justify="space-between" mt="sm">
-                    <Checkbox
-                      label="Se souvenir de moi"
-                      checked={rememberMe}
-                      onChange={(event) => setRememberMe(event.currentTarget.checked)}
-                    />
-                    <Anchor component="button" type="button" c="dimmed" size="sm">
-                      Mot de passe oublié ?
-                    </Anchor>
-                  </Group>
+                  <Checkbox
+                    label="Se souvenir de moi"
+                    checked={rememberMe}
+                    onChange={(event) => setRememberMe(event.currentTarget.checked)}
+                    mt="sm"
+                  />
                 </Stack>
 
                 <Button
@@ -453,17 +411,8 @@ function LoginContent() {
                 </Button>
               </form>
 
-              <Divider label="Ou" labelPosition="center" my="lg" />
-
-              <Center>
-                <Text c="dimmed" size="sm">
-                  Pas encore de compte ?{' '}
-                  <Anchor component="button" type="button" fw={700}>
-                    Contactez l'administrateur
-                  </Anchor>
-                </Text>
-              </Center>
             </Paper>
+            </motion.div>
           </div>
         </div>
       </Container>

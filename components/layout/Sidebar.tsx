@@ -30,7 +30,6 @@ import { useDisclosure } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Progress } from '@mantine/core';
-import { gsap } from 'gsap';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   House,
@@ -202,42 +201,7 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
   const sidebarRef = useRef<HTMLDivElement>(null);
   const linksRef = useRef<HTMLDivElement[]>([]);
 
-  // Animation au montage
-  useEffect(() => {
-    if (sidebarRef.current) {
-      const tl = gsap.timeline();
-      
-      // Animation de la sidebar
-      tl.fromTo(sidebarRef.current,
-        { x: -300, opacity: 0 },
-        { x: 0, opacity: 1, duration: 0.5, ease: "power3.out" }
-      );
-
-      // Animation des liens
-      tl.fromTo(linksRef.current,
-        { x: -50, opacity: 0 },
-        { 
-          x: 0, 
-          opacity: 1, 
-          duration: 0.3, 
-          stagger: 0.05,
-          ease: "power2.out" 
-        },
-        "-=0.3"
-      );
-    }
-  }, []);
-
-  // Animation de collapse
-  useEffect(() => {
-    if (sidebarRef.current) {
-      gsap.to(sidebarRef.current, {
-        width: collapsed ? 80 : 300,
-        duration: 0.3,
-        ease: "power2.inOut"
-      });
-    }
-  }, [collapsed]);
+  // Mount and collapse animations are handled via framer-motion props below
 
   const toggleExpanded = (label: string) => {
     setExpandedItems(prev => 
@@ -383,9 +347,12 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
   });
 
   return (
-    <Box
+    <motion.div
       ref={sidebarRef}
       style={navbarStyles}
+      initial={{ x: -300, opacity: 0 }}
+      animate={{ x: 0, opacity: 1, width: collapsed ? 80 : 300 }}
+      transition={{ duration: 0.3, ease: [0.33, 1, 0.68, 1] }}
     >
       <Stack h="100%" gap={0}>
         {/* Header */}
@@ -538,6 +505,6 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
           )}
         </Box>
       </Stack>
-    </Box>
+    </motion.div>
   );
 }

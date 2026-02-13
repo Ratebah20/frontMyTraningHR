@@ -76,6 +76,12 @@ export interface CategorieNonMappee {
   formationsExemples: string[];
 }
 
+export interface CategorieMappee {
+  categorieOL: string;
+  categorieCible: string;
+  nombreFormations: number;
+}
+
 export interface ResolutionCategorie {
   categorieOL: string;
   action: ActionResolutionCategorie;
@@ -145,6 +151,7 @@ export interface ImportPreviewResponse {
   collaborateursInactifs?: CollaborateurInactif[];         // Info seulement
   organismesNonTrouves?: OrganismeNonTrouve[];             // Organismes à créer/ignorer
   categoriesNonMappees?: CategorieNonMappee[];             // Catégories OL non reconnues
+  categoriesMappees?: CategorieMappee[];                   // Catégories OL mappées avec succès
   categoriesCiblesDisponibles?: string[];                  // Catégories cibles disponibles pour le mapping
   sessionsIgnoreesTotal?: number;                          // NON_TROUVE uniquement
 }

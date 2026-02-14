@@ -18,6 +18,19 @@ export { notificationsService } from './notifications.service';
 export type { SendReminderDto, SendRemindersResponse, EmailStatusResponse } from './notifications.service';
 export { attachmentsService } from './attachments.service';
 export type { Attachment } from './attachments.service';
+export { managerAccountsService } from './manager-accounts.service';
+export type { ManagerAccount, ManagerAccountsResponse, InvitableManager, InviteManagerDto, InviteManagerResponse } from './manager-accounts.service';
+export { managerPortalService } from './manager-portal.service';
+export type {
+  ManagerDashboardSummary,
+  ManagerDashboardCharts,
+  ManagerTeamMember,
+  ManagerTeamResponse,
+  ManagerTeamMemberDetail,
+  ManagerTeamFormation,
+  ManagerTeamFormationsResponse,
+  ManagerTeamStats,
+} from './manager-portal.service';
 
 // Ré-export des types pour faciliter l'import
 export * from '../types';

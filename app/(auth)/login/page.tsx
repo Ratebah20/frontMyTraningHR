@@ -19,24 +19,22 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { motion, useAnimate } from 'framer-motion';
-import { 
-  GraduationCap, 
-  User, 
-  Lock,
-  SignIn,
-  Eye,
-  EyeSlash,
-  CheckCircle,
-} from '@phosphor-icons/react';
-import { WarningCircle } from '@phosphor-icons/react';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Lock } from '@phosphor-icons/react/dist/ssr/Lock';
+import { SignIn } from '@phosphor-icons/react/dist/ssr/SignIn';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { EyeSlash } from '@phosphor-icons/react/dist/ssr/EyeSlash';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { useAuth } from '@/contexts/AuthContext';
 // Composant principal avec useSearchParams
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get('redirect') || '/dashboard';
-  const { login, isAuthenticated } = useAuth();
+  const explicitRedirect = searchParams.get('redirect');
+  const successMessage = searchParams.get('success');
+  const { login, isAuthenticated, user } = useAuth();
   const { colorScheme } = useMantineColorScheme();
   const isDark = colorScheme === 'dark';
   const [showPassword, setShowPassword] = useState(false);
@@ -48,20 +46,23 @@ function LoginContent() {
   });
   const [isLogging, setIsLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // États pour les animations de l'ours
+
+  // States for bear animations
   const [bearImage, setBearImage] = useState('/img/watch_bear_0.png');
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [hideAnimationFrame, setHideAnimationFrame] = useState(0);
   const emailInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
-  
-  // Refs pour animations
+
+  // Refs for animations
   const formRef = useRef<HTMLDivElement>(null);
+  const formWrapperRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const featuresRef = useRef<HTMLDivElement>(null);
   const bearContainerRef = useRef<HTMLDivElement>(null);
-  const [formScope, formAnimate] = useAnimate();
+
+  // State for CSS animation classes (shake/success)
+  const [formAnimClass, setFormAnimClass] = useState('');
 
   const form = useForm({
     initialValues: {
@@ -78,26 +79,32 @@ function LoginContent() {
     },
   });
 
-  // Rediriger si déjà connecté
+  // Redirect if already logged in
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push(redirectUrl);
+    if (isAuthenticated && user) {
+      if (explicitRedirect) {
+        router.push(explicitRedirect);
+      } else {
+        // Redirect based on role
+        const defaultRedirect = user.role === 'MANAGER' ? '/manager/dashboard' : '/dashboard';
+        router.push(defaultRedirect);
+      }
     }
-  }, [isAuthenticated, router, redirectUrl]);
+  }, [isAuthenticated, user, router, explicitRedirect]);
 
-  // Fonction pour suivre la position du curseur dans le champ email
+  // Track cursor position in email field
   const handleEmailInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     form.getInputProps('email').onChange(e);
-    
+
     if (!isPasswordFocused) {
       const inputLength = e.target.value.length;
-      const maxLength = 40; // Longueur max approximative d'un email
+      const maxLength = 40;
       const imageIndex = Math.min(Math.floor((inputLength / maxLength) * 20), 20);
       setBearImage(`/img/watch_bear_${imageIndex}.png`);
     }
   }, [form, isPasswordFocused]);
 
-  // Animation de cache-yeux pour le password
+  // Eye-covering animation for password
   const handlePasswordFocus = useCallback(() => {
     setIsPasswordFocused(true);
     let frame = 0;
@@ -109,12 +116,11 @@ function LoginContent() {
       } else {
         clearInterval(animationInterval);
       }
-    }, 50); // Animation rapide
+    }, 50);
   }, []);
 
   const handlePasswordBlur = useCallback(() => {
     setIsPasswordFocused(false);
-    // Animation inverse pour revenir à l'état initial
     let frame = 5;
     const animationInterval = setInterval(() => {
       if (frame >= 0) {
@@ -137,16 +143,14 @@ function LoginContent() {
     }
   }, [form.values.email, isPasswordFocused]);
 
-  // Animations are handled via framer-motion initial/animate props on components below
-
   const handleSubmit = async (values: typeof form.values) => {
     setIsLogging(true);
     setError(null);
-    
+
     try {
       await login(values.email, values.password);
 
-      // Sauvegarder ou supprimer l'email selon "Se souvenir de moi"
+      // Save or remove email based on "Remember me"
       if (rememberMe) {
         localStorage.setItem('rememberMe', 'true');
         localStorage.setItem('rememberedEmail', values.email);
@@ -155,36 +159,34 @@ function LoginContent() {
         localStorage.removeItem('rememberedEmail');
       }
 
-      // Notification de succès
+      // Success notification
       notifications.show({
         title: 'Connexion réussie',
         message: 'Redirection vers le tableau de bord...',
         color: 'green',
         icon: <CheckCircle size={20} />,
       });
-      
-      // Animation de succès
-      if (formScope.current) {
-        await formAnimate(formScope.current, { scale: 0.95, opacity: 0 }, { duration: 0.3, ease: "easeIn" });
-      }
-      router.push(redirectUrl);
+
+      // Success animation via CSS
+      setFormAnimClass('login-success-out');
+      // Redirect is handled by AuthContext.login based on user role
     } catch (error: any) {
       console.error('Erreur de connexion:', error);
       const errorMessage = error.message || 'Identifiants invalides';
       setError(errorMessage);
-      
-      // Notification d'erreur
+
+      // Error notification
       notifications.show({
         title: 'Erreur de connexion',
         message: errorMessage,
         color: 'red',
         icon: <WarningCircle size={20} />,
       });
-      
-      // Animation d'erreur (shake)
-      if (formScope.current) {
-        await formAnimate(formScope.current, { x: [-10, 10, -10, 10, 0] }, { duration: 0.4, ease: "easeInOut" });
-      }
+
+      // Shake animation via CSS
+      setFormAnimClass('login-shake');
+      // Remove class after animation ends so it can be re-triggered
+      setTimeout(() => setFormAnimClass(''), 400);
     } finally {
       setIsLogging(false);
     }
@@ -198,7 +200,7 @@ function LoginContent() {
 
   return (
     <div className="min-h-screen relative overflow-hidden">
-      {/* Background animé */}
+      {/* Background with animated orbs */}
       <div
         className="absolute inset-0"
         style={{
@@ -208,56 +210,29 @@ function LoginContent() {
         }}
       >
         <div className="absolute inset-0">
-          {/* Cercles animés en arrière-plan */}
-          <motion.div
-            className="absolute top-20 left-20 w-72 h-72 rounded-full filter blur-xl"
+          {/* Animated background circles via CSS */}
+          <div
+            className="absolute top-20 left-20 w-72 h-72 rounded-full filter blur-xl login-bg-orb-1"
             style={{
               backgroundColor: isDark ? '#1e3a5f' : '#bfdbfe',
               mixBlendMode: isDark ? 'screen' : 'multiply',
               opacity: isDark ? 0.3 : 0.7,
             }}
-            animate={{
-              x: [0, 100, 0],
-              y: [0, -100, 0],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "linear"
-            }}
           />
-          <motion.div
-            className="absolute bottom-20 right-20 w-72 h-72 rounded-full filter blur-xl"
+          <div
+            className="absolute bottom-20 right-20 w-72 h-72 rounded-full filter blur-xl login-bg-orb-2"
             style={{
               backgroundColor: isDark ? '#4c1d95' : '#e9d5ff',
               mixBlendMode: isDark ? 'screen' : 'multiply',
               opacity: isDark ? 0.3 : 0.7,
             }}
-            animate={{
-              x: [0, -100, 0],
-              y: [0, 100, 0],
-            }}
-            transition={{
-              duration: 15,
-              repeat: Infinity,
-              ease: "linear"
-            }}
           />
-          <motion.div
-            className="absolute top-1/2 left-1/2 w-72 h-72 rounded-full filter blur-xl"
+          <div
+            className="absolute top-1/2 left-1/2 w-72 h-72 rounded-full filter blur-xl login-bg-orb-3"
             style={{
               backgroundColor: isDark ? '#831843' : '#fbcfe8',
               mixBlendMode: isDark ? 'screen' : 'multiply',
               opacity: isDark ? 0.3 : 0.7,
-            }}
-            animate={{
-              x: [0, 50, 0],
-              y: [0, 50, 0],
-            }}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "linear"
             }}
           />
         </div>
@@ -265,38 +240,27 @@ function LoginContent() {
 
       <Container size="xl" className="min-h-screen flex items-center justify-center relative z-10">
         <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-12 items-center">
-          {/* Section gauche - Informations */}
+          {/* Left section - Information */}
           <div ref={featuresRef}>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
+            <div className="login-fade-in-delay-1">
               <Group align="center" mb="xl">
                 <ThemeIcon size={60} radius="xl" variant="gradient" gradient={{ from: 'blue', to: 'cyan' }}>
                   <GraduationCap size={35} weight="duotone" />
                 </ThemeIcon>
                 <div>
-                  <motion.div
-                    initial={{ opacity: 0, y: -50 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8, ease: [0.33, 1, 0.68, 1] }}
-                  >
+                  <div className="login-slide-up">
                     <Title order={1} ref={titleRef}>My Training HQ</Title>
-                  </motion.div>
+                  </div>
                   <Text size="lg" c="dimmed">Système de gestion des formations</Text>
                 </div>
               </Group>
-            </motion.div>
+            </div>
 
             <Stack gap="xl" mt="xl">
               {features.map((feature, index) => (
-                <motion.div
+                <div
                   key={index}
-                  className="feature-item"
-                  initial={{ opacity: 0, x: -30 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.5, delay: 0.5 + index * 0.1, ease: [0.33, 1, 0.68, 1] }}
+                  className={`feature-item login-slide-left-${index}`}
                 >
                   <Group>
                     <ThemeIcon size="lg" radius="md" variant="light" color={feature.color}>
@@ -304,19 +268,17 @@ function LoginContent() {
                     </ThemeIcon>
                     <Text size="lg">{feature.text}</Text>
                   </Group>
-                </motion.div>
+                </div>
               ))}
             </Stack>
 
           </div>
 
-          {/* Section droite - Formulaire */}
+          {/* Right section - Form */}
           <div className="relative pt-24">
-            <motion.div
-              ref={formScope}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+            <div
+              ref={formWrapperRef}
+              className={`login-form-in ${formAnimClass}`}
             >
             <Paper
               ref={formRef}
@@ -325,23 +287,20 @@ function LoginContent() {
               shadow="xl"
               className="backdrop-blur-sm relative"
             >
-              {/* Ours animé */}
-              <motion.div
+              {/* Animated bear */}
+              <div
                 ref={bearContainerRef}
-                className="absolute -top-20 left-1/2 transform -translate-x-1/2 w-32 h-32 z-20"
-                initial={{ opacity: 0, y: -30, rotate: -10 }}
-                animate={{ opacity: 1, y: 0, rotate: 0 }}
-                transition={{ duration: 0.8, delay: 0.3, type: "spring", bounce: 0.5 }}
+                className="absolute -top-20 left-1/2 w-32 h-32 z-20 login-bear-bounce"
               >
-                <img 
-                  src={bearImage} 
-                  alt="Bear mascot" 
+                <img
+                  src={bearImage}
+                  alt="Bear mascot"
                   className="w-full h-full object-contain transition-all duration-100"
                   style={{
                     filter: 'drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1))'
                   }}
                 />
-              </motion.div>
+              </div>
               <Title order={2} ta="center" mb="md">
                 Connexion
               </Title>
@@ -351,12 +310,17 @@ function LoginContent() {
 
               <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack>
+                  {successMessage && (
+                    <Alert icon={<CheckCircle size={16} />} color="green" variant="light">
+                      {successMessage}
+                    </Alert>
+                  )}
                   {error && (
                     <Alert icon={<WarningCircle size={16} />} color="red" variant="light">
                       {error}
                     </Alert>
                   )}
-                  
+
                   <TextInput
                     ref={emailInputRef}
                     label="Email"
@@ -412,7 +376,7 @@ function LoginContent() {
               </form>
 
             </Paper>
-            </motion.div>
+            </div>
           </div>
         </div>
       </Container>
@@ -420,7 +384,7 @@ function LoginContent() {
   );
 }
 
-// Wrapper avec Suspense pour useSearchParams (requis Next.js 14+)
+// Wrapper with Suspense for useSearchParams (required Next.js 14+)
 export default function LoginPage() {
   return (
     <Suspense fallback={

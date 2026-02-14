@@ -85,15 +85,16 @@ const saveTokens = (tokens: AuthTokens): void => {
 // Helper pour supprimer les tokens de localStorage et cookies
 const clearTokens = (): void => {
   if (typeof window === 'undefined') return;
-  
+
   // Supprimer de localStorage
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
-  
+
   // Supprimer les cookies
   removeCookie('accessToken');
   removeCookie('refreshToken');
+  removeCookie('userRole');
 };
 
 // Intercepteur pour ajouter le token aux requêtes
@@ -250,11 +251,16 @@ export const authService = {
     const { accessToken, refreshToken } = tokens;
 
     saveTokens({ accessToken, refreshToken });
-    
+
     if (typeof window !== 'undefined') {
       localStorage.setItem('user', JSON.stringify(user));
     }
-    
+
+    // Save user role in a cookie for middleware access
+    if (user.role) {
+      setCookie('userRole', user.role, 7);
+    }
+
     return response.data;
   },
   
@@ -283,7 +289,12 @@ export const authService = {
     const response = await api.get('/auth/me');
     return response.data;
   },
-  
+
+  async acceptInvitation(token: string, password: string): Promise<{ message: string }> {
+    const response = await api.post('/auth/accept-invitation', { token, password });
+    return response.data;
+  },
+
   isAuthenticated(): boolean {
     const tokens = getTokens();
     console.log('Checking authentication, tokens:', tokens);

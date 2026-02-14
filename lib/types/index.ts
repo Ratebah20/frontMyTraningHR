@@ -1,12 +1,39 @@
+// Types pour les rôles
+export type Role = 'RH' | 'MANAGER';
+
 // Types pour les entités principales
 
 export interface User {
   id: number;
   username: string;
   email: string;
+  role: Role;
+  nom?: string;
+  prenom?: string;
   dateCreation: string;
   derniereConnexion?: string;
   actif: boolean;
+}
+
+// Types pour les comptes manager (admin RH)
+export interface ManagerAccount {
+  id: number;
+  collaborateurId: number;
+  userId?: number;
+  email: string;
+  statut: 'INVITE' | 'ACTIF' | 'SUSPENDU' | 'REVOQUE';
+  dateInvitation?: string;
+  dateActivation?: string;
+  dateSuspension?: string;
+  dateRevocation?: string;
+  collaborateur?: Collaborateur;
+  user?: User;
+}
+
+// DTO pour accepter une invitation
+export interface InvitationAcceptDto {
+  token: string;
+  password: string;
 }
 
 export interface Collaborateur {

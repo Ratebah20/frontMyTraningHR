@@ -30,31 +30,30 @@ import { useDisclosure } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Progress } from '@mantine/core';
-import {
-  House,
-  UsersThree,
-  Books,
-  Calendar,
-  Upload,
-  Download,
-  ChartBar,
-  FileText,
-  Gear,
-  MagnifyingGlass,
-  CaretRight,
-  CaretDown,
-  Clock,
-  ArrowsClockwise,
-  GraduationCap,
-  Certificate,
-  ChartLineUp,
-  User as UserIcon,
-  SignOut as SignOutIcon,
-  Wallet,
-  ListChecks,
-  Building,
-  Robot,
-} from '@phosphor-icons/react';
+import { House } from '@phosphor-icons/react/dist/ssr/House';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
+import { Books } from '@phosphor-icons/react/dist/ssr/Books';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Upload } from '@phosphor-icons/react/dist/ssr/Upload';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
+import { Gear } from '@phosphor-icons/react/dist/ssr/Gear';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { ChartLineUp } from '@phosphor-icons/react/dist/ssr/ChartLineUp';
+import { User as UserIcon } from '@phosphor-icons/react/dist/ssr/User';
+import { SignOut as SignOutIcon } from '@phosphor-icons/react/dist/ssr/SignOut';
+import { Wallet } from '@phosphor-icons/react/dist/ssr/Wallet';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Robot } from '@phosphor-icons/react/dist/ssr/Robot';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { useAuth } from '@/contexts/AuthContext';
 import { spotlight } from '@mantine/spotlight';
 
@@ -181,6 +180,12 @@ const navigationItems: NavigationItem[] = [
     href: '/ai-assistant',
     color: 'grape',
     badge: undefined,
+  },
+  {
+    icon: ShieldCheck,
+    label: 'Comptes managers',
+    href: '/comptes-managers',
+    color: 'indigo',
   },
   {
     icon: Gear,

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from '@/lib/services';
-import { User } from '@/lib/types';
+import { User, Role } from '@/lib/types';
 
 interface AuthContextType {
   user: User | null;
@@ -16,6 +16,19 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+/**
+ * Returns the default redirect path based on user role
+ */
+function getRedirectByRole(role?: string): string {
+  switch (role) {
+    case 'MANAGER':
+      return '/manager/dashboard';
+    case 'RH':
+    default:
+      return '/dashboard';
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -30,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const checkAuth = async () => {
     try {
       setIsLoading(true);
-      
+
       // Vérifier si on a des tokens en localStorage
       if (!authService.isAuthenticated()) {
         console.log('No tokens found in localStorage');
@@ -48,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Ne PAS essayer de récupérer le profil pour éviter les erreurs CORS/connexion
         return;
       }
-      
+
       // Si pas d'utilisateur stocké mais qu'on a des tokens, ne pas rediriger
       console.log('Has tokens but no stored user');
       setUser(null);
@@ -64,12 +77,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authService.login(email, password);
       setUser(response.user);
-      
-      // Rediriger vers le dashboard après connexion
-      router.push('/dashboard');
+
+      // Redirect based on user role
+      const redirectPath = getRedirectByRole(response.user.role);
+      router.push(redirectPath);
     } catch (error: any) {
       console.error('Login failed:', error);
-      
+
       // Propager l'erreur pour que le formulaire puisse l'afficher
       if (error.response?.data?.message) {
         throw new Error(error.response.data.message);

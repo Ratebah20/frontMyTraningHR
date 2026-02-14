@@ -26,23 +26,21 @@ import {
   Table,
   Avatar,
 } from '@mantine/core';
-import {
-  UsersFour,
-  Users,
-  ChartLine,
-  Warning,
-  ArrowsClockwise,
-  MagnifyingGlass,
-  FunnelSimple,
-  TreeStructure,
-  Table as TableIcon,
-  SquaresFour,
-  Eye,
-  Buildings,
-  GraduationCap,
-  CheckCircle,
-  Clock,
-} from '@phosphor-icons/react';
+import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
+import { TreeStructure } from '@phosphor-icons/react/dist/ssr/TreeStructure';
+import { Table as TableIcon } from '@phosphor-icons/react/dist/ssr/Table';
+import { SquaresFour } from '@phosphor-icons/react/dist/ssr/SquaresFour';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { managersService, commonService } from '@/lib/services';
 import { ManagerListResponse, OrganizationHierarchy } from '@/lib/types';
 import { OrganizationChart } from '@/components/managers/OrganizationChart';

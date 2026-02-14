@@ -1,7 +1,8 @@
 'use client';
 
 import { Badge } from '@mantine/core';
-import { User, UsersThree } from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
 
 interface SessionTypeBadgeProps {
   type: 'individuelle' | 'collective';

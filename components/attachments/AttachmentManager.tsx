@@ -13,19 +13,17 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  Paperclip,
-  DownloadSimple,
-  Trash,
-  FilePdf,
-  FileDoc,
-  FileXls,
-  Image,
-  File,
-  UploadSimple,
-  CheckCircle,
-  Warning,
-} from '@phosphor-icons/react';
+import { Paperclip } from '@phosphor-icons/react/dist/ssr/Paperclip';
+import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { FilePdf } from '@phosphor-icons/react/dist/ssr/FilePdf';
+import { FileDoc } from '@phosphor-icons/react/dist/ssr/FileDoc';
+import { FileXls } from '@phosphor-icons/react/dist/ssr/FileXls';
+import { Image } from '@phosphor-icons/react/dist/ssr/Image';
+import { File } from '@phosphor-icons/react/dist/ssr/File';
+import { UploadSimple } from '@phosphor-icons/react/dist/ssr/UploadSimple';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { attachmentsService, Attachment } from '@/lib/services/attachments.service';
 
 type TargetType = 'todo' | 'session' | 'sessionCollective';

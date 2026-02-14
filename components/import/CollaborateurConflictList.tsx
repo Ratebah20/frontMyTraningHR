@@ -12,7 +12,9 @@ import {
   Accordion,
   Alert,
 } from '@mantine/core';
-import { IconAlertTriangle, IconUser, IconUserPlus } from '@tabler/icons-react';
+import { Warning as IconAlertTriangle } from '@phosphor-icons/react/dist/ssr/Warning';
+import { User as IconUser } from '@phosphor-icons/react/dist/ssr/User';
+import { UserPlus as IconUserPlus } from '@phosphor-icons/react/dist/ssr/UserPlus';
 import type {
   CollaborateurProbleme,
   ResolutionCollaborateur,

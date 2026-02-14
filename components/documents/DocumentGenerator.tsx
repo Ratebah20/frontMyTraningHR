@@ -3,13 +3,11 @@
 import { useState } from 'react';
 import { Button, Menu, ActionIcon, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  FilePdf,
-  Envelope,
-  ClipboardText,
-  CaretDown,
-  Printer,
-} from '@phosphor-icons/react';
+import { FilePdf } from '@phosphor-icons/react/dist/ssr/FilePdf';
+import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { Printer } from '@phosphor-icons/react/dist/ssr/Printer';
 import { GroupedSession, CollectiveSession, UnifiedSession } from '@/lib/types';
 import {
   mapGroupedSessionToConvocation,

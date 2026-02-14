@@ -24,21 +24,19 @@ import {
   Stack,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  Plus,
-  PencilSimple,
-  Trash,
-  Warning,
-  CheckCircle,
-  DotsThreeVertical,
-  MagnifyingGlass,
-  Eye,
-  SquaresFour,
-  ListBullets,
-  Buildings,
-  Users,
-  TreeStructure,
-} from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { SquaresFour } from '@phosphor-icons/react/dist/ssr/SquaresFour';
+import { ListBullets } from '@phosphor-icons/react/dist/ssr/ListBullets';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { TreeStructure } from '@phosphor-icons/react/dist/ssr/TreeStructure';
 import { departementsService } from '@/lib/services';
 import { Departement, DepartementDetail, CreateDepartementDto, UpdateDepartementDto, HierarchyData, HierarchyNode } from '@/lib/types';
 import { DepartementFormModal } from '@/components/departements/DepartementFormModal';

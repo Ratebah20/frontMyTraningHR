@@ -24,19 +24,17 @@ import {
   Alert,
   SimpleGrid,
 } from '@mantine/core';
-import {
-  UsersFour,
-  Users,
-  GraduationCap,
-  CheckCircle,
-  Clock,
-  Warning,
-  ArrowsClockwise,
-  ArrowLeft,
-  User,
-  Buildings,
-  Eye,
-} from '@phosphor-icons/react';
+import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
 import { useRouter } from 'next/navigation';
 import { managersService } from '@/lib/services';
 import { TeamDetails } from '@/lib/types';

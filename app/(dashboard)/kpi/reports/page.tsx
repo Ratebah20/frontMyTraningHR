@@ -26,24 +26,22 @@ import {
   NumberInput,
   Timeline,
 } from '@mantine/core';
-import { 
-  FileText,
-  Download,
-  ArrowsClockwise,
-  Warning,
-  CheckCircle,
-  Clock,
-  GraduationCap,
-  Building,
-  User,
-  FileXls,
-  FilePdf,
-  Users,
-  BookOpen,
-  Info,
-  TrendUp,
-  TrendDown,
-} from '@phosphor-icons/react';
+import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { FileXls } from '@phosphor-icons/react/dist/ssr/FileXls';
+import { FilePdf } from '@phosphor-icons/react/dist/ssr/FilePdf';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';
 import { notifications } from '@mantine/notifications';
 import { statsService } from '@/lib/services';
 import { useDisclosure } from '@mantine/hooks';

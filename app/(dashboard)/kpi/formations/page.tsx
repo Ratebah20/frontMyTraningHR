@@ -4,7 +4,27 @@ import { useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Text, Badge, RingProgress, Tooltip, useMantineColorScheme, MultiSelect, Chip, Switch, SegmentedControl, Tabs, Progress, Accordion, Modal, Button, Stack, Checkbox, Alert, Divider, Paper, Group, Select } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import { Users, BookOpen, ChartBar, Lightbulb, TrendUp, Fire, Funnel, UsersFour, ChartLine, ListBullets, UserMinus, WarningCircle, ShieldCheck, X, CheckCircle, Eye, Buildings, EnvelopeSimple, Info, CaretDown, UserList } from '@phosphor-icons/react'
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { Lightbulb } from '@phosphor-icons/react/dist/ssr/Lightbulb';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { Fire } from '@phosphor-icons/react/dist/ssr/Fire';
+import { Funnel } from '@phosphor-icons/react/dist/ssr/Funnel';
+import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
+import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
+import { ListBullets } from '@phosphor-icons/react/dist/ssr/ListBullets';
+import { UserMinus } from '@phosphor-icons/react/dist/ssr/UserMinus';
+import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { UserList } from '@phosphor-icons/react/dist/ssr/UserList';
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import axios from 'axios'

@@ -1,7 +1,14 @@
 'use client'
 
 import { Grid, Card, Title, Text, Group, Badge, Stack, Button } from '@mantine/core'
-import { Book, Users, ChartLine, ArrowRight, Target, TrendUp, Building, Clock } from '@phosphor-icons/react'
+import { Book } from '@phosphor-icons/react/dist/ssr/Book';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
+import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
+import { Target } from '@phosphor-icons/react/dist/ssr/Target';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { useRouter } from 'next/navigation'
 
 export default function KPIMainPage() {

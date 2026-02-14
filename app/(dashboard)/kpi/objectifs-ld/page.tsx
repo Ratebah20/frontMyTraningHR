@@ -22,24 +22,22 @@ import {
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
-import {
-  Target,
-  ChartBar,
-  Users,
-  Clock,
-  TrendUp,
-  TrendDown,
-  Lightning,
-  Books,
-  ShieldCheck,
-  Certificate,
-  Translate,
-  Desktop,
-  Brain,
-  Briefcase,
-  PencilSimple,
-  CurrencyDollar,
-} from '@phosphor-icons/react';
+import { Target } from '@phosphor-icons/react/dist/ssr/Target';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';
+import { Lightning } from '@phosphor-icons/react/dist/ssr/Lightning';
+import { Books } from '@phosphor-icons/react/dist/ssr/Books';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { Translate } from '@phosphor-icons/react/dist/ssr/Translate';
+import { Desktop } from '@phosphor-icons/react/dist/ssr/Desktop';
+import { Brain } from '@phosphor-icons/react/dist/ssr/Brain';
+import { Briefcase } from '@phosphor-icons/react/dist/ssr/Briefcase';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { CurrencyDollar } from '@phosphor-icons/react/dist/ssr/CurrencyDollar';
 import dynamic from 'next/dynamic';
 const LazyObjectifsRadarChart = dynamic(
   () => import('@/components/charts/ObjectifsRadarChart').then(mod => mod.ObjectifsRadarChart),

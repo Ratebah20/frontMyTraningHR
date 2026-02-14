@@ -11,7 +11,8 @@ import {
   SegmentedControl,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import { Buildings, Users } from '@phosphor-icons/react';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { Departement, CreateDepartementDto, UpdateDepartementDto } from '@/lib/types';
 import { ParentSelector } from './ParentSelector';
 

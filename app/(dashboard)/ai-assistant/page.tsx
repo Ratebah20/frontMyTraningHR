@@ -20,20 +20,18 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  PaperPlaneRight,
-  Robot,
-  User,
-  Sparkle,
-  Lightning,
-  ChartBar,
-  Buildings,
-  TrendUp,
-  Warning,
-  Lightbulb,
-  Clock,
-  Info,
-} from '@phosphor-icons/react';
+import { PaperPlaneRight } from '@phosphor-icons/react/dist/ssr/PaperPlaneRight';
+import { Robot } from '@phosphor-icons/react/dist/ssr/Robot';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Sparkle } from '@phosphor-icons/react/dist/ssr/Sparkle';
+import { Lightning } from '@phosphor-icons/react/dist/ssr/Lightning';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Lightbulb } from '@phosphor-icons/react/dist/ssr/Lightbulb';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { aiAssistantService, AIResponse, AICapability } from '@/lib/services';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';

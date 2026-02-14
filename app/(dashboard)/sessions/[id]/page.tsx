@@ -28,44 +28,42 @@ import {
   Modal,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  Clock,
-  User,
-  Calendar,
-  Building,
-  PencilSimple,
-  XCircle,
-  Trash,
-  Warning,
-  CheckCircle,
-  BookOpen,
-  Certificate,
-  CalendarCheck,
-  CalendarX,
-  Hourglass,
-  CurrencyDollar,
-  Star,
-  FileText,
-  UserCheck,
-  Hash,
-  Tag,
-  MapPin,
-  Phone,
-  Envelope,
-  UsersThree,
-  Briefcase,
-  IdentificationCard,
-  GenderIntersex,
-  Database,
-  Package,
-  Timer,
-  Receipt,
-  Percent,
-  Wallet,
-  CalendarPlus,
-  Info,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
+import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
+import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
+import { CurrencyDollar } from '@phosphor-icons/react/dist/ssr/CurrencyDollar';
+import { Star } from '@phosphor-icons/react/dist/ssr/Star';
+import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
+import { UserCheck } from '@phosphor-icons/react/dist/ssr/UserCheck';
+import { Hash } from '@phosphor-icons/react/dist/ssr/Hash';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { Phone } from '@phosphor-icons/react/dist/ssr/Phone';
+import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
+import { Briefcase } from '@phosphor-icons/react/dist/ssr/Briefcase';
+import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
+import { GenderIntersex } from '@phosphor-icons/react/dist/ssr/GenderIntersex';
+import { Database } from '@phosphor-icons/react/dist/ssr/Database';
+import { Package } from '@phosphor-icons/react/dist/ssr/Package';
+import { Timer } from '@phosphor-icons/react/dist/ssr/Timer';
+import { Receipt } from '@phosphor-icons/react/dist/ssr/Receipt';
+import { Percent } from '@phosphor-icons/react/dist/ssr/Percent';
+import { Wallet } from '@phosphor-icons/react/dist/ssr/Wallet';
+import { CalendarPlus } from '@phosphor-icons/react/dist/ssr/CalendarPlus';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { sessionsService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { CollectiveSessionsService } from '@/lib/services/collective-sessions.service';

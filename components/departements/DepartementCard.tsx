@@ -2,16 +2,14 @@
 
 import { Card, Text, Badge, Group, ActionIcon, Menu, Stack, Divider, Tooltip, Anchor } from '@mantine/core';
 import { DepartementDetail } from '@/lib/types';
-import {
-  DotsThreeVertical,
-  PencilSimple,
-  Trash,
-  Eye,
-  Users,
-  Buildings,
-  ArrowRight,
-  TreeStructure
-} from '@phosphor-icons/react';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
+import { TreeStructure } from '@phosphor-icons/react/dist/ssr/TreeStructure';
 import { useRouter } from 'next/navigation';
 import { TypeBadge } from './TypeBadge';
 

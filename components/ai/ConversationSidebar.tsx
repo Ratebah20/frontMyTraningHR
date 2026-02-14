@@ -10,7 +10,9 @@ import {
   Tooltip,
   rem,
 } from '@mantine/core';
-import { Plus, Trash, ChatCircle } from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { ChatCircle } from '@phosphor-icons/react/dist/ssr/ChatCircle';
 import type { Conversation } from '@/hooks/useConversationHistory';
 
 interface ConversationSidebarProps {

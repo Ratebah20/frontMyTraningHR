@@ -22,18 +22,16 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  Check,
-  X,
-  Warning,
-  User,
-  Users,
-  Building,
-  IdentificationCard,
-  Calendar,
-  Envelope,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';

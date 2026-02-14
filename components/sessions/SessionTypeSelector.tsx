@@ -1,7 +1,8 @@
 'use client';
 
 import { Radio, Group, Text, Paper, Stack } from '@mantine/core';
-import { User, UsersThree } from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
 
 interface SessionTypeSelectorProps {
   value: 'individuelle' | 'collective';

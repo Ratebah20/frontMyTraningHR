@@ -29,28 +29,26 @@ import {
   Modal,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  MagnifyingGlass,
-  Plus,
-  Eye,
-  PencilSimple,
-  Download,
-  Upload,
-  DotsThreeVertical,
-  Users,
-  Building,
-  GraduationCap,
-  CheckCircle,
-  Warning,
-  ArrowsClockwise,
-  FunnelSimple,
-  User,
-  UserMinus,
-  Trash,
-  UserCheck,
-  UserCircleMinus,
-  Calendar,
-} from '@phosphor-icons/react';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { Upload } from '@phosphor-icons/react/dist/ssr/Upload';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { UserMinus } from '@phosphor-icons/react/dist/ssr/UserMinus';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { UserCheck } from '@phosphor-icons/react/dist/ssr/UserCheck';
+import { UserCircleMinus } from '@phosphor-icons/react/dist/ssr/UserCircleMinus';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
 import { useRouter, useSearchParams } from 'next/navigation';

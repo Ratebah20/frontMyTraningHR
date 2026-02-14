@@ -2,7 +2,8 @@
 
 import { Group, SegmentedControl, Select, ActionIcon, Tooltip } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
-import { Calendar, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/ssr/ArrowCounterClockwise';
 
 interface PeriodSelectorProps {
   periode: 'annee' | 'mois' | 'plage';

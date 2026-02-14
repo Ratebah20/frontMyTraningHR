@@ -26,25 +26,23 @@ import {
   SegmentedControl,
 } from '@mantine/core';
 // @tremor/react charts removed - were imported but never used in JSX
-import { 
-  Users, 
-  GraduationCap, 
-  Calendar, 
-  CheckCircle,
-  ArrowUpRight,
-  Clock,
-  Warning,
-  ChartLine,
-  TrendUp,
-  WarningCircle,
-  Info,
-  ArrowClockwise,
-  Buildings,
-  BookOpen,
-  UserPlus,
-  Package,
-  Tag,
-} from '@phosphor-icons/react';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { ArrowUpRight } from '@phosphor-icons/react/dist/ssr/ArrowUpRight';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { ArrowClockwise } from '@phosphor-icons/react/dist/ssr/ArrowClockwise';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { UserPlus } from '@phosphor-icons/react/dist/ssr/UserPlus';
+import { Package } from '@phosphor-icons/react/dist/ssr/Package';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
 import { statsService } from '@/lib/services';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';

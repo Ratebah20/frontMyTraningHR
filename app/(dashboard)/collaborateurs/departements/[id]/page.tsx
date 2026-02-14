@@ -27,22 +27,20 @@ import {
   Transition,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  PencilSimple,
-  Users,
-  CheckCircle,
-  XCircle,
-  Warning,
-  Buildings,
-  Eye,
-  DotsThreeVertical,
-  UserCircle,
-  Plus,
-  TreeStructure,
-  ArrowsLeftRight,
-  X,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { UserCircle } from '@phosphor-icons/react/dist/ssr/UserCircle';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { TreeStructure } from '@phosphor-icons/react/dist/ssr/TreeStructure';
+import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
 import { departementsService } from '@/lib/services';
 import { DepartementDetail, Collaborateur } from '@/lib/types';
 import { DepartementFormModal } from '@/components/departements/DepartementFormModal';

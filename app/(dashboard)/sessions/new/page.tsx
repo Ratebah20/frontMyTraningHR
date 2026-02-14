@@ -31,21 +31,19 @@ import { notifications } from '@mantine/notifications';
 import { DateInput } from '@mantine/dates';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import {
-  ArrowLeft,
-  CheckCircle,
-  Warning,
-  Calendar,
-  User,
-  BookOpen,
-  Building,
-  Clock,
-  FileText,
-  Users,
-  EnvelopeSimple,
-  ListChecks,
-  Paperclip,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { Paperclip } from '@phosphor-icons/react/dist/ssr/Paperclip';
 import { formatDateOnly } from '@/lib/utils/date.utils';
 import {
   sessionsService,

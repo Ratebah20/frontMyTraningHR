@@ -39,36 +39,34 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  CurrencyEur,
-  TrendUp,
-  TrendDown,
-  Warning,
-  Info,
-  Buildings,
-  BookOpen,
-  Calendar,
-  ChartBar,
-  ChartPie,
-  ChartLineUp,
-  Users,
-  Clock,
-  CheckCircle,
-  ArrowUp,
-  ArrowDown,
-  Equals,
-  ArrowsClockwise,
-  GridFour,
-  CalendarBlank,
-  WarningCircle,
-  ListNumbers,
-  Lightning,
-  Target,
-  Eye,
-  MagnifyingGlass,
-  CaretDown,
-  CaretUp,
-} from '@phosphor-icons/react';
+import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { ChartPie } from '@phosphor-icons/react/dist/ssr/ChartPie';
+import { ChartLineUp } from '@phosphor-icons/react/dist/ssr/ChartLineUp';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { ArrowUp } from '@phosphor-icons/react/dist/ssr/ArrowUp';
+import { ArrowDown } from '@phosphor-icons/react/dist/ssr/ArrowDown';
+import { Equals } from '@phosphor-icons/react/dist/ssr/Equals';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { GridFour } from '@phosphor-icons/react/dist/ssr/GridFour';
+import { CalendarBlank } from '@phosphor-icons/react/dist/ssr/CalendarBlank';
+import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
+import { ListNumbers } from '@phosphor-icons/react/dist/ssr/ListNumbers';
+import { Lightning } from '@phosphor-icons/react/dist/ssr/Lightning';
+import { Target } from '@phosphor-icons/react/dist/ssr/Target';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { CaretUp } from '@phosphor-icons/react/dist/ssr/CaretUp';
 import {
   LineChart,
   Line,

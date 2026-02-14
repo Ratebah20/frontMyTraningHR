@@ -1,31 +1,29 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import {
-  Users,
-  UserCircle,
-  Briefcase,
-  Trophy,
-  GenderMale,
-  GenderFemale,
-  ChartBar,
-  UsersFour,
-  Warning,
-  Crown,
-  Handshake,
-  Clock,
-  Buildings,
-  UserSwitch,
-  ToggleLeft,
-  ToggleRight,
-  Scales,
-  ShieldCheck,
-  CheckCircle,
-  XCircle,
-  MagnifyingGlass,
-  Plus,
-  X
-} from '@phosphor-icons/react'
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { UserCircle } from '@phosphor-icons/react/dist/ssr/UserCircle';
+import { Briefcase } from '@phosphor-icons/react/dist/ssr/Briefcase';
+import { Trophy } from '@phosphor-icons/react/dist/ssr/Trophy';
+import { GenderMale } from '@phosphor-icons/react/dist/ssr/GenderMale';
+import { GenderFemale } from '@phosphor-icons/react/dist/ssr/GenderFemale';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Crown } from '@phosphor-icons/react/dist/ssr/Crown';
+import { Handshake } from '@phosphor-icons/react/dist/ssr/Handshake';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { UserSwitch } from '@phosphor-icons/react/dist/ssr/UserSwitch';
+import { ToggleLeft } from '@phosphor-icons/react/dist/ssr/ToggleLeft';
+import { ToggleRight } from '@phosphor-icons/react/dist/ssr/ToggleRight';
+import { Scales } from '@phosphor-icons/react/dist/ssr/Scales';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
 import axios from 'axios'
 import { motion } from 'framer-motion'
 import { statsService, formationsService } from '@/lib/services'

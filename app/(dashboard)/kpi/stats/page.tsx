@@ -24,23 +24,21 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import { 
-  Users, 
-  GraduationCap, 
-  Calendar, 
-  Clock,
-  ChartBar,
-  TrendUp,
-  Building,
-  Trophy,
-  Target,
-  Pulse,
-  ArrowsClockwise,
-  Warning,
-  CheckCircle,
-  BookOpen,
-  Certificate,
-} from '@phosphor-icons/react';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Trophy } from '@phosphor-icons/react/dist/ssr/Trophy';
+import { Target } from '@phosphor-icons/react/dist/ssr/Target';
+import { Pulse } from '@phosphor-icons/react/dist/ssr/Pulse';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { statsService } from '@/lib/services';
 
 interface GlobalStats {

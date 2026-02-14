@@ -13,7 +13,12 @@ import {
   Stack,
   ActionIcon,
 } from '@mantine/core';
-import { MagnifyingGlass, Download, Eye, FilePdf, FileDoc, FileXls } from '@phosphor-icons/react';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { FilePdf } from '@phosphor-icons/react/dist/ssr/FilePdf';
+import { FileDoc } from '@phosphor-icons/react/dist/ssr/FileDoc';
+import { FileXls } from '@phosphor-icons/react/dist/ssr/FileXls';
 
 export default function DocumentsPage() {
   // Mock documents

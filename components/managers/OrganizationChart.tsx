@@ -18,14 +18,12 @@ import {
   rem,
   ActionIcon,
 } from '@mantine/core';
-import {
-  User,
-  Users,
-  CaretDown,
-  CaretRight,
-  Buildings,
-  PencilSimple,
-} from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { HierarchyNode } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { EditManagerModal } from './EditManagerModal';

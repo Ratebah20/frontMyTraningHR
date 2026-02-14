@@ -23,23 +23,21 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  PencilSimple,
-  User,
-  Building,
-  Calendar,
-  GraduationCap,
-  BookOpen,
-  Clock,
-  CheckCircle,
-  Warning,
-  Trophy,
-  Star,
-  Download,
-  ArrowsLeftRight,
-  Envelope,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Trophy } from '@phosphor-icons/react/dist/ssr/Trophy';
+import { Star } from '@phosphor-icons/react/dist/ssr/Star';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
+import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { collaborateursService } from '@/lib/services';
 import { Collaborateur, SessionFormation } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';

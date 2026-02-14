@@ -19,20 +19,18 @@ import {
   ScrollArea,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  Warning,
-  CheckCircle,
-  XCircle,
-  Info,
-  Users,
-  BookOpen,
-  Building,
-  ArrowsClockwise,
-  Eye,
-  ListChecks,
-  Tag,
-  ArrowRight,
-} from '@phosphor-icons/react';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
 import type {
   ImportPreviewResponse,
   ConflictItem,

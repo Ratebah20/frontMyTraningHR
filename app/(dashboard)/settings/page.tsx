@@ -25,15 +25,13 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import {
-  User,
-  Bell,
-  Palette,
-  Database,
-  Shield,
-  Info,
-  Check,
-} from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Bell } from '@phosphor-icons/react/dist/ssr/Bell';
+import { Palette } from '@phosphor-icons/react/dist/ssr/Palette';
+import { Database } from '@phosphor-icons/react/dist/ssr/Database';
+import { Shield } from '@phosphor-icons/react/dist/ssr/Shield';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
 import { mockData } from '@/lib/mock-data';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Breadcrumbs, Anchor, Text, Group, Skeleton } from '@mantine/core';
-import { House } from '@phosphor-icons/react';
+import { House } from '@phosphor-icons/react/dist/ssr/House';
 import { useRouter } from 'next/navigation';
 import { departementsService } from '@/lib/services';
 import { PathNode } from '@/lib/types';

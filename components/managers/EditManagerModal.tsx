@@ -12,7 +12,8 @@ import {
   Loader,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Warning, CheckCircle } from '@phosphor-icons/react';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { collaborateursService } from '@/lib/services';
 
 interface EditManagerModalProps {

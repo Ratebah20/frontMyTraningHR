@@ -25,32 +25,31 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { 
-  ArrowLeft, 
-  CheckCircle, 
-  Warning, 
-  Calendar,
-  User,
-  BookOpen,
-  Building,
-  Clock,
-  FileText,
-  FloppyDisk,
-  Star,
-  Info,
-  CalendarCheck,
-  Hourglass,
-  Certificate,
-  CalendarX,
-  IdentificationCard,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
+import { FloppyDisk } from '@phosphor-icons/react/dist/ssr/FloppyDisk';
+import { Star } from '@phosphor-icons/react/dist/ssr/Star';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
+import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
+import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
 import { sessionsService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { SessionFormationResponse, CollectiveSession } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDateOnly } from '@/lib/utils/date.utils';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
-import { Users, MapPin } from '@phosphor-icons/react';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
 
 interface Props {
   params: {

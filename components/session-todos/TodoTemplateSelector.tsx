@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Stack, Card, Text, Badge, Button, Group, Loader, Alert } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Info } from '@phosphor-icons/react';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { getTodoTemplates, createTodosFromTemplate } from '@/lib/services/grouped-session-todos.service';
 import type { TodoTemplate } from '@/lib/types';
 

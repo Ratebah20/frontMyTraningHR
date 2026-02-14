@@ -1,7 +1,7 @@
 'use client';
 
 import { Container, Title, Text, Alert, Card } from '@mantine/core';
-import { Info } from '@phosphor-icons/react';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import Link from 'next/link';
 
 export default function CollaborateursImportPage() {

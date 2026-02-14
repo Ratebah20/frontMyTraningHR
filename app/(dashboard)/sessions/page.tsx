@@ -35,35 +35,33 @@ import {
 } from '@mantine/core';
 // import { DatePickerInput } from '@mantine/dates'; // Module non installé
 import { notifications } from '@mantine/notifications';
-import {
-  Plus,
-  Calendar,
-  Users,
-  Clock,
-  MagnifyingGlass,
-  DotsThreeVertical,
-  Eye,
-  PencilSimple,
-  XCircle,
-  Warning,
-  CheckCircle,
-  BookOpen,
-  ChartBar,
-  ArrowsClockwise,
-  FunnelSimple,
-  MapPin,
-  Certificate,
-  CalendarCheck,
-  CalendarX,
-  UserCheck,
-  Building,
-  Hourglass,
-  List,
-  CalendarBlank,
-  SortAscending,
-  SortDescending,
-  Trash,
-} from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
+import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
+import { UserCheck } from '@phosphor-icons/react/dist/ssr/UserCheck';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
+import { List } from '@phosphor-icons/react/dist/ssr/List';
+import { CalendarBlank } from '@phosphor-icons/react/dist/ssr/CalendarBlank';
+import { SortAscending } from '@phosphor-icons/react/dist/ssr/SortAscending';
+import { SortDescending } from '@phosphor-icons/react/dist/ssr/SortDescending';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';

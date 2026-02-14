@@ -14,14 +14,12 @@ import {
   Loader,
   Alert,
 } from '@mantine/core';
-import {
-  CaretDown,
-  CaretRight,
-  Warning,
-  MapPin,
-  Trash,
-  ArrowsClockwise,
-} from '@phosphor-icons/react';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import {
   TypeEntiteImport,
   ActionResolutionConflict,

@@ -21,18 +21,16 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import {
-  Download,
-  FileXls,
-  Calendar,
-  Database,
-  Warning,
-  Check,
-  Envelope,
-  ClipboardText,
-  ArrowRight,
-  FilePdf,
-} from '@phosphor-icons/react';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { FileXls } from '@phosphor-icons/react/dist/ssr/FileXls';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Database } from '@phosphor-icons/react/dist/ssr/Database';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
+import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
+import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
+import { FilePdf } from '@phosphor-icons/react/dist/ssr/FilePdf';
 import Link from 'next/link';
 import { exportsService, ExportFilters, ExportType } from '@/lib/services';
 

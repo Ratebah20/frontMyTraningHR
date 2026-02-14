@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { Box, Button, Group, Text } from '@mantine/core';
-import { Eraser } from '@phosphor-icons/react';
+import { Eraser } from '@phosphor-icons/react/dist/ssr/Eraser';
 
 interface SignaturePadProps {
   onSignatureChange: (dataUrl: string | null) => void;

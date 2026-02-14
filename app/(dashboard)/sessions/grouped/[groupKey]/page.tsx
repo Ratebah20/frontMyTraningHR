@@ -22,24 +22,22 @@ import {
   Divider,
   Tabs,
 } from '@mantine/core';
-import {
-  ArrowLeft,
-  BookOpen,
-  Calendar,
-  Clock,
-  Building,
-  Users,
-  Eye,
-  PencilSimple,
-  XCircle,
-  CalendarCheck,
-  Hourglass,
-  Certificate,
-  CalendarX,
-  Warning,
-  ListChecks,
-  CurrencyDollar,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
+import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { CurrencyDollar } from '@phosphor-icons/react/dist/ssr/CurrencyDollar';
 import { notifications } from '@mantine/notifications';
 import { sessionsService } from '@/lib/services';
 import { GroupedSession } from '@/lib/types';
@@ -50,7 +48,7 @@ const DocumentGenerator = dynamic(
   { ssr: false, loading: () => null }
 );
 import AttachmentManager from '@/components/attachments/AttachmentManager';
-import { Paperclip } from '@phosphor-icons/react';
+import { Paperclip } from '@phosphor-icons/react/dist/ssr/Paperclip';
 
 interface Props {
   params: {

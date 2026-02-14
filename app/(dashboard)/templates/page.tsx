@@ -24,16 +24,14 @@ import {
   Divider,
   ActionIcon,
 } from '@mantine/core';
-import {
-  Warning,
-  ListChecks,
-  Tag,
-  BookOpen,
-  CheckCircle,
-  Circle,
-  ArrowsClockwise,
-  FunnelSimple,
-} from '@phosphor-icons/react';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Circle } from '@phosphor-icons/react/dist/ssr/Circle';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
 import { getTodoTemplates } from '@/lib/services/grouped-session-todos.service';
 import { TodoTemplate } from '@/lib/types';
 

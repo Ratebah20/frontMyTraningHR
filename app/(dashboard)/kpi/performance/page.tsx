@@ -2,7 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, LineChart, BarChart, Tabs } from '@mantine/core'
-import { ChartLine, TrendUp, TrendDown, Calendar, Target, Medal, ArrowUp, ArrowDown } from '@phosphor-icons/react'
+import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Target } from '@phosphor-icons/react/dist/ssr/Target';
+import { Medal } from '@phosphor-icons/react/dist/ssr/Medal';
+import { ArrowUp } from '@phosphor-icons/react/dist/ssr/ArrowUp';
+import { ArrowDown } from '@phosphor-icons/react/dist/ssr/ArrowDown';
 import { PeriodSelector } from '@/components/PeriodSelector'
 import axios from 'axios'
 

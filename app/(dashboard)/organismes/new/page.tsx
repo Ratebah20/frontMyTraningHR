@@ -14,7 +14,9 @@ import {
   Alert,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Buildings, ArrowLeft, Check } from '@phosphor-icons/react';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
 import { useRouter } from 'next/navigation';
 import { useCreateOrganisme } from '@/hooks/useOrganismes';
 import { useForm } from '@mantine/form';

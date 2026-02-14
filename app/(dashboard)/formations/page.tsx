@@ -30,29 +30,27 @@ import {
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import {
-  MagnifyingGlass,
-  Plus,
-  GraduationCap,
-  Clock,
-  Users,
-  DotsThreeVertical,
-  Eye,
-  PencilSimple,
-  Trash,
-  Tag,
-  Warning,
-  CheckCircle,
-  BookOpen,
-  Calendar,
-  Certificate,
-  ChartBar,
-  ArrowsClockwise,
-  FunnelSimple,
-  List,
-  SquaresFour,
-  Info,
-} from '@phosphor-icons/react';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
+import { List } from '@phosphor-icons/react/dist/ssr/List';
+import { SquaresFour } from '@phosphor-icons/react/dist/ssr/SquaresFour';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formationsService, commonService } from '@/lib/services';
 import { Formation, FormationFilters } from '@/lib/types';

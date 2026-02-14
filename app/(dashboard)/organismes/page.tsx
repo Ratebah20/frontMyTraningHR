@@ -23,16 +23,14 @@ import {
   Switch,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  MagnifyingGlass,
-  Plus,
-  DotsThreeVertical,
-  PencilSimple,
-  Trash,
-  Buildings,
-  ChartBar,
-  Eye,
-} from '@phosphor-icons/react';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
 import { useRouter } from 'next/navigation';
 import { useOrganismes, useDeleteOrganisme } from '@/hooks/useOrganismes';
 import { OrganismeFormation } from '@/lib/types';

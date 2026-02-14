@@ -23,7 +23,15 @@ import {
   Progress,
   Alert,
 } from '@mantine/core';
-import { MagnifyingGlass, Warning, CheckCircle, Clock, Certificate, Eye, Buildings, Users, ShieldCheck } from '@phosphor-icons/react';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { formationsService, statsService } from '@/lib/services';
 import { Formation } from '@/lib/types';
 

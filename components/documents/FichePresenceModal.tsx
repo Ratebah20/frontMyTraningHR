@@ -17,13 +17,11 @@ import {
 } from '@mantine/core';
 import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
-import {
-  Printer,
-  MapPin,
-  Calendar,
-  Clock,
-  Warning,
-} from '@phosphor-icons/react';
+import { Printer } from '@phosphor-icons/react/dist/ssr/Printer';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { SignaturePad } from './SignaturePad';
 
 interface Participant {

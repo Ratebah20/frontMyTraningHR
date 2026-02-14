@@ -28,28 +28,26 @@ import {
   Modal,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  Clock,
-  Users,
-  Calendar,
-  Tag,
-  PencilSimple,
-  Trash,
-  Warning,
-  CheckCircle,
-  Plus,
-  Eye,
-  CurrencyEur,
-  Buildings,
-  GraduationCap,
-  ChartBar,
-  CalendarCheck,
-  UserCheck,
-  Hourglass,
-  Timer,
-  Certificate,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
+import { UserCheck } from '@phosphor-icons/react/dist/ssr/UserCheck';
+import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
+import { Timer } from '@phosphor-icons/react/dist/ssr/Timer';
+import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { formationsService, sessionsService } from '@/lib/services';
 import { Formation, SessionFormation } from '@/lib/types';
 import { useApi, usePagination } from '@/hooks/useApi';

@@ -24,18 +24,16 @@ import {
   Tabs,
   Loader
 } from '@mantine/core';
-import { 
-  CaretLeft, 
-  CaretRight,
-  Calendar as CalendarIcon,
-  Users,
-  MapPin,
-  Clock,
-  Warning,
-  ArrowLeft,
-  User,
-  Buildings,
-} from '@phosphor-icons/react';
+import { CaretLeft } from '@phosphor-icons/react/dist/ssr/CaretLeft';
+import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
+import { Calendar as CalendarIcon } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, parseISO, isWeekend } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';

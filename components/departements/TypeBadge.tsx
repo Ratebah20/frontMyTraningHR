@@ -1,5 +1,6 @@
 import { Badge } from '@mantine/core';
-import { Buildings, Users } from '@phosphor-icons/react';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 
 interface TypeBadgeProps {
   type: string;

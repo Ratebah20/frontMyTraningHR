@@ -1,7 +1,8 @@
 'use client';
 
 import { Progress, Text, Group, Badge } from '@mantine/core';
-import { UsersThree, Warning } from '@phosphor-icons/react';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 
 interface CapacityIndicatorProps {
   current: number;

@@ -24,18 +24,16 @@ import { useDisclosure, useWindowScroll, useHotkeys } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
 import { NavigationProgress, nprogress } from '@mantine/nprogress';
 import { notifications } from '@mantine/notifications';
-import {
-  Bell,
-  ChatCircle,
-  Gear,
-  SignOut,
-  User,
-  MagnifyingGlass,
-  Moon,
-  Sun,
-  ArrowsClockwise,
-  Plus
-} from '@phosphor-icons/react';
+import { Bell } from '@phosphor-icons/react/dist/ssr/Bell';
+import { ChatCircle } from '@phosphor-icons/react/dist/ssr/ChatCircle';
+import { Gear } from '@phosphor-icons/react/dist/ssr/Gear';
+import { SignOut } from '@phosphor-icons/react/dist/ssr/SignOut';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { Moon } from '@phosphor-icons/react/dist/ssr/Moon';
+import { Sun } from '@phosphor-icons/react/dist/ssr/Sun';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Sidebar } from './Sidebar';

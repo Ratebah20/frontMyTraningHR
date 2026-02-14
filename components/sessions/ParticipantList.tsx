@@ -15,17 +15,15 @@ import {
   Stack,
   Tooltip,
 } from '@mantine/core';
-import {
-  DotsThree,
-  User,
-  Trash,
-  Check,
-  X,
-  Minus,
-  CheckCircle,
-  XCircle,
-  Clock,
-} from '@phosphor-icons/react';
+import { DotsThree } from '@phosphor-icons/react/dist/ssr/DotsThree';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
+import { Minus } from '@phosphor-icons/react/dist/ssr/Minus';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { CollectiveSessionParticipant } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 

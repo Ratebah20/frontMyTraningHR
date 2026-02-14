@@ -25,18 +25,16 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import {
-  Plus,
-  PencilSimple,
-  Trash,
-  Warning,
-  CheckCircle,
-  Tag,
-  ArrowLeft,
-  DotsThreeVertical,
-  BookOpen,
-  Info,
-} from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { commonService } from '@/lib/services';
 
 interface Category {

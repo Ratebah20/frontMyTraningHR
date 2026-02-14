@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { MultiSelect, Loader, Text, Group, Avatar, Badge } from '@mantine/core';
-import { UsersThree, MagnifyingGlass } from '@phosphor-icons/react';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { Collaborateur } from '@/lib/types';
 import { collaborateursService } from '@/lib/services/collaborateurs.service';
 

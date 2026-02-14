@@ -21,19 +21,17 @@ import {
   SegmentedControl,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
-import {
-  ArrowLeft,
-  Check,
-  X,
-  Warning,
-  CheckCircle,
-  User,
-  Users,
-  Building,
-  IdentificationCard,
-  Info,
-  Envelope,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { notifications } from '@mantine/notifications';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
 

@@ -21,6 +21,22 @@ const nextConfig = {
     webpackBuildWorker: true,
     parallelServerBuildTraces: true,
     parallelServerCompiles: true,
+    optimizePackageImports: [
+      '@mantine/core',
+      '@mantine/hooks',
+      '@mantine/dates',
+      '@mantine/form',
+      '@mantine/modals',
+      '@mantine/notifications',
+      '@mantine/nprogress',
+      '@mantine/spotlight',
+      '@mantine/dropzone',
+      '@mantine/carousel',
+      '@phosphor-icons/react',
+      'recharts',
+      'date-fns',
+      'react-use',
+    ],
   },
 }
 

@@ -19,16 +19,14 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import {
-  CheckCircle,
-  Warning,
-  BookOpen,
-  Tag,
-  Clock,
-  Info,
-  ArrowsClockwise,
-  CurrencyEur,
-} from '@phosphor-icons/react';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
 import { formationsService, commonService, organismesService } from '@/lib/services';
 import { CreateFormationDto, Formation } from '@/lib/types';
 import { generateFormationCode } from '@/lib/utils/formation';

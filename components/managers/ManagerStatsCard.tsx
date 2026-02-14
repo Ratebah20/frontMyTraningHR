@@ -14,14 +14,12 @@ import {
   ActionIcon,
   Tooltip,
 } from '@mantine/core';
-import {
-  Users,
-  GraduationCap,
-  CheckCircle,
-  Clock,
-  Eye,
-  Buildings,
-} from '@phosphor-icons/react';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { ManagerStats } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 

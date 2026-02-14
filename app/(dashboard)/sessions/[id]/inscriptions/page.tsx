@@ -24,19 +24,17 @@ import {
   Loader,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  MagnifyingGlass,
-  UserPlus,
-  X,
-  Calendar,
-  Clock,
-  MapPin,
-  Users,
-  Info,
-  Warning,
-  CheckCircle,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
+import { UserPlus } from '@phosphor-icons/react/dist/ssr/UserPlus';
+import { X } from '@phosphor-icons/react/dist/ssr/X';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import CollectiveSessionsService from '@/lib/services/collective-sessions.service';
 import { collaborateursService } from '@/lib/services';

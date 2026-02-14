@@ -13,7 +13,9 @@ import {
   Tooltip,
   ScrollArea,
 } from '@mantine/core';
-import { Warning, Tag, Info } from '@phosphor-icons/react';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import {
   ActionResolutionCategorie,
   type CategorieNonMappee,

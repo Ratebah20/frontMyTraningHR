@@ -24,21 +24,19 @@ import {
   Radio,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  ArrowLeft,
-  Trash,
-  Pencil,
-  MapPin,
-  ArrowsClockwise,
-  Warning,
-  CheckCircle,
-  XCircle,
-  Funnel,
-  ListChecks,
-  Building,
-  Tag,
-  Users,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Pencil } from '@phosphor-icons/react/dist/ssr/Pencil';
+import { MapPin } from '@phosphor-icons/react/dist/ssr/MapPin';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Funnel } from '@phosphor-icons/react/dist/ssr/Funnel';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import Link from 'next/link';
 import { importPreviewService } from '@/lib/services/import-preview.service';
 import type {

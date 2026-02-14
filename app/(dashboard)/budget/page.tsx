@@ -29,20 +29,18 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
-import {
-  Plus,
-  CurrencyEur,
-  TrendUp,
-  Warning,
-  PencilSimple,
-  Trash,
-  Wallet,
-  ChartBar,
-  Calculator,
-  Calendar,
-  DotsThreeVertical,
-  Info,
-} from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Wallet } from '@phosphor-icons/react/dist/ssr/Wallet';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { Calculator } from '@phosphor-icons/react/dist/ssr/Calculator';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVertical';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { budgetService, BudgetAnnuel, CreateBudgetAnnuel, UpdateBudgetAnnuel } from '@/lib/services/budget.service';
 
 export default function BudgetPage() {

@@ -14,7 +14,10 @@ import {
   Loader,
   Center,
 } from '@mantine/core';
-import { User, Warning, CheckCircle, Users } from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { collaborateursService, managersService } from '@/lib/services';
 import { notifications } from '@mantine/notifications';
 

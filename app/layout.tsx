@@ -9,8 +9,6 @@ import '@mantine/notifications/styles.css';
 import '@mantine/nprogress/styles.css';
 import '@mantine/spotlight/styles.css';
 import '@mantine/carousel/styles.css';
-import '@/styles/tremor-fixes.css';
-import '@/styles/tremor-overrides.css';
 import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });

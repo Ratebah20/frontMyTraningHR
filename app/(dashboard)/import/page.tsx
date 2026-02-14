@@ -24,24 +24,22 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  Upload,
-  Download,
-  FileXls,
-  CheckCircle,
-  Warning,
-  XCircle,
-  Clock,
-  Database,
-  ArrowsClockwise,
-  Info,
-  Users,
-  BookOpen,
-  CalendarCheck,
-  FileText,
-  Eye,
-  Gear,
-} from '@phosphor-icons/react';
+import { Upload } from '@phosphor-icons/react/dist/ssr/Upload';
+import { Download } from '@phosphor-icons/react/dist/ssr/Download';
+import { FileXls } from '@phosphor-icons/react/dist/ssr/FileXls';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { Database } from '@phosphor-icons/react/dist/ssr/Database';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
+import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { Gear } from '@phosphor-icons/react/dist/ssr/Gear';
 import { importService } from '@/lib/services';
 import { importPreviewService } from '@/lib/services/import-preview.service';
 import type { ImportHistory, ImportResult } from '@/lib/services/import.service';

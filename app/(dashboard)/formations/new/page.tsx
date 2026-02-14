@@ -24,17 +24,15 @@ import {
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
-import { 
-  ArrowLeft, 
-  CheckCircle, 
-  Warning,
-  Tag,
-  Clock,
-  CurrencyEur,
-  Info,
-  BookOpen,
-  ArrowsClockwise,
-} from '@phosphor-icons/react';
+import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import { formationsService, commonService, organismesService } from '@/lib/services';
 import { CreateFormationDto } from '@/lib/types';
 import { generateFormationCode } from '@/lib/utils/formation';

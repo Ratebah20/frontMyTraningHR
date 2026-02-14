@@ -28,25 +28,23 @@ import {
   Tooltip,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import {
-  CurrencyEur,
-  TrendUp,
-  TrendDown,
-  Warning,
-  Info,
-  Buildings,
-  BookOpen,
-  Calendar,
-  ChartBar,
-  ChartPie,
-  Users,
-  Clock,
-  CheckCircle,
-  ArrowUp,
-  ArrowDown,
-  Equals,
-  ArrowsClockwise,
-} from '@phosphor-icons/react';
+import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
+import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
+import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
+import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
+import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
+import { ChartPie } from '@phosphor-icons/react/dist/ssr/ChartPie';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { ArrowUp } from '@phosphor-icons/react/dist/ssr/ArrowUp';
+import { ArrowDown } from '@phosphor-icons/react/dist/ssr/ArrowDown';
+import { Equals } from '@phosphor-icons/react/dist/ssr/Equals';
+import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import {
   LineChart,
   Line,

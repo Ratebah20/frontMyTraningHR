@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Stack, Group, Button, Text, Progress, Card, Select, Badge, Loader, Alert } from '@mantine/core';
-import { Plus, ListChecks, FunnelSimple } from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
 import { notifications } from '@mantine/notifications';
 import TodoItem from './TodoItem';
 import TodoForm from './TodoForm';

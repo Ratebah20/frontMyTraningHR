@@ -15,7 +15,11 @@ import {
   Badge,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Building, Users, Warning, Check, ArrowsLeftRight } from '@phosphor-icons/react';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
+import { Check } from '@phosphor-icons/react/dist/ssr/Check';
+import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
 import { departementsService, collaborateursService } from '@/lib/services';
 
 interface CollaborateurInfo {

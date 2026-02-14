@@ -13,15 +13,13 @@ import {
   Tooltip,
   Menu,
 } from '@mantine/core';
-import {
-  CaretRight,
-  CaretDown,
-  Eye,
-  PencilSimple,
-  Trash,
-  Users,
-  Plus,
-} from '@phosphor-icons/react';
+import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
+import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
 import { useRouter } from 'next/navigation';
 import { HierarchyNode } from '@/lib/types';
 import { TypeBadge } from './TypeBadge';

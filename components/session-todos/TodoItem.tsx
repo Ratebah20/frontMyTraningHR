@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { Paper, Group, Checkbox, Text, Badge, ActionIcon, Menu, Tooltip } from '@mantine/core';
-import { PencilSimple, Trash, DotsThree, CalendarBlank, Paperclip } from '@phosphor-icons/react';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { DotsThree } from '@phosphor-icons/react/dist/ssr/DotsThree';
+import { CalendarBlank } from '@phosphor-icons/react/dist/ssr/CalendarBlank';
+import { Paperclip } from '@phosphor-icons/react/dist/ssr/Paperclip';
 import { format, isPast } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import type { SessionTodo } from '@/lib/types';

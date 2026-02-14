@@ -164,14 +164,14 @@ export interface ManagerTeamStats {
 export const managerPortalService = {
   // Dashboard
   async getDashboardSummary(): Promise<ManagerDashboardSummary> {
-    const response = await api.get('/manager-portal/dashboard/summary');
+    const response = await api.get('/manager/dashboard');
     return response.data;
   },
 
   async getDashboardCharts(annee?: number): Promise<ManagerDashboardCharts> {
     const params: any = {};
     if (annee) params.annee = annee;
-    const response = await api.get('/manager-portal/dashboard/charts', { params });
+    const response = await api.get('/manager/stats', { params });
     return response.data;
   },
 
@@ -183,12 +183,12 @@ export const managerPortalService = {
     page?: number;
     limit?: number;
   }): Promise<ManagerTeamResponse> {
-    const response = await api.get('/manager-portal/team', { params: filters });
+    const response = await api.get('/manager/team', { params: filters });
     return response.data;
   },
 
   async getTeamMemberDetail(id: number): Promise<ManagerTeamMemberDetail> {
-    const response = await api.get(`/manager-portal/team/${id}`);
+    const response = await api.get(`/manager/team/${id}`);
     return response.data;
   },
 
@@ -203,7 +203,7 @@ export const managerPortalService = {
     page?: number;
     limit?: number;
   }): Promise<ManagerTeamFormationsResponse> {
-    const response = await api.get('/manager-portal/formations', { params: filters });
+    const response = await api.get('/manager/formations', { params: filters });
     return response.data;
   },
 
@@ -215,7 +215,7 @@ export const managerPortalService = {
     const params: any = {};
     if (periode) params.periode = periode;
     if (date) params.date = date;
-    const response = await api.get('/manager-portal/stats', { params });
+    const response = await api.get('/manager/stats', { params });
     return response.data;
   },
 };

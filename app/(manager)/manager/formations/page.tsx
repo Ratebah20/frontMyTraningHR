@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Container,
   Title,
@@ -12,17 +12,14 @@ import {
   Center,
   Stack,
   Paper,
-  Pagination,
   Loader,
   Alert,
   Select,
   Grid,
-  Card,
-  ThemeIcon,
   Tooltip,
   ActionIcon,
+  Pagination,
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
@@ -30,50 +27,40 @@ import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise'
 import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
-import { Users } from '@phosphor-icons/react/dist/ssr/Users';
-import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
-import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
-import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { useRouter } from 'next/navigation';
-import { managerPortalService, ManagerTeamFormation } from '@/lib/services/manager-portal.service';
-import { useDebounce } from '@/hooks/useApi';
+import api from '@/lib/api';
 
-// Status colors
+const PAGE_SIZE = 20;
+
 const statusColors: Record<string, string> = {
   inscrit: 'blue',
   en_cours: 'yellow',
   complete: 'green',
   termine: 'green',
+  'Terminé': 'green',
   annule: 'red',
 };
 
 const statusLabels: Record<string, string> = {
   inscrit: 'Inscrit',
   en_cours: 'En cours',
-  complete: 'Termine',
-  termine: 'Termine',
-  annule: 'Annule',
+  complete: 'Terminé',
+  termine: 'Terminé',
+  'Terminé': 'Terminé',
+  annule: 'Annulé',
 };
 
 export default function ManagerFormationsPage() {
   const router = useRouter();
 
-  const [formations, setFormations] = useState<ManagerTeamFormation[]>([]);
+  const [allFormations, setAllFormations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Filters & pagination
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [anneeFilter, setAnneeFilter] = useState<string>(new Date().getFullYear().toString());
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [limit] = useState(20);
 
-  const debouncedSearch = useDebounce(search, 500);
-
-  // Generate years list
   const annees = Array.from({ length: 6 }, (_, i) => {
     const year = new Date().getFullYear() - i;
     return { label: year.toString(), value: year.toString() };
@@ -84,50 +71,48 @@ export default function ManagerFormationsPage() {
     setError(null);
 
     try {
-      const filters: any = {
-        page,
-        limit,
-      };
-
-      if (debouncedSearch && debouncedSearch.trim()) {
-        filters.search = debouncedSearch.trim();
-      }
-
-      if (statusFilter) {
-        filters.statut = statusFilter;
-      }
-
+      const params: any = {};
+      if (statusFilter) params.statut = statusFilter;
       if (anneeFilter) {
-        filters.annee = parseInt(anneeFilter);
+        params.dateDebut = `${anneeFilter}-01-01`;
+        params.dateFin = `${anneeFilter}-12-31`;
       }
 
-      const response = await managerPortalService.getTeamFormations(filters);
-
-      if (response.data) {
-        setFormations(response.data);
-        setTotal(response.meta?.total || 0);
-        setTotalPages(response.meta?.totalPages || 1);
-      } else {
-        setFormations([]);
-        setTotal(0);
-        setTotalPages(0);
-      }
+      const response = await api.get('/manager/formations', { params });
+      const data = Array.isArray(response.data) ? response.data : [];
+      setAllFormations(data);
     } catch (err: any) {
       console.error('Erreur lors du chargement des formations:', err);
       setError(err.message || 'Erreur lors du chargement des formations');
-      setFormations([]);
+      setAllFormations([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadFormations();
-  }, [debouncedSearch, statusFilter, anneeFilter, page]);
+    const timer = setTimeout(() => loadFormations(), 300);
+    return () => clearTimeout(timer);
+  }, [statusFilter, anneeFilter]);
 
+  // Client-side search + pagination
+  const filtered = useMemo(() => {
+    if (!search.trim()) return allFormations;
+    const s = search.toLowerCase().trim();
+    return allFormations.filter((f: any) =>
+      (f.collaborateur?.nomComplet || '').toLowerCase().includes(s) ||
+      (f.formation?.nomFormation || '').toLowerCase().includes(s) ||
+      (f.organisme || '').toLowerCase().includes(s)
+    );
+  }, [allFormations, search]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginatedFormations = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, statusFilter, anneeFilter]);
+  }, [search, statusFilter, anneeFilter]);
 
   return (
     <Container size="xl">
@@ -140,7 +125,7 @@ export default function ManagerFormationsPage() {
               <Title order={1}>Formations de l'equipe</Title>
             </Group>
             <Text size="lg" c="dimmed" mt="xs">
-              Toutes les sessions de formation de vos collaborateurs
+              {filtered.length} session(s) de formation
             </Text>
           </div>
           <Tooltip label="Rafraichir">
@@ -158,7 +143,7 @@ export default function ManagerFormationsPage() {
           <Text fw={600}>Filtres et Recherche</Text>
         </Group>
         <Grid align="flex-end">
-          <Grid.Col span={{ base: 12, sm: 4 }}>
+          <Grid.Col span={{ base: 12, sm: 5 }}>
             <TextInput
               placeholder="Rechercher collaborateur ou formation..."
               leftSection={<MagnifyingGlass size={16} />}
@@ -173,8 +158,8 @@ export default function ManagerFormationsPage() {
                 { value: '', label: 'Tous les statuts' },
                 { value: 'inscrit', label: 'Inscrit' },
                 { value: 'en_cours', label: 'En cours' },
-                { value: 'complete', label: 'Termine' },
-                { value: 'annule', label: 'Annule' },
+                { value: 'complete', label: 'Terminé' },
+                { value: 'annule', label: 'Annulé' },
               ]}
               value={statusFilter}
               onChange={(value) => setStatusFilter(value || '')}
@@ -202,7 +187,7 @@ export default function ManagerFormationsPage() {
           <Alert icon={<Warning size={16} />} color="red" variant="light" m="lg">
             {error}
           </Alert>
-        ) : formations.length > 0 ? (
+        ) : filtered.length > 0 ? (
           <>
             <Table.ScrollContainer minWidth={1000}>
               <Table verticalSpacing="sm" highlightOnHover>
@@ -210,7 +195,6 @@ export default function ManagerFormationsPage() {
                   <Table.Tr>
                     <Table.Th>Collaborateur</Table.Th>
                     <Table.Th>Formation</Table.Th>
-                    <Table.Th>Categorie</Table.Th>
                     <Table.Th>Dates</Table.Th>
                     <Table.Th>Duree</Table.Th>
                     <Table.Th>Organisme</Table.Th>
@@ -218,40 +202,35 @@ export default function ManagerFormationsPage() {
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
-                  {formations.map((formation) => (
+                  {paginatedFormations.map((f, idx) => (
                     <Table.Tr
-                      key={formation.id}
+                      key={f.id || idx}
                       style={{ cursor: 'pointer' }}
-                      onClick={() => router.push(`/manager/equipe/${formation.collaborateurId}`)}
+                      onClick={() => router.push(`/manager/equipe/${f.collaborateur?.id}`)}
                     >
                       <Table.Td>
                         <Text size="sm" fw={500}>
-                          {formation.collaborateur}
+                          {f.collaborateur?.nomComplet || '-'}
                         </Text>
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm" fw={500} lineClamp={1}>
-                          {formation.formation}
+                          {f.formation?.nomFormation || '-'}
                         </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge variant="light" color="gray" size="sm">
-                          {formation.categorie || 'Non categorise'}
-                        </Badge>
                       </Table.Td>
                       <Table.Td>
                         <Stack gap={2}>
                           <Group gap="xs">
                             <Calendar size={12} color="#868E96" />
                             <Text size="xs">
-                              {formation.dateDebut
-                                ? new Date(formation.dateDebut).toLocaleDateString('fr-FR')
+                              {f.dateDebut
+                                ? new Date(f.dateDebut).toLocaleDateString('fr-FR')
                                 : '-'}
                             </Text>
                           </Group>
-                          {formation.dateFin && (
+                          {f.dateFin && (
                             <Text size="xs" c="dimmed">
-                              au {new Date(formation.dateFin).toLocaleDateString('fr-FR')}
+                              au {new Date(f.dateFin).toLocaleDateString('fr-FR')}
                             </Text>
                           )}
                         </Stack>
@@ -259,21 +238,21 @@ export default function ManagerFormationsPage() {
                       <Table.Td>
                         <Group gap="xs">
                           <Clock size={14} color="#868E96" />
-                          <Text size="sm">{formation.dureeHeures || 0}h</Text>
+                          <Text size="sm">{f.duree || 0} {f.uniteDuree || 'h'}</Text>
                         </Group>
                       </Table.Td>
                       <Table.Td>
                         <Text size="sm" c="dimmed" lineClamp={1}>
-                          {formation.organisme || '-'}
+                          {f.organisme || '-'}
                         </Text>
                       </Table.Td>
                       <Table.Td>
                         <Badge
-                          color={statusColors[formation.statut] || 'gray'}
+                          color={statusColors[f.statut] || 'gray'}
                           variant="light"
                           size="sm"
                         >
-                          {statusLabels[formation.statut] || formation.statut}
+                          {statusLabels[f.statut] || f.statut}
                         </Badge>
                       </Table.Td>
                     </Table.Tr>
@@ -282,32 +261,26 @@ export default function ManagerFormationsPage() {
               </Table>
             </Table.ScrollContainer>
 
-            {/* Pagination */}
-            <Group justify="space-between" p="lg">
-              <Text size="sm" c="dimmed">
-                Affichage de {(page - 1) * limit + 1} a {Math.min(page * limit, total)} sur{' '}
-                {total} formations
-              </Text>
-              <Pagination
-                value={page}
-                onChange={setPage}
-                total={totalPages}
-                siblings={1}
-                boundaries={1}
-                size="md"
-              />
-            </Group>
+            {totalPages > 1 && (
+              <Group justify="space-between" p="md">
+                <Text size="sm" c="dimmed">
+                  {(page - 1) * PAGE_SIZE + 1} - {Math.min(page * PAGE_SIZE, filtered.length)} sur {filtered.length}
+                </Text>
+                <Pagination
+                  value={page}
+                  onChange={setPage}
+                  total={totalPages}
+                  size="sm"
+                />
+              </Group>
+            )}
           </>
         ) : (
           <Center py="xl">
             <Stack align="center">
               <GraduationCap size={48} color="#868E96" />
-              <Text size="lg" fw={500} c="dimmed">
-                Aucune formation trouvee
-              </Text>
-              <Text size="sm" c="dimmed">
-                Essayez de modifier vos criteres de recherche
-              </Text>
+              <Text size="lg" fw={500} c="dimmed">Aucune formation trouvee</Text>
+              <Text size="sm" c="dimmed">Essayez de modifier vos criteres de recherche</Text>
             </Stack>
           </Center>
         )}

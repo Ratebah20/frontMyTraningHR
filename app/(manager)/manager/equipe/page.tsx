@@ -13,7 +13,6 @@ import {
   Center,
   Stack,
   Paper,
-  Pagination,
   Loader,
   Alert,
   Avatar,
@@ -31,61 +30,33 @@ import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
 import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
-import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { useRouter } from 'next/navigation';
-import { managerPortalService, ManagerTeamMember } from '@/lib/services/manager-portal.service';
-import { useDebounce } from '@/hooks/useApi';
+import api from '@/lib/api';
 
 export default function ManagerEquipePage() {
   const router = useRouter();
 
-  const [members, setMembers] = useState<ManagerTeamMember[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Filters & pagination
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
-  const [limit] = useState(20);
-
-  const debouncedSearch = useDebounce(search, 500);
 
   const loadMembers = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const filters: any = {
-        page,
-        limit,
-      };
+      const params: any = {};
+      if (search.trim()) params.search = search.trim();
+      if (statusFilter) params.statutFormation = statusFilter;
 
-      if (debouncedSearch && debouncedSearch.trim()) {
-        filters.search = debouncedSearch.trim();
-      }
-
-      if (statusFilter === 'actif') {
-        filters.actif = true;
-      } else if (statusFilter === 'inactif') {
-        filters.actif = false;
-      }
-
-      const response = await managerPortalService.getTeamMembers(filters);
-
-      if (response.data) {
-        setMembers(response.data);
-        setTotal(response.meta?.total || 0);
-        setTotalPages(response.meta?.totalPages || 1);
-      } else {
-        setMembers([]);
-        setTotal(0);
-        setTotalPages(0);
-      }
+      const response = await api.get('/manager/team', { params });
+      // Backend returns a flat array
+      const data = Array.isArray(response.data) ? response.data : [];
+      setMembers(data);
     } catch (err: any) {
       console.error('Erreur lors du chargement de l\'equipe:', err);
       setError(err.message || 'Erreur lors du chargement de l\'equipe');
@@ -96,23 +67,17 @@ export default function ManagerEquipePage() {
   };
 
   useEffect(() => {
-    loadMembers();
-  }, [debouncedSearch, statusFilter, page]);
-
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, statusFilter]);
+    const timer = setTimeout(() => loadMembers(), 300);
+    return () => clearTimeout(timer);
+  }, [search, statusFilter]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/manager/equipe/${id}`);
   };
 
-  // Stats computed from data
-  const stats = {
-    total: total,
-    actifs: members.filter((m) => m.actif).length,
-    directs: members.filter((m) => m.managerDirect).length,
-  };
+  const total = members.length;
+  const directs = members.filter((m) => m.isDirect).length;
+  const actifs = members.filter((m) => m.actif).length;
 
   return (
     <Container size="xl">
@@ -141,12 +106,8 @@ export default function ManagerEquipePage() {
             <Card withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Total
-                  </Text>
-                  <Text size="xl" fw={700}>
-                    {total}
-                  </Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Total</Text>
+                  <Text size="xl" fw={700}>{total}</Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                   <Users size={20} />
@@ -158,12 +119,8 @@ export default function ManagerEquipePage() {
             <Card withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Directs
-                  </Text>
-                  <Text size="xl" fw={700} c="blue">
-                    {stats.directs}
-                  </Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Directs</Text>
+                  <Text size="xl" fw={700} c="blue">{directs}</Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="teal">
                   <Users size={20} />
@@ -175,12 +132,8 @@ export default function ManagerEquipePage() {
             <Card withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
-                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Actifs
-                  </Text>
-                  <Text size="xl" fw={700} c="green">
-                    {stats.actifs}
-                  </Text>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Actifs</Text>
+                  <Text size="xl" fw={700} c="green">{actifs}</Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="green">
                   <CheckCircle size={20} />
@@ -211,8 +164,9 @@ export default function ManagerEquipePage() {
               placeholder="Tous les statuts"
               data={[
                 { value: '', label: 'Tous' },
-                { value: 'actif', label: 'Actifs seulement' },
-                { value: 'inactif', label: 'Inactifs seulement' },
+                { value: 'en_cours', label: 'En formation' },
+                { value: 'complete', label: 'Formations terminees' },
+                { value: 'sans_formation', label: 'Sans formation' },
               ]}
               value={statusFilter}
               onChange={(value) => setStatusFilter(value || '')}
@@ -232,122 +186,115 @@ export default function ManagerEquipePage() {
             {error}
           </Alert>
         ) : members.length > 0 ? (
-          <>
-            <Table.ScrollContainer minWidth={900}>
-              <Table verticalSpacing="sm" highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Collaborateur</Table.Th>
-                    <Table.Th>Matricule</Table.Th>
-                    <Table.Th>Departement</Table.Th>
-                    <Table.Th>Type</Table.Th>
-                    <Table.Th>Formations en cours</Table.Th>
-                    <Table.Th>Statut</Table.Th>
-                    <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {members.map((member) => (
-                    <Table.Tr
-                      key={member.id}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => handleViewDetails(member.id)}
-                    >
-                      <Table.Td>
-                        <Group gap="sm">
-                          <Avatar size={36} radius="xl" color="blue">
-                            {member.nomComplet
-                              ?.split(' ')
-                              .map((n) => n[0])
-                              .join('') || 'NA'}
-                          </Avatar>
-                          <Text size="sm" fw={500}>
-                            {member.nomComplet}
-                          </Text>
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Text size="sm" c="dimmed">
-                          {member.matricule || '-'}
+          <Table.ScrollContainer minWidth={900}>
+            <Table verticalSpacing="sm" highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Collaborateur</Table.Th>
+                  <Table.Th>Matricule</Table.Th>
+                  <Table.Th>Departement</Table.Th>
+                  <Table.Th>Type</Table.Th>
+                  <Table.Th>Formations</Table.Th>
+                  <Table.Th>Statut</Table.Th>
+                  <Table.Th style={{ textAlign: 'right' }}>Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {members.map((member) => (
+                  <Table.Tr
+                    key={member.id}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => handleViewDetails(member.id)}
+                  >
+                    <Table.Td>
+                      <Group gap="sm">
+                        <Avatar size={36} radius="xl" color="blue">
+                          {member.nomComplet
+                            ?.split(' ')
+                            .map((n: string) => n[0])
+                            .join('')
+                            .slice(0, 2) || 'NA'}
+                        </Avatar>
+                        <Text size="sm" fw={500}>
+                          {member.nomComplet}
                         </Text>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <Buildings size={14} color="#868E96" />
-                          <Text size="sm">{member.departement || 'Non assigne'}</Text>
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          variant="light"
-                          color={member.managerDirect ? 'blue' : 'gray'}
-                          size="sm"
-                        >
-                          {member.managerDirect ? 'Direct' : 'Indirect'}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="xs">
-                          <GraduationCap size={14} color="#868E96" />
-                          <Text size="sm">{member.formationsEnCours || 0}</Text>
-                        </Group>
-                      </Table.Td>
-                      <Table.Td>
-                        <Badge
-                          color={member.actif ? 'green' : 'red'}
-                          variant="light"
-                          size="sm"
-                        >
-                          {member.actif ? 'Actif' : 'Inactif'}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>
-                        <Group gap="xs" justify="flex-end">
-                          <Tooltip label="Voir details">
-                            <ActionIcon
-                              variant="subtle"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewDetails(member.id);
-                              }}
-                            >
-                              <Eye size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      </Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
-
-            {/* Pagination */}
-            <Group justify="space-between" p="lg">
-              <Text size="sm" c="dimmed">
-                Affichage de {(page - 1) * limit + 1} a {Math.min(page * limit, total)} sur{' '}
-                {total} collaborateurs
-              </Text>
-              <Pagination
-                value={page}
-                onChange={setPage}
-                total={totalPages}
-                siblings={1}
-                boundaries={1}
-                size="md"
-              />
-            </Group>
-          </>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" c="dimmed">{member.matricule || '-'}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="xs">
+                        <Buildings size={14} color="#868E96" />
+                        <Text size="sm">
+                          {member.departement?.nomDepartement || 'Non assigne'}
+                        </Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        variant="light"
+                        color={member.isDirect ? 'blue' : 'gray'}
+                        size="sm"
+                      >
+                        {member.isDirect ? 'Direct' : 'Indirect'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="xs">
+                        <GraduationCap size={14} color="#868E96" />
+                        <Text size="sm">
+                          {member.formationsEnCours > 0 && (
+                            <Badge size="xs" variant="light" color="yellow" mr={4}>
+                              {member.formationsEnCours} en cours
+                            </Badge>
+                          )}
+                          {member.formationsTerminees > 0 && (
+                            <Badge size="xs" variant="light" color="green">
+                              {member.formationsTerminees} terminees
+                            </Badge>
+                          )}
+                          {member.nombreFormations === 0 && (
+                            <Text size="xs" c="dimmed">Aucune</Text>
+                          )}
+                        </Text>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={member.actif ? 'green' : 'red'}
+                        variant="light"
+                        size="sm"
+                      >
+                        {member.actif ? 'Actif' : 'Inactif'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Group gap="xs" justify="flex-end">
+                        <Tooltip label="Voir details">
+                          <ActionIcon
+                            variant="subtle"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewDetails(member.id);
+                            }}
+                          >
+                            <Eye size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Group>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
         ) : (
           <Center py="xl">
             <Stack align="center">
               <Users size={48} color="#868E96" />
-              <Text size="lg" fw={500} c="dimmed">
-                Aucun collaborateur trouve
-              </Text>
-              <Text size="sm" c="dimmed">
-                Essayez de modifier vos criteres de recherche
-              </Text>
+              <Text size="lg" fw={500} c="dimmed">Aucun collaborateur trouve</Text>
+              <Text size="sm" c="dimmed">Essayez de modifier vos criteres de recherche</Text>
             </Stack>
           </Center>
         )}

@@ -20,11 +20,11 @@ import {
   Center,
   RingProgress,
   Divider,
+  Select,
 } from '@mantine/core';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
-import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { ArrowClockwise } from '@phosphor-icons/react/dist/ssr/ArrowClockwise';
@@ -33,7 +33,7 @@ import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { ArrowUpRight } from '@phosphor-icons/react/dist/ssr/ArrowUpRight';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
-import { managerPortalService } from '@/lib/services/manager-portal.service';
+import api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Status colors
@@ -42,37 +42,51 @@ const statusColors: Record<string, string> = {
   en_cours: 'yellow',
   complete: 'green',
   termine: 'green',
+  'Terminé': 'green',
   annule: 'red',
 };
 
 const statusLabels: Record<string, string> = {
   inscrit: 'Inscrit',
   en_cours: 'En cours',
-  complete: 'Termine',
-  termine: 'Termine',
-  annule: 'Annule',
+  complete: 'Terminé',
+  termine: 'Terminé',
+  'Terminé': 'Terminé',
+  annule: 'Annulé',
 };
+
+// Generate year options
+const currentYear = new Date().getFullYear();
+const yearOptions = Array.from({ length: 5 }, (_, i) => {
+  const y = currentYear - i;
+  return { value: String(y), label: String(y) };
+});
 
 export default function ManagerDashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [summary, setSummary] = useState<any>(null);
-  const [charts, setCharts] = useState<any>(null);
+  const [dashboard, setDashboard] = useState<any>(null);
+  const [stats, setStats] = useState<any>(null);
+  const [selectedYear, setSelectedYear] = useState<string>(String(currentYear));
 
   const loadData = useCallback(async (showLoader = true) => {
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
     try {
-      const [summaryData, chartsData] = await Promise.all([
-        managerPortalService.getDashboardSummary(),
-        managerPortalService.getDashboardCharts(),
+      const year = parseInt(selectedYear);
+      const dateDebut = `${year}-01-01`;
+      const dateFin = `${year}-12-31`;
+
+      const [dashboardRes, statsRes] = await Promise.all([
+        api.get('/manager/dashboard'),
+        api.get('/manager/stats', { params: { dateDebut, dateFin } }),
       ]);
 
-      setSummary(summaryData);
-      setCharts(chartsData);
+      setDashboard(dashboardRes.data);
+      setStats(statsRes.data);
     } catch (error) {
       console.error('Erreur lors du chargement du dashboard:', error);
       notifications.show({
@@ -85,7 +99,7 @@ export default function ManagerDashboardPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [selectedYear]);
 
   useEffect(() => {
     loadData();
@@ -97,44 +111,61 @@ export default function ManagerDashboardPage() {
     return () => clearInterval(interval);
   }, [loadData]);
 
-  const kpiCards = summary
+  // Build KPI cards from the actual backend response
+  const kpiCards = dashboard
     ? [
         {
           title: 'Collaborateurs',
-          value: summary.kpis?.totalCollaborateurs || 0,
-          subtitle: `${summary.kpis?.collaborateursDirects || 0} directs`,
+          value: dashboard.equipe?.nombreSubordonnesTotal || 0,
+          subtitle: `${dashboard.equipe?.nombreSubordonnesDirects || 0} directs`,
           icon: Users,
           color: 'blue',
         },
         {
           title: 'Formations en cours',
-          value: summary.kpis?.formationsEnCours || 0,
+          value: dashboard.formations?.enCours || 0,
           subtitle: 'Actuellement',
           icon: GraduationCap,
           color: 'violet',
         },
         {
           title: 'Completees ce mois',
-          value: summary.kpis?.formationsCompletesMois || 0,
+          value: dashboard.formations?.completesCeMois || 0,
           subtitle: 'Ce mois-ci',
           icon: CheckCircle,
           color: 'green',
         },
         {
           title: 'Obligatoires',
-          value: `${summary.kpis?.tauxCompletionObligatoires || 0}%`,
-          subtitle: 'Taux de completion',
+          value: `${stats?.mandatoryComplianceRate || 0}%`,
+          subtitle: 'Taux de compliance',
           icon: WarningCircle,
           color:
-            (summary.kpis?.tauxCompletionObligatoires || 0) >= 80
+            (stats?.mandatoryComplianceRate || 0) >= 80
               ? 'green'
-              : (summary.kpis?.tauxCompletionObligatoires || 0) >= 50
+              : (stats?.mandatoryComplianceRate || 0) >= 50
                 ? 'orange'
                 : 'red',
-          progress: summary.kpis?.tauxCompletionObligatoires || 0,
+          progress: stats?.mandatoryComplianceRate || 0,
         },
       ]
     : [];
+
+  // Build chart data from stats response
+  const formationsParMois = stats?.heuresByMonth?.map((item: any) => ({
+    mois: item.month,
+    count: item.heures,
+  })) || [];
+
+  // Build statut repartition from stats
+  const repartitionStatut = stats
+    ? [
+        { statut: 'complete', count: Math.round((stats.completionRate / 100) * (stats.heuresByMonth?.reduce((s: number, m: any) => s + m.heures, 0) || 0)), color: 'green' },
+      ]
+    : [];
+
+  // Build from formationsByCategorie for repartition
+  const categorieData = stats?.formationsByCategorie || [];
 
   if (loading) {
     return (
@@ -172,21 +203,30 @@ export default function ManagerDashboardPage() {
         <Group justify="space-between">
           <div>
             <Title order={1}>
-              Bonjour{summary?.manager?.nomComplet ? `, ${summary.manager.nomComplet}` : ''}
+              Bonjour{dashboard?.manager?.nomComplet ? `, ${dashboard.manager.nomComplet}` : ''}
             </Title>
             <Text size="lg" c="dimmed">
               Tableau de bord de votre equipe
             </Text>
           </div>
-          <Button
-            variant="light"
-            size="sm"
-            onClick={() => loadData(false)}
-            loading={refreshing}
-            leftSection={<ArrowClockwise size={16} />}
-          >
-            Actualiser
-          </Button>
+          <Group>
+            <Select
+              value={selectedYear}
+              onChange={(val) => val && setSelectedYear(val)}
+              data={yearOptions}
+              w={120}
+              size="sm"
+            />
+            <Button
+              variant="light"
+              size="sm"
+              onClick={() => loadData(false)}
+              loading={refreshing}
+              leftSection={<ArrowClockwise size={16} />}
+            >
+              Actualiser
+            </Button>
+          </Group>
         </Group>
       </Stack>
 
@@ -224,7 +264,7 @@ export default function ManagerDashboardPage() {
 
       {/* Charts Section */}
       <Grid gutter="lg" mb="lg">
-        {/* Formations par mois */}
+        {/* Heures de formation par mois */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
           <Paper shadow="sm" radius="md" p="lg" withBorder h="100%">
             <Group gap="xs" mb="md">
@@ -232,21 +272,24 @@ export default function ManagerDashboardPage() {
                 <ChartLine size={20} weight="duotone" />
               </ThemeIcon>
               <div>
-                <Title order={3}>Formations par mois</Title>
+                <Title order={3}>Heures de formation par mois</Title>
                 <Text size="sm" c="dimmed">
-                  12 derniers mois
+                  Annee {selectedYear}
                 </Text>
               </div>
             </Group>
-            {charts?.formationsParMois && charts.formationsParMois.length > 0 ? (
+            {formationsParMois.length > 0 ? (
               <Stack gap="md">
-                <SimpleGrid cols={Math.min(charts.formationsParMois.length, 12)} spacing="xs">
-                  {charts.formationsParMois.map((item: any, idx: number) => {
+                <SimpleGrid cols={Math.min(formationsParMois.length, 12)} spacing="xs">
+                  {formationsParMois.map((item: any, idx: number) => {
                     const maxCount = Math.max(
-                      ...charts.formationsParMois.map((d: any) => d.count),
+                      ...formationsParMois.map((d: any) => d.count),
                       1
                     );
                     const barHeight = Math.min((item.count / maxCount) * 100, 100);
+                    const monthLabel = item.mois?.split('-')[1] || '';
+                    const monthNames = ['Jan', 'Fev', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aou', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    const label = monthNames[parseInt(monthLabel) - 1] || monthLabel;
 
                     return (
                       <div key={idx}>
@@ -271,15 +314,24 @@ export default function ManagerDashboardPage() {
                           />
                         </div>
                         <Text size="xs" ta="center" mt={4}>
-                          {item.mois?.split(' ')[0] || ''}
+                          {label}
                         </Text>
                         <Text size="xs" ta="center" fw={600}>
-                          {item.count}
+                          {Math.round(item.count)}h
                         </Text>
                       </div>
                     );
                   })}
                 </SimpleGrid>
+                <Group justify="center">
+                  <Text size="sm" fw={600} c="blue">
+                    Total: {Math.round(stats?.totalHeures || 0)}h
+                  </Text>
+                  <Text size="sm" c="dimmed">|</Text>
+                  <Text size="sm" fw={600} c="green">
+                    Taux completion: {stats?.completionRate || 0}%
+                  </Text>
+                </Group>
               </Stack>
             ) : (
               <Center h={200}>
@@ -289,7 +341,7 @@ export default function ManagerDashboardPage() {
           </Paper>
         </Grid.Col>
 
-        {/* Repartition par statut */}
+        {/* Repartition par categorie */}
         <Grid.Col span={{ base: 12, lg: 6 }}>
           <Paper shadow="sm" radius="md" p="lg" withBorder h="100%">
             <Group gap="xs" mb="md">
@@ -297,33 +349,29 @@ export default function ManagerDashboardPage() {
                 <ChartLine size={20} weight="duotone" />
               </ThemeIcon>
               <div>
-                <Title order={3}>Repartition par statut</Title>
+                <Title order={3}>Repartition par categorie</Title>
                 <Text size="sm" c="dimmed">
-                  Sessions de l'equipe
+                  Formations de l'equipe - {selectedYear}
                 </Text>
               </div>
             </Group>
-            {charts?.repartitionStatut && charts.repartitionStatut.length > 0 ? (
+            {categorieData.length > 0 ? (
               <Stack gap="sm">
-                {charts.repartitionStatut.map((item: any, idx: number) => {
-                  const total = charts.repartitionStatut.reduce(
+                {categorieData.slice(0, 8).map((item: any, idx: number) => {
+                  const total = categorieData.reduce(
                     (sum: number, s: any) => sum + s.count,
                     0
                   );
                   const percentage = total > 0 ? Math.round((item.count / total) * 100) : 0;
+                  const colors = ['blue', 'violet', 'teal', 'orange', 'pink', 'cyan', 'indigo', 'grape'];
+                  const color = colors[idx % colors.length];
 
                   return (
                     <div key={idx}>
                       <Group justify="space-between" mb={4}>
-                        <Group gap="xs">
-                          <Badge
-                            size="sm"
-                            variant="light"
-                            color={item.color || statusColors[item.statut] || 'gray'}
-                          >
-                            {statusLabels[item.statut] || item.statut}
-                          </Badge>
-                        </Group>
+                        <Text size="sm" lineClamp={1} style={{ flex: 1 }}>
+                          {item.categorie}
+                        </Text>
                         <Group gap="xs">
                           <Text size="sm" fw={600}>
                             {item.count}
@@ -345,7 +393,7 @@ export default function ManagerDashboardPage() {
                           style={{
                             height: '100%',
                             width: `${percentage}%`,
-                            backgroundColor: `var(--mantine-color-${item.color || statusColors[item.statut] || 'gray'}-5)`,
+                            backgroundColor: `var(--mantine-color-${color}-5)`,
                             borderRadius: 4,
                             transition: 'width 0.5s ease',
                           }}
@@ -364,18 +412,18 @@ export default function ManagerDashboardPage() {
         </Grid.Col>
       </Grid>
 
-      {/* Prochaines formations */}
-      {summary?.prochainessFormations && summary.prochainessFormations.length > 0 && (
+      {/* Top formations */}
+      {stats?.topFormations && stats.topFormations.length > 0 && (
         <Paper shadow="sm" radius="md" p="lg" withBorder mb="xl">
           <Group justify="space-between" mb="md">
             <Group gap="xs">
               <ThemeIcon size={36} radius="md" variant="light" color="indigo">
-                <Calendar size={20} weight="duotone" />
+                <GraduationCap size={20} weight="duotone" />
               </ThemeIcon>
               <div>
-                <Title order={3}>Prochaines formations</Title>
+                <Title order={3}>Top formations</Title>
                 <Text size="sm" c="dimmed">
-                  30 prochains jours
+                  Les plus suivies en {selectedYear}
                 </Text>
               </div>
             </Group>
@@ -388,6 +436,55 @@ export default function ManagerDashboardPage() {
               Voir toutes
             </Button>
           </Group>
+          <Table.ScrollContainer minWidth={500}>
+            <Table verticalSpacing="sm">
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>#</Table.Th>
+                  <Table.Th>Formation</Table.Th>
+                  <Table.Th ta="right">Sessions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {stats.topFormations.slice(0, 10).map((f: any, idx: number) => (
+                  <Table.Tr key={idx}>
+                    <Table.Td>
+                      <Badge size="sm" variant="light" color="indigo">
+                        {idx + 1}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={500} lineClamp={1}>
+                        {f.nom}
+                      </Text>
+                    </Table.Td>
+                    <Table.Td ta="right">
+                      <Text size="sm" fw={600}>{f.count}</Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+        </Paper>
+      )}
+
+      {/* Prochaines formations */}
+      {dashboard?.prochainesFormations && dashboard.prochainesFormations.length > 0 && (
+        <Paper shadow="sm" radius="md" p="lg" withBorder mb="xl">
+          <Group justify="space-between" mb="md">
+            <Group gap="xs">
+              <ThemeIcon size={36} radius="md" variant="light" color="orange">
+                <Calendar size={20} weight="duotone" />
+              </ThemeIcon>
+              <div>
+                <Title order={3}>Prochaines formations</Title>
+                <Text size="sm" c="dimmed">
+                  30 prochains jours
+                </Text>
+              </div>
+            </Group>
+          </Group>
           <Table.ScrollContainer minWidth={700}>
             <Table verticalSpacing="sm">
               <Table.Thead>
@@ -396,12 +493,11 @@ export default function ManagerDashboardPage() {
                   <Table.Th>Collaborateur</Table.Th>
                   <Table.Th>Date debut</Table.Th>
                   <Table.Th>Date fin</Table.Th>
-                  <Table.Th>Statut</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {summary.prochainessFormations.slice(0, 10).map((session: any) => (
-                  <Table.Tr key={session.id}>
+                {dashboard.prochainesFormations.map((session: any, idx: number) => (
+                  <Table.Tr key={idx}>
                     <Table.Td>
                       <Text size="sm" fw={500} lineClamp={1}>
                         {session.formation}
@@ -424,15 +520,6 @@ export default function ManagerDashboardPage() {
                           : '-'}
                       </Text>
                     </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={statusColors[session.statut] || 'gray'}
-                        variant="light"
-                        size="sm"
-                      >
-                        {statusLabels[session.statut] || session.statut}
-                      </Badge>
-                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -441,58 +528,23 @@ export default function ManagerDashboardPage() {
         </Paper>
       )}
 
-      {/* Alertes */}
-      {summary?.alertes && summary.alertes.length > 0 && (
-        <Paper shadow="sm" radius="md" p="lg" withBorder>
-          <Group gap="xs" mb="md">
-            <ThemeIcon size={36} radius="md" variant="light" color="orange">
-              <Warning size={20} weight="duotone" />
-            </ThemeIcon>
-            <div>
-              <Title order={3}>Alertes</Title>
-              <Text size="sm" c="dimmed">
-                Points d'attention
-              </Text>
-            </div>
+      {/* Alerte formations obligatoires */}
+      {dashboard?.formations?.obligatoiresNonCompletees > 0 && (
+        <Alert
+          icon={<WarningCircle size={16} />}
+          color="orange"
+          variant="light"
+          mb="xl"
+        >
+          <Group justify="space-between">
+            <Text fw={500} size="sm">
+              {dashboard.formations.obligatoiresNonCompletees} formation(s) obligatoire(s) non completee(s) dans votre equipe
+            </Text>
+            <Badge size="lg" color="orange" variant="filled">
+              {dashboard.formations.obligatoiresNonCompletees}
+            </Badge>
           </Group>
-          <Stack gap="md">
-            {summary.alertes.map((alerte: any, idx: number) => (
-              <Alert
-                key={idx}
-                icon={<WarningCircle size={16} />}
-                color={
-                  alerte.severity === 'error'
-                    ? 'red'
-                    : alerte.severity === 'warning'
-                      ? 'orange'
-                      : 'blue'
-                }
-                variant="light"
-              >
-                <Group justify="space-between">
-                  <Text fw={500} size="sm">
-                    {alerte.message}
-                  </Text>
-                  {alerte.count > 0 && (
-                    <Badge
-                      size="lg"
-                      color={
-                        alerte.severity === 'error'
-                          ? 'red'
-                          : alerte.severity === 'warning'
-                            ? 'orange'
-                            : 'blue'
-                      }
-                      variant="filled"
-                    >
-                      {alerte.count}
-                    </Badge>
-                  )}
-                </Group>
-              </Alert>
-            ))}
-          </Stack>
-        </Paper>
+        </Alert>
       )}
     </Container>
   );

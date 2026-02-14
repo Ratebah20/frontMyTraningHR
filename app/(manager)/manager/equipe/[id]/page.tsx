@@ -19,16 +19,12 @@ import {
   Center,
   Alert,
   Avatar,
-  Divider,
-  RingProgress,
   Skeleton,
 } from '@mantine/core';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
-import { User } from '@phosphor-icons/react/dist/ssr/User';
 import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
 import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
-import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
@@ -36,23 +32,24 @@ import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/Identificatio
 import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
 import { notifications } from '@mantine/notifications';
 import { useRouter, useParams } from 'next/navigation';
-import { managerPortalService, ManagerTeamMemberDetail } from '@/lib/services/manager-portal.service';
+import api from '@/lib/api';
 
-// Status colors
 const statusColors: Record<string, string> = {
   inscrit: 'blue',
   en_cours: 'yellow',
   complete: 'green',
   termine: 'green',
+  'Terminé': 'green',
   annule: 'red',
 };
 
 const statusLabels: Record<string, string> = {
   inscrit: 'Inscrit',
   en_cours: 'En cours',
-  complete: 'Termine',
-  termine: 'Termine',
-  annule: 'Annule',
+  complete: 'Terminé',
+  termine: 'Terminé',
+  'Terminé': 'Terminé',
+  annule: 'Annulé',
 };
 
 export default function ManagerEquipeDetailPage() {
@@ -61,7 +58,7 @@ export default function ManagerEquipeDetailPage() {
   const id = parseInt(params.id as string, 10);
 
   const [loading, setLoading] = useState(true);
-  const [member, setMember] = useState<ManagerTeamMemberDetail | null>(null);
+  const [member, setMember] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<string | null>('formations');
 
   useEffect(() => {
@@ -72,8 +69,8 @@ export default function ManagerEquipeDetailPage() {
   const loadMemberDetail = async () => {
     setLoading(true);
     try {
-      const data = await managerPortalService.getTeamMemberDetail(id);
-      setMember(data);
+      const response = await api.get(`/manager/team/${id}`);
+      setMember(response.data);
     } catch (error) {
       console.error('Erreur lors du chargement du collaborateur:', error);
       notifications.show({
@@ -113,7 +110,7 @@ export default function ManagerEquipeDetailPage() {
     return (
       <Container size="xl">
         <Alert icon={<Warning size={16} />} color="red" variant="light">
-          Collaborateur non trouve
+          Collaborateur non trouvé
         </Alert>
         <Button
           mt="md"
@@ -121,12 +118,14 @@ export default function ManagerEquipeDetailPage() {
           leftSection={<ArrowLeft size={16} />}
           onClick={() => router.push('/manager/equipe')}
         >
-          Retour a l'equipe
+          Retour à l'équipe
         </Button>
       </Container>
     );
   }
 
+  const formations = member.formations || [];
+  const stats = member.stats || {};
   return (
     <Container size="xl">
       {/* Back button & header */}
@@ -147,8 +146,9 @@ export default function ManagerEquipeDetailPage() {
             <Avatar size={64} radius="xl" color="blue">
               {member.nomComplet
                 ?.split(' ')
-                .map((n) => n[0])
-                .join('') || 'NA'}
+                .map((n: string) => n[0])
+                .join('')
+                .slice(0, 2) || 'NA'}
             </Avatar>
             <div>
               <Title order={2}>{member.nomComplet}</Title>
@@ -160,12 +160,12 @@ export default function ManagerEquipeDetailPage() {
                 )}
                 {member.departement && (
                   <Badge variant="light" color="blue" leftSection={<Buildings size={12} />}>
-                    {member.departement}
+                    {member.departement?.nomDepartement || 'Non assigné'}
                   </Badge>
                 )}
                 {member.contrat && (
                   <Badge variant="light" color="violet">
-                    {member.contrat}
+                    {member.contrat?.typeContrat || '-'}
                   </Badge>
                 )}
                 <Badge
@@ -173,12 +173,6 @@ export default function ManagerEquipeDetailPage() {
                   variant="light"
                 >
                   {member.actif ? 'Actif' : 'Inactif'}
-                </Badge>
-                <Badge
-                  color={member.managerDirect ? 'blue' : 'gray'}
-                  variant="light"
-                >
-                  {member.managerDirect ? 'Subordonne direct' : 'Subordonne indirect'}
                 </Badge>
               </Group>
             </div>
@@ -195,7 +189,7 @@ export default function ManagerEquipeDetailPage() {
                     Total formations
                   </Text>
                   <Text size="xl" fw={700}>
-                    {member.stats?.totalFormations || 0}
+                    {stats.totalFormations || 0}
                   </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="blue">
@@ -209,10 +203,10 @@ export default function ManagerEquipeDetailPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Terminees
+                    Terminées
                   </Text>
                   <Text size="xl" fw={700} c="green">
-                    {member.stats?.formationsTerminees || 0}
+                    {stats.formationsTerminees || 0}
                   </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="green">
@@ -229,7 +223,7 @@ export default function ManagerEquipeDetailPage() {
                     Heures totales
                   </Text>
                   <Text size="xl" fw={700} c="orange">
-                    {member.stats?.totalHeures || 0}h
+                    {stats.totalHeures || 0}h
                   </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="orange">
@@ -243,28 +237,15 @@ export default function ManagerEquipeDetailPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Taux completion
+                    En cours
                   </Text>
-                  <Text size="xl" fw={700}>
-                    {member.stats?.tauxCompletion || 0}%
+                  <Text size="xl" fw={700} c="yellow">
+                    {stats.formationsEnCours || 0}
                   </Text>
                 </div>
-                <RingProgress
-                  size={48}
-                  thickness={4}
-                  roundCaps
-                  sections={[
-                    {
-                      value: member.stats?.tauxCompletion || 0,
-                      color:
-                        (member.stats?.tauxCompletion || 0) >= 80
-                          ? 'green'
-                          : (member.stats?.tauxCompletion || 0) >= 50
-                            ? 'orange'
-                            : 'red',
-                    },
-                  ]}
-                />
+                <ThemeIcon size="lg" radius="md" variant="light" color="yellow">
+                  <Hourglass size={20} />
+                </ThemeIcon>
               </Group>
             </Card>
           </Grid.Col>
@@ -275,7 +256,7 @@ export default function ManagerEquipeDetailPage() {
       <Tabs value={activeTab} onChange={setActiveTab}>
         <Tabs.List>
           <Tabs.Tab value="formations" leftSection={<GraduationCap size={16} />}>
-            Formations
+            Formations ({formations.length})
           </Tabs.Tab>
           <Tabs.Tab value="statistiques" leftSection={<ChartBar size={16} />}>
             Statistiques
@@ -285,65 +266,56 @@ export default function ManagerEquipeDetailPage() {
         {/* Formations Tab */}
         <Tabs.Panel value="formations" pt="md">
           <Paper shadow="xs" radius="md" withBorder>
-            {member.formations && member.formations.length > 0 ? (
+            {formations.length > 0 ? (
               <Table.ScrollContainer minWidth={800}>
-                <Table verticalSpacing="sm">
+                <Table verticalSpacing="sm" highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
                       <Table.Th>Formation</Table.Th>
-                      <Table.Th>Categorie</Table.Th>
-                      <Table.Th>Date debut</Table.Th>
+                      <Table.Th>Date début</Table.Th>
                       <Table.Th>Date fin</Table.Th>
-                      <Table.Th>Duree</Table.Th>
-                      <Table.Th>Organisme</Table.Th>
+                      <Table.Th>Durée</Table.Th>
                       <Table.Th>Statut</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
-                    {member.formations.map((formation) => (
-                      <Table.Tr key={formation.id}>
+                    {formations.map((f: any, idx: number) => (
+                      <Table.Tr key={f.id || idx}>
                         <Table.Td>
                           <Text size="sm" fw={500} lineClamp={1}>
-                            {formation.nomFormation}
+                            {f.formation?.nomFormation || '-'}
                           </Text>
                         </Table.Td>
                         <Table.Td>
-                          <Badge variant="light" color="gray" size="sm">
-                            {formation.categorie || 'Non categorise'}
-                          </Badge>
+                          <Group gap="xs">
+                            <Calendar size={12} color="#868E96" />
+                            <Text size="sm">
+                              {f.dateDebut
+                                ? new Date(f.dateDebut).toLocaleDateString('fr-FR')
+                                : '-'}
+                            </Text>
+                          </Group>
                         </Table.Td>
                         <Table.Td>
                           <Text size="sm">
-                            {formation.dateDebut
-                              ? new Date(formation.dateDebut).toLocaleDateString('fr-FR')
-                              : '-'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">
-                            {formation.dateFin
-                              ? new Date(formation.dateFin).toLocaleDateString('fr-FR')
+                            {f.dateFin
+                              ? new Date(f.dateFin).toLocaleDateString('fr-FR')
                               : '-'}
                           </Text>
                         </Table.Td>
                         <Table.Td>
                           <Group gap="xs">
                             <Clock size={14} color="#868E96" />
-                            <Text size="sm">{formation.dureeHeures || 0}h</Text>
+                            <Text size="sm">{f.duree || 0} {f.uniteDuree || 'h'}</Text>
                           </Group>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" c="dimmed" lineClamp={1}>
-                            {formation.organisme || '-'}
-                          </Text>
-                        </Table.Td>
-                        <Table.Td>
                           <Badge
-                            color={statusColors[formation.statut] || 'gray'}
+                            color={statusColors[f.statut] || 'gray'}
                             variant="light"
                             size="sm"
                           >
-                            {statusLabels[formation.statut] || formation.statut}
+                            {statusLabels[f.statut] || f.statut}
                           </Badge>
                         </Table.Td>
                       </Table.Tr>
@@ -359,7 +331,7 @@ export default function ManagerEquipeDetailPage() {
                     Aucune formation
                   </Text>
                   <Text size="sm" c="dimmed">
-                    Ce collaborateur n'a pas encore de formations enregistrees
+                    Ce collaborateur n'a pas encore de formations enregistrées
                   </Text>
                 </Stack>
               </Center>
@@ -369,95 +341,50 @@ export default function ManagerEquipeDetailPage() {
 
         {/* Statistiques Tab */}
         <Tabs.Panel value="statistiques" pt="md">
-          <Grid>
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Paper shadow="sm" radius="md" p="lg" withBorder>
-                <Group gap="xs" mb="md">
-                  <ThemeIcon size={36} radius="md" variant="light" color="blue">
-                    <Clock size={20} weight="duotone" />
-                  </ThemeIcon>
-                  <div>
-                    <Title order={4}>Heures de formation</Title>
-                    <Text size="sm" c="dimmed">
-                      Recapitulatif
-                    </Text>
-                  </div>
-                </Group>
+          <Paper shadow="sm" radius="md" p="lg" withBorder>
+            <Group gap="xs" mb="md">
+              <ThemeIcon size={36} radius="md" variant="light" color="blue">
+                <Clock size={20} weight="duotone" />
+              </ThemeIcon>
+              <div>
+                <Title order={4}>Heures de formation</Title>
+                <Text size="sm" c="dimmed">Récapitulatif</Text>
+              </div>
+            </Group>
 
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <Text size="sm">Total heures</Text>
-                    <Text size="sm" fw={700}>
-                      {member.stats?.totalHeures || 0}h
-                    </Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm">Formations terminees</Text>
-                    <Text size="sm" fw={700} c="green">
-                      {member.stats?.formationsTerminees || 0}
-                    </Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm">Formations en cours</Text>
-                    <Text size="sm" fw={700} c="orange">
-                      {member.stats?.formationsEnCours || 0}
-                    </Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm">Total formations</Text>
-                    <Text size="sm" fw={700}>
-                      {member.stats?.totalFormations || 0}
-                    </Text>
-                  </Group>
-                </Stack>
-              </Paper>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, md: 6 }}>
-              <Paper shadow="sm" radius="md" p="lg" withBorder>
-                <Group gap="xs" mb="md">
-                  <ThemeIcon size={36} radius="md" variant="light" color="green">
-                    <CheckCircle size={20} weight="duotone" />
-                  </ThemeIcon>
-                  <div>
-                    <Title order={4}>Taux de completion</Title>
-                    <Text size="sm" c="dimmed">
-                      Progression globale
-                    </Text>
-                  </div>
-                </Group>
-
-                <Center py="lg">
-                  <RingProgress
-                    size={160}
-                    thickness={14}
-                    roundCaps
-                    sections={[
-                      {
-                        value: member.stats?.tauxCompletion || 0,
-                        color:
-                          (member.stats?.tauxCompletion || 0) >= 80
-                            ? 'green'
-                            : (member.stats?.tauxCompletion || 0) >= 50
-                              ? 'orange'
-                              : 'red',
-                      },
-                    ]}
-                    label={
-                      <div style={{ textAlign: 'center' }}>
-                        <Text size="xl" fw={800}>
-                          {member.stats?.tauxCompletion || 0}%
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                          completion
-                        </Text>
-                      </div>
-                    }
-                  />
-                </Center>
-              </Paper>
-            </Grid.Col>
-          </Grid>
+            <Stack gap="md">
+              <Group justify="space-between">
+                <Text size="sm">Total heures</Text>
+                <Text size="sm" fw={700}>
+                  {stats.totalHeures || 0}h
+                </Text>
+              </Group>
+              <Group justify="space-between">
+                <Text size="sm">Formations terminées</Text>
+                <Text size="sm" fw={700} c="green">
+                  {stats.formationsTerminees || 0}
+                </Text>
+              </Group>
+              <Group justify="space-between">
+                <Text size="sm">Formations en cours</Text>
+                <Text size="sm" fw={700} c="orange">
+                  {stats.formationsEnCours || 0}
+                </Text>
+              </Group>
+              <Group justify="space-between">
+                <Text size="sm">Formations inscrites</Text>
+                <Text size="sm" fw={700} c="blue">
+                  {stats.formationsInscrites || 0}
+                </Text>
+              </Group>
+              <Group justify="space-between">
+                <Text size="sm">Total formations</Text>
+                <Text size="sm" fw={700}>
+                  {stats.totalFormations || 0}
+                </Text>
+              </Group>
+            </Stack>
+          </Paper>
         </Tabs.Panel>
       </Tabs>
     </Container>

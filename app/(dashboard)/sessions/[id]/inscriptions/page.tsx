@@ -207,6 +207,10 @@ export default function SessionInscriptionsPage({ params }: Props) {
   }
 
 
+  // Vérifier si la session est pleine (si maxParticipants est défini sur la session)
+  const enrolledCount = existingParticipants.length + selectedCollaborateurs.length;
+  const isFull = session.maxParticipants ? enrolledCount >= session.maxParticipants : false;
+
   return (
     <Container size="xl">
       <Group mb="xl">
@@ -344,7 +348,9 @@ export default function SessionInscriptionsPage({ params }: Props) {
                       </Group>
                     </Table.Td>
                     <Table.Td>
-                      {collaborateur.departement?.nomDepartement || 'Non défini'}
+                      {typeof collaborateur.departement === 'string'
+                        ? collaborateur.departement
+                        : collaborateur.departement?.nomDepartement || 'Non défini'}
                     </Table.Td>
                     <Table.Td>
                       {isAlreadyParticipant ? (

@@ -21,7 +21,6 @@ import {
   rem,
   useMantineTheme,
   Flex,
-  Paper,
   Stack,
   Avatar,
   Indicator,
@@ -29,7 +28,6 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { useMantineColorScheme } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { Progress } from '@mantine/core';
 import { House } from '@phosphor-icons/react/dist/ssr/House';
 import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
 import { Books } from '@phosphor-icons/react/dist/ssr/Books';
@@ -55,7 +53,7 @@ import { Building } from '@phosphor-icons/react/dist/ssr/Building';
 import { Robot } from '@phosphor-icons/react/dist/ssr/Robot';
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { useAuth } from '@/contexts/AuthContext';
-import { spotlight } from '@mantine/spotlight';
+import { spotlight } from '@/components/layout/SpotlightSearch';
 
 interface NavigationItem {
   icon: React.FC<any>;
@@ -70,18 +68,15 @@ interface NavigationItem {
 }
 
 const navigationItems: NavigationItem[] = [
-  { 
-    icon: House, 
-    label: 'Dashboard', 
+  {
+    icon: House,
+    label: 'Dashboard',
     href: '/dashboard',
-    color: 'blue'
   },
   {
     icon: UsersThree,
     label: 'Collaborateurs',
     href: '/collaborateurs',
-    badge: 245,
-    color: 'teal',
     subItems: [
       { label: 'Liste', href: '/collaborateurs' },
       { label: 'Nouveau', href: '/collaborateurs/new' },
@@ -94,19 +89,16 @@ const navigationItems: NavigationItem[] = [
     icon: Books,
     label: 'Formations',
     href: '/formations',
-    color: 'violet',
     subItems: [
       { label: 'Catalogue', href: '/formations' },
       { label: 'Créer', href: '/formations/new' },
       { label: 'Catégories', href: '/formations/categories' },
-      { label: 'Obligatoires', href: '/formations/obligatoires' },
     ]
   },
   {
     icon: Building,
     label: 'Organismes',
     href: '/organismes',
-    color: 'grape',
     subItems: [
       { label: 'Liste', href: '/organismes' },
       { label: 'Nouveau', href: '/organismes/new' },
@@ -116,8 +108,6 @@ const navigationItems: NavigationItem[] = [
     icon: Calendar,
     label: 'Sessions',
     href: '/sessions',
-    badge: 12,
-    color: 'orange',
     subItems: [
       { label: 'Planning', href: '/sessions' },
       { label: 'Calendrier', href: '/sessions/calendar' },
@@ -128,32 +118,28 @@ const navigationItems: NavigationItem[] = [
     icon: ListChecks,
     label: 'Templates Tâches',
     href: '/templates',
-    color: 'indigo'
   },
   {
     icon: Wallet,
     label: 'Budget',
     href: '/budget',
-    color: 'grape',
     subItems: [
       { label: 'Vue d\'ensemble', href: '/budget' },
       { label: 'Dashboard KPIs', href: '/budget/dashboard' },
       { label: 'Analytics Avancés', href: '/budget/analytics' },
     ]
   },
-  { 
-    icon: Upload, 
-    label: 'Import ETL', 
+  {
+    icon: Upload,
+    label: 'Import ETL',
     href: '/import',
-    color: 'green'
   },
   {
     icon: ChartBar,
     label: 'KPIs',
     href: '/kpi/formations',
-    color: 'red',
-    badge: 3,
     subItems: [
+      { label: 'Conformité', href: '/kpi/conformite' },
       { label: 'Formations', href: '/kpi/formations' },
       { label: 'Collaborateurs', href: '/kpi/collaborateurs' },
       { label: 'Objectifs L&D', href: '/kpi/objectifs-ld' },
@@ -162,36 +148,30 @@ const navigationItems: NavigationItem[] = [
       { label: 'Statistiques', href: '/kpi/stats' },
     ]
   },
-  { 
-    icon: Download, 
-    label: 'Exports', 
+  {
+    icon: Download,
+    label: 'Exports',
     href: '/exports',
-    color: 'cyan'
   },
-  { 
-    icon: FileText, 
-    label: 'Documents', 
+  {
+    icon: FileText,
+    label: 'Documents',
     href: '/documents',
-    color: 'pink'
   },
   {
     icon: Robot,
     label: 'Assistant IA',
     href: '/ai-assistant',
-    color: 'grape',
-    badge: undefined,
   },
   {
     icon: ShieldCheck,
     label: 'Comptes managers',
     href: '/comptes-managers',
-    color: 'indigo',
   },
   {
     icon: Gear,
     label: 'Paramètres',
     href: '/settings',
-    color: 'gray'
   },
 ];
 
@@ -484,36 +464,6 @@ export function Sidebar({ collapsed, onCollapse }: { collapsed: boolean; onColla
             </Flex>
           </UnstyledButton>
 
-          {/* Stats rapides */}
-          {!collapsed && (
-            <Paper
-              mt="md"
-              p="md"
-              radius="md"
-              style={{
-                backgroundColor: colorScheme === 'dark' 
-                  ? theme.colors.dark[7] 
-                  : theme.colors.blue[0],
-                borderLeft: `${rem(4)} solid ${theme.colors.blue[6]}`,
-              }}
-            >
-              <Group justify="space-between" mb="xs">
-                <Text size="xs" c="dimmed">Cette semaine</Text>
-                <Badge size="xs" variant="dot" color="green">
-                  Actif
-                </Badge>
-              </Group>
-              <Text size="lg" fw={700}>12 sessions</Text>
-              <Text size="xs" c="dimmed">245 participants</Text>
-              <Progress
-                value={75}
-                size="xs"
-                mt="xs"
-                color="blue"
-                animated
-              />
-            </Paper>
-          )}
         </Box>
       </Stack>
     </div>

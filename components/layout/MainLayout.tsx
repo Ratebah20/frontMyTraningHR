@@ -268,22 +268,6 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
                     
                     <Menu.Divider />
                     
-                    <Menu.Label>Formation</Menu.Label>
-                    <Menu.Item>
-                      <Flex justify="space-between">
-                        <Text size="xs">Heures validées</Text>
-                        <Badge size="xs">24h</Badge>
-                      </Flex>
-                    </Menu.Item>
-                    <Menu.Item>
-                      <Flex justify="space-between">
-                        <Text size="xs">Certifications</Text>
-                        <Badge size="xs" color="green">3</Badge>
-                      </Flex>
-                    </Menu.Item>
-                    
-                    <Menu.Divider />
-                    
                     <Menu.Item 
                       color="red" 
                       leftSection={<SignOut size={14} />}

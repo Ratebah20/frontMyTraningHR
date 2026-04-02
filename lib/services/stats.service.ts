@@ -150,7 +150,6 @@ export const statsService = {
     if (contratIds && contratIds.length > 0) {
       params.contratIds = contratIds.join(',');
     }
-    console.log('getCollaborateursDetailedKpis params:', params);
     const response = await api.get('/stats/collaborateurs-detailed-kpis', { params });
     return response.data;
   },

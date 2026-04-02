@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, LineChart, BarChart, Tabs } from '@mantine/core'
+import { Card, Grid, Text, Title, Badge, Progress, Table, Group, Stack, Paper, Tabs } from '@mantine/core'
 import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
 import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
 import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';

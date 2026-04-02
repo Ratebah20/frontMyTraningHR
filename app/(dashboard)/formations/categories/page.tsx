@@ -383,7 +383,7 @@ export default function CategoriesPage() {
                             Modifier
                           </Menu.Item>
                           <Menu.Item
-                            leftSection={<Switch size={14} checked={category.actif} readOnly />}
+                            leftSection={<Switch size="xs" checked={category.actif} readOnly />}
                             onClick={() => toggleStatus(category)}
                           >
                             {category.actif ? 'Désactiver' : 'Activer'}

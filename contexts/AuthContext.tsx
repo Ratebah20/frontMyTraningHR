@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     try {
       const response = await authService.login(email, password);
-      setUser(response.user);
+      setUser(response.user as User);
 
       // Redirect based on user role
       const redirectPath = getRedirectByRole(response.user.role);

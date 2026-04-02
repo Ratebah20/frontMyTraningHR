@@ -95,11 +95,11 @@ export function ManagerLayout({ children, user: propsUser }: ManagerLayoutProps)
       <NavigationProgress />
       <AppShell
         navbar={{
-          width: 260,
+          width: 300,
           breakpoint: 'sm',
           collapsed: { mobile: !opened },
         }}
-        header={{ height: 60 }}
+        header={{ height: 70 }}
         padding="md"
       >
         <AppShell.Header id="manager-header">

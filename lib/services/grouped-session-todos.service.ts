@@ -36,9 +36,7 @@ export const createGroupedSessionTodo = async (
   data: CreateSessionTodoDto
 ): Promise<GroupedSessionTodo> => {
   const url = `/sessions/grouped/${encodeURIComponent(groupKey)}/todos`;
-  console.log('🌐 API POST Request:', { url, data });
   const response = await api.post(url, data);
-  console.log('✅ API POST Response:', response.data);
   return response.data;
 };
 

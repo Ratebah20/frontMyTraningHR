@@ -41,10 +41,7 @@ export default function TodoForm({ opened, onClose, onSubmit, todo, mode }: Todo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('📝 TodoForm handleSubmit appelé, mode:', mode);
-
     if (!formData.titre.trim()) {
-      console.log('⚠️ Titre vide, arrêt de la soumission');
       notifications.show({
         title: 'Erreur',
         message: 'Le titre est requis',
@@ -62,12 +59,9 @@ export default function TodoForm({ opened, onClose, onSubmit, todo, mode }: Todo
         ? formData.dateEcheance.toISOString().split('T')[0]
         : undefined,
     };
-    console.log('📤 Données à soumettre:', submitData);
-
     setLoading(true);
     try {
       await onSubmit(submitData);
-      console.log('✅ Soumission réussie');
 
       notifications.show({
         title: 'Succès',
@@ -77,7 +71,6 @@ export default function TodoForm({ opened, onClose, onSubmit, todo, mode }: Todo
 
       onClose();
     } catch (error: any) {
-      console.error('❌ Erreur lors de la soumission:', error);
       notifications.show({
         title: 'Erreur',
         message: error.response?.data?.message || 'Une erreur est survenue',
@@ -120,7 +113,7 @@ export default function TodoForm({ opened, onClose, onSubmit, todo, mode }: Todo
               label="Priorité"
               data={PRIORITE_OPTIONS}
               value={formData.priorite}
-              onChange={(value) => setFormData({ ...formData, priorite: value || 'normal' })}
+              onChange={(value) => setFormData({ ...formData, priorite: (value || 'normal') as 'bas' | 'normal' | 'haut' })}
             />
 
             <Select
@@ -137,7 +130,7 @@ export default function TodoForm({ opened, onClose, onSubmit, todo, mode }: Todo
             label="Date d'échéance"
             placeholder="Sélectionner une date"
             value={formData.dateEcheance}
-            onChange={(value) => setFormData({ ...formData, dateEcheance: value })}
+            onChange={(value) => setFormData({ ...formData, dateEcheance: typeof value === 'string' ? new Date(value) : value })}
             clearable
             minDate={new Date()}
           />

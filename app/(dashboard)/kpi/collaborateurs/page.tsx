@@ -17,17 +17,10 @@ import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { UserSwitch } from '@phosphor-icons/react/dist/ssr/UserSwitch';
 import { ToggleLeft } from '@phosphor-icons/react/dist/ssr/ToggleLeft';
 import { ToggleRight } from '@phosphor-icons/react/dist/ssr/ToggleRight';
-import { Scales } from '@phosphor-icons/react/dist/ssr/Scales';
-import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
-import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
-import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
-import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
-import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
-import { X } from '@phosphor-icons/react/dist/ssr/X';
 import axios from 'axios'
 import { motion } from 'framer-motion'
-import { statsService, formationsService } from '@/lib/services'
-import { DetailedKPIsResponse, ComplianceEthicsKPIsResponse } from '@/lib/types'
+import { statsService } from '@/lib/services'
+import { DetailedKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import styles from './collaborateurs.module.css'
 
@@ -145,7 +138,6 @@ function HeroCard({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, delay, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div className={styles.heroCardGlow} />
       <div className={styles.heroCardContent}>
         <div className={styles.heroCardLabel}>
           <Icon size={18} weight="bold" />
@@ -162,7 +154,7 @@ function HeroCard({
   )
 }
 
-// Composant Glass Card
+// Composant Card
 function GlassCard({
   label,
   value,
@@ -192,22 +184,22 @@ function GlassCard({
 
   return (
     <motion.div
-      className={styles.glassCard}
+      className={styles.card}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div className={styles.glassCardHeader}>
-        <span className={styles.glassCardLabel}>{label}</span>
-        <div className={`${styles.glassCardIconWrapper} ${iconClass}`}>
+      <div className={styles.cardHeader}>
+        <span className={styles.cardLabel}>{label}</span>
+        <div className={`${styles.cardIconWrapper} ${iconClass}`}>
           <Icon size={20} weight="bold" />
         </div>
       </div>
-      <div className={styles.glassCardValue}>
+      <div className={styles.cardValue}>
         {animatedValue}
-        {suffix && <span style={{ fontSize: '1rem', opacity: 0.6 }}>{suffix}</span>}
+        {suffix && <span className={styles.heroCardSuffix}>{suffix}</span>}
       </div>
-      <div className={styles.glassCardMeta}>{meta}</div>
+      <div className={styles.cardMeta}>{meta}</div>
     </motion.div>
   )
 }
@@ -232,22 +224,8 @@ export default function CollaborateursKPIsPage() {
   const [typesContrats, setTypesContrats] = useState<{ id: number; typeContrat: string }[]>([])
   const [showContratDropdown, setShowContratDropdown] = useState(false)
 
-  // État pour les KPIs Compliance/Éthique
-  const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
-  const [complianceLoading, setComplianceLoading] = useState(false)
-  const [selectedFormationIds, setSelectedFormationIds] = useState<number[]>([])
-  const [availableFormations, setAvailableFormations] = useState<{ id: number; nom: string }[]>([])
-
-  // État pour la recherche et ajout de formations
-  const [allFormations, setAllFormations] = useState<{ id: number; nom: string }[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const [hasInitialized, setHasInitialized] = useState(false) // Pour éviter reset après suppression
-
   useEffect(() => {
     fetchData()
-    fetchAllFormations()
     fetchTypesContrats()
   }, [])
 
@@ -264,10 +242,6 @@ export default function CollaborateursKPIsPage() {
     fetchDetailedData()
   }, [periode, date, dateDebut, dateFin, includeInactifs, contratFilters])
 
-  useEffect(() => {
-    fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized, contratFilters])
-
   const fetchData = async () => {
     try {
       const response = await axios.get(`${API_URL}/stats/collaborateurs-kpis`)
@@ -278,39 +252,6 @@ export default function CollaborateursKPIsPage() {
       setLoading(false)
     }
   }
-
-  const fetchAllFormations = async () => {
-    try {
-      const response = await formationsService.getFormations({ limit: 1000 })
-      setAllFormations(response.data.map(f => ({ id: f.id, nom: f.nomFormation })))
-    } catch (error) {
-      console.error('Erreur lors du chargement des formations:', error)
-    }
-  }
-
-  // Ajouter une formation à la liste des formations disponibles
-  const addFormationToList = (formation: { id: number; nom: string }) => {
-    if (!availableFormations.find(f => f.id === formation.id)) {
-      const newAvailable = [...availableFormations, formation]
-      const newSelected = [...selectedFormationIds, formation.id]
-      setAvailableFormations(newAvailable)
-      setSelectedFormationIds(newSelected)
-    }
-    setSearchQuery('')
-    setShowSearch(false)
-  }
-
-  // Retirer une formation de la liste
-  const removeFormationFromList = (formationId: number) => {
-    setAvailableFormations(availableFormations.filter(f => f.id !== formationId))
-    setSelectedFormationIds(selectedFormationIds.filter(id => id !== formationId))
-  }
-
-  // Filtrer les formations pour la recherche (exclure celles déjà dans la liste)
-  const filteredSearchResults = allFormations.filter(f =>
-    !availableFormations.find(af => af.id === f.id) &&
-    f.nom.toLowerCase().includes(searchQuery.toLowerCase())
-  ).slice(0, 10)
 
   const fetchDetailedData = async () => {
     // En mode plage, attendre que les deux dates soient sélectionnées
@@ -334,85 +275,9 @@ export default function CollaborateursKPIsPage() {
     }
   }
 
-  const fetchComplianceData = async () => {
-    if (periode === 'plage' && (!dateDebut || !dateFin)) {
-      return
-    }
-
-    // Si l'utilisateur a explicitement désélectionné toutes les formations (après initialisation), afficher des zéros
-    if (hasInitialized && selectedFormationIds.length === 0) {
-      const zeroGenre = { nombre: 0, heures: 0, formations: 0, moyenne: 0 }
-      const zeroCategory = {
-        total: 0, formes: 0, nonFormes: 0, heures: 0, formations: 0,
-        tauxCouverture: 0, moyenneHeuresParPersonne: 0,
-        parGenre: { homme: zeroGenre, femme: zeroGenre }
-      }
-      setComplianceData({
-        periode: { annee: parseInt(date) || new Date().getFullYear(), mois: null, dateDebut: null, dateFin: null, libelle: 'Aucune formation sélectionnée' },
-        formationsEthique: { liste: [], nombreFormations: 0 },
-        parCategorieSimple: {
-          b2b: zeroCategory,
-          b2c: zeroCategory,
-          managers: zeroCategory,
-          directeurs: zeroCategory
-        },
-        parCategorieCroisee: [],
-        comparatifGlobal: { totalEmployesRisque: 0, formes: 0, nonFormes: 0, tauxCouverture: 0 },
-        parFormation: []
-      })
-      return
-    }
-
-    setComplianceLoading(true)
-    try {
-      const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
-                        dateDebut ? new Date(dateDebut).toISOString() : undefined
-      const endDate = dateFin instanceof Date ? dateFin.toISOString() :
-                      dateFin ? new Date(dateFin).toISOString() : undefined
-
-      // Passer les formations sélectionnées (ou undefined pour le premier chargement)
-      const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
-      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds, contratFilters.length > 0 ? contratFilters : undefined)
-      setComplianceData(response)
-
-      // Si c'est le premier chargement (pas encore initialisé), initialiser les formations disponibles
-      if (!hasInitialized && response.formationsEthique.liste.length > 0) {
-        setAvailableFormations(response.formationsEthique.liste)
-        setSelectedFormationIds(response.formationsEthique.liste.map(f => f.id))
-        setHasInitialized(true)
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des KPIs compliance:', error)
-    } finally {
-      setComplianceLoading(false)
-    }
-  }
-
-  // Helper pour déterminer la classe CSS du taux de couverture
-  const getCoverageClass = (taux: number) => {
-    if (taux >= 80) return styles.coverageHigh
-    if (taux >= 50) return styles.coverageMedium
-    return styles.coverageLow
-  }
-
-  // Helper pour obtenir le badge de catégorie
-  const getCategoryBadgeClass = (categorie: string) => {
-    if (categorie.includes('Autres Collaborateurs')) return styles.badgeCollaborateur
-    if (categorie.includes('B2B')) return styles.badgeB2B
-    if (categorie.includes('B2C')) return styles.badgeB2C
-    if (categorie.includes('Manager')) return styles.badgeManager
-    if (categorie.includes('Directeur')) return styles.badgeDirecteur
-    return styles.badgeCrossCategory
-  }
-
   if (loading) {
     return (
       <div className={styles.pageContainer}>
-        <div className={styles.backgroundOrbs}>
-          <div className={`${styles.orb} ${styles.orb1}`} />
-          <div className={`${styles.orb} ${styles.orb2}`} />
-          <div className={`${styles.orb} ${styles.orb3}`} />
-        </div>
         <div className={styles.content}>
           <div className={styles.loadingContainer}>
             <div className={styles.loadingSpinner} />
@@ -426,11 +291,6 @@ export default function CollaborateursKPIsPage() {
   if (!data) {
     return (
       <div className={styles.pageContainer}>
-        <div className={styles.backgroundOrbs}>
-          <div className={`${styles.orb} ${styles.orb1}`} />
-          <div className={`${styles.orb} ${styles.orb2}`} />
-          <div className={`${styles.orb} ${styles.orb3}`} />
-        </div>
         <div className={styles.content}>
           <div className={styles.errorContainer}>
             <span className={styles.errorText}>Erreur lors du chargement des données</span>
@@ -448,21 +308,14 @@ export default function CollaborateursKPIsPage() {
   }
 
   const getTrophyColor = (index: number) => {
-    if (index === 0) return '#FFD43B'
-    if (index === 1) return '#ADB5BD'
+    if (index === 0) return 'var(--mantine-color-yellow-4)'
+    if (index === 1) return 'var(--mantine-color-gray-5)'
     if (index === 2) return '#CD7F32'
     return undefined
   }
 
   return (
     <div className={styles.pageContainer}>
-      {/* Background animé */}
-      <div className={styles.backgroundOrbs}>
-        <div className={`${styles.orb} ${styles.orb1}`} />
-        <div className={`${styles.orb} ${styles.orb2}`} />
-        <div className={`${styles.orb} ${styles.orb3}`} />
-      </div>
-
       <div className={styles.content}>
         {/* Header */}
         <motion.div
@@ -569,11 +422,11 @@ export default function CollaborateursKPIsPage() {
         {/* Section KPIs Détaillés par Genre/Rôle */}
         {detailedLoading ? (
           <motion.div
-            className={styles.glassCard}
+            className={styles.card}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
           >
-            <div className={styles.loadingContainer} style={{ minHeight: '200px' }}>
+            <div className={styles.loadingContainer}>
               <div className={styles.loadingSpinner} />
               <span className={styles.loadingText}>Chargement des statistiques détaillées...</span>
             </div>
@@ -589,7 +442,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.15 }}
               >
                 <h3 className={styles.sectionTitle}>
-                  <Clock size={20} weight="bold" style={{ color: '#4DABF7' }} />
+                  <Clock size={20} weight="bold" className={styles.iconColorBlue} />
                   Heures de formation
                 </h3>
                 <div className={styles.hoursGrid}>
@@ -621,7 +474,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
                 <h3 className={styles.sectionTitle}>
-                  <Buildings size={20} weight="bold" style={{ color: '#38D9A9' }} />
+                  <Buildings size={20} weight="bold" className={styles.iconColorTeal} />
                   Heures par organisme
                 </h3>
                 <div className={styles.organismeList}>
@@ -645,7 +498,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.25 }}
               >
                 <h3 className={styles.sectionTitle}>
-                  <UserSwitch size={20} weight="bold" style={{ color: '#9775FA' }} />
+                  <UserSwitch size={20} weight="bold" className={styles.iconColorViolet} />
                   Statut de formation des collaborateurs
                 </h3>
                 <div className={styles.collabTable}>
@@ -748,8 +601,8 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.5 }}
               >
                 <h3 className={styles.tableTitle}>
-                  <GenderMale size={20} weight="bold" style={{ color: '#4DABF7' }} />
-                  <GenderFemale size={20} weight="bold" style={{ color: '#F06595' }} />
+                  <GenderMale size={20} weight="bold" className={styles.iconColorBlue} />
+                  <GenderFemale size={20} weight="bold" className={styles.iconColorPink} />
                   Par genre
                 </h3>
                 <div className={styles.tableWrapper}>
@@ -791,7 +644,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.6 }}
               >
                 <h3 className={styles.tableTitle}>
-                  <UserCircle size={20} weight="bold" style={{ color: '#9775FA' }} />
+                  <UserCircle size={20} weight="bold" className={styles.iconColorViolet} />
                   Par rôle
                 </h3>
                 <div className={styles.tableWrapper}>
@@ -842,7 +695,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.7 }}
               >
                 <h3 className={styles.tableTitle}>
-                  <Users size={20} weight="bold" style={{ color: '#845EF7' }} />
+                  <Users size={20} weight="bold" className={styles.iconColorViolet} />
                   Répartition Rôle × Genre
                 </h3>
                 <div className={styles.tableWrapper}>
@@ -909,7 +762,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.8 }}
               >
                 <h3 className={styles.tableTitle}>
-                  <Buildings size={20} weight="bold" style={{ color: '#20C997' }} />
+                  <Buildings size={20} weight="bold" className={styles.iconColorTeal} />
                   Par département
                 </h3>
                 <div className={styles.departementList}>
@@ -952,7 +805,7 @@ export default function CollaborateursKPIsPage() {
                 transition={{ duration: 0.4, delay: 0.9 }}
               >
                 <h3 className={styles.tableTitle}>
-                  <ChartBar size={20} weight="bold" style={{ color: '#F59F00' }} />
+                  <ChartBar size={20} weight="bold" className={styles.iconColorYellow} />
                   Par catégorie de formation
                 </h3>
                 <div className={styles.categorieList}>
@@ -980,434 +833,6 @@ export default function CollaborateursKPIsPage() {
                   ))}
                 </div>
               </motion.div>
-            )}
-          </>
-        ) : null}
-
-        {/* ===== SECTION CONFORMITÉ/ÉTHIQUE ===== */}
-        {complianceLoading ? (
-          <motion.div
-            className={styles.complianceSection}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className={styles.loadingContainer}>
-              <div className={styles.loadingSpinner} />
-              <span className={styles.loadingText}>Chargement des KPIs Conformité...</span>
-            </div>
-          </motion.div>
-        ) : complianceData || availableFormations.length > 0 ? (
-          <>
-            {/* Divider Section Éthique */}
-            <div className={styles.divider}>
-              <div className={styles.dividerLine} />
-              <div className={styles.dividerContent}>
-                <Scales size={18} weight="bold" className={styles.dividerIcon} />
-                <span className={styles.dividerText}>Conformité & Éthique</span>
-                {complianceData?.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                )}
-              </div>
-              <div className={styles.dividerLine} />
-            </div>
-
-            {/* Formations éthique identifiées - sélectionnables */}
-            <motion.div
-              className={styles.complianceSection}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <h3 className={styles.tableTitle}>
-                <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                Formations Éthique ({selectedFormationIds.length}/{availableFormations.length} sélectionnées)
-              </h3>
-              <div className={styles.formationSelectionHeader}>
-                <button
-                  className={styles.formationSelectAllBtn}
-                  onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
-                  disabled={selectedFormationIds.length === availableFormations.length}
-                >
-                  Tout sélectionner
-                </button>
-                <button
-                  className={styles.formationDeselectAllBtn}
-                  onClick={() => setSelectedFormationIds([])}
-                  disabled={selectedFormationIds.length === 0}
-                >
-                  Tout désélectionner
-                </button>
-                <button
-                  className={styles.formationAddBtn}
-                  onClick={() => {
-                    setShowSearch(!showSearch)
-                    setTimeout(() => searchInputRef.current?.focus(), 100)
-                  }}
-                >
-                  <Plus size={14} weight="bold" style={{ marginRight: '4px' }} />
-                  Ajouter une formation
-                </button>
-              </div>
-
-              {/* Champ de recherche pour ajouter des formations */}
-              {showSearch && (
-                <div className={styles.formationSearchContainer}>
-                  <div className={styles.formationSearchInputWrapper}>
-                    <MagnifyingGlass size={16} className={styles.searchIcon} />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      className={styles.formationSearchInput}
-                      placeholder="Rechercher une formation..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <button
-                      className={styles.searchCloseBtn}
-                      onClick={() => {
-                        setShowSearch(false)
-                        setSearchQuery('')
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  {searchQuery && filteredSearchResults.length > 0 && (
-                    <div className={styles.formationSearchResults}>
-                      {filteredSearchResults.map(f => (
-                        <button
-                          key={f.id}
-                          className={styles.formationSearchResultItem}
-                          onClick={() => addFormationToList(f)}
-                        >
-                          <Plus size={14} style={{ marginRight: '8px', opacity: 0.6 }} />
-                          {f.nom}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {searchQuery && filteredSearchResults.length === 0 && (
-                    <div className={styles.formationSearchNoResults}>
-                      Aucune formation trouvée
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className={styles.formationsEthiqueList}>
-                {availableFormations.map(f => (
-                  <div key={f.id} className={styles.formationTagWrapper}>
-                    <button
-                      className={`${styles.formationEthiqueTag} ${selectedFormationIds.includes(f.id) ? styles.formationSelected : styles.formationUnselected}`}
-                      onClick={() => {
-                        if (selectedFormationIds.includes(f.id)) {
-                          setSelectedFormationIds(selectedFormationIds.filter(id => id !== f.id))
-                        } else {
-                          setSelectedFormationIds([...selectedFormationIds, f.id])
-                        }
-                      }}
-                    >
-                      {selectedFormationIds.includes(f.id) ? (
-                        <CheckCircle size={14} weight="fill" style={{ marginRight: '4px' }} />
-                      ) : (
-                        <XCircle size={14} weight="regular" style={{ marginRight: '4px', opacity: 0.5 }} />
-                      )}
-                      {f.nom}
-                    </button>
-                    <button
-                      className={styles.formationRemoveBtn}
-                      onClick={() => removeFormationFromList(f.id)}
-                      title="Retirer de la liste"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
-                <div className={styles.noSelectionMessage}>
-                  <Warning size={16} style={{ marginRight: '8px' }} />
-                  Aucune formation sélectionnée - Utilisez "Ajouter une formation" pour en ajouter
-                </div>
-              )}
-            </motion.div>
-
-            {/* Stats globales compliance - affiché uniquement si des formations sont sélectionnées */}
-            {complianceData && (
-            <>
-            <motion.div
-              className={styles.complianceSection}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
-              <h3 className={styles.globalStatsTitle}>
-                Statistiques Globales
-                {complianceData?.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                )}
-              </h3>
-              <div className={styles.complianceGlobalStats}>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue}>
-                    {complianceData.comparatifGlobal.tauxCouverture}%
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Taux couverture</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue}>
-                    {complianceData.comparatifGlobal.formes}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Formés</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue} style={{ color: '#FA5252' }}>
-                    {complianceData.comparatifGlobal.nonFormes}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Non formés</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue} style={{ color: '#4DABF7' }}>
-                    {complianceData.comparatifGlobal.totalEmployesRisque}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Employés à risque</span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Cards par catégorie croisée */}
-            {complianceData.parCategorieCroisee.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-              >
-                <h3 className={styles.globalStatsTitle}>
-                  Catégories à Risque
-                  {complianceData?.periode?.libelle && (
-                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                  )}
-                </h3>
-                <div className={styles.riskCategoriesGrid}>
-                  {complianceData.parCategorieCroisee.map((cat, index) => (
-                    <div key={cat.categorie} className={styles.riskCategoryCard}>
-                      <div className={styles.riskCategoryHeader}>
-                        <span className={styles.riskCategoryLabel}>{cat.categorie}</span>
-                        <span className={`${styles.riskCategoryBadge} ${getCategoryBadgeClass(cat.categorie)}`}>
-                          {cat.tauxCouverture}%
-                        </span>
-                      </div>
-                      <div className={styles.riskCategoryStats}>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Effectif</span>
-                          <span className={styles.riskCategoryStatValue}>{cat.total}</span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Formés</span>
-                          <span className={styles.riskCategoryStatValue} style={{ color: '#38D9A9' }}>
-                            {cat.formes}
-                          </span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Non formés</span>
-                          <span className={styles.riskCategoryStatValue} style={{ color: '#FA5252' }}>
-                            {cat.nonFormes}
-                          </span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Heures</span>
-                          <span className={styles.riskCategoryStatValue}>{cat.heures}h</span>
-                        </div>
-                      </div>
-                      <div className={styles.coverageIndicator}>
-                        <div className={styles.coverageBar}>
-                          <div
-                            className={`${styles.coverageProgress} ${getCoverageClass(cat.tauxCouverture)}`}
-                            style={{ width: `${cat.tauxCouverture}%` }}
-                          />
-                        </div>
-                        <span className={styles.coveragePercent}>{cat.tauxCouverture}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-
-            {/* Tableau comparatif Formés vs Non-Formés */}
-            <motion.div
-              className={styles.comparisonTableCard}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-            >
-              <h3 className={styles.tableTitle}>
-                <CheckCircle size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                Comparatif Formés vs Non-Formés par Catégorie
-                {complianceData?.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                )}
-              </h3>
-              <table className={styles.comparisonTable}>
-                <thead>
-                  <tr>
-                    <th>Catégorie</th>
-                    <th>Total</th>
-                    <th>Formés</th>
-                    <th>Non formés</th>
-                    <th>Heures</th>
-                    <th>Taux</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Catégories simples */}
-                  <tr>
-                    <td><span className={styles.badgeB2B}>B2B</span></td>
-                    <td>{complianceData.parCategorieSimple.b2b.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.b2b.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.b2b.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.b2b.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.b2b.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.b2b.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeB2C}>B2C</span></td>
-                    <td>{complianceData.parCategorieSimple.b2c.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.b2c.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.b2c.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.b2c.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.b2c.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.b2c.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeManager}>Managers</span></td>
-                    <td>{complianceData.parCategorieSimple.managers.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.managers.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.managers.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.managers.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.managers.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.managers.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeDirecteur}>Directeurs</span></td>
-                    <td>{complianceData.parCategorieSimple.directeurs.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.directeurs.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.directeurs.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.directeurs.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.directeurs.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.directeurs.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeCollaborateur}>Autres Collaborateurs</span></td>
-                    <td>{complianceData.parCategorieSimple.collaborateurs.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.collaborateurs.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.collaborateurs.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.collaborateurs.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.collaborateurs.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.collaborateurs.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </motion.div>
-
-            {/* Répartition par genre dans les catégories croisées */}
-            {complianceData.parCategorieCroisee.length > 0 && (
-              <motion.div
-                className={styles.comparisonTableCard}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
-                <h3 className={styles.tableTitle}>
-                  <GenderMale size={20} weight="bold" style={{ color: '#4DABF7' }} />
-                  <GenderFemale size={20} weight="bold" style={{ color: '#F06595', marginLeft: '-8px' }} />
-                  Répartition par Genre (employés formés)
-                  {complianceData?.periode?.libelle && (
-                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                  )}
-                </h3>
-                <table className={styles.comparisonTable}>
-                  <thead>
-                    <tr>
-                      <th>Catégorie</th>
-                      <th>Hommes</th>
-                      <th>Heures H</th>
-                      <th>Femmes</th>
-                      <th>Heures F</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {complianceData.parCategorieCroisee.map(cat => (
-                      <tr key={cat.categorie}>
-                        <td><span className={getCategoryBadgeClass(cat.categorie)}>{cat.categorie}</span></td>
-                        <td style={{ color: '#4DABF7' }}>{cat.parGenre.homme.nombre}</td>
-                        <td>{cat.parGenre.homme.heures}h</td>
-                        <td style={{ color: '#F06595' }}>{cat.parGenre.femme.nombre}</td>
-                        <td>{cat.parGenre.femme.heures}h</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </motion.div>
-            )}
-
-            {/* Détail par formation */}
-            {complianceData.parFormation.length > 0 && (
-              <motion.div
-                className={styles.comparisonTableCard}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-              >
-                <h3 className={styles.tableTitle}>
-                  <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                  Participation par Formation Éthique
-                </h3>
-                <table className={styles.comparisonTable}>
-                  <thead>
-                    <tr>
-                      <th>Formation</th>
-                      <th>Total</th>
-                      <th>B2B</th>
-                      <th>B2C</th>
-                      <th>Managers</th>
-                      <th>Directeurs</th>
-                      <th>Collab.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {complianceData.parFormation.map(f => (
-                      <tr key={f.formationId}>
-                        <td>{f.nomFormation}</td>
-                        <td><strong>{f.participants.total}</strong></td>
-                        <td>{f.participants.b2b}</td>
-                        <td>{f.participants.b2c}</td>
-                        <td>{f.participants.managers}</td>
-                        <td>{f.participants.directeurs}</td>
-                        <td>{f.participants.collaborateurs}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </motion.div>
-            )}
-            </>
             )}
           </>
         ) : null}
@@ -1450,7 +875,7 @@ export default function CollaborateursKPIsPage() {
           transition={{ duration: 0.4, delay: 0.9 }}
         >
           <h3 className={styles.tableTitle}>
-            <Briefcase size={20} weight="bold" style={{ color: '#38D9A9' }} />
+            <Briefcase size={20} weight="bold" className={styles.iconColorTeal} />
             Types de contrat
           </h3>
           {data.repartitionContrat.map((item, index) => (

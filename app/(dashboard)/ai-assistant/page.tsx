@@ -453,32 +453,32 @@ export default function AIAssistantPage() {
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                  h3: ({ children }: { children: React.ReactNode }) => (
+                                  h3: ({ children }: { children?: React.ReactNode }) => (
                                     <Text size="md" fw={600} c="white" mt="md" mb="xs">
                                       {children}
                                     </Text>
                                   ),
-                                  p: ({ children }: { children: React.ReactNode }) => (
+                                  p: ({ children }: { children?: React.ReactNode }) => (
                                     <Text size="sm" c={message.role === 'user' ? 'white' : 'gray.3'} mb="xs">
                                       {children}
                                     </Text>
                                   ),
-                                  ul: ({ children }: { children: React.ReactNode }) => (
+                                  ul: ({ children }: { children?: React.ReactNode }) => (
                                     <Box component="ul" pl="md" mb="xs">
                                       {children}
                                     </Box>
                                   ),
-                                  li: ({ children }: { children: React.ReactNode }) => (
+                                  li: ({ children }: { children?: React.ReactNode }) => (
                                     <Text component="li" size="sm" c="gray.3" mb={4}>
                                       {children}
                                     </Text>
                                   ),
-                                  strong: ({ children }: { children: React.ReactNode }) => (
+                                  strong: ({ children }: { children?: React.ReactNode }) => (
                                     <Text span fw={600} c="white">
                                       {children}
                                     </Text>
                                   ),
-                                  table: ({ children }: { children: React.ReactNode }) => (
+                                  table: ({ children }: { children?: React.ReactNode }) => (
                                     <Box
                                       component="table"
                                       style={{
@@ -492,7 +492,7 @@ export default function AIAssistantPage() {
                                       {children}
                                     </Box>
                                   ),
-                                  thead: ({ children }: { children: React.ReactNode }) => (
+                                  thead: ({ children }: { children?: React.ReactNode }) => (
                                     <Box
                                       component="thead"
                                       style={{
@@ -502,10 +502,10 @@ export default function AIAssistantPage() {
                                       {children}
                                     </Box>
                                   ),
-                                  tbody: ({ children }: { children: React.ReactNode }) => (
+                                  tbody: ({ children }: { children?: React.ReactNode }) => (
                                     <Box component="tbody">{children}</Box>
                                   ),
-                                  tr: ({ children }: { children: React.ReactNode }) => (
+                                  tr: ({ children }: { children?: React.ReactNode }) => (
                                     <Box
                                       component="tr"
                                       style={{
@@ -515,7 +515,7 @@ export default function AIAssistantPage() {
                                       {children}
                                     </Box>
                                   ),
-                                  th: ({ children }: { children: React.ReactNode }) => (
+                                  th: ({ children }: { children?: React.ReactNode }) => (
                                     <Box
                                       component="th"
                                       style={{
@@ -529,7 +529,7 @@ export default function AIAssistantPage() {
                                       {children}
                                     </Box>
                                   ),
-                                  td: ({ children }: { children: React.ReactNode }) => (
+                                  td: ({ children }: { children?: React.ReactNode }) => (
                                     <Box
                                       component="td"
                                       style={{

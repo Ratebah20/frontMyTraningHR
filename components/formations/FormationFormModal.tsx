@@ -69,11 +69,11 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
         if (value.length > 255) return 'Le nom ne doit pas dépasser 255 caractères';
         return null;
       },
-      organismeId: (value) => {
+      organismeId: (value: any) => {
         if (!value) return 'Organisme de formation requis';
         return null;
       },
-      dureePrevue: (value) => {
+      dureePrevue: (value: any) => {
         if (value && value <= 0) return 'La durée doit être positive';
         return null;
       },
@@ -219,8 +219,8 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
     try {
       const formData: any = {
         ...values,
-        categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
-        organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
+        categorieId: values.categorieId ? parseInt(String(values.categorieId)) : undefined,
+        organismeId: values.organismeId ? parseInt(String(values.organismeId)) : undefined,
       };
 
       const formation = await formationsService.createFormation(formData);
@@ -406,22 +406,24 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
 
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
-                  label="Type de formation"
-                  placeholder={loadingTypes ? "Chargement..." : "Sélectionner ou créer"}
-                  description="Modalité de dispensation"
-                  clearable
-                  searchable
-                  creatable
-                  getCreateLabel={(query) => `+ Créer "${query}"`}
-                  onCreate={(query) => {
-                    const item = query;
-                    setTypesFormation((current) => [...current, item].sort());
-                    return item;
-                  }}
-                  data={typesFormation}
-                  disabled={loadingTypes}
-                  nothingFoundMessage="Tapez pour créer un nouveau type"
-                  {...form.getInputProps('typeFormation')}
+                  {...{
+                    label: "Type de formation",
+                    placeholder: loadingTypes ? "Chargement..." : "Sélectionner ou créer",
+                    description: "Modalité de dispensation",
+                    clearable: true,
+                    searchable: true,
+                    creatable: true,
+                    getCreateLabel: (query: any) => `+ Créer "${query}"`,
+                    onCreate: (query: any) => {
+                      const item = query;
+                      setTypesFormation((current) => [...current, item].sort());
+                      return item;
+                    },
+                    data: typesFormation,
+                    disabled: loadingTypes,
+                    nothingFoundMessage: "Tapez pour créer un nouveau type",
+                    ...form.getInputProps('typeFormation'),
+                  } as any}
                 />
               </Grid.Col>
             </Grid>
@@ -448,21 +450,23 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
 
               <Grid.Col span={{ base: 12, md: 3 }}>
                 <Select
-                  label="Unité de durée"
-                  placeholder={loadingUnites ? "Chargement..." : "Sélectionner"}
-                  description="Unité de temps"
-                  searchable
-                  creatable
-                  getCreateLabel={(query) => `+ Créer "${query}"`}
-                  onCreate={(query) => {
-                    const item = query;
-                    setUnitesDuree((current) => [...current, item].sort());
-                    return item;
-                  }}
-                  data={unitesDuree}
-                  disabled={loadingUnites}
-                  nothingFoundMessage="Tapez pour créer une nouvelle unité"
-                  {...form.getInputProps('uniteDuree')}
+                  {...{
+                    label: "Unité de durée",
+                    placeholder: loadingUnites ? "Chargement..." : "Sélectionner",
+                    description: "Unité de temps",
+                    searchable: true,
+                    creatable: true,
+                    getCreateLabel: (query: any) => `+ Créer "${query}"`,
+                    onCreate: (query: any) => {
+                      const item = query;
+                      setUnitesDuree((current) => [...current, item].sort());
+                      return item;
+                    },
+                    data: unitesDuree,
+                    disabled: loadingUnites,
+                    nothingFoundMessage: "Tapez pour créer une nouvelle unité",
+                    ...form.getInputProps('uniteDuree'),
+                  } as any}
                 />
               </Grid.Col>
 

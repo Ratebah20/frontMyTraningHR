@@ -30,6 +30,7 @@ import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
 import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { notifications } from '@mantine/notifications';
 import { useRouter, useParams } from 'next/navigation';
 import api from '@/lib/api';

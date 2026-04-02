@@ -236,7 +236,7 @@ export default function BudgetDashboardPage() {
   const repartitionCategories = categorieData;
 
   // Préparer les données pour les graphiques
-  const monthlyData = (consommation?.consommationMensuelle || []).map(m => ({
+  const monthlyData = (consommation?.consommationMensuelle || []).map((m: any) => ({
     mois: `Mois ${m.mois}`,
     montant: m.montant,
     sessions: m.nombreSessions,
@@ -497,7 +497,7 @@ export default function BudgetDashboardPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry) => `${entry.name}: ${consommation.totalConsomme > 0 ? formatPercentage(entry.value / consommation.totalConsomme * 100) : '0%'}`}
+                      label={(entry) => `${entry.name}: ${consommation.totalConsomme > 0 ? formatPercentage((entry.value ?? 0) / consommation.totalConsomme * 100) : '0%'}`}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"

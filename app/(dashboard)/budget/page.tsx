@@ -414,13 +414,13 @@ export default function BudgetPage() {
           <NumberInput
             label="Année"
             value={formData.annee}
-            onChange={(value) => setFormData({...formData, annee: value || new Date().getFullYear()})}
+            onChange={(value) => setFormData({...formData, annee: Number(value) || new Date().getFullYear()})}
             required
           />
           <NumberInput
             label="Budget Total (€)"
             value={formData.budgetTotal}
-            onChange={(value) => setFormData({...formData, budgetTotal: value || 0})}
+            onChange={(value) => setFormData({...formData, budgetTotal: Number(value) || 0})}
             thousandSeparator=" "
             decimalSeparator=","
             required
@@ -428,7 +428,7 @@ export default function BudgetPage() {
           <NumberInput
             label="Budget Formation (€)"
             value={formData.budgetFormation}
-            onChange={(value) => setFormData({...formData, budgetFormation: value || 0})}
+            onChange={(value) => setFormData({...formData, budgetFormation: Number(value) || 0})}
             thousandSeparator=" "
             decimalSeparator=","
             required
@@ -436,7 +436,7 @@ export default function BudgetPage() {
           <NumberInput
             label="Autres Budgets (€)"
             value={formData.budgetAutre}
-            onChange={(value) => setFormData({...formData, budgetAutre: value || 0})}
+            onChange={(value) => setFormData({...formData, budgetAutre: Number(value) || 0})}
             thousandSeparator=" "
             decimalSeparator=","
           />
@@ -478,7 +478,7 @@ export default function BudgetPage() {
           <NumberInput
             label="Budget Total (€)"
             value={formData.budgetTotal}
-            onChange={(value) => setFormData({...formData, budgetTotal: value || 0})}
+            onChange={(value) => setFormData({...formData, budgetTotal: Number(value) || 0})}
             thousandSeparator=" "
             decimalSeparator=","
             required
@@ -486,7 +486,7 @@ export default function BudgetPage() {
           <NumberInput
             label="Budget Formation (€)"
             value={formData.budgetFormation}
-            onChange={(value) => setFormData({...formData, budgetFormation: value || 0})}
+            onChange={(value) => setFormData({...formData, budgetFormation: Number(value) || 0})}
             thousandSeparator=" "
             decimalSeparator=","
             required
@@ -494,7 +494,7 @@ export default function BudgetPage() {
           <NumberInput
             label="Autres Budgets (€)"
             value={formData.budgetAutre}
-            onChange={(value) => setFormData({...formData, budgetAutre: value || 0})}
+            onChange={(value) => setFormData({...formData, budgetAutre: Number(value) || 0})}
             thousandSeparator=" "
             decimalSeparator=","
           />

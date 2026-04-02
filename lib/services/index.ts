@@ -31,6 +31,28 @@ export type {
   ManagerTeamFormationsResponse,
   ManagerTeamStats,
 } from './manager-portal.service';
+export { budgetAnalyticsService } from './budget-analytics.service';
+export type { AnalysePeriode, PivotBudget, DashboardComplet, FormationSansTarif, AnalyseDepartementDetaille, AnalyseCategorieDetaille } from './budget-analytics.service';
+export { budgetService } from './budget.service';
+export type { BudgetAnnuel, CreateBudgetAnnuel, UpdateBudgetAnnuel } from './budget.service';
+export { budgetSimpleService } from './budget-simple.service';
+export type { BudgetConsommation, AnalyseDepartement, AnalyseCategorie, AnalysePeriode as AnalysePeriodeSimple, PivotBudget as PivotBudgetSimple, BudgetDashboard, UpdateFormationTarif, FormationSansTarif as FormationSansTarifSimple } from './budget-simple.service';
+export { CollectiveSessionsService, useCollectiveSessions } from './collective-sessions.service';
+export { SessionsUnifiedService } from './sessions-unified.service';
+export type { UnifiedSessionFilters } from './sessions-unified.service';
+export { importPreviewService } from './import-preview.service';
+export {
+  getGroupedSessionTodos,
+  getGroupedSessionTodo,
+  getGroupedSessionTodosStats,
+  createGroupedSessionTodo,
+  updateGroupedSessionTodo,
+  toggleGroupedSessionTodo,
+  deleteGroupedSessionTodo,
+  reorderGroupedSessionTodos,
+  getTodoTemplates,
+  createTodosFromTemplate,
+} from './grouped-session-todos.service';
 
 // Ré-export des types pour faciliter l'import
 export * from '../types';

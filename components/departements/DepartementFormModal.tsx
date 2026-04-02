@@ -92,7 +92,7 @@ export function DepartementFormModal({
   }, [departement, opened, initialType, initialParentId]);
 
   const handleSubmit = async (values: typeof form.values) => {
-    await onSubmit(values);
+    await onSubmit(values as CreateDepartementDto | UpdateDepartementDto);
     form.reset();
   };
 
@@ -173,7 +173,7 @@ export function DepartementFormModal({
             value={form.values.parentId}
             onChange={(value) => form.setFieldValue('parentId', value)}
             currentDepartementId={departement?.id}
-            error={form.errors.parentId}
+            error={form.errors.parentId as string | undefined}
             label="Département parent"
             description={
               form.values.type === 'EQUIPE'

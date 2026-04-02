@@ -67,7 +67,7 @@ import { sessionsService, formationsService, collaborateursService } from '@/lib
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
-import { SessionFormationResponse, SessionFilters, GroupedSession, UnifiedSession } from '@/lib/types';
+import { SessionFormationResponse, SessionFilters, GroupedSession, UnifiedSession, GroupedSessionParticipant } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
 

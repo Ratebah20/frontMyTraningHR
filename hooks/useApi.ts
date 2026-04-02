@@ -23,37 +23,40 @@ export function useApi<T = any>(
   const [error, setError] = useState<Error | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  const onSuccess = options.onSuccess;
+  const onError = options.onError;
+
   const execute = useCallback(
     async (...args: any[]): Promise<T> => {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         const result = await apiCall(...args);
         setData(result);
-        
-        if (options.onSuccess) {
-          options.onSuccess(result);
+
+        if (onSuccess) {
+          onSuccess(result);
         }
-        
+
         return result;
       } catch (err) {
-        const error = err as AxiosError;
+        const error = err as AxiosError<{ message?: string }>;
         const errorMessage = error.response?.data?.message || error.message || 'Une erreur est survenue';
         const errorObj = new Error(errorMessage);
-        
+
         setError(errorObj);
-        
-        if (options.onError) {
-          options.onError(errorObj);
+
+        if (onError) {
+          onError(errorObj);
         }
-        
+
         throw errorObj;
       } finally {
         setIsLoading(false);
       }
     },
-    [apiCall, options]
+    [apiCall, onSuccess, onError]
   );
 
   const reset = useCallback(() => {

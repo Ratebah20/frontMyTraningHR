@@ -337,7 +337,10 @@ export function FichePresenceModal({
             label="Date de la formation"
             placeholder="Sélectionner la date"
             value={selectedDate}
-            onChange={setSelectedDate}
+            onChange={(value) => {
+              const dateValue = typeof value === 'string' ? new Date(value) : value;
+              setSelectedDate(dateValue);
+            }}
             locale="fr"
             valueFormat="DD/MM/YYYY"
             leftSection={<Calendar size={16} />}

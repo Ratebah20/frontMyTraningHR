@@ -106,28 +106,31 @@ export function ParticipantSelector({
             ? 'Aucun collaborateur trouvé'
             : 'Aucun collaborateur disponible'
         }
-        renderOption={({ option }) => (
-          <Group gap="sm" wrap="nowrap">
-            <Avatar size="sm" radius="xl" color={option.actif ? 'blue' : 'gray'}>
-              {option.label?.charAt(0)}
-            </Avatar>
-            <div style={{ flex: 1 }}>
-              <Group gap="xs">
-                <Text size="sm">{option.label}</Text>
-                {!option.actif && (
-                  <Badge size="xs" color="gray" variant="light">
-                    Inactif
-                  </Badge>
+        renderOption={({ option }) => {
+          const opt = option as typeof option & { actif?: boolean; description?: string };
+          return (
+            <Group gap="sm" wrap="nowrap">
+              <Avatar size="sm" radius="xl" color={opt.actif ? 'blue' : 'gray'}>
+                {opt.label?.charAt(0)}
+              </Avatar>
+              <div style={{ flex: 1 }}>
+                <Group gap="xs">
+                  <Text size="sm">{opt.label}</Text>
+                  {!opt.actif && (
+                    <Badge size="xs" color="gray" variant="light">
+                      Inactif
+                    </Badge>
+                  )}
+                </Group>
+                {opt.description && (
+                  <Text size="xs" c="dimmed">
+                    {opt.description}
+                  </Text>
                 )}
-              </Group>
-              {option.description && (
-                <Text size="xs" c="dimmed">
-                  {option.description}
-                </Text>
-              )}
-            </div>
-          </Group>
-        )}
+              </div>
+            </Group>
+          );
+        }}
         styles={{
           pill: {
             maxWidth: '200px',

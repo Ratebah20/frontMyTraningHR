@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { organismesService, CreateOrganismeDto, UpdateOrganismeDto } from '@/lib/services';
+import { organismesService } from '@/lib/services';
+import { CreateOrganismeDto, UpdateOrganismeDto } from '@/lib/services/organismes.service';
 import { OrganismeFormation } from '@/lib/types';
 import { useApi } from './useApi';
 

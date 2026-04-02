@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@formkit/auto-animate": "^0.8.2",
     "@mantine/carousel": "^8.1.1",
     "@mantine/core": "^8.1.1",
     "@mantine/dates": "^8.1.1",
@@ -21,26 +20,19 @@
     "@mantine/nprogress": "^8.1.1",
     "@mantine/spotlight": "^8.1.1",
     "@phosphor-icons/react": "^2.1.10",
-    "@tanstack/react-table": "^8.21.3",
     "autoprefixer": "^10.4.20",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
     "date-fns": "^2.30.0",
-    "dayjs": "^1.11.13",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "^12.18.1",
     "next": "^14.2.30",
     "react": "^18",
     "react-dom": "^18",
-    "react-intersection-observer": "^9.16.0",
     "react-markdown": "^9.1.0",
-    "react-use": "^17.6.0",
     "recharts": "^3.0.0",
     "remark-gfm": "^4.0.1",
-    "sonner": "^1.7.1",
-    "tailwindcss-animate": "^1.0.7",
-    "zod": "^3.25.67",
-    "zustand": "^5.0.5"
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@types/node": "^22",

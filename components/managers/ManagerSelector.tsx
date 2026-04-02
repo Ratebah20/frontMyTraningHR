@@ -64,7 +64,7 @@ export function ManagerSelector({
         .filter(collab => collab.id !== collaborateurId) // Exclure le collaborateur lui-même
         .map(collab => ({
           value: String(collab.id),
-          label: `${collab.nomComplet}${collab.departement ? ` - ${collab.departement.nomDepartement}` : ''}`,
+          label: `${collab.nomComplet}${collab.departement ? ` - ${typeof collab.departement === 'string' ? collab.departement : collab.departement.nomDepartement}` : ''}`,
           data: collab,
         }));
 

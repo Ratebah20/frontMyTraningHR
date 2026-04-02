@@ -80,8 +80,8 @@ export default function CollaborateurDetailPage({ params }: Props) {
         setCollaborateur(collabData);
         
         // Si les stats sont dans collabData, les utiliser
-        if (collabData.stats) {
-          setStats(collabData.stats);
+        if ((collabData as any).stats) {
+          setStats((collabData as any).stats);
         }
         
         // Charger ses formations avec l'historique complet et les stats détaillées
@@ -229,7 +229,9 @@ export default function CollaborateurDetailPage({ params }: Props) {
               <Group gap="xs">
                 <Building size={16} color="#868E96" />
                 <Text size="sm">
-                  {collaborateur.departement?.nomDepartement || 'Non assigné'}
+                  {typeof collaborateur.departement === 'string'
+                    ? collaborateur.departement
+                    : collaborateur.departement?.nomDepartement || 'Non assigné'}
                 </Text>
                 <Tooltip label="Changer d'équipe">
                   <ActionIcon
@@ -396,7 +398,7 @@ export default function CollaborateurDetailPage({ params }: Props) {
                   <Table.Tr key={session.id}>
                     <Table.Td>
                       <Text fw={500}>
-                        {session.formation?.nomFormation || session.formation?.nom || '-'}
+                        {session.formation?.nomFormation || (session.formation as any)?.nom || '-'}
                       </Text>
                     </Table.Td>
                     <Table.Td>
@@ -421,11 +423,11 @@ export default function CollaborateurDetailPage({ params }: Props) {
                     </Table.Td>
                     <Table.Td>
                       <Badge
-                        color={getStatusColor(session.statut)}
+                        color={getStatusColor(session.statut || '')}
                         variant="light"
                         size="sm"
                       >
-                        {getStatusLabel(session.statut)}
+                        {getStatusLabel(session.statut || '')}
                       </Badge>
                     </Table.Td>
                     <Table.Td>

@@ -77,15 +77,17 @@ export function PeriodSelector({
     onChange(periode, `${anneeValue}-${newMois}`);
   };
 
-  const handleDateDebutChange = (value: Date | null) => {
+  const handleDateDebutChange = (value: Date | string | null) => {
     if (onDateRangeChange) {
-      onDateRangeChange(value, dateFin || null);
+      const dateValue = typeof value === 'string' ? new Date(value) : value;
+      onDateRangeChange(dateValue, dateFin || null);
     }
   };
 
-  const handleDateFinChange = (value: Date | null) => {
+  const handleDateFinChange = (value: Date | string | null) => {
     if (onDateRangeChange) {
-      onDateRangeChange(dateDebut || null, value);
+      const dateValue = typeof value === 'string' ? new Date(value) : value;
+      onDateRangeChange(dateDebut || null, dateValue);
     }
   };
 

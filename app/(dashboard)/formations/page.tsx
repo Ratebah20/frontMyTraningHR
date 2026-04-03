@@ -168,13 +168,13 @@ export default function FormationsPage() {
       
       if (response.data) {
         setFormations(response.data);
-        setTotal(response.meta?.total || (response as any).total || 0);
-        setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || (response as any).total || 0) / limit));
+        setTotal(response.meta?.total || response.total || 0);
+        setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || response.total || 0) / limit));
         
         // Si c'est le premier chargement sans filtre, utiliser ces stats pour les globales
         if (statusFilter === '' && !categoryFilter && !typeFilter && !debouncedSearch && !createdAtDebut && !createdAtFin && page === 1) {
           // Puisque sans filtre on récupère tout, on peut utiliser le total de la méta
-          const totalFromMeta = response.meta?.total || (response as any).total || response.data.length;
+          const totalFromMeta = response.meta?.total || response.total || response.data.length;
           // Et toutes les formations visibles sont actives (car par défaut on ne voit que les actives)
           const activesCount = totalFromMeta; // Car par défaut, on ne montre que les actives
 
@@ -519,7 +519,7 @@ export default function FormationsPage() {
               placeholder="Date de création (début)"
               leftSection={<Calendar size={16} />}
               value={createdAtDebut}
-              onChange={(value) => setCreatedAtDebut(typeof value === 'string' ? new Date(value) : value)}
+              onChange={setCreatedAtDebut}
               clearable
               valueFormat="DD/MM/YYYY"
             />
@@ -529,7 +529,7 @@ export default function FormationsPage() {
               placeholder="Date de création (fin)"
               leftSection={<Calendar size={16} />}
               value={createdAtFin}
-              onChange={(value) => setCreatedAtFin(typeof value === 'string' ? new Date(value) : value)}
+              onChange={setCreatedAtFin}
               clearable
               valueFormat="DD/MM/YYYY"
             />

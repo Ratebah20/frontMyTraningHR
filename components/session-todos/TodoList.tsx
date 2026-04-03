@@ -62,20 +62,26 @@ export function TodoList({ groupKey, typeFormation }: TodoListProps) {
   };
 
   const handleCreateTodo = async (data: CreateSessionTodoDto) => {
+    console.log('🔵 handleCreateTodo appelé avec:', { groupKey, data });
     try {
-      await createGroupedSessionTodo(groupKey, data);
+      const result = await createGroupedSessionTodo(groupKey, data);
+      console.log('✅ Todo créé:', result);
       await loadTodos();
     } catch (error: any) {
+      console.error('❌ Erreur lors de la création du todo:', error);
       throw error; // Relancer l'erreur pour que TodoForm puisse la gérer
     }
   };
 
   const handleUpdateTodo = async (data: UpdateSessionTodoDto) => {
     if (!editingTodo) return;
+    console.log('🔵 handleUpdateTodo appelé avec:', { groupKey, todoId: editingTodo.id, data });
     try {
-      await updateGroupedSessionTodo(groupKey, editingTodo.id, data);
+      const result = await updateGroupedSessionTodo(groupKey, editingTodo.id, data);
+      console.log('✅ Todo mis à jour:', result);
       await loadTodos();
     } catch (error: any) {
+      console.error('❌ Erreur lors de la mise à jour du todo:', error);
       throw error;
     }
   };
@@ -264,7 +270,7 @@ export function TodoList({ groupKey, typeFormation }: TodoListProps) {
       <TodoForm
         opened={formOpened}
         onClose={handleCloseForm}
-        onSubmit={editingTodo ? handleUpdateTodo : (data) => handleCreateTodo(data as CreateSessionTodoDto)}
+        onSubmit={editingTodo ? handleUpdateTodo : handleCreateTodo}
         todo={editingTodo}
         mode={editingTodo ? 'edit' : 'create'}
       />

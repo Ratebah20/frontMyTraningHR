@@ -181,7 +181,7 @@ export default function EditSessionPage({ params }: Props) {
         setSession(sessionData);
 
         // Normaliser le statut pour l'envoi au backend
-        const normalizedStatus = normalizeStatusForBackend(sessionData.statut || '');
+        const normalizedStatus = normalizeStatusForBackend(sessionData.statut);
 
         // Mettre à jour le formulaire selon le type de session
         if (sessionData.type === 'collective') {

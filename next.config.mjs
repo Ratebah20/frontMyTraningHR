@@ -33,6 +33,7 @@ const nextConfig = {
       '@phosphor-icons/react',
       'recharts',
       'date-fns',
+      'react-use',
     ],
   },
 }

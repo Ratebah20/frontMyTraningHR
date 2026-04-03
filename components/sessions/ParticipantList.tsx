@@ -50,7 +50,7 @@ export function ParticipantList({
   const [loadingActions, setLoadingActions] = useState<{ [key: number]: boolean }>({});
 
   const getStatutBadge = (statut: string) => {
-    const config: Record<string, { color: string; icon: typeof Clock; label: string }> = {
+    const config = {
       inscrit: { color: 'blue', icon: Clock, label: 'Inscrit' },
       complete: { color: 'green', icon: CheckCircle, label: 'Terminé' },
       desinscrit: { color: 'red', icon: XCircle, label: 'Désinscrit' },
@@ -144,9 +144,7 @@ export function ParticipantList({
                     {participant.collaborateur?.nomComplet}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    {typeof participant.collaborateur?.departement === 'string'
-                      ? participant.collaborateur.departement
-                      : participant.collaborateur?.departement?.nomDepartement || '-'}
+                    {participant.collaborateur?.departement?.nomDepartement || '-'}
                   </Text>
                 </div>
               </Group>
@@ -201,9 +199,7 @@ export function ParticipantList({
               </Table.Td>
               <Table.Td>
                 <Text size="sm">
-                  {typeof participant.collaborateur?.departement === 'string'
-                      ? participant.collaborateur.departement
-                      : participant.collaborateur?.departement?.nomDepartement || '-'}
+                  {participant.collaborateur?.departement?.nomDepartement || '-'}
                 </Text>
               </Table.Td>
               <Table.Td>{getStatutBadge(participant.statutIndividuel)}</Table.Td>

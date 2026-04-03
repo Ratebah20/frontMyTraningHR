@@ -47,8 +47,8 @@ export function ConversationSidebar({
       style={{
         width: 260,
         minWidth: 260,
-        background: 'var(--mantine-color-default)',
-        borderRight: '1px solid var(--mantine-color-default-border)',
+        background: 'rgba(0, 0, 0, 0.4)',
+        borderRight: '1px solid rgba(255, 255, 255, 0.1)',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -57,11 +57,11 @@ export function ConversationSidebar({
       <Box
         p="md"
         style={{
-          borderBottom: '1px solid var(--mantine-color-default-border)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
         }}
       >
         <Group justify="space-between" align="center">
-          <Text size="sm" fw={600}>
+          <Text size="sm" fw={600} c="white">
             Conversations
           </Text>
           <Tooltip label="Nouvelle conversation">
@@ -86,7 +86,7 @@ export function ConversationSidebar({
               <ChatCircle
                 size={32}
                 weight="duotone"
-                style={{ color: 'var(--mantine-color-dimmed)', marginBottom: 8 }}
+                style={{ color: 'rgba(255, 255, 255, 0.3)', marginBottom: 8 }}
               />
               <Text size="xs" c="dimmed">
                 Aucune conversation
@@ -105,11 +105,11 @@ export function ConversationSidebar({
                   cursor: 'pointer',
                   background:
                     conv.id === activeConversationId
-                      ? 'var(--mantine-primary-color-light)'
+                      ? 'rgba(102, 126, 234, 0.2)'
                       : 'transparent',
                   border:
                     conv.id === activeConversationId
-                      ? '1px solid var(--mantine-primary-color-filled)'
+                      ? '1px solid rgba(102, 126, 234, 0.3)'
                       : '1px solid transparent',
                   transition: 'all 0.15s ease',
                 }}
@@ -117,7 +117,7 @@ export function ConversationSidebar({
                 onMouseEnter={(e) => {
                   if (conv.id !== activeConversationId) {
                     (e.currentTarget as HTMLElement).style.background =
-                      'var(--mantine-color-default-hover)';
+                      'rgba(255, 255, 255, 0.05)';
                   }
                 }}
                 onMouseLeave={(e) => {
@@ -128,7 +128,7 @@ export function ConversationSidebar({
               >
                 <Group justify="space-between" align="flex-start" wrap="nowrap">
                   <Box style={{ flex: 1, minWidth: 0 }}>
-                    <Text size="sm" lineClamp={1} fw={conv.id === activeConversationId ? 500 : 400}>
+                    <Text size="sm" c="white" lineClamp={1} fw={conv.id === activeConversationId ? 500 : 400}>
                       {conv.title}
                     </Text>
                     <Group gap={4} mt={2}>

@@ -64,13 +64,22 @@ const removeCookie = (name: string) => {
 const saveTokens = (tokens: AuthTokens): void => {
   if (typeof window === 'undefined') return;
   
+  console.log('Saving tokens:', tokens);
+  
   // Sauvegarder dans localStorage pour l'utilisation côté client
   localStorage.setItem('accessToken', tokens.accessToken);
   localStorage.setItem('refreshToken', tokens.refreshToken);
-
+  
   // Sauvegarder dans les cookies pour le middleware
   setCookie('accessToken', tokens.accessToken, 7); // 7 jours
   setCookie('refreshToken', tokens.refreshToken, 7);
+  
+  console.log('Tokens saved. Verification:', {
+    localStorage: {
+      accessToken: localStorage.getItem('accessToken'),
+      refreshToken: localStorage.getItem('refreshToken')
+    }
+  });
 };
 
 // Helper pour supprimer les tokens de localStorage et cookies
@@ -129,9 +138,13 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Si erreur 401 et qu'on a un refresh token
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    // Ne PAS tenter de refresh sur les routes d'authentification
+    const isAuthRoute = originalRequest.url?.includes('/auth/login')
+      || originalRequest.url?.includes('/auth/refresh')
+      || originalRequest.url?.includes('/auth/accept-invitation');
 
+    // Si erreur 401, pas une route d'auth, et pas déjà un retry
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthRoute) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -148,8 +161,6 @@ api.interceptors.response.use(
       const tokens = getTokens();
 
       if (!tokens?.refreshToken) {
-        console.warn('No refresh token available — redirecting to login');
-
         clearTokens();
         if (typeof window !== 'undefined') {
           window.location.href = '/login';
@@ -173,8 +184,6 @@ api.interceptors.response.use(
 
         return api(originalRequest);
       } catch (refreshError: any) {
-        console.warn('Token refresh failed — redirecting to login');
-
         processQueue(refreshError, null);
         clearTokens();
 
@@ -225,7 +234,7 @@ export const authService = {
     try {
       await api.post('/auth/logout');
     } catch (error) {
-      // Logout request failed — continue with local cleanup
+      console.error('Logout error:', error);
     } finally {
       clearTokens();
       
@@ -254,6 +263,7 @@ export const authService = {
 
   isAuthenticated(): boolean {
     const tokens = getTokens();
+    console.log('Checking authentication, tokens:', tokens);
     return !!tokens;
   },
   

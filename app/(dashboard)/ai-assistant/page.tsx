@@ -15,6 +15,7 @@ import {
   Tooltip,
   ThemeIcon,
   Title,
+  Divider,
   rem,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -31,7 +32,6 @@ import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { Lightbulb } from '@phosphor-icons/react/dist/ssr/Lightbulb';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Info } from '@phosphor-icons/react/dist/ssr/Info';
-import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
 import { aiAssistantService, AIResponse, AICapability } from '@/lib/services';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -59,6 +59,7 @@ const SUGGESTED_QUESTIONS = [
   { icon: Lightbulb, text: "Analyse l'évolution des formations sur 2 ans", color: "violet" },
 ];
 
+// Convert between Message (UI) and ConversationMessage (storage)
 function toStorageMessages(messages: Message[]): ConversationMessage[] {
   return messages
     .filter(m => !m.isLoading)
@@ -102,6 +103,7 @@ export default function AIAssistantPage() {
     selectConversation,
   } = useConversationHistory();
 
+  // Load messages when active conversation changes
   useEffect(() => {
     if (activeConversation) {
       setMessages(fromStorageMessages(activeConversation.messages));
@@ -110,12 +112,14 @@ export default function AIAssistantPage() {
     }
   }, [activeConversationId]);
 
+  // Save messages to conversation history when they change (skip loading messages)
   const saveMessages = useCallback((msgs: Message[]) => {
     if (activeConversationId && msgs.some(m => !m.isLoading)) {
       updateConversationMessages(activeConversationId, toStorageMessages(msgs));
     }
   }, [activeConversationId, updateConversationMessages]);
 
+  // Charger les capacités et vérifier la santé au montage
   useEffect(() => {
     const init = async () => {
       try {
@@ -126,12 +130,14 @@ export default function AIAssistantPage() {
         setCapabilities(capabilitiesData.capabilities);
         setHealthStatus(healthData.status);
       } catch (error) {
+        console.error('Erreur initialisation AI Assistant:', error);
         setHealthStatus('unhealthy');
       }
     };
     init();
   }, []);
 
+  // Auto-scroll vers le bas
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({
@@ -145,6 +151,7 @@ export default function AIAssistantPage() {
     const messageText = question || inputValue.trim();
     if (!messageText || isLoading) return;
 
+    // Auto-create a conversation if none is active
     let convId = activeConversationId;
     if (!convId) {
       convId = createConversation();
@@ -170,6 +177,7 @@ export default function AIAssistantPage() {
     setInputValue('');
     setIsLoading(true);
 
+    // Save user message immediately
     updateConversationMessages(convId, toStorageMessages([...messages, userMessage]));
 
     try {
@@ -195,6 +203,7 @@ export default function AIAssistantPage() {
       setMessages(updatedMessages);
       updateConversationMessages(convId, toStorageMessages(updatedMessages));
     } catch (error) {
+      console.error('Erreur AI Assistant:', error);
       const updatedMessages = newMessages.map(msg =>
         msg.id === loadingMessage.id
           ? {
@@ -235,11 +244,13 @@ export default function AIAssistantPage() {
   return (
     <Box
       style={{
-        height: 'calc(100vh - 140px)',
+        height: 'calc(100vh - 180px)',
         display: 'flex',
         flexDirection: 'row',
+        background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)',
         borderRadius: rem(16),
         overflow: 'hidden',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
       }}
     >
       {/* Sidebar */}
@@ -252,377 +263,375 @@ export default function AIAssistantPage() {
       />
 
       {/* Main chat area */}
-      <Box style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <Box style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <Box
+          p="lg"
+          style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(10px)',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          <Group justify="space-between" align="center">
+            <Group>
+              <ThemeIcon
+                size={50}
+                radius="xl"
+                variant="gradient"
+                gradient={{ from: '#667eea', to: '#764ba2', deg: 45 }}
+              >
+                <Robot size={28} weight="duotone" />
+              </ThemeIcon>
+              <div>
+                <Title order={3} c="white">
+                  Assistant IA RH
+                </Title>
+                <Text size="sm" c="dimmed">
+                  Senior Data Analyst - Analyse des formations
+                </Text>
+              </div>
+            </Group>
+            <Group>
+              <Tooltip label={`Service ${healthStatus}`}>
+                <Badge
+                  size="lg"
+                  variant="dot"
+                  color={healthStatus === 'healthy' ? 'green' : healthStatus === 'degraded' ? 'yellow' : 'red'}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                  }}
+                >
+                  {healthStatus === 'healthy' ? 'En ligne' : healthStatus === 'degraded' ? 'Dégradé' : 'Hors ligne'}
+                </Badge>
+              </Tooltip>
+            </Group>
+          </Group>
+        </Box>
 
-        {/* Messages / Welcome Area */}
+        {/* Messages Area */}
         <ScrollArea
           style={{ flex: 1 }}
+          p="lg"
           viewportRef={scrollAreaRef}
         >
           {messages.length === 0 ? (
-            <Box
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minHeight: '100%',
-                padding: rem(48),
-              }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
             >
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                style={{ textAlign: 'center', maxWidth: 680, width: '100%' }}
-              >
-                {/* Hero icon */}
-                <motion.div
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: 1 }}
-                  transition={{ duration: 0.5, delay: 0.1 }}
+              <Stack align="center" gap="xl" py="xl">
+                <ThemeIcon
+                  size={100}
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: '#667eea', to: '#764ba2', deg: 45 }}
                 >
-                  <ThemeIcon
-                    size={80}
-                    radius={80}
-                    variant="gradient"
-                    gradient={{ from: 'violet', to: 'indigo', deg: 135 }}
-                    style={{ margin: '0 auto' }}
-                  >
-                    <Sparkle size={40} weight="duotone" />
-                  </ThemeIcon>
-                </motion.div>
+                  <Sparkle size={50} weight="duotone" />
+                </ThemeIcon>
+                <div style={{ textAlign: 'center' }}>
+                  <Title order={2} c="white" mb="xs">
+                    Bienvenue !
+                  </Title>
+                  <Text c="dimmed" maw={500}>
+                    Je suis votre assistant IA spécialisé dans l'analyse des données de formation.
+                    Posez-moi vos questions sur le budget, les départements, ou les tendances.
+                  </Text>
+                </div>
 
-                <Title order={2} mt="xl" mb={6}>
-                  Assistant IA RH
-                </Title>
-                <Text c="dimmed" size="lg" maw={460} mx="auto" mb={rem(48)}>
-                  Posez vos questions sur le budget, les formations, les départements ou les tendances.
-                </Text>
+                <Divider
+                  w="100%"
+                  maw={600}
+                  label={<Text c="dimmed" size="sm">Questions suggérées</Text>}
+                  labelPosition="center"
+                  style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}
+                />
 
-                {/* Status badge */}
-                <Group justify="center" mb="xl">
-                  <Badge
-                    size="lg"
-                    variant="light"
-                    color={healthStatus === 'healthy' ? 'green' : healthStatus === 'degraded' ? 'yellow' : 'red'}
-                    leftSection={
-                      <Box
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          background: healthStatus === 'healthy'
-                            ? 'var(--mantine-color-green-6)'
-                            : healthStatus === 'degraded'
-                            ? 'var(--mantine-color-yellow-6)'
-                            : 'var(--mantine-color-red-6)',
-                        }}
-                      />
-                    }
-                  >
-                    {healthStatus === 'healthy' ? 'Service en ligne' : healthStatus === 'degraded' ? 'Service dégradé' : 'Service hors ligne'}
-                  </Badge>
-                </Group>
-
-                {/* Suggested questions grid */}
-                <Text size="sm" c="dimmed" mb="lg" fw={500} tt="uppercase" style={{ letterSpacing: '0.05em' }}>
-                  Essayez par exemple
-                </Text>
-
-                <Box
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                    gap: rem(12),
-                    width: '100%',
-                  }}
-                >
+                <Group gap="md" justify="center" wrap="wrap" maw={700}>
                   {SUGGESTED_QUESTIONS.map((q, index) => (
                     <motion.div
                       key={index}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 + index * 0.08 }}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
                       <Paper
-                        p="lg"
-                        radius="md"
-                        withBorder
+                        p="md"
+                        radius="lg"
                         style={{
+                          background: 'rgba(255, 255, 255, 0.05)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
                           cursor: 'pointer',
                           transition: 'all 0.2s ease',
-                          height: '100%',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          justifyContent: 'space-between',
+                          maxWidth: 220,
                         }}
                         onClick={() => handleSendMessage(q.text)}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.borderColor = `var(--mantine-color-${q.color}-4)`;
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = 'var(--mantine-shadow-md)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.borderColor = '';
-                          e.currentTarget.style.transform = '';
-                          e.currentTarget.style.boxShadow = '';
-                        }}
                       >
-                        <Group gap="sm" mb="sm" align="flex-start">
-                          <ThemeIcon size={40} variant="light" color={q.color} radius="md">
-                            <q.icon size={20} weight="duotone" />
+                        <Group gap="sm">
+                          <ThemeIcon size="lg" variant="light" color={q.color} radius="md">
+                            <q.icon size={18} weight="duotone" />
                           </ThemeIcon>
-                        </Group>
-                        <Text size="sm" fw={500} style={{ flex: 1 }}>
-                          {q.text}
-                        </Text>
-                        <Group justify="flex-end" mt="sm">
-                          <ArrowRight size={14} style={{ color: 'var(--mantine-color-dimmed)' }} />
+                          <Text size="sm" c="white" style={{ flex: 1 }}>
+                            {q.text}
+                          </Text>
                         </Group>
                       </Paper>
                     </motion.div>
                   ))}
-                </Box>
-              </motion.div>
-            </Box>
+                </Group>
+              </Stack>
+            </motion.div>
           ) : (
-            <Box p="xl" pb={rem(32)}>
-              <Stack gap="xl">
-                <AnimatePresence>
-                  {messages.map((message) => (
-                    <motion.div
-                      key={message.id}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      transition={{ duration: 0.25 }}
+            <Stack gap="lg">
+              <AnimatePresence>
+                {messages.map((message) => (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Group
+                      align="flex-start"
+                      gap="md"
+                      style={{
+                        flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
+                      }}
                     >
-                      <Group
-                        align="flex-start"
-                        gap="md"
-                        wrap="nowrap"
+                      <ThemeIcon
+                        size={40}
+                        radius="xl"
+                        variant={message.role === 'user' ? 'filled' : 'gradient'}
+                        color={message.role === 'user' ? 'blue' : undefined}
+                        gradient={message.role === 'assistant' ? { from: '#667eea', to: '#764ba2', deg: 45 } : undefined}
+                      >
+                        {message.role === 'user' ? (
+                          <User size={20} weight="duotone" />
+                        ) : (
+                          <Robot size={20} weight="duotone" />
+                        )}
+                      </ThemeIcon>
+
+                      <Paper
+                        p="md"
+                        radius="lg"
+                        maw="75%"
                         style={{
-                          flexDirection: message.role === 'user' ? 'row-reverse' : 'row',
-                          maxWidth: message.role === 'user' ? '100%' : undefined,
+                          background:
+                            message.role === 'user'
+                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                              : message.isError
+                              ? 'rgba(255, 100, 100, 0.1)'
+                              : 'rgba(255, 255, 255, 0.08)',
+                          border: message.isError
+                            ? '1px solid rgba(255, 100, 100, 0.3)'
+                            : '1px solid rgba(255, 255, 255, 0.1)',
                         }}
                       >
-                        <ThemeIcon
-                          size={36}
-                          radius="xl"
-                          variant={message.role === 'user' ? 'filled' : 'gradient'}
-                          color={message.role === 'user' ? 'blue' : undefined}
-                          gradient={message.role === 'assistant' ? { from: 'violet', to: 'indigo', deg: 45 } : undefined}
-                          style={{ flexShrink: 0, marginTop: 2 }}
-                        >
-                          {message.role === 'user' ? (
-                            <User size={18} weight="bold" />
-                          ) : (
-                            <Robot size={18} weight="bold" />
-                          )}
-                        </ThemeIcon>
+                        {message.isLoading ? (
+                          <Group gap="sm">
+                            <Loader size="sm" color="white" />
+                            <Text size="sm" c="dimmed">
+                              Analyse en cours...
+                            </Text>
+                          </Group>
+                        ) : (
+                          <>
+                            <Box
+                              style={{
+                                color: 'white',
+                                '& h3': { marginTop: rem(16), marginBottom: rem(8) },
+                                '& ul': { paddingLeft: rem(20) },
+                                '& li': { marginBottom: rem(4) },
+                              }}
+                            >
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  h3: ({ children }: { children: React.ReactNode }) => (
+                                    <Text size="md" fw={600} c="white" mt="md" mb="xs">
+                                      {children}
+                                    </Text>
+                                  ),
+                                  p: ({ children }: { children: React.ReactNode }) => (
+                                    <Text size="sm" c={message.role === 'user' ? 'white' : 'gray.3'} mb="xs">
+                                      {children}
+                                    </Text>
+                                  ),
+                                  ul: ({ children }: { children: React.ReactNode }) => (
+                                    <Box component="ul" pl="md" mb="xs">
+                                      {children}
+                                    </Box>
+                                  ),
+                                  li: ({ children }: { children: React.ReactNode }) => (
+                                    <Text component="li" size="sm" c="gray.3" mb={4}>
+                                      {children}
+                                    </Text>
+                                  ),
+                                  strong: ({ children }: { children: React.ReactNode }) => (
+                                    <Text span fw={600} c="white">
+                                      {children}
+                                    </Text>
+                                  ),
+                                  table: ({ children }: { children: React.ReactNode }) => (
+                                    <Box
+                                      component="table"
+                                      style={{
+                                        width: '100%',
+                                        borderCollapse: 'collapse',
+                                        marginTop: rem(12),
+                                        marginBottom: rem(12),
+                                        fontSize: rem(13),
+                                      }}
+                                    >
+                                      {children}
+                                    </Box>
+                                  ),
+                                  thead: ({ children }: { children: React.ReactNode }) => (
+                                    <Box
+                                      component="thead"
+                                      style={{
+                                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                      }}
+                                    >
+                                      {children}
+                                    </Box>
+                                  ),
+                                  tbody: ({ children }: { children: React.ReactNode }) => (
+                                    <Box component="tbody">{children}</Box>
+                                  ),
+                                  tr: ({ children }: { children: React.ReactNode }) => (
+                                    <Box
+                                      component="tr"
+                                      style={{
+                                        borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                                      }}
+                                    >
+                                      {children}
+                                    </Box>
+                                  ),
+                                  th: ({ children }: { children: React.ReactNode }) => (
+                                    <Box
+                                      component="th"
+                                      style={{
+                                        padding: `${rem(8)} ${rem(12)}`,
+                                        textAlign: 'left',
+                                        fontWeight: 600,
+                                        color: 'white',
+                                        borderBottom: '2px solid rgba(255, 255, 255, 0.2)',
+                                      }}
+                                    >
+                                      {children}
+                                    </Box>
+                                  ),
+                                  td: ({ children }: { children: React.ReactNode }) => (
+                                    <Box
+                                      component="td"
+                                      style={{
+                                        padding: `${rem(8)} ${rem(12)}`,
+                                        color: 'rgba(255, 255, 255, 0.8)',
+                                      }}
+                                    >
+                                      {children}
+                                    </Box>
+                                  ),
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </Box>
 
-                        <Box
-                          style={{
-                            maxWidth: '75%',
-                            minWidth: 0,
-                          }}
-                        >
-                          <Text size="xs" fw={600} mb={4} c="dimmed">
-                            {message.role === 'user' ? 'Vous' : 'Assistant IA'}
-                          </Text>
-
-                          <Paper
-                            p="md"
-                            px="lg"
-                            radius="lg"
-                            style={{
-                              background:
-                                message.role === 'user'
-                                  ? 'var(--mantine-primary-color-filled)'
-                                  : message.isError
-                                  ? 'var(--mantine-color-red-light)'
-                                  : 'var(--mantine-color-default)',
-                              border: message.role === 'user'
-                                ? 'none'
-                                : message.isError
-                                ? '1px solid var(--mantine-color-red-4)'
-                                : '1px solid var(--mantine-color-default-border)',
-                              borderTopLeftRadius: message.role === 'assistant' ? rem(4) : undefined,
-                              borderTopRightRadius: message.role === 'user' ? rem(4) : undefined,
-                            }}
-                          >
-                            {message.isLoading ? (
-                              <Group gap="sm" py="xs">
-                                <Loader size="xs" type="dots" />
-                                <Text size="sm" c="dimmed">
-                                  Analyse en cours...
-                                </Text>
-                              </Group>
-                            ) : (
-                              <Box>
-                                <ReactMarkdown
-                                  remarkPlugins={[remarkGfm]}
-                                  components={{
-                                    h3: ({ children }: { children?: React.ReactNode }) => (
-                                      <Text size="md" fw={600} c={message.role === 'user' ? 'white' : undefined} mt="md" mb="xs">
-                                        {children}
-                                      </Text>
-                                    ),
-                                    p: ({ children }: { children?: React.ReactNode }) => (
-                                      <Text size="sm" c={message.role === 'user' ? 'white' : undefined} mb="xs" style={{ lineHeight: 1.65 }}>
-                                        {children}
-                                      </Text>
-                                    ),
-                                    ul: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box component="ul" pl="md" mb="xs">
-                                        {children}
-                                      </Box>
-                                    ),
-                                    li: ({ children }: { children?: React.ReactNode }) => (
-                                      <Text component="li" size="sm" c={message.role === 'user' ? 'white' : undefined} mb={6} style={{ lineHeight: 1.6 }}>
-                                        {children}
-                                      </Text>
-                                    ),
-                                    strong: ({ children }: { children?: React.ReactNode }) => (
-                                      <Text span fw={600} c={message.role === 'user' ? 'white' : undefined}>
-                                        {children}
-                                      </Text>
-                                    ),
-                                    table: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box
-                                        component="table"
-                                        my="md"
-                                        style={{
-                                          width: '100%',
-                                          borderCollapse: 'collapse',
-                                          fontSize: rem(13),
-                                          borderRadius: rem(8),
-                                          overflow: 'hidden',
-                                        }}
-                                      >
-                                        {children}
-                                      </Box>
-                                    ),
-                                    thead: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box
-                                        component="thead"
-                                        style={{ backgroundColor: 'var(--mantine-color-default-hover)' }}
-                                      >
-                                        {children}
-                                      </Box>
-                                    ),
-                                    tbody: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box component="tbody">{children}</Box>
-                                    ),
-                                    tr: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box
-                                        component="tr"
-                                        style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}
-                                      >
-                                        {children}
-                                      </Box>
-                                    ),
-                                    th: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box
-                                        component="th"
-                                        style={{
-                                          padding: `${rem(10)} ${rem(14)}`,
-                                          textAlign: 'left',
-                                          fontWeight: 600,
-                                          borderBottom: '2px solid var(--mantine-color-default-border)',
-                                        }}
-                                      >
-                                        {children}
-                                      </Box>
-                                    ),
-                                    td: ({ children }: { children?: React.ReactNode }) => (
-                                      <Box
-                                        component="td"
-                                        style={{
-                                          padding: `${rem(10)} ${rem(14)}`,
-                                          color: 'var(--mantine-color-text)',
-                                        }}
-                                      >
-                                        {children}
-                                      </Box>
-                                    ),
-                                  }}
+                            {message.metadata && (
+                              <Group gap="xs" mt="sm">
+                                <Badge
+                                  size="xs"
+                                  variant="light"
+                                  color="gray"
+                                  leftSection={<Clock size={10} />}
                                 >
-                                  {message.content}
-                                </ReactMarkdown>
-                              </Box>
-                            )}
-                          </Paper>
-
-                          {message.metadata && (
-                            <Group gap={6} mt={6}>
-                              <Badge size="xs" variant="light" color="gray" leftSection={<Clock size={10} />}>
-                                {(message.metadata.responseTimeMs! / 1000).toFixed(1)}s
-                              </Badge>
-                              {message.metadata.tokens && (
-                                <Badge size="xs" variant="light" color="gray" leftSection={<Lightning size={10} />}>
-                                  {message.metadata.tokens} tokens
+                                  {(message.metadata.responseTimeMs! / 1000).toFixed(1)}s
                                 </Badge>
-                              )}
-                            </Group>
-                          )}
-                        </Box>
-                      </Group>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </Stack>
-            </Box>
+                                {message.metadata.tokens && (
+                                  <Badge
+                                    size="xs"
+                                    variant="light"
+                                    color="gray"
+                                    leftSection={<Lightning size={10} />}
+                                  >
+                                    {message.metadata.tokens} tokens
+                                  </Badge>
+                                )}
+                              </Group>
+                            )}
+                          </>
+                        )}
+                      </Paper>
+                    </Group>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </Stack>
           )}
         </ScrollArea>
 
         {/* Input Area */}
         <Box
-          px="xl"
-          py="lg"
+          p="lg"
           style={{
-            borderTop: '1px solid var(--mantine-color-default-border)',
+            background: 'rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(10px)',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
-          <Box
-            style={{
-              maxWidth: 720,
-              margin: '0 auto',
-            }}
-          >
-            <Group gap="sm" align="flex-end">
-              <TextInput
-                ref={inputRef}
-                placeholder="Posez votre question..."
-                value={inputValue}
-                onChange={(e) => setInputValue(e.currentTarget.value)}
-                onKeyPress={handleKeyPress}
-                disabled={isLoading}
-                size="lg"
-                radius="xl"
-                style={{ flex: 1 }}
-              />
-              <ActionIcon
-                size={48}
-                radius="xl"
-                variant="gradient"
-                gradient={{ from: 'violet', to: 'indigo', deg: 45 }}
-                onClick={() => handleSendMessage()}
-                disabled={!inputValue.trim() || isLoading}
-                loading={isLoading}
-              >
-                <PaperPlaneRight size={22} weight="fill" />
-              </ActionIcon>
-            </Group>
+          <Group gap="md">
+            <TextInput
+              ref={inputRef}
+              placeholder="Posez votre question sur les données de formation..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.currentTarget.value)}
+              onKeyPress={handleKeyPress}
+              disabled={isLoading}
+              size="lg"
+              radius="xl"
+              style={{ flex: 1 }}
+              styles={{
+                input: {
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: 'white',
+                  '&::placeholder': {
+                    color: 'rgba(255, 255, 255, 0.5)',
+                  },
+                  '&:focus': {
+                    borderColor: '#667eea',
+                  },
+                },
+              }}
+            />
+            <ActionIcon
+              size={50}
+              radius="xl"
+              variant="gradient"
+              gradient={{ from: '#667eea', to: '#764ba2', deg: 45 }}
+              onClick={() => handleSendMessage()}
+              disabled={!inputValue.trim() || isLoading}
+              loading={isLoading}
+            >
+              <PaperPlaneRight size={24} weight="fill" />
+            </ActionIcon>
+          </Group>
 
-            <Group gap={4} mt="xs" justify="center">
-              <Info size={12} style={{ color: 'var(--mantine-color-dimmed)' }} />
-              <Text size="xs" c="dimmed">
-                Les données personnelles ne sont jamais partagées avec l'IA
-              </Text>
-            </Group>
-          </Box>
+          <Group gap="xs" mt="sm" justify="center">
+            <Info size={12} style={{ color: 'rgba(255, 255, 255, 0.4)' }} />
+            <Text size="xs" c="dimmed">
+              Les données personnelles (noms, emails) ne sont jamais partagées avec l'IA
+            </Text>
+          </Group>
         </Box>
       </Box>
     </Box>

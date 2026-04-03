@@ -1,17 +1,80 @@
 /* ============================================
-   KPI COLLABORATEURS - Mantine Theme
+   KPI COLLABORATEURS - DARK LUXE THEME
    ============================================ */
 
 .pageContainer {
   position: relative;
   min-height: 100vh;
   padding: 2rem;
-  background: var(--mantine-color-body);
+  overflow: hidden;
+}
+
+/* Animated Background Orbs */
+.backgroundOrbs {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  animation: float 20s ease-in-out infinite;
+}
+
+.orb1 {
+  width: 500px;
+  height: 500px;
+  background: linear-gradient(135deg, #228BE6 0%, #4DABF7 100%);
+  top: -150px;
+  right: -100px;
+  animation-delay: 0s;
+}
+
+.orb2 {
+  width: 400px;
+  height: 400px;
+  background: linear-gradient(135deg, #E64980 0%, #F06595 100%);
+  bottom: -100px;
+  left: -100px;
+  animation-delay: -7s;
+}
+
+.orb3 {
+  width: 350px;
+  height: 350px;
+  background: linear-gradient(135deg, #7950F2 0%, #9775FA 100%);
+  top: 40%;
+  left: 30%;
+  animation-delay: -14s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(30px, -30px) scale(1.05);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  75% {
+    transform: translate(-30px, -20px) scale(1.02);
+  }
 }
 
 /* Content Wrapper */
 .content {
   position: relative;
+  z-index: 1;
   max-width: 1400px;
   margin: 0 auto;
 }
@@ -24,13 +87,16 @@
 .pageTitle {
   font-size: 2.5rem;
   font-weight: 800;
-  color: var(--mantine-color-text);
+  background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   margin-bottom: 0.5rem;
   letter-spacing: -0.02em;
 }
 
 .pageSubtitle {
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 1rem;
 }
 
@@ -38,7 +104,7 @@
 .sectionTitle {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
@@ -52,16 +118,16 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
 }
 
 /* Filter Card */
 .filterCard {
   position: relative;
   z-index: 100;
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 2rem;
@@ -69,11 +135,10 @@
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .filterLabel {
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.7);
   font-weight: 600;
   font-size: 0.9rem;
   display: flex;
@@ -82,12 +147,12 @@
 }
 
 .filterIcon {
-  color: var(--mantine-color-orange-6);
+  color: #ff7900;
 }
 
 .periodBadge {
-  background: var(--mantine-color-orange-6);
-  color: #fff;
+  background: linear-gradient(135deg, #ff7900 0%, #ff9500 100%);
+  color: #000;
   font-weight: 700;
   padding: 0.5rem 1rem;
   border-radius: 20px;
@@ -111,7 +176,7 @@
 /* Hero KPI Card */
 .heroCard {
   position: relative;
-  border-radius: 16px;
+  border-radius: 24px;
   padding: 2rem;
   overflow: hidden;
   min-height: 180px;
@@ -121,27 +186,33 @@
 }
 
 .heroCardBlue {
-  background: var(--mantine-color-blue-6);
+  background: linear-gradient(135deg, #228BE6 0%, #4DABF7 50%, #74C0FC 100%);
 }
 
 .heroCardPink {
-  background: var(--mantine-color-pink-6);
+  background: linear-gradient(135deg, #E64980 0%, #F06595 50%, #FAA2C1 100%);
 }
 
 .heroCardViolet {
-  background: var(--mantine-color-violet-6);
+  background: linear-gradient(135deg, #7950F2 0%, #9775FA 50%, #B197FC 100%);
 }
 
 .heroCardOrange {
-  background: var(--mantine-color-orange-6);
+  background: linear-gradient(135deg, #ff7900 0%, #ff9500 50%, #FFB347 100%);
 }
 
 .heroCardTeal {
-  background: var(--mantine-color-teal-6);
+  background: linear-gradient(135deg, #12B886 0%, #38D9A9 50%, #63E6BE 100%);
 }
 
 .heroCardGlow {
-  display: none;
+  position: absolute;
+  top: -50%;
+  right: -30%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, transparent 70%);
+  pointer-events: none;
 }
 
 .heroCardContent {
@@ -154,7 +225,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(0, 0, 0, 0.6);
   margin-bottom: 0.75rem;
   display: flex;
   align-items: center;
@@ -164,7 +235,7 @@
 .heroCardValue {
   font-size: 3.5rem;
   font-weight: 800;
-  color: #fff;
+  color: #000;
   line-height: 1;
   margin-bottom: 0.5rem;
 }
@@ -177,7 +248,7 @@
 
 .heroCardMeta {
   font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.5);
   font-weight: 500;
 }
 
@@ -185,8 +256,8 @@
   position: absolute;
   bottom: 1.5rem;
   right: 1.5rem;
-  opacity: 0.15;
-  color: #fff;
+  opacity: 0.2;
+  color: #000;
 }
 
 /* Stats Cards Grid */
@@ -209,37 +280,38 @@
   }
 }
 
-/* Card */
-.card {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+/* Glass Card */
+.glassCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
-  transition: all 0.2s ease;
-  box-shadow: var(--mantine-shadow-sm);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.card:hover {
-  box-shadow: var(--mantine-shadow-md);
-  transform: translateY(-2px);
+.glassCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-4px);
 }
 
-.cardHeader {
+.glassCardHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
 }
 
-.cardLabel {
+.glassCardLabel {
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
 }
 
-.cardIconWrapper {
+.glassCardIconWrapper {
   width: 40px;
   height: 40px;
   border-radius: 12px;
@@ -249,46 +321,46 @@
 }
 
 .iconBlue {
-  background: var(--mantine-color-blue-light);
-  color: var(--mantine-color-blue-6);
+  background: rgba(34, 139, 230, 0.15);
+  color: #4DABF7;
 }
 
 .iconPink {
-  background: var(--mantine-color-pink-light);
-  color: var(--mantine-color-pink-6);
+  background: rgba(230, 73, 128, 0.15);
+  color: #F06595;
 }
 
 .iconViolet {
-  background: var(--mantine-color-violet-light);
-  color: var(--mantine-color-violet-6);
+  background: rgba(121, 80, 242, 0.15);
+  color: #9775FA;
 }
 
 .iconTeal {
-  background: var(--mantine-color-teal-light);
-  color: var(--mantine-color-teal-6);
+  background: rgba(18, 184, 134, 0.15);
+  color: #38D9A9;
 }
 
 .iconOrange {
-  background: var(--mantine-color-orange-light);
-  color: var(--mantine-color-orange-6);
+  background: rgba(255, 121, 0, 0.15);
+  color: #ff9500;
 }
 
 .iconGray {
-  background: var(--mantine-color-gray-light);
-  color: var(--mantine-color-gray-6);
+  background: rgba(134, 142, 150, 0.15);
+  color: #ADB5BD;
 }
 
-.cardValue {
+.glassCardValue {
   font-size: 2.25rem;
   font-weight: 800;
-  color: var(--mantine-color-text);
+  color: #fff;
   line-height: 1.1;
   margin-bottom: 0.25rem;
 }
 
-.cardMeta {
+.glassCardMeta {
   font-size: 0.85rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* Divider */
@@ -302,7 +374,7 @@
 .dividerLine {
   flex: 1;
   height: 1px;
-  background: var(--mantine-color-default-border);
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%);
 }
 
 .dividerContent {
@@ -310,9 +382,9 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: var(--mantine-color-default);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 20px;
-  border: 1px solid var(--mantine-color-default-border);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .dividerText {
@@ -320,11 +392,23 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .dividerIcon {
-  color: var(--mantine-color-orange-6);
+  color: #ff7900;
+}
+
+.yearBadge {
+  margin-left: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  background: linear-gradient(135deg, #ff7900 0%, #ff9500 100%);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* Tables Section */
@@ -342,18 +426,18 @@
 }
 
 .tableCard {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   overflow: hidden;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .tableTitle {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 1.25rem;
   display: flex;
   align-items: center;
@@ -376,15 +460,15 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--mantine-color-dimmed);
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  color: rgba(255, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .table td {
   padding: 0.875rem 1rem;
   font-size: 0.9rem;
-  color: var(--mantine-color-text);
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  color: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .table tr:last-child td {
@@ -392,22 +476,22 @@
 }
 
 .table tr:hover td {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .tableValue {
   font-weight: 700;
-  color: var(--mantine-color-text);
+  color: #fff;
 }
 
 /* Contract Types Section */
 .contractCard {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 2rem;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .contractItem {
@@ -430,50 +514,50 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.9rem;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .contractIcon {
-  color: var(--mantine-color-teal-6);
+  color: #12B886;
 }
 
 .contractCount {
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--mantine-color-teal-6);
-  background: var(--mantine-color-teal-light);
+  color: #38D9A9;
+  background: rgba(18, 184, 134, 0.15);
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
 }
 
 .contractProgress {
   height: 8px;
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   overflow: hidden;
 }
 
 .contractProgressBar {
   height: 100%;
-  background: var(--mantine-color-teal-6);
+  background: linear-gradient(90deg, #12B886 0%, #38D9A9 100%);
   border-radius: 4px;
   transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Top Participants */
 .topParticipantsCard {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   overflow: hidden;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .topParticipantsTitle {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
@@ -481,7 +565,7 @@
 }
 
 .trophyIcon {
-  color: var(--mantine-color-yellow-6);
+  color: #FFD43B;
 }
 
 .participantRow {
@@ -495,7 +579,7 @@
 }
 
 .participantRow:hover {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 @media (max-width: 768px) {
@@ -522,23 +606,23 @@
 }
 
 .rankGold {
-  background: var(--mantine-color-yellow-4);
-  color: var(--mantine-color-dark-9);
+  background: linear-gradient(135deg, #FFD43B 0%, #FFA94D 100%);
+  color: #000;
 }
 
 .rankSilver {
-  background: var(--mantine-color-gray-4);
-  color: var(--mantine-color-dark-9);
+  background: linear-gradient(135deg, #DEE2E6 0%, #ADB5BD 100%);
+  color: #000;
 }
 
 .rankBronze {
-  background: #CD7F32;
-  color: var(--mantine-color-white);
+  background: linear-gradient(135deg, #CD7F32 0%, #B87333 100%);
+  color: #fff;
 }
 
 .rankDefault {
-  background: var(--mantine-color-default-hover);
-  color: var(--mantine-color-dimmed);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .participantName {
@@ -549,7 +633,7 @@
 
 .participantNameText {
   font-weight: 600;
-  color: var(--mantine-color-text);
+  color: #fff;
   font-size: 0.95rem;
 }
 
@@ -560,8 +644,8 @@
 
 .participantDepartment {
   font-size: 0.85rem;
-  color: var(--mantine-color-blue-6);
-  background: var(--mantine-color-blue-light);
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(34, 139, 230, 0.15);
   padding: 0.35rem 0.75rem;
   border-radius: 8px;
   text-align: center;
@@ -569,18 +653,18 @@
 
 .participantFormations {
   font-size: 0.85rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .participantFormationsValue {
-  color: var(--mantine-color-teal-6);
+  color: #38D9A9;
   font-weight: 600;
 }
 
 .participantHours {
   font-weight: 700;
   font-size: 1rem;
-  color: var(--mantine-color-teal-6);
+  color: #12B886;
   text-align: right;
 }
 
@@ -597,8 +681,8 @@
 .loadingSpinner {
   width: 48px;
   height: 48px;
-  border: 3px solid var(--mantine-color-default-border);
-  border-top-color: var(--mantine-color-orange-6);
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #ff7900;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -610,7 +694,7 @@
 }
 
 .loadingText {
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 0.95rem;
 }
 
@@ -626,7 +710,7 @@
 }
 
 .errorText {
-  color: var(--mantine-color-red-6);
+  color: #FA5252;
   font-size: 1rem;
 }
 
@@ -655,28 +739,33 @@
 }
 
 .badgeBlue {
-  background: var(--mantine-color-blue-light);
-  color: var(--mantine-color-blue-6);
+  background: rgba(34, 139, 230, 0.15);
+  color: #4DABF7;
 }
 
 .badgePink {
-  background: var(--mantine-color-pink-light);
-  color: var(--mantine-color-pink-6);
+  background: rgba(230, 73, 128, 0.15);
+  color: #F06595;
 }
 
 .badgeViolet {
-  background: var(--mantine-color-violet-light);
-  color: var(--mantine-color-violet-6);
+  background: rgba(121, 80, 242, 0.15);
+  color: #9775FA;
 }
 
 .badgeTeal {
-  background: var(--mantine-color-teal-light);
-  color: var(--mantine-color-teal-6);
+  background: rgba(18, 184, 134, 0.15);
+  color: #38D9A9;
 }
 
 .badgeGray {
-  background: var(--mantine-color-gray-light);
-  color: var(--mantine-color-gray-6);
+  background: rgba(134, 142, 150, 0.15);
+  color: #ADB5BD;
+}
+
+/* Select Styles */
+.selectWrapper {
+  position: relative;
 }
 
 /* Responsive adjustments */
@@ -705,7 +794,7 @@
 }
 
 /* ============================================
-   KPIs Heures & Organismes
+   NOUVEAUX STYLES - KPIs Heures & Organismes
    ============================================ */
 
 /* Filter Options */
@@ -718,10 +807,10 @@
 
 .contratSelect {
   padding: 0.5rem 1rem;
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -730,13 +819,19 @@
 }
 
 .contratSelect:hover {
-  border-color: var(--mantine-color-gray-5);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .contratSelect:focus {
   outline: none;
-  border-color: var(--mantine-color-blue-6);
-  box-shadow: 0 0 0 2px var(--mantine-color-blue-light);
+  border-color: rgba(34, 139, 230, 0.5);
+  box-shadow: 0 0 0 2px rgba(34, 139, 230, 0.2);
+}
+
+.contratSelect option {
+  background: #1a1b1e;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 /* Multi-select dropdown pour types de contrat */
@@ -750,10 +845,10 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.5rem 1rem;
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -762,7 +857,8 @@
 }
 
 .contratMultiSelectBtn:hover {
-  border-color: var(--mantine-color-gray-5);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .contratDropdownIcon {
@@ -776,10 +872,11 @@
   left: 0;
   z-index: 9999;
   min-width: 200px;
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
+  background: rgba(26, 27, 30, 0.98);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  box-shadow: var(--mantine-shadow-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   padding: 0.5rem 0;
   overflow: hidden;
 }
@@ -789,14 +886,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 0.6rem 1rem;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.85);
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .contratDropdownItem:hover {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .contratCheckbox {
@@ -805,7 +902,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid var(--mantine-color-default-border);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
@@ -813,9 +910,9 @@
 }
 
 .contratCheckboxChecked {
-  background: var(--mantine-color-blue-6);
-  border-color: var(--mantine-color-blue-6);
-  color: var(--mantine-color-white);
+  background: linear-gradient(135deg, #228BE6 0%, #4DABF7 100%);
+  border-color: #228BE6;
+  color: #fff;
 }
 
 .toggleButton {
@@ -823,10 +920,10 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.6);
   font-size: 0.85rem;
   font-weight: 500;
   cursor: pointer;
@@ -834,17 +931,18 @@
 }
 
 .toggleButton:hover {
-  border-color: var(--mantine-color-gray-5);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .toggleButton.toggleActive {
-  background: var(--mantine-color-violet-light);
-  border-color: var(--mantine-color-violet-4);
-  color: var(--mantine-color-violet-6);
+  background: rgba(121, 80, 242, 0.15);
+  border-color: rgba(121, 80, 242, 0.3);
+  color: #9775FA;
 }
 
 .toggleBadge {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.1);
   padding: 0.2rem 0.5rem;
   border-radius: 6px;
   font-size: 0.75rem;
@@ -853,12 +951,12 @@
 
 /* Hours Section */
 .hoursSection {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .hoursGrid {
@@ -875,16 +973,16 @@
 }
 
 .hourCard {
-  background: var(--mantine-color-blue-light);
-  border: 1px solid var(--mantine-color-blue-2);
+  background: linear-gradient(135deg, rgba(34, 139, 230, 0.1) 0%, rgba(77, 171, 247, 0.05) 100%);
+  border: 1px solid rgba(34, 139, 230, 0.2);
   border-radius: 16px;
   padding: 1.25rem;
   text-align: center;
 }
 
 .hourCard:nth-child(2) {
-  background: var(--mantine-color-teal-light);
-  border-color: var(--mantine-color-teal-2);
+  background: linear-gradient(135deg, rgba(18, 184, 134, 0.1) 0%, rgba(56, 217, 169, 0.05) 100%);
+  border-color: rgba(18, 184, 134, 0.2);
 }
 
 .hourLabel {
@@ -892,25 +990,25 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 0.5rem;
 }
 
 .hourValue {
   font-size: 2.5rem;
   font-weight: 800;
-  color: var(--mantine-color-blue-6);
+  color: #4DABF7;
   line-height: 1;
   margin-bottom: 0.25rem;
 }
 
 .hourCard:nth-child(2) .hourValue {
-  color: var(--mantine-color-teal-6);
+  color: #38D9A9;
 }
 
 .hourMeta {
   font-size: 0.75rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .hoursDetails {
@@ -919,25 +1017,25 @@
   gap: 1rem;
   justify-content: center;
   padding-top: 1rem;
-  border-top: 1px solid var(--mantine-color-default-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .hoursDetails span {
   font-size: 0.8rem;
-  color: var(--mantine-color-dimmed);
-  background: var(--mantine-color-default-hover);
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.03);
   padding: 0.35rem 0.75rem;
   border-radius: 8px;
 }
 
 /* Organisme Section */
 .organismeSection {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .organismeList {
@@ -951,13 +1049,13 @@
   align-items: center;
   gap: 1rem;
   padding: 0.75rem 1rem;
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
   transition: all 0.2s ease;
 }
 
 .organismeItem:hover {
-  background: var(--mantine-color-gray-light);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .organismeRank {
@@ -966,8 +1064,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--mantine-color-teal-light);
-  color: var(--mantine-color-teal-6);
+  background: rgba(18, 184, 134, 0.15);
+  color: #38D9A9;
   border-radius: 8px;
   font-size: 0.8rem;
   font-weight: 700;
@@ -976,24 +1074,24 @@
 .organismeName {
   flex: 1;
   font-size: 0.9rem;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   font-weight: 500;
 }
 
 .organismeHours {
   font-size: 1rem;
   font-weight: 700;
-  color: var(--mantine-color-teal-6);
+  color: #12B886;
 }
 
 /* Collaborateurs Section */
 .collabSection {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .collabStats {
@@ -1013,12 +1111,12 @@
 .collabStatValue {
   font-size: 2rem;
   font-weight: 800;
-  color: var(--mantine-color-violet-6);
+  color: #9775FA;
 }
 
 .collabStatLabel {
   font-size: 0.8rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -1037,51 +1135,51 @@
 .collabTable th,
 .collabTable td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .collabTable th {
   font-size: 0.85rem;
   font-weight: 600;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.7);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
 .collabTableHeaderFormes {
-  color: var(--mantine-color-green-6) !important;
+  color: #51CF66 !important;
 }
 
 .collabTableHeaderNonFormes {
-  color: var(--mantine-color-red-6) !important;
+  color: #FF6B6B !important;
 }
 
 .collabTableRowLabel {
   text-align: left;
   font-weight: 500;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .collabTableValueFormes {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--mantine-color-green-6);
+  color: #51CF66;
 }
 
 .collabTableValueNonFormes {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--mantine-color-red-6);
+  color: #FF6B6B;
 }
 
 .collabTableValueTotal {
   font-size: 1.25rem;
   font-weight: 700;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .collabTableRowTotal {
-  border-top: 2px solid var(--mantine-color-default-border);
+  border-top: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .collabTableRowTotal td {
@@ -1104,17 +1202,17 @@
 }
 
 /* ============================================
-   TABLEAU CROISE ROLE x GENRE
+   TABLEAU CROISÉ RÔLE × GENRE
    ============================================ */
 
 .crossTableCard {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   overflow-x: auto;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .crossTable {
@@ -1127,7 +1225,7 @@
 .crossTable td {
   padding: 0.875rem 1rem;
   text-align: center;
-  border-bottom: 1px solid var(--mantine-color-default-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .crossTable th {
@@ -1135,7 +1233,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .crossTable th:first-child {
@@ -1145,11 +1243,11 @@
 .crossTable td:first-child {
   text-align: left;
   font-weight: 600;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .crossTable tbody tr:hover {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .crossTable tbody tr:last-child td {
@@ -1158,35 +1256,35 @@
 
 .crossTable td {
   font-size: 0.9rem;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .headerMale {
-  background: var(--mantine-color-blue-light);
-  color: var(--mantine-color-blue-6) !important;
+  background: linear-gradient(135deg, rgba(34, 139, 230, 0.15) 0%, rgba(34, 139, 230, 0.05) 100%);
+  color: #4DABF7 !important;
 }
 
 .headerFemale {
-  background: var(--mantine-color-pink-light);
-  color: var(--mantine-color-pink-6) !important;
+  background: linear-gradient(135deg, rgba(230, 73, 128, 0.15) 0%, rgba(230, 73, 128, 0.05) 100%);
+  color: #F06595 !important;
 }
 
 .crossTableValue {
   font-weight: 700;
-  color: var(--mantine-color-text);
+  color: #fff;
 }
 
 /* ============================================
-   STATS PAR DEPARTEMENT
+   STATS PAR DÉPARTEMENT
    ============================================ */
 
 .departementCard {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .departementList {
@@ -1196,14 +1294,14 @@
 }
 
 .departementItem {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
   overflow: hidden;
   transition: all 0.2s ease;
 }
 
 .departementItem:hover {
-  background: var(--mantine-color-gray-light);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .departementHeader {
@@ -1219,12 +1317,12 @@
   align-items: center;
   gap: 0.75rem;
   font-weight: 600;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 0.95rem;
 }
 
 .departementIcon {
-  color: var(--mantine-color-violet-6);
+  color: #7950F2;
   opacity: 0.8;
 }
 
@@ -1233,18 +1331,18 @@
   align-items: center;
   gap: 1.5rem;
   font-size: 0.85rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .departementHeures {
   font-weight: 700;
-  color: var(--mantine-color-teal-6);
-  background: var(--mantine-color-teal-light);
+  color: #12B886;
+  background: rgba(18, 184, 134, 0.15);
   padding: 0.35rem 0.75rem;
   border-radius: 8px;
 }
 
-/* Sous-equipes */
+/* Sous-équipes */
 .sousEquipes {
   padding: 0 1rem 1rem 2.5rem;
   display: flex;
@@ -1257,27 +1355,27 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 8px;
-  border-left: 3px solid var(--mantine-color-violet-3);
+  border-left: 3px solid rgba(121, 80, 242, 0.3);
   transition: all 0.2s ease;
 }
 
 .sousEquipeItem:hover {
-  background: var(--mantine-color-gray-light);
-  border-left-color: var(--mantine-color-violet-6);
+  background: rgba(255, 255, 255, 0.04);
+  border-left-color: rgba(121, 80, 242, 0.6);
 }
 
 .sousEquipeName {
   font-size: 0.85rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.7);
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
 .sousEquipeIcon {
-  color: var(--mantine-color-violet-4);
+  color: rgba(121, 80, 242, 0.5);
   font-size: 0.75rem;
 }
 
@@ -1286,20 +1384,20 @@
   align-items: center;
   gap: 1rem;
   font-size: 0.8rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 /* ============================================
-   STATS PAR CATEGORIE DE FORMATION
+   STATS PAR CATÉGORIE DE FORMATION
    ============================================ */
 
 .categorieCard {
-  background: var(--mantine-color-default);
-  border: 1px solid var(--mantine-color-default-border);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
   padding: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: var(--mantine-shadow-sm);
 }
 
 .categorieList {
@@ -1309,14 +1407,14 @@
 }
 
 .categorieItem {
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.02);
   border-radius: 12px;
   padding: 1rem 1.25rem;
   transition: all 0.2s ease;
 }
 
 .categorieItem:hover {
-  background: var(--mantine-color-gray-light);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .categorieHeader {
@@ -1328,19 +1426,19 @@
 
 .categorieName {
   font-weight: 600;
-  color: var(--mantine-color-text);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 0.95rem;
 }
 
 .categoriePourcentage {
   font-weight: 800;
   font-size: 1.1rem;
-  color: var(--mantine-color-text);
+  color: #fff;
 }
 
 .categorieBar {
   height: 8px;
-  background: var(--mantine-color-default-hover);
+  background: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 0.75rem;
@@ -1357,13 +1455,23 @@
   align-items: center;
   justify-content: space-between;
   font-size: 0.8rem;
-  color: var(--mantine-color-dimmed);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .categorieHeures {
   font-weight: 700;
-  color: var(--mantine-color-teal-6);
+  color: #38D9A9;
 }
+
+/* Couleurs pour les catégories */
+.categorieColor0 { background: linear-gradient(90deg, #228BE6 0%, #4DABF7 100%); }
+.categorieColor1 { background: linear-gradient(90deg, #12B886 0%, #38D9A9 100%); }
+.categorieColor2 { background: linear-gradient(90deg, #7950F2 0%, #9775FA 100%); }
+.categorieColor3 { background: linear-gradient(90deg, #E64980 0%, #F06595 100%); }
+.categorieColor4 { background: linear-gradient(90deg, #ff7900 0%, #ff9500 100%); }
+.categorieColor5 { background: linear-gradient(90deg, #FAB005 0%, #FCC419 100%); }
+.categorieColor6 { background: linear-gradient(90deg, #20C997 0%, #63E6BE 100%); }
+.categorieColor7 { background: linear-gradient(90deg, #845EF7 0%, #B197FC 100%); }
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -1395,13 +1503,609 @@
 }
 
 /* ============================================
-   UTILITY COLOR CLASSES
+   SECTION CONFORMITÉ/ÉTHIQUE
    ============================================ */
 
-/* Icon accent colors for section titles */
-.iconColorBlue { color: var(--mantine-color-blue-6); }
-.iconColorPink { color: var(--mantine-color-pink-6); }
-.iconColorViolet { color: var(--mantine-color-violet-6); }
-.iconColorTeal { color: var(--mantine-color-teal-6); }
-.iconColorOrange { color: var(--mantine-color-orange-6); }
-.iconColorYellow { color: var(--mantine-color-yellow-6); }
+/* Filtre par catégorie de risque */
+.complianceFilters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.complianceFilterBtn {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.complianceFilterBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.complianceFilterBtnActive {
+  background: linear-gradient(135deg, #12B886 0%, #38D9A9 100%);
+  border-color: transparent;
+  color: #000;
+  font-weight: 700;
+}
+
+/* Section Compliance Card */
+.complianceSection {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Cards catégories de risque */
+.riskCategoriesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 1024px) {
+  .riskCategoriesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .riskCategoriesGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Risk Category Card */
+.riskCategoryCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.25rem;
+  transition: all 0.3s ease;
+}
+
+.riskCategoryCard:hover {
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.riskCategoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.riskCategoryLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.riskCategoryBadge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.riskCategoryStats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.riskCategoryStat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.riskCategoryStatValue {
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Coverage Indicator */
+.coverageIndicator {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.coverageBar {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.coverageProgress {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.coverageHigh {
+  background: linear-gradient(90deg, #12B886, #38D9A9);
+}
+
+.coverageMedium {
+  background: linear-gradient(90deg, #F59F00, #FAB005);
+}
+
+.coverageLow {
+  background: linear-gradient(90deg, #FA5252, #FF6B6B);
+}
+
+.coveragePercent {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #fff;
+  min-width: 45px;
+  text-align: right;
+}
+
+/* Comparison Table */
+.comparisonTableCard {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  overflow-x: auto;
+}
+
+.comparisonTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 500px;
+}
+
+.comparisonTable th {
+  text-align: left;
+  padding: 0.875rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.5);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.comparisonTable td {
+  padding: 0.875rem 1rem;
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.comparisonTable tbody tr:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.comparisonTable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Badge catégories */
+.badgeB2B {
+  background: rgba(34, 139, 230, 0.2);
+  color: #4DABF7;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeB2C {
+  background: rgba(230, 73, 128, 0.2);
+  color: #F06595;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeManager {
+  background: rgba(18, 184, 134, 0.2);
+  color: #38D9A9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeDirecteur {
+  background: rgba(121, 80, 242, 0.2);
+  color: #9775FA;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeCollaborateur {
+  background: rgba(134, 142, 150, 0.2);
+  color: #ADB5BD;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badgeCrossCategory {
+  background: rgba(255, 121, 0, 0.2);
+  color: #ff9500;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Icône éthique/conformité */
+.iconEthics {
+  background: rgba(18, 184, 134, 0.15);
+  color: #38D9A9;
+}
+
+/* Gender breakdown grid */
+.genderBreakdownGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+@media (max-width: 640px) {
+  .genderBreakdownGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.genderCard {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.genderCardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.genderCardValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.genderCardMeta {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* Formations éthique liste */
+.formationSelectionHeader {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.formationSelectAllBtn,
+.formationDeselectAllBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationSelectAllBtn:hover:not(:disabled),
+.formationDeselectAllBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.formationSelectAllBtn:disabled,
+.formationDeselectAllBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.formationsEthiqueList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.formationEthiqueTag {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(18, 184, 134, 0.1);
+  border: 1px solid rgba(18, 184, 134, 0.2);
+  color: #38D9A9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationEthiqueTag:hover {
+  transform: translateY(-1px);
+}
+
+.formationSelected {
+  background: rgba(18, 184, 134, 0.2);
+  border-color: rgba(18, 184, 134, 0.5);
+  color: #38D9A9;
+  box-shadow: 0 0 8px rgba(18, 184, 134, 0.3);
+}
+
+.formationUnselected {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.formationUnselected:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.noSelectionMessage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: rgba(250, 82, 82, 0.1);
+  border: 1px solid rgba(250, 82, 82, 0.2);
+  border-radius: 8px;
+  color: #FA5252;
+  font-size: 0.85rem;
+}
+
+/* Bouton ajouter formation */
+.formationAddBtn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(56, 217, 169, 0.1);
+  border: 1px solid rgba(56, 217, 169, 0.3);
+  color: #38D9A9;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationAddBtn:hover {
+  background: rgba(56, 217, 169, 0.2);
+  border-color: rgba(56, 217, 169, 0.5);
+}
+
+/* Container de recherche */
+.formationSearchContainer {
+  position: relative;
+  margin: 0.75rem 0;
+}
+
+.formationSearchInputWrapper {
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+}
+
+.searchIcon {
+  color: rgba(255, 255, 255, 0.4);
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.formationSearchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.formationSearchInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.searchCloseBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.searchCloseBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* Résultats de recherche */
+.formationSearchResults {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.25rem;
+  background: rgba(20, 20, 30, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.formationSearchResultItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.formationSearchResultItem:last-child {
+  border-bottom: none;
+}
+
+.formationSearchResultItem:hover {
+  background: rgba(56, 217, 169, 0.1);
+  color: #38D9A9;
+}
+
+.formationSearchNoResults {
+  padding: 1rem;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 0.85rem;
+}
+
+/* Wrapper pour le tag avec bouton de suppression */
+.formationTagWrapper {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.formationRemoveBtn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(250, 82, 82, 0.9);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.2s ease;
+}
+
+.formationTagWrapper:hover .formationRemoveBtn {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.formationRemoveBtn:hover {
+  background: #FA5252;
+}
+
+/* Stats globales compliance */
+.globalStatsTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 1.25rem;
+}
+
+.complianceGlobalStats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 1rem 0;
+}
+
+.complianceGlobalStat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.complianceGlobalStatValue {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #38D9A9;
+}
+
+.complianceGlobalStatLabel {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Responsive compliance */
+@media (max-width: 768px) {
+  .complianceFilters {
+    justify-content: center;
+  }
+
+  .complianceGlobalStats {
+    gap: 1.5rem;
+  }
+
+  .complianceGlobalStatValue {
+    font-size: 2rem;
+  }
+}

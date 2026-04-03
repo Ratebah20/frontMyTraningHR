@@ -501,7 +501,7 @@ export default function NewSessionPage() {
   // Préparer les données pour les autocompletes
   const collaborateursData = collaborateurs.map(c => ({
     value: c.id.toString(),
-    label: `${c.nomComplet} - ${typeof c.departement === 'string' ? c.departement : c.departement?.nomDepartement || 'Sans département'}${!c.actif ? ' (Inactif)' : ''}`,
+    label: `${c.nomComplet} - ${c.departement?.nomDepartement || 'Sans département'}${!c.actif ? ' (Inactif)' : ''}`,
   }));
 
   // Pour Autocomplete, on utilise un tableau de strings avec une map pour retrouver l'ID

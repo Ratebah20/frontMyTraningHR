@@ -92,9 +92,9 @@ export default function KPIStatsPage() {
         statsService.getStatsByDepartment(),
       ]);
 
-      setGlobalStats(global as any);
-      setTopFormations(Array.isArray(top) ? top as any : []);
-      setDepartmentStats(Array.isArray(depts) ? depts as any : []);
+      setGlobalStats(global);
+      setTopFormations(Array.isArray(top) ? top : []);
+      setDepartmentStats(Array.isArray(depts) ? depts : []);
     } catch (err: any) {
       console.error('Erreur lors du chargement des statistiques:', err);
       setError(err.message || 'Erreur lors du chargement des statistiques');

@@ -233,10 +233,7 @@ export default function ExportsPage() {
                     label="Plage de dates"
                     placeholder="Sélectionnez les dates"
                     value={dateRange}
-                    onChange={(value) => {
-                      const toDate = (v: Date | string | null) => typeof v === 'string' ? new Date(v) : v;
-                      setDateRange([toDate(value[0]), toDate(value[1])]);
-                    }}
+                    onChange={setDateRange}
                     locale="fr"
                     valueFormat="DD/MM/YYYY"
                     clearable

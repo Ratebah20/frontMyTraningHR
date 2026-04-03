@@ -220,7 +220,7 @@ export default function DashboardPage() {
       color: summary.nombreFormationsObligatoires > 0
         ? (summary.tauxObligatoires < 100 ? "orange" : "green")
         : "gray",
-      link: "/kpi/conformite",
+      link: "/kpi/formations?tab=obligatoires",
     },
 
     // Ligne 4 : Volumétrie (2 KPIs)
@@ -806,9 +806,10 @@ export default function DashboardPage() {
                       )}
                     </Group>
                   </div>
-                  <Button
-                    size="compact-sm"
+                  <Button 
+                    size="xs" 
                     variant="subtle"
+                    compact
                     onClick={() => router.push(`/sessions/${session.id}`)}
                   >
                     Voir

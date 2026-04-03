@@ -73,7 +73,7 @@ export default function EditFormationPage() {
       estObligatoire: false,
     },
     validate: {
-      codeFormation: (value: any) => {
+      codeFormation: (value) => {
         if (!value) return 'Code formation requis';
         if (value.length < 3) return 'Le code doit contenir au moins 3 caractères';
         if (value.length > 50) return 'Le code ne doit pas dépasser 50 caractères';
@@ -88,15 +88,15 @@ export default function EditFormationPage() {
         if (value.length > 255) return 'Le nom ne doit pas dépasser 255 caractères';
         return null;
       },
-      organismeId: (value: any) => {
+      organismeId: (value) => {
         if (!value) return 'Organisme de formation requis';
         return null;
       },
-      dureePrevue: (value: any) => {
+      dureePrevue: (value) => {
         if (value && value <= 0) return 'La durée doit être positive';
         return null;
       },
-      tarifHT: (value: any) => {
+      tarifHT: (value) => {
         if (value && value < 0) return 'Le tarif ne peut pas être négatif';
         return null;
       },
@@ -233,8 +233,8 @@ export default function EditFormationPage() {
       form.setValues({
         codeFormation: data.codeFormation || '',
         nomFormation: data.nomFormation || '',
-        categorieId: data.categorie?.id?.toString() as any,
-        organismeId: (data.organisme?.id?.toString() || data.organismeId?.toString()) as any,
+        categorieId: data.categorie?.id?.toString(),
+        organismeId: data.organisme?.id?.toString() || data.organismeId?.toString(),
         typeFormation: data.typeFormation || '',
         dureePrevue: data.dureePrevue,
         uniteDuree: data.uniteDuree || 'Heures',
@@ -274,8 +274,8 @@ export default function EditFormationPage() {
       // Préparer les données pour l'envoi
       const formData: any = {
         ...values,
-        categorieId: values.categorieId ? parseInt(String(values.categorieId)) : undefined,
-        organismeId: values.organismeId ? parseInt(String(values.organismeId)) : undefined,
+        categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
+        organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
       };
 
       const response = await formationsService.updateFormation(formationId, formData);
@@ -448,24 +448,22 @@ export default function EditFormationPage() {
 
               <Grid.Col span={{ base: 12, md: 6 }}>
                 <Select
-                  {...{
-                    label: "Type de formation",
-                    placeholder: loadingTypes ? "Chargement..." : "Sélectionner ou créer un type",
-                    description: `Modalité de dispensation ${typesFormation.length > 0 ? `(${typesFormation.length} existants)` : ''}`,
-                    clearable: true,
-                    searchable: true,
-                    creatable: true,
-                    getCreateLabel: (query: any) => `+ Créer "${query}"`,
-                    onCreate: (query: any) => {
-                      const item = query;
-                      setTypesFormation((current) => [...current, item].sort());
-                      return item;
-                    },
-                    data: typesFormation,
-                    disabled: loadingTypes,
-                    nothingFoundMessage: "Tapez pour créer un nouveau type",
-                    ...form.getInputProps('typeFormation'),
-                  } as any}
+                  label="Type de formation"
+                  placeholder={loadingTypes ? "Chargement..." : "Sélectionner ou créer un type"}
+                  description={`Modalité de dispensation ${typesFormation.length > 0 ? `(${typesFormation.length} existants)` : ''}`}
+                  clearable
+                  searchable
+                  creatable
+                  getCreateLabel={(query) => `+ Créer "${query}"`}
+                  onCreate={(query) => {
+                    const item = query;
+                    setTypesFormation((current) => [...current, item].sort());
+                    return item;
+                  }}
+                  data={typesFormation}
+                  disabled={loadingTypes}
+                  nothingFoundMessage="Tapez pour créer un nouveau type"
+                  {...form.getInputProps('typeFormation')}
                 />
               </Grid.Col>
             </Grid>
@@ -492,23 +490,21 @@ export default function EditFormationPage() {
               
               <Grid.Col span={{ base: 12, md: 3 }}>
                 <Select
-                  {...{
-                    label: "Unité de durée",
-                    placeholder: loadingUnites ? "Chargement..." : "Sélectionner ou créer",
-                    description: "Unité de mesure du temps",
-                    searchable: true,
-                    creatable: true,
-                    getCreateLabel: (query: any) => `+ Créer "${query}"`,
-                    onCreate: (query: any) => {
-                      const item = query;
-                      setUnitesDuree((current) => [...current, item].sort());
-                      return item;
-                    },
-                    data: unitesDuree,
-                    disabled: loadingUnites,
-                    nothingFoundMessage: "Tapez pour créer une nouvelle unité",
-                    ...form.getInputProps('uniteDuree'),
-                  } as any}
+                  label="Unité de durée"
+                  placeholder={loadingUnites ? "Chargement..." : "Sélectionner ou créer"}
+                  description="Unité de mesure du temps"
+                  searchable
+                  creatable
+                  getCreateLabel={(query) => `+ Créer "${query}"`}
+                  onCreate={(query) => {
+                    const item = query;
+                    setUnitesDuree((current) => [...current, item].sort());
+                    return item;
+                  }}
+                  data={unitesDuree}
+                  disabled={loadingUnites}
+                  nothingFoundMessage="Tapez pour créer une nouvelle unité"
+                  {...form.getInputProps('uniteDuree')}
                 />
               </Grid.Col>
 

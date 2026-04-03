@@ -145,8 +145,8 @@ export default function SessionsCalendarPage() {
     const deptSet = new Set<string>();
     sessions.forEach(session => {
       session.participants?.forEach(participant => {
-        if ('departement' in participant && participant.departement) {
-          deptSet.add(participant.departement as string);
+        if (participant.departement) {
+          deptSet.add(participant.departement);
         }
       });
     });
@@ -216,7 +216,7 @@ export default function SessionsCalendarPage() {
       // Pour les sessions individuelles
       if (session.type === 'individuelle') {
         session.participants?.forEach(p => {
-          if ('departement' in p && p.departement) deptSet.add(p.departement as string);
+          if (p.departement) deptSet.add(p.departement);
         });
       }
 

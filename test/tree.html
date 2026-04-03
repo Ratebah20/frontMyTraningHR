@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>L-Système : Génération d'arbre</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      margin: 20px;
+      background-color: #f0f8ff;
+    }
+    .controls {
+      max-width: 600px;
+      margin: 0 auto 20px auto;
+      padding: 15px;
+      background-color: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+      color: #2e8b57;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      margin: 10px 2px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    .info {
+      margin-top: 10px;
+      font-style: italic;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Générateur d'arbre avec L-système</h1>
+
+  <!-- Canvas pour le rendu de l'arbre -->
+  <canvas id="treeCanvas" width="600" height="600"></canvas>
+
+  <div class="controls">
+    <!-- Bouton pour générer la prochaine itération -->
+    <button id="iterateButton">Itération suivante</button>
+    <button id="resetButton">Réinitialiser</button>
+    <div id="iterationInfo" class="info">Itération actuelle: 0</div>
+  </div>
+
+  <script>
+    /***************************************************************
+     *               Paramètres ajustables                         *
+     ***************************************************************/
+    const angleDeg      = 25;   // Angle de ramification (en degrés)
+    const baseLength    = 80;   // Longueur de base des branches
+    const lengthFactor  = 0.6;  // Facteur de réduction de la branche à chaque itération
+    const maxIterations = 6;    // Nombre maximal d'itérations
+
+    // Nouvelles variables pour l'aspect visuel
+    const trunkColor = "#8B4513";  // Couleur du tronc (marron)
+    const branchColors = [
+      "#8B4513", // Marron foncé pour le tronc
+      "#A0522D", // Marron pour les branches principales
+      "#CD853F", // Marron clair pour les branches secondaires
+      "#556B2F", // Vert olive foncé pour les petites branches
+      "#6B8E23", // Vert olive pour les très petites branches
+      "#7CFC00"  // Vert clair pour les extrémités
+    ];
+    
+    // Couleurs des feuilles (pour les extrémités)
+    const leafColors = ["#228B22", "#32CD32", "#90EE90", "#ADFF2F"];
+    
+    // Couleur du sol
+    const groundColor = "#8B4513";
+
+    /***************************************************************
+     *               Initialisation du L-système                   *
+     ***************************************************************/
+    // Axiome (phrase de départ)
+    let sentence = "F";
+
+    // Règles de réécriture du L-système plus complexes pour un arbre plus naturel
+    const rules = [
+      { 
+        a: "F", 
+        b: "FF+[+F-F-F]-[-F+F+F]"
+      }
+    ];
+
+    // Compteur d'itérations
+    let iterationCount = 0;
+
+    /***************************************************************
+     *                 Fonction de génération                      *
+     ***************************************************************/
+    function generateLSystem() {
+      let nextSentence = "";
+      for (let i = 0; i < sentence.length; i++) {
+        const currentChar = sentence.charAt(i);
+        let foundRule = false;
+
+        // On cherche si le caractère correspond à une règle
+        for (let rule of rules) {
+          if (currentChar === rule.a) {
+            nextSentence += rule.b;
+            foundRule = true;
+            break;
+          }
+        }
+        
+        // Si aucune règle ne correspond, on garde le caractère tel quel
+        if (!foundRule) {
+          nextSentence += currentChar;
+        }
+      }
+      sentence = nextSentence;
+    }
+
+    /***************************************************************
+     *         Fonction de dessin de l'arbre sur le canvas         *
+     ***************************************************************/
+    function drawTree() {
+      const canvas = document.getElementById("treeCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // Nettoyage du canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+
+      // On place le contexte à la base de l'arbre (bas-milieu du canvas)
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height - 20);
+
+      // Stack pour sauvegarder et restaurer l'état (position, rotation)
+      let stack = [];
+
+      // Conversion de l'angle en radians
+      const angle = angleDeg * Math.PI / 180;
+
+      // Calcul de la longueur actuelle de la branche en fonction de l'itération
+      const currentBranchLength = baseLength * Math.pow(lengthFactor, iterationCount);
+      
+      // Profondeur actuelle pour déterminer la couleur et l'épaisseur
+      let currentDepth = 0;
+      
+      // Parcours de la phrase L-système et dessin
+      for (let i = 0; i < sentence.length; i++) {
+        const char = sentence.charAt(i);
+        
+        switch (char) {
+          case "F":
+            // Déterminer l'épaisseur en fonction de la profondeur
+            const thickness = Math.max(5 * (1 - currentDepth / 10), 1);
+            ctx.lineWidth = thickness;
+            
+            // Déterminer la couleur en fonction de la profondeur
+            if (currentDepth < branchColors.length) {
+              ctx.strokeStyle = branchColors[currentDepth];
+            } else {
+              // Pour les extrémités, utiliser une couleur de feuille aléatoire
+              const leafColorIndex = Math.floor(Math.random() * leafColors.length);
+              ctx.strokeStyle = leafColors[leafColorIndex];
+            }
+            
+            // Dessine une ligne vers l'avant
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -currentBranchLength);
+            ctx.stroke();
+            
+            // Dessiner une feuille aux extrémités si c'est une branche terminale
+            if (isTerminalBranch(sentence, i)) {
+              drawLeaf(ctx, currentBranchLength);
+            }
+            
+            // Déplacement du "crayon"
+            ctx.translate(0, -currentBranchLength);
+            break;
+
+          case "+":
+            // Rotation à gauche avec une légère variation pour plus de naturel
+            const angleVar1 = angle * (0.9 + Math.random() * 0.2);
+            ctx.rotate(angleVar1);
+            break;
+
+          case "-":
+            // Rotation à droite avec une légère variation pour plus de naturel
+            const angleVar2 = angle * (0.9 + Math.random() * 0.2);
+            ctx.rotate(-angleVar2);
+            break;
+
+          case "[":
+            // Sauvegarde l'état de la pile
+            stack.push({
+              x: ctx.getTransform().e,
+              y: ctx.getTransform().f,
+              rotation: getCurrentRotation(ctx),
+              depth: currentDepth
+            });
+            ctx.save();
+            currentDepth++; // Augmenter la profondeur quand on commence une nouvelle branche
+            break;
+
+          case "]":
+            // Restaure l'état depuis la pile
+            ctx.restore();
+            const lastState = stack.pop();
+            // On repositionne manuellement pour pallier d'éventuelles accumulations
+            ctx.setTransform(1, 0, 0, 1, lastState.x, lastState.y);
+            ctx.rotate(lastState.rotation);
+            currentDepth = lastState.depth; // Restaurer la profondeur précédente
+            break;
+        }
+      }
+
+      // Restaure l'état initial
+      ctx.restore();
+      
+      // Mettre à jour l'affichage de l'itération
+      document.getElementById("iterationInfo").textContent = `Itération actuelle: ${iterationCount}`;
+    }
+    
+    /**
+     * Vérifie si une branche est terminale (pas de F après jusqu'au prochain ']')
+     */
+    function isTerminalBranch(str, pos) {
+      for (let i = pos + 1; i < str.length; i++) {
+        if (str[i] === 'F') return false;
+        if (str[i] === ']') return true;
+      }
+      return true;
+    }
+    
+    /**
+     * Dessine une feuille à l'extrémité d'une branche
+     */
+    function drawLeaf(ctx, size) {
+      const leafSize = size * 0.8;
+      
+      // Sauvegarder l'état actuel
+      ctx.save();
+      
+      // Choisir une couleur de feuille aléatoire
+      const leafColorIndex = Math.floor(Math.random() * leafColors.length);
+      ctx.fillStyle = leafColors[leafColorIndex];
+      
+      // Dessiner une forme de feuille simple (cercle ou ovale)
+      ctx.beginPath();
+      ctx.arc(0, -leafSize/2, leafSize/2, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Restaurer l'état
+      ctx.restore();
+    }
+
+    /**
+     * Récupère la rotation courante du contexte (en radians)
+     * à partir de la matrice de transformation.
+     */
+    function getCurrentRotation(context) {
+      // Méthode rudimentaire : on récupère la matrice de transformation
+      // a = cos(θ), b = sin(θ), c = -sin(θ), d = cos(θ)
+      // angle = Math.atan2(b, a)
+      const transform = context.getTransform();
+      const a = transform.a;
+      const b = transform.b;
+      const angle = Math.atan2(b, a);
+      return angle;
+    }
+    
+    /**
+     * Réinitialise l'arbre à son état initial
+     */
+    function resetTree() {
+      sentence = "F";
+      iterationCount = 0;
+      drawTree();
+    }
+
+    /***************************************************************
+     *    Gestion des boutons                                      *
+     ***************************************************************/
+    document.getElementById("iterateButton").addEventListener("click", () => {
+      if (iterationCount < maxIterations) {
+        iterationCount++;
+        generateLSystem();
+        drawTree();
+      } else {
+        alert("Nombre maximal d'itérations atteint !");
+      }
+    });
+    
+    document.getElementById("resetButton").addEventListener("click", resetTree);
+
+    // Dessin initial (itération 0 : juste la branche de base)
+    drawTree();
+  </script>
+</body>
+</html>

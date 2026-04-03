@@ -926,10 +926,7 @@ export default function CollaborateursPage() {
             locale="fr"
             valueFormat="DD/MM/YYYY"
             value={dateInactivation}
-            onChange={(value) => {
-              const dateValue = typeof value === 'string' ? new Date(value) : value;
-              setDateInactivation(dateValue);
-            }}
+            onChange={setDateInactivation}
             clearable
             description="Date à laquelle le collaborateur est devenu inactif"
             leftSection={<Calendar size={16} />}

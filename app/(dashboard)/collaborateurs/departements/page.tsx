@@ -334,8 +334,8 @@ export default function DepartementsPage() {
           hierarchyData ? (
             <HierarchyTree
               nodes={hierarchyData.nodes}
-              onEdit={openModal as any}
-              onDelete={openDeleteModal as any}
+              onEdit={openModal}
+              onDelete={openDeleteModal}
               onAddChild={openModalForEquipe}
             />
           ) : (

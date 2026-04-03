@@ -1,7 +1,6 @@
 'use client';
 
-import { Spotlight, spotlight } from '@mantine/spotlight';
-export { spotlight };
+import { Spotlight } from '@mantine/spotlight';
 import { House } from '@phosphor-icons/react/dist/ssr/House';
 import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
 import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';

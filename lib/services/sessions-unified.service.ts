@@ -8,7 +8,7 @@ import {
 import { sessionsService } from './sessions.service';
 import CollectiveSessionsService from './collective-sessions.service';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export interface UnifiedSessionFilters extends SessionFilters {
   type?: 'individuelle' | 'collective' | 'all';
@@ -152,7 +152,13 @@ export class SessionsUnifiedService {
       sessionsService.getSession(id).then(s => this.normalizeIndividualSession(s)),
     ]);
 
-    // Si les deux ont réussi (collision d'ID), prioriser les sessions collectives
+    // Log si les deux ont réussi (collision d'ID)
+    if (collectiveResult.status === 'fulfilled' && individualResult.status === 'fulfilled') {
+      console.warn(
+        `Collision d'ID détectée: L'ID ${id} existe à la fois comme session collective et individuelle. ` +
+        `Priorisation de la session collective.`
+      );
+    }
 
     // Prioriser les sessions collectives si trouvées
     if (collectiveResult.status === 'fulfilled') {
@@ -163,6 +169,20 @@ export class SessionsUnifiedService {
     if (individualResult.status === 'fulfilled') {
       return individualResult.value;
     }
+
+    // Les deux ont échoué - logger les erreurs pour debug
+    const errors = [];
+    if (collectiveResult.status === 'rejected') {
+      errors.push(`Collective: ${collectiveResult.reason}`);
+    }
+    if (individualResult.status === 'rejected') {
+      errors.push(`Individuelle: ${individualResult.reason}`);
+    }
+
+    console.error(
+      `Session ${id} introuvable dans les deux types.`,
+      'Erreurs:', errors
+    );
 
     throw new Error(`Session ${id} introuvable`);
   }
@@ -217,11 +237,9 @@ export class SessionsUnifiedService {
     type: 'individuelle' | 'collective',
   ): Promise<{ message: string }> {
     if (type === 'individuelle') {
-      await sessionsService.cancelSession(id);
-      return { message: 'Session annulée' };
+      return sessionsService.cancelSession(id);
     } else {
-      await CollectiveSessionsService.delete(id);
-      return { message: 'Session supprimée' };
+      return CollectiveSessionsService.delete(id);
     }
   }
 
@@ -246,6 +264,7 @@ export class SessionsUnifiedService {
       return response.json();
     } catch (error) {
       // Fallback : calculer côté client
+      console.warn('Fallback to client-side stats calculation');
       const [indivStats, collecStats] = await Promise.all([
         sessionsService.getGlobalStats(),
         this.getCollectiveStats(filters),
@@ -275,6 +294,7 @@ export class SessionsUnifiedService {
       return response.json();
     } catch (error) {
       // Fallback : récupérer séparément
+      console.warn('Fallback to separate fetching');
       const individuelles = await sessionsService.getCollaborateurSessions(collaborateurId);
       // TODO: Implémenter récupération sessions collectives pour un collaborateur
       return {
@@ -392,17 +412,20 @@ export class SessionsUnifiedService {
   /**
    * Mapper les sessions groupées vers le format unifié
    */
-  private static mapGroupedToUnified(groupedSessions: any[]): any[] {
+  private static mapGroupedToUnified(groupedSessions: any[]): UnifiedSession[] {
     return groupedSessions
       .filter((group) => {
         // Valider que les champs requis existent
         if (!group.formationId) {
+          console.warn('Session groupée ignorée: formationId manquant', group);
           return false;
         }
         if (!group.participants || group.participants.length === 0) {
+          console.warn('Session groupée ignorée: aucun participant', group);
           return false;
         }
         if (!group.participants[0].sessionId) {
+          console.warn('Session groupée ignorée: sessionId manquant', group);
           return false;
         }
         return true;
@@ -451,9 +474,11 @@ export class SessionsUnifiedService {
       .filter((session) => {
         // Valider que les champs requis existent
         if (!session.id || session.id <= 0) {
+          console.warn('Session collective ignorée: id invalide', session);
           return false;
         }
         if (!session.formationId) {
+          console.warn('Session collective ignorée: formationId manquant', session);
           return false;
         }
         return true;

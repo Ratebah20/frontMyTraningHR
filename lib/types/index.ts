@@ -10,7 +10,6 @@ export interface User {
   role: Role;
   nom?: string;
   prenom?: string;
-  full_name?: string;
   dateCreation: string;
   derniereConnexion?: string;
   actif: boolean;
@@ -166,13 +165,6 @@ export interface Formation {
   categorie?: CategorieFormation;
   organisme?: OrganismeFormation;
   sessions?: SessionFormation[];
-  // Properties returned by API in some contexts
-  titre?: string;
-  tarifHT?: number;
-  nombreSessions?: number;
-  nombreParticipants?: number;
-  stats?: Record<string, any>;
-  warning?: string;
   _count?: {
     sessions: number;
   };
@@ -281,7 +273,6 @@ export interface CreateFormationDto {
   codeFormation: string;
   nomFormation: string;
   categorieId?: number;
-  organismeId?: number;
   typeFormation?: string;
   dureePrevue?: number;
   uniteDuree?: string;
@@ -291,10 +282,8 @@ export interface CreateFormationDto {
 }
 
 export interface UpdateFormationDto {
-  codeFormation?: string;
   nomFormation?: string;
   categorieId?: number;
-  organismeId?: number;
   typeFormation?: string;
   dureePrevue?: number;
   uniteDuree?: string;
@@ -480,7 +469,6 @@ export interface FormationFilters {
   categorieId?: number;
   typeFormation?: string;
   actif?: boolean;
-  includeInactive?: boolean;
   estObligatoire?: boolean;
   page?: number;
   limit?: number;
@@ -1099,18 +1087,7 @@ export interface UnifiedSession {
   participants?: CollectiveSessionParticipant[] | GroupedSessionParticipant[];
   // Propriétés communes
   tarifHT?: number;
-  tarifTTC?: number;
-  tarifUnitaireHT?: number;
-  tarifTotalHT?: number;
   commentaires?: string;
-  commentaire?: string;
-  description?: string;
-  dureePrevue?: number;
-  formateurNom?: string;
-  formateurContact?: string;
-  lienVisio?: string;
-  heureDebut?: string;
-  heureFin?: string;
   dateCreation?: string;
   dateModification?: string;
   // Propriétés additionnelles pour compatibilité UI
@@ -1144,8 +1121,7 @@ export interface GlobalSessionStats {
   heuresFormationTotales: number;
   coutTotalHT: number;
   parStatut: {
-    inscrit?: number;
-    planifie?: number;
+    inscrit: number;
     enCours: number;
     complete: number;
     annule: number;

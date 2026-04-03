@@ -840,7 +840,7 @@ export default function FormationDetailPage({ params }: Props) {
                   variant="light"
                   color="red"
                   leftSection={<Trash size={16} />}
-                  onClick={() => handleDelete()}
+                  onClick={handleDelete}
                 >
                   Supprimer la formation
                 </Button>

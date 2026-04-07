@@ -5,7 +5,6 @@ import { Book } from '@phosphor-icons/react/dist/ssr/Book';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
 import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
-import { Target } from '@phosphor-icons/react/dist/ssr/Target';
 import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
 import { Building } from '@phosphor-icons/react/dist/ssr/Building';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
@@ -39,46 +38,10 @@ export default function KPIMainPage() {
         { label: 'Top participants', value: 'Classement' },
       ]
     },
-    {
-      title: 'KPIs Performance',
-      description: 'Métriques de performance globales, comparaisons temporelles et benchmark départements',
-      href: '/kpi/performance',
-      icon: <ChartLine size={32} weight="bold" />,
-      color: 'green',
-      metrics: [
-        { label: 'Comparaisons', value: 'Année/Mois' },
-        { label: 'Évolutions', value: 'Trimestrielle' },
-        { label: 'Benchmark', value: 'Par département' },
-      ]
-    },
-    {
-      title: 'KPIs Rapports',
-      description: 'Génération de rapports personnalisés et export des données',
-      href: '/kpi/reports',
-      icon: <Target size={32} weight="bold" />,
-      color: 'orange',
-      metrics: [
-        { label: 'Rapports', value: 'Personnalisables' },
-        { label: 'Exports', value: 'Excel, PDF' },
-        { label: 'Planification', value: 'Automatique' },
-      ]
-    },
-    {
-      title: 'KPIs Statistiques',
-      description: 'Analyses statistiques avancées et tableaux de bord détaillés',
-      href: '/kpi/stats',
-      icon: <TrendUp size={32} weight="bold" />,
-      color: 'violet',
-      metrics: [
-        { label: 'Tendances', value: 'Analyses prédictives' },
-        { label: 'Corrélations', value: 'Multi-critères' },
-        { label: 'Prévisions', value: 'Modèles statistiques' },
-      ]
-    }
   ]
 
   const quickStats = [
-    { label: 'Modules disponibles', value: '5', icon: <Building size={20} />, color: 'blue' },
+    { label: 'Modules disponibles', value: '2', icon: <Building size={20} />, color: 'blue' },
     { label: 'KPIs actifs', value: '80+', icon: <ChartLine size={20} />, color: 'green' },
     { label: 'Mise à jour', value: 'Temps réel', icon: <Clock size={20} />, color: 'orange' },
     { label: 'Performance', value: '< 2s', icon: <TrendUp size={20} />, color: 'teal' },

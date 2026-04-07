@@ -15,21 +15,40 @@ import { Handshake } from '@phosphor-icons/react/dist/ssr/Handshake';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { UserSwitch } from '@phosphor-icons/react/dist/ssr/UserSwitch';
-import { ToggleLeft } from '@phosphor-icons/react/dist/ssr/ToggleLeft';
-import { ToggleRight } from '@phosphor-icons/react/dist/ssr/ToggleRight';
 import { Scales } from '@phosphor-icons/react/dist/ssr/Scales';
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
-import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
 import { X } from '@phosphor-icons/react/dist/ssr/X';
+import {
+  Container,
+  Card,
+  Paper,
+  Title,
+  Text,
+  Group,
+  Stack,
+  SimpleGrid,
+  Grid,
+  Badge,
+  ThemeIcon,
+  Loader,
+  Center,
+  Table,
+  Progress,
+  Switch,
+  MultiSelect,
+  Button,
+  Alert,
+  Divider,
+  ActionIcon,
+} from '@mantine/core'
 import axios from 'axios'
 import { motion } from 'framer-motion'
 import { statsService, formationsService } from '@/lib/services'
 import { DetailedKPIsResponse, ComplianceEthicsKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
-import styles from './collaborateurs.module.css'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -70,7 +89,6 @@ interface CollaborateursKPIs {
   }>
 }
 
-// Hook pour animation des compteurs
 function useAnimatedCounter(endValue: number, duration: number = 1500) {
   const [count, setCount] = useState(0)
   const countRef = useRef(0)
@@ -111,7 +129,6 @@ function useAnimatedCounter(endValue: number, duration: number = 1500) {
   return count
 }
 
-// Composant Hero Card
 function HeroCard({
   label,
   value,
@@ -130,39 +147,37 @@ function HeroCard({
   delay?: number
 }) {
   const animatedValue = useAnimatedCounter(value)
-  const variantClass = {
-    blue: styles.heroCardBlue,
-    pink: styles.heroCardPink,
-    violet: styles.heroCardViolet,
-    orange: styles.heroCardOrange,
-    teal: styles.heroCardTeal
-  }[variant]
 
   return (
     <motion.div
-      className={`${styles.heroCard} ${variantClass}`}
       initial={{ opacity: 0, y: 30, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, delay, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div className={styles.heroCardGlow} />
-      <div className={styles.heroCardContent}>
-        <div className={styles.heroCardLabel}>
-          <Icon size={18} weight="bold" />
-          {label}
-        </div>
-        <div className={styles.heroCardValue}>
-          {animatedValue}
-          {suffix && <span className={styles.heroCardSuffix}>{suffix}</span>}
-        </div>
-        <div className={styles.heroCardMeta}>{meta}</div>
-      </div>
-      <Icon size={80} weight="fill" className={styles.heroCardIcon} />
+      <Card withBorder p="lg" radius="md">
+        <Group justify="space-between" align="flex-start">
+          <Stack gap="xs">
+            <Group gap="xs">
+              <ThemeIcon color={variant} variant="light" size="md">
+                <Icon size={18} weight="bold" />
+              </ThemeIcon>
+              <Text size="sm" c="dimmed" fw={500}>{label}</Text>
+            </Group>
+            <Title order={2}>
+              {animatedValue}
+              {suffix && <Text span size="lg" c="dimmed" ml={4}>{suffix}</Text>}
+            </Title>
+            <Text size="xs" c="dimmed">{meta}</Text>
+          </Stack>
+          <ThemeIcon color={variant} variant="light" size="xl" radius="md">
+            <Icon size={28} weight="fill" />
+          </ThemeIcon>
+        </Group>
+      </Card>
     </motion.div>
   )
 }
 
-// Composant Glass Card
 function GlassCard({
   label,
   value,
@@ -181,33 +196,26 @@ function GlassCard({
   delay?: number
 }) {
   const animatedValue = useAnimatedCounter(value)
-  const iconClass = {
-    blue: styles.iconBlue,
-    pink: styles.iconPink,
-    violet: styles.iconViolet,
-    teal: styles.iconTeal,
-    orange: styles.iconOrange,
-    gray: styles.iconGray
-  }[iconVariant]
 
   return (
     <motion.div
-      className={styles.glassCard}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay, ease: [0.4, 0, 0.2, 1] }}
     >
-      <div className={styles.glassCardHeader}>
-        <span className={styles.glassCardLabel}>{label}</span>
-        <div className={`${styles.glassCardIconWrapper} ${iconClass}`}>
-          <Icon size={20} weight="bold" />
-        </div>
-      </div>
-      <div className={styles.glassCardValue}>
-        {animatedValue}
-        {suffix && <span style={{ fontSize: '1rem', opacity: 0.6 }}>{suffix}</span>}
-      </div>
-      <div className={styles.glassCardMeta}>{meta}</div>
+      <Card withBorder p="lg" radius="md">
+        <Group justify="space-between" mb="xs">
+          <Text size="sm" c="dimmed" fw={500}>{label}</Text>
+          <ThemeIcon color={iconVariant} variant="light" size="md">
+            <Icon size={20} weight="bold" />
+          </ThemeIcon>
+        </Group>
+        <Title order={3}>
+          {animatedValue}
+          {suffix && <Text span size="md" c="dimmed" ml={4}>{suffix}</Text>}
+        </Title>
+        <Text size="xs" c="dimmed" mt={4}>{meta}</Text>
+      </Card>
     </motion.div>
   )
 }
@@ -218,38 +226,35 @@ export default function CollaborateursKPIsPage() {
   const [loading, setLoading] = useState(true)
   const [detailedLoading, setDetailedLoading] = useState(false)
 
-  // Filtres temporels - comme dans le dashboard
   const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee')
   const [date, setDate] = useState(new Date().getFullYear().toString())
   const [dateDebut, setDateDebut] = useState<Date | null>(null)
   const [dateFin, setDateFin] = useState<Date | null>(null)
 
-  // Nouveau : inclure collaborateurs inactifs
   const [includeInactifs, setIncludeInactifs] = useState(false)
 
-  // Filtre par types de contrats (multi-select)
   const [contratFilters, setContratFilters] = useState<number[]>([])
   const [typesContrats, setTypesContrats] = useState<{ id: number; typeContrat: string }[]>([])
-  const [showContratDropdown, setShowContratDropdown] = useState(false)
 
-  // État pour les KPIs Compliance/Éthique
   const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
   const [complianceLoading, setComplianceLoading] = useState(false)
   const [selectedFormationIds, setSelectedFormationIds] = useState<number[]>([])
   const [availableFormations, setAvailableFormations] = useState<{ id: number; nom: string }[]>([])
 
-  // État pour la recherche et ajout de formations
   const [allFormations, setAllFormations] = useState<{ id: number; nom: string }[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const [hasInitialized, setHasInitialized] = useState(false) // Pour éviter reset après suppression
+  const [hasInitialized, setHasInitialized] = useState(false)
 
   useEffect(() => {
-    fetchData()
     fetchAllFormations()
     fetchTypesContrats()
   }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [periode, date, dateDebut, dateFin])
 
   const fetchTypesContrats = async () => {
     try {
@@ -269,8 +274,18 @@ export default function CollaborateursKPIsPage() {
   }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized, contratFilters])
 
   const fetchData = async () => {
+    if (periode === 'plage' && (!dateDebut || !dateFin)) {
+      return
+    }
     try {
-      const response = await axios.get(`${API_URL}/stats/collaborateurs-kpis`)
+      const params = new URLSearchParams()
+      params.append('periode', periode)
+      params.append('date', date)
+      if (periode === 'plage' && dateDebut && dateFin) {
+        params.append('startDate', dateDebut.toISOString().split('T')[0])
+        params.append('endDate', dateFin.toISOString().split('T')[0])
+      }
+      const response = await axios.get(`${API_URL}/stats/collaborateurs-kpis?${params.toString()}`)
       setData(response.data)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs collaborateurs:', error)
@@ -288,7 +303,6 @@ export default function CollaborateursKPIsPage() {
     }
   }
 
-  // Ajouter une formation à la liste des formations disponibles
   const addFormationToList = (formation: { id: number; nom: string }) => {
     if (!availableFormations.find(f => f.id === formation.id)) {
       const newAvailable = [...availableFormations, formation]
@@ -300,27 +314,23 @@ export default function CollaborateursKPIsPage() {
     setShowSearch(false)
   }
 
-  // Retirer une formation de la liste
   const removeFormationFromList = (formationId: number) => {
     setAvailableFormations(availableFormations.filter(f => f.id !== formationId))
     setSelectedFormationIds(selectedFormationIds.filter(id => id !== formationId))
   }
 
-  // Filtrer les formations pour la recherche (exclure celles déjà dans la liste)
   const filteredSearchResults = allFormations.filter(f =>
     !availableFormations.find(af => af.id === f.id) &&
     f.nom.toLowerCase().includes(searchQuery.toLowerCase())
   ).slice(0, 10)
 
   const fetchDetailedData = async () => {
-    // En mode plage, attendre que les deux dates soient sélectionnées
     if (periode === 'plage' && (!dateDebut || !dateFin)) {
       return
     }
 
     setDetailedLoading(true)
     try {
-      // Convertir les dates en ISO string de manière sécurisée
       const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
                         dateDebut ? new Date(dateDebut).toISOString() : undefined
       const endDate = dateFin instanceof Date ? dateFin.toISOString() :
@@ -339,7 +349,6 @@ export default function CollaborateursKPIsPage() {
       return
     }
 
-    // Si l'utilisateur a explicitement désélectionné toutes les formations (après initialisation), afficher des zéros
     if (hasInitialized && selectedFormationIds.length === 0) {
       const zeroGenre = { nombre: 0, heures: 0, formations: 0, moyenne: 0 }
       const zeroCategory = {
@@ -370,12 +379,10 @@ export default function CollaborateursKPIsPage() {
       const endDate = dateFin instanceof Date ? dateFin.toISOString() :
                       dateFin ? new Date(dateFin).toISOString() : undefined
 
-      // Passer les formations sélectionnées (ou undefined pour le premier chargement)
       const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
       const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds, contratFilters.length > 0 ? contratFilters : undefined)
       setComplianceData(response)
 
-      // Si c'est le premier chargement (pas encore initialisé), initialiser les formations disponibles
       if (!hasInitialized && response.formationsEthique.liste.length > 0) {
         setAvailableFormations(response.formationsEthique.liste)
         setSelectedFormationIds(response.formationsEthique.liste.map(f => f.id))
@@ -388,305 +395,253 @@ export default function CollaborateursKPIsPage() {
     }
   }
 
-  // Helper pour déterminer la classe CSS du taux de couverture
-  const getCoverageClass = (taux: number) => {
-    if (taux >= 80) return styles.coverageHigh
-    if (taux >= 50) return styles.coverageMedium
-    return styles.coverageLow
+  const getCoverageColor = (taux: number) => {
+    if (taux >= 80) return 'teal'
+    if (taux >= 50) return 'yellow'
+    return 'red'
   }
 
-  // Helper pour obtenir le badge de catégorie
-  const getCategoryBadgeClass = (categorie: string) => {
-    if (categorie.includes('Autres Collaborateurs')) return styles.badgeCollaborateur
-    if (categorie.includes('B2B')) return styles.badgeB2B
-    if (categorie.includes('B2C')) return styles.badgeB2C
-    if (categorie.includes('Manager')) return styles.badgeManager
-    if (categorie.includes('Directeur')) return styles.badgeDirecteur
-    return styles.badgeCrossCategory
+  const getCategoryBadgeColor = (categorie: string) => {
+    if (categorie.includes('Autres Collaborateurs')) return 'gray'
+    if (categorie.includes('B2B')) return 'blue'
+    if (categorie.includes('B2C')) return 'pink'
+    if (categorie.includes('Manager')) return 'teal'
+    if (categorie.includes('Directeur')) return 'violet'
+    return 'indigo'
+  }
+
+  const getRankColor = (index: number): 'yellow' | 'gray' | 'orange' | 'blue' => {
+    if (index === 0) return 'yellow'
+    if (index === 1) return 'gray'
+    if (index === 2) return 'orange'
+    return 'blue'
   }
 
   if (loading) {
     return (
-      <div className={styles.pageContainer}>
-        <div className={styles.backgroundOrbs}>
-          <div className={`${styles.orb} ${styles.orb1}`} />
-          <div className={`${styles.orb} ${styles.orb2}`} />
-          <div className={`${styles.orb} ${styles.orb3}`} />
-        </div>
-        <div className={styles.content}>
-          <div className={styles.loadingContainer}>
-            <div className={styles.loadingSpinner} />
-            <span className={styles.loadingText}>Chargement des données...</span>
-          </div>
-        </div>
-      </div>
+      <Container size="xl" py="md">
+        <Center h={400}>
+          <Stack align="center" gap="md">
+            <Loader />
+            <Text c="dimmed">Chargement des données...</Text>
+          </Stack>
+        </Center>
+      </Container>
     )
   }
 
   if (!data) {
     return (
-      <div className={styles.pageContainer}>
-        <div className={styles.backgroundOrbs}>
-          <div className={`${styles.orb} ${styles.orb1}`} />
-          <div className={`${styles.orb} ${styles.orb2}`} />
-          <div className={`${styles.orb} ${styles.orb3}`} />
-        </div>
-        <div className={styles.content}>
-          <div className={styles.errorContainer}>
-            <span className={styles.errorText}>Erreur lors du chargement des données</span>
-          </div>
-        </div>
-      </div>
+      <Container size="xl" py="md">
+        <Alert color="red" icon={<Warning size={18} />} title="Erreur">
+          Erreur lors du chargement des données
+        </Alert>
+      </Container>
     )
   }
 
-  const getRankClass = (index: number) => {
-    if (index === 0) return styles.rankGold
-    if (index === 1) return styles.rankSilver
-    if (index === 2) return styles.rankBronze
-    return styles.rankDefault
-  }
-
-  const getTrophyColor = (index: number) => {
-    if (index === 0) return '#FFD43B'
-    if (index === 1) return '#ADB5BD'
-    if (index === 2) return '#CD7F32'
-    return undefined
-  }
+  const contratOptions = typesContrats.map(tc => ({
+    value: String(tc.id),
+    label: tc.typeContrat,
+  }))
 
   return (
-    <div className={styles.pageContainer}>
-      {/* Background animé */}
-      <div className={styles.backgroundOrbs}>
-        <div className={`${styles.orb} ${styles.orb1}`} />
-        <div className={`${styles.orb} ${styles.orb2}`} />
-        <div className={`${styles.orb} ${styles.orb3}`} />
-      </div>
-
-      <div className={styles.content}>
-        {/* Header */}
+    <Container size="xl" py="md">
+      <Stack gap="lg">
         <motion.div
-          className={styles.pageHeader}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className={styles.pageTitle}>KPIs Collaborateurs</h1>
-          <p className={styles.pageSubtitle}>Statistiques détaillées par catégorie</p>
+          <Stack gap={4}>
+            <Title order={1}>KPIs Collaborateurs</Title>
+            <Text c="dimmed">Statistiques détaillées par catégorie</Text>
+          </Stack>
         </motion.div>
 
-        {/* Filtres temporels */}
         <motion.div
-          className={styles.filterCard}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <PeriodSelector
-            periode={periode}
-            date={date}
-            dateDebut={dateDebut}
-            dateFin={dateFin}
-            onChange={(newPeriode, newDate) => {
-              setPeriode(newPeriode)
-              setDate(newDate)
-            }}
-            onDateRangeChange={(newDateDebut, newDateFin) => {
-              setDateDebut(newDateDebut)
-              setDateFin(newDateFin)
-            }}
-          />
-          <div className={styles.filterOptions}>
-            <div className={styles.contratMultiSelectContainer}>
-              <button
-                className={styles.contratMultiSelectBtn}
-                onClick={() => setShowContratDropdown(!showContratDropdown)}
-              >
-                {contratFilters.length === 0
-                  ? 'Tous les contrats'
-                  : contratFilters.length === 1
-                    ? typesContrats.find(tc => tc.id === contratFilters[0])?.typeContrat || 'Contrat'
-                    : `${contratFilters.length} contrats sélectionnés`}
-                <span className={styles.contratDropdownIcon}>{showContratDropdown ? '▲' : '▼'}</span>
-              </button>
-              {showContratDropdown && (
-                <div className={styles.contratDropdownMenu}>
-                  <div
-                    className={styles.contratDropdownItem}
-                    onClick={() => {
-                      setContratFilters([])
-                      setShowContratDropdown(false)
-                    }}
-                  >
-                    <span className={`${styles.contratCheckbox} ${contratFilters.length === 0 ? styles.contratCheckboxChecked : ''}`}>
-                      {contratFilters.length === 0 && '✓'}
-                    </span>
-                    Tous les contrats
-                  </div>
-                  {typesContrats.map(tc => (
-                    <div
-                      key={tc.id}
-                      className={styles.contratDropdownItem}
-                      onClick={() => {
-                        if (contratFilters.includes(tc.id)) {
-                          setContratFilters(contratFilters.filter(id => id !== tc.id))
-                        } else {
-                          setContratFilters([...contratFilters, tc.id])
-                        }
-                      }}
-                    >
-                      <span className={`${styles.contratCheckbox} ${contratFilters.includes(tc.id) ? styles.contratCheckboxChecked : ''}`}>
-                        {contratFilters.includes(tc.id) && '✓'}
-                      </span>
-                      {tc.typeContrat}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button
-              className={`${styles.toggleButton} ${includeInactifs ? styles.toggleActive : ''}`}
-              onClick={() => setIncludeInactifs(!includeInactifs)}
-            >
-              {includeInactifs ? <ToggleRight size={20} weight="fill" /> : <ToggleLeft size={20} />}
-              <span>Inclure inactifs</span>
-              {detailedData?.collaborateurs && (
-                <span className={styles.toggleBadge}>
-                  {includeInactifs
-                    ? `${detailedData.collaborateurs.formes} formés`
-                    : `${detailedData.collaborateurs.formesActifs} actifs`}
-                </span>
-              )}
-            </button>
-          </div>
-          {detailedData && (
-            <span className={styles.periodBadge}>
-              {detailedData.periode.libelle}
-            </span>
-          )}
+          <Card withBorder p="lg" radius="md">
+            <Stack gap="md">
+              <PeriodSelector
+                periode={periode}
+                date={date}
+                dateDebut={dateDebut}
+                dateFin={dateFin}
+                onChange={(newPeriode, newDate) => {
+                  setPeriode(newPeriode)
+                  setDate(newDate)
+                }}
+                onDateRangeChange={(newDateDebut, newDateFin) => {
+                  setDateDebut(newDateDebut)
+                  setDateFin(newDateFin)
+                }}
+              />
+              <Group align="flex-end" wrap="wrap">
+                <MultiSelect
+                  label="Types de contrats"
+                  placeholder="Tous les contrats"
+                  data={contratOptions}
+                  value={contratFilters.map(String)}
+                  onChange={(values) => setContratFilters(values.map(Number))}
+                  clearable
+                  searchable
+                  style={{ minWidth: 260 }}
+                />
+                <Switch
+                  label="Inclure inactifs"
+                  checked={includeInactifs}
+                  onChange={(e) => setIncludeInactifs(e.currentTarget.checked)}
+                />
+                {detailedData?.collaborateurs && (
+                  <Badge variant="light" color="blue">
+                    {includeInactifs
+                      ? `${detailedData.collaborateurs.formes} formés`
+                      : `${detailedData.collaborateurs.formesActifs} actifs`}
+                  </Badge>
+                )}
+                {detailedData && (
+                  <Badge variant="light" color="grape">
+                    {detailedData.periode.libelle}
+                  </Badge>
+                )}
+              </Group>
+            </Stack>
+          </Card>
         </motion.div>
 
-        {/* Section KPIs Détaillés par Genre/Rôle */}
         {detailedLoading ? (
-          <motion.div
-            className={styles.glassCard}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <div className={styles.loadingContainer} style={{ minHeight: '200px' }}>
-              <div className={styles.loadingSpinner} />
-              <span className={styles.loadingText}>Chargement des statistiques détaillées...</span>
-            </div>
-          </motion.div>
+          <Card withBorder p="lg" radius="md">
+            <Center mih={200}>
+              <Stack align="center" gap="md">
+                <Loader />
+                <Text c="dimmed">Chargement des statistiques détaillées...</Text>
+              </Stack>
+            </Center>
+          </Card>
         ) : detailedData ? (
           <>
-            {/* ===== NOUVEAUX KPIs : Heures de formation ===== */}
             {detailedData.heuresFormation && (
               <motion.div
-                className={styles.hoursSection}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.15 }}
               >
-                <h3 className={styles.sectionTitle}>
-                  <Clock size={20} weight="bold" style={{ color: '#4DABF7' }} />
-                  Heures de formation
-                </h3>
-                <div className={styles.hoursGrid}>
-                  <div className={styles.hourCard}>
-                    <div className={styles.hourLabel}>Heures dispensées</div>
-                    <div className={styles.hourValue}>{detailedData.heuresFormation.heuresDispensees.toLocaleString('fr-FR')}h</div>
-                    <div className={styles.hourMeta}>Sessions comptées 1 fois</div>
-                  </div>
-                  <div className={styles.hourCard}>
-                    <div className={styles.hourLabel}>Heures cumulées</div>
-                    <div className={styles.hourValue}>{detailedData.heuresFormation.heuresCumulees.toLocaleString('fr-FR')}h</div>
-                    <div className={styles.hourMeta}>Par participant (×N pour collectives)</div>
-                  </div>
-                </div>
-                <div className={styles.hoursDetails}>
-                  <span>Individuelles: {detailedData.heuresFormation.heuresIndividuelles.toLocaleString('fr-FR')}h</span>
-                  <span>Collectives dispensées: {detailedData.heuresFormation.heuresCollectivesDispensees.toLocaleString('fr-FR')}h</span>
-                  <span>Collectives cumulées: {detailedData.heuresFormation.heuresCollectivesCumulees.toLocaleString('fr-FR')}h</span>
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="blue" variant="light">
+                        <Clock size={20} weight="bold" />
+                      </ThemeIcon>
+                      <Title order={3}>Heures de formation</Title>
+                    </Group>
+                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                      <Paper withBorder p="md" radius="md">
+                        <Text size="sm" c="dimmed">Heures dispensées</Text>
+                        <Title order={2}>{detailedData.heuresFormation.heuresDispensees.toLocaleString('fr-FR')}h</Title>
+                        <Text size="xs" c="dimmed">Sessions comptées 1 fois</Text>
+                      </Paper>
+                      <Paper withBorder p="md" radius="md">
+                        <Text size="sm" c="dimmed">Heures cumulées</Text>
+                        <Title order={2}>{detailedData.heuresFormation.heuresCumulees.toLocaleString('fr-FR')}h</Title>
+                        <Text size="xs" c="dimmed">Par participant (×N pour collectives)</Text>
+                      </Paper>
+                    </SimpleGrid>
+                    <Group gap="lg">
+                      <Text size="sm" c="dimmed">Individuelles: {detailedData.heuresFormation.heuresIndividuelles.toLocaleString('fr-FR')}h</Text>
+                      <Text size="sm" c="dimmed">Collectives dispensées: {detailedData.heuresFormation.heuresCollectivesDispensees.toLocaleString('fr-FR')}h</Text>
+                      <Text size="sm" c="dimmed">Collectives cumulées: {detailedData.heuresFormation.heuresCollectivesCumulees.toLocaleString('fr-FR')}h</Text>
+                    </Group>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
 
-            {/* ===== NOUVEAUX KPIs : Heures par organisme ===== */}
             {detailedData.heuresParOrganisme && detailedData.heuresParOrganisme.length > 0 && (
               <motion.div
-                className={styles.organismeSection}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
-                <h3 className={styles.sectionTitle}>
-                  <Buildings size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                  Heures par organisme
-                </h3>
-                <div className={styles.organismeList}>
-                  {detailedData.heuresParOrganisme.slice(0, 5).map((org, index) => (
-                    <div key={index} className={styles.organismeItem}>
-                      <div className={styles.organismeRank}>#{index + 1}</div>
-                      <div className={styles.organismeName}>{org.organisme}</div>
-                      <div className={styles.organismeHours}>{org.heuresDispensees.toLocaleString('fr-FR')}h</div>
-                    </div>
-                  ))}
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="teal" variant="light">
+                        <Buildings size={20} weight="bold" />
+                      </ThemeIcon>
+                      <Title order={3}>Heures par organisme</Title>
+                    </Group>
+                    <Stack gap="sm">
+                      {detailedData.heuresParOrganisme.slice(0, 5).map((org, index) => (
+                        <Group key={index} justify="space-between">
+                          <Group gap="sm">
+                            <Badge variant="light" color="teal">#{index + 1}</Badge>
+                            <Text>{org.organisme}</Text>
+                          </Group>
+                          <Text fw={600}>{org.heuresDispensees.toLocaleString('fr-FR')}h</Text>
+                        </Group>
+                      ))}
+                    </Stack>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
 
-            {/* ===== NOUVEAUX KPIs : Collaborateurs formés / non formés ===== */}
             {detailedData.collaborateurs && (
               <motion.div
-                className={styles.collabSection}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.25 }}
               >
-                <h3 className={styles.sectionTitle}>
-                  <UserSwitch size={20} weight="bold" style={{ color: '#9775FA' }} />
-                  Statut de formation des collaborateurs
-                </h3>
-                <div className={styles.collabTable}>
-                  <table>
-                    <thead>
-                      <tr>
-                        <th></th>
-                        <th className={styles.collabTableHeaderFormes}>Formés</th>
-                        <th className={styles.collabTableHeaderNonFormes}>Non formés</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td className={styles.collabTableRowLabel}>Actifs</td>
-                        <td className={styles.collabTableValueFormes}>{detailedData.collaborateurs.formesActifs}</td>
-                        <td className={styles.collabTableValueNonFormes}>{detailedData.collaborateurs.nonFormesActifs}</td>
-                        <td className={styles.collabTableValueTotal}>{detailedData.collaborateurs.formesActifs + detailedData.collaborateurs.nonFormesActifs}</td>
-                      </tr>
-                      {includeInactifs && (
-                        <tr>
-                          <td className={styles.collabTableRowLabel}>Inactifs</td>
-                          <td className={styles.collabTableValueFormes}>{detailedData.collaborateurs.formesInactifs}</td>
-                          <td className={styles.collabTableValueNonFormes}>{detailedData.collaborateurs.nonFormesInactifs}</td>
-                          <td className={styles.collabTableValueTotal}>{detailedData.collaborateurs.formesInactifs + detailedData.collaborateurs.nonFormesInactifs}</td>
-                        </tr>
-                      )}
-                      <tr className={styles.collabTableRowTotal}>
-                        <td className={styles.collabTableRowLabel}>Total</td>
-                        <td className={styles.collabTableValueFormes}>{includeInactifs ? detailedData.collaborateurs.formes : detailedData.collaborateurs.formesActifs}</td>
-                        <td className={styles.collabTableValueNonFormes}>{includeInactifs ? detailedData.collaborateurs.nonFormes : detailedData.collaborateurs.nonFormesActifs}</td>
-                        <td className={styles.collabTableValueTotal}>{includeInactifs ? detailedData.collaborateurs.total : (detailedData.collaborateurs.formesActifs + detailedData.collaborateurs.nonFormesActifs)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="violet" variant="light">
+                        <UserSwitch size={20} weight="bold" />
+                      </ThemeIcon>
+                      <Title order={3}>Statut de formation des collaborateurs</Title>
+                    </Group>
+                    <Table striped withTableBorder>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th></Table.Th>
+                          <Table.Th>Formés</Table.Th>
+                          <Table.Th>Non formés</Table.Th>
+                          <Table.Th>Total</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        <Table.Tr>
+                          <Table.Td fw={600}>Actifs</Table.Td>
+                          <Table.Td>{detailedData.collaborateurs.formesActifs}</Table.Td>
+                          <Table.Td>{detailedData.collaborateurs.nonFormesActifs}</Table.Td>
+                          <Table.Td>{detailedData.collaborateurs.formesActifs + detailedData.collaborateurs.nonFormesActifs}</Table.Td>
+                        </Table.Tr>
+                        {includeInactifs && (
+                          <Table.Tr>
+                            <Table.Td fw={600}>Inactifs</Table.Td>
+                            <Table.Td>{detailedData.collaborateurs.formesInactifs}</Table.Td>
+                            <Table.Td>{detailedData.collaborateurs.nonFormesInactifs}</Table.Td>
+                            <Table.Td>{detailedData.collaborateurs.formesInactifs + detailedData.collaborateurs.nonFormesInactifs}</Table.Td>
+                          </Table.Tr>
+                        )}
+                        <Table.Tr>
+                          <Table.Td fw={700}>Total</Table.Td>
+                          <Table.Td fw={700}>{includeInactifs ? detailedData.collaborateurs.formes : detailedData.collaborateurs.formesActifs}</Table.Td>
+                          <Table.Td fw={700}>{includeInactifs ? detailedData.collaborateurs.nonFormes : detailedData.collaborateurs.nonFormesActifs}</Table.Td>
+                          <Table.Td fw={700}>{includeInactifs ? detailedData.collaborateurs.total : (detailedData.collaborateurs.formesActifs + detailedData.collaborateurs.nonFormesActifs)}</Table.Td>
+                        </Table.Tr>
+                      </Table.Tbody>
+                    </Table>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
 
-            {/* Hero Cards - Par Genre */}
-            <div className={styles.heroGrid}>
+            <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <HeroCard
                 label="Heures - Hommes"
                 value={detailedData.parGenre.homme.heures}
@@ -705,10 +660,9 @@ export default function CollaborateursKPIsPage() {
                 variant="pink"
                 delay={0.3}
               />
-            </div>
+            </SimpleGrid>
 
-            {/* Stats Cards - Par Rôle */}
-            <div className={styles.statsGrid}>
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
               <GlassCard
                 label="Directeurs"
                 value={detailedData.parRole.directeur.heures}
@@ -736,694 +690,659 @@ export default function CollaborateursKPIsPage() {
                 iconVariant="gray"
                 delay={0.6}
               />
-            </div>
+            </SimpleGrid>
 
-            {/* Tableaux comparatifs */}
-            <div className={styles.tablesGrid}>
-              {/* Par Genre */}
+            <SimpleGrid cols={{ base: 1, md: 2 }}>
               <motion.div
-                className={styles.tableCard}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.5 }}
               >
-                <h3 className={styles.tableTitle}>
-                  <GenderMale size={20} weight="bold" style={{ color: '#4DABF7' }} />
-                  <GenderFemale size={20} weight="bold" style={{ color: '#F06595' }} />
-                  Par genre
-                </h3>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Catégorie</th>
-                        <th>Collab.</th>
-                        <th>Formations</th>
-                        <th>Heures</th>
-                        <th>Moyenne</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><span className={styles.badgeBlue}>Homme</span></td>
-                        <td>{detailedData.parGenre.homme.nombre}</td>
-                        <td>{detailedData.parGenre.homme.formations}</td>
-                        <td>{detailedData.parGenre.homme.heures}h</td>
-                        <td className={styles.tableValue}>{detailedData.parGenre.homme.moyenne}h</td>
-                      </tr>
-                      <tr>
-                        <td><span className={styles.badgePink}>Femme</span></td>
-                        <td>{detailedData.parGenre.femme.nombre}</td>
-                        <td>{detailedData.parGenre.femme.formations}</td>
-                        <td>{detailedData.parGenre.femme.heures}h</td>
-                        <td className={styles.tableValue}>{detailedData.parGenre.femme.moyenne}h</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="blue" variant="light"><GenderMale size={18} weight="bold" /></ThemeIcon>
+                      <ThemeIcon color="pink" variant="light"><GenderFemale size={18} weight="bold" /></ThemeIcon>
+                      <Title order={3}>Par genre</Title>
+                    </Group>
+                    <Table striped withTableBorder>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Catégorie</Table.Th>
+                          <Table.Th>Collab.</Table.Th>
+                          <Table.Th>Formations</Table.Th>
+                          <Table.Th>Heures</Table.Th>
+                          <Table.Th>Moyenne</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        <Table.Tr>
+                          <Table.Td><Badge color="blue" variant="light">Homme</Badge></Table.Td>
+                          <Table.Td>{detailedData.parGenre.homme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parGenre.homme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parGenre.homme.heures}h</Table.Td>
+                          <Table.Td fw={700}>{detailedData.parGenre.homme.moyenne}h</Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td><Badge color="pink" variant="light">Femme</Badge></Table.Td>
+                          <Table.Td>{detailedData.parGenre.femme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parGenre.femme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parGenre.femme.heures}h</Table.Td>
+                          <Table.Td fw={700}>{detailedData.parGenre.femme.moyenne}h</Table.Td>
+                        </Table.Tr>
+                      </Table.Tbody>
+                    </Table>
+                  </Stack>
+                </Card>
               </motion.div>
 
-              {/* Par Rôle */}
               <motion.div
-                className={styles.tableCard}
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.6 }}
               >
-                <h3 className={styles.tableTitle}>
-                  <UserCircle size={20} weight="bold" style={{ color: '#9775FA' }} />
-                  Par rôle
-                </h3>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.table}>
-                    <thead>
-                      <tr>
-                        <th>Catégorie</th>
-                        <th>Collab.</th>
-                        <th>Formations</th>
-                        <th>Heures</th>
-                        <th>Moyenne</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><span className={styles.badgeViolet}>Directeur</span></td>
-                        <td>{detailedData.parRole.directeur.nombre}</td>
-                        <td>{detailedData.parRole.directeur.formations}</td>
-                        <td>{detailedData.parRole.directeur.heures}h</td>
-                        <td className={styles.tableValue}>{detailedData.parRole.directeur.moyenne}h</td>
-                      </tr>
-                      <tr>
-                        <td><span className={styles.badgeTeal}>Manager</span></td>
-                        <td>{detailedData.parRole.manager.nombre}</td>
-                        <td>{detailedData.parRole.manager.formations}</td>
-                        <td>{detailedData.parRole.manager.heures}h</td>
-                        <td className={styles.tableValue}>{detailedData.parRole.manager.moyenne}h</td>
-                      </tr>
-                      <tr>
-                        <td><span className={styles.badgeGray}>Non-manager</span></td>
-                        <td>{detailedData.parRole.nonManager.nombre}</td>
-                        <td>{detailedData.parRole.nonManager.formations}</td>
-                        <td>{detailedData.parRole.nonManager.heures}h</td>
-                        <td className={styles.tableValue}>{detailedData.parRole.nonManager.moyenne}h</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="violet" variant="light"><UserCircle size={18} weight="bold" /></ThemeIcon>
+                      <Title order={3}>Par rôle</Title>
+                    </Group>
+                    <Table striped withTableBorder>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th>Catégorie</Table.Th>
+                          <Table.Th>Collab.</Table.Th>
+                          <Table.Th>Formations</Table.Th>
+                          <Table.Th>Heures</Table.Th>
+                          <Table.Th>Moyenne</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        <Table.Tr>
+                          <Table.Td><Badge color="violet" variant="light">Directeur</Badge></Table.Td>
+                          <Table.Td>{detailedData.parRole.directeur.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRole.directeur.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRole.directeur.heures}h</Table.Td>
+                          <Table.Td fw={700}>{detailedData.parRole.directeur.moyenne}h</Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td><Badge color="teal" variant="light">Manager</Badge></Table.Td>
+                          <Table.Td>{detailedData.parRole.manager.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRole.manager.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRole.manager.heures}h</Table.Td>
+                          <Table.Td fw={700}>{detailedData.parRole.manager.moyenne}h</Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td><Badge color="gray" variant="light">Non-manager</Badge></Table.Td>
+                          <Table.Td>{detailedData.parRole.nonManager.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRole.nonManager.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRole.nonManager.heures}h</Table.Td>
+                          <Table.Td fw={700}>{detailedData.parRole.nonManager.moyenne}h</Table.Td>
+                        </Table.Tr>
+                      </Table.Tbody>
+                    </Table>
+                  </Stack>
+                </Card>
               </motion.div>
-            </div>
+            </SimpleGrid>
 
-            {/* Tableau Croisé Rôle × Genre */}
             {detailedData.parRoleGenre && (
               <motion.div
-                className={styles.crossTableCard}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.7 }}
               >
-                <h3 className={styles.tableTitle}>
-                  <Users size={20} weight="bold" style={{ color: '#845EF7' }} />
-                  Répartition Rôle × Genre
-                </h3>
-                <div className={styles.tableWrapper}>
-                  <table className={styles.crossTable}>
-                    <thead>
-                      <tr>
-                        <th rowSpan={2}>Rôle</th>
-                        <th colSpan={3} className={styles.headerMale}>
-                          <GenderMale size={16} weight="bold" /> Hommes
-                        </th>
-                        <th colSpan={3} className={styles.headerFemale}>
-                          <GenderFemale size={16} weight="bold" /> Femmes
-                        </th>
-                      </tr>
-                      <tr>
-                        <th>Nb</th>
-                        <th>Form.</th>
-                        <th>Heures</th>
-                        <th>Nb</th>
-                        <th>Form.</th>
-                        <th>Heures</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><span className={styles.badgeViolet}>Directeur</span></td>
-                        <td>{detailedData.parRoleGenre.directeur.homme.nombre}</td>
-                        <td>{detailedData.parRoleGenre.directeur.homme.formations}</td>
-                        <td>{detailedData.parRoleGenre.directeur.homme.heures}h</td>
-                        <td>{detailedData.parRoleGenre.directeur.femme.nombre}</td>
-                        <td>{detailedData.parRoleGenre.directeur.femme.formations}</td>
-                        <td>{detailedData.parRoleGenre.directeur.femme.heures}h</td>
-                      </tr>
-                      <tr>
-                        <td><span className={styles.badgeTeal}>Manager</span></td>
-                        <td>{detailedData.parRoleGenre.manager.homme.nombre}</td>
-                        <td>{detailedData.parRoleGenre.manager.homme.formations}</td>
-                        <td>{detailedData.parRoleGenre.manager.homme.heures}h</td>
-                        <td>{detailedData.parRoleGenre.manager.femme.nombre}</td>
-                        <td>{detailedData.parRoleGenre.manager.femme.formations}</td>
-                        <td>{detailedData.parRoleGenre.manager.femme.heures}h</td>
-                      </tr>
-                      <tr>
-                        <td><span className={styles.badgeGray}>Non-manager</span></td>
-                        <td>{detailedData.parRoleGenre.nonManager.homme.nombre}</td>
-                        <td>{detailedData.parRoleGenre.nonManager.homme.formations}</td>
-                        <td>{detailedData.parRoleGenre.nonManager.homme.heures}h</td>
-                        <td>{detailedData.parRoleGenre.nonManager.femme.nombre}</td>
-                        <td>{detailedData.parRoleGenre.nonManager.femme.formations}</td>
-                        <td>{detailedData.parRoleGenre.nonManager.femme.heures}h</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="violet" variant="light"><Users size={18} weight="bold" /></ThemeIcon>
+                      <Title order={3}>Répartition Rôle × Genre</Title>
+                    </Group>
+                    <Table striped withTableBorder>
+                      <Table.Thead>
+                        <Table.Tr>
+                          <Table.Th rowSpan={2}>Rôle</Table.Th>
+                          <Table.Th colSpan={3}><Group gap={4}><GenderMale size={14} weight="bold" /> Hommes</Group></Table.Th>
+                          <Table.Th colSpan={3}><Group gap={4}><GenderFemale size={14} weight="bold" /> Femmes</Group></Table.Th>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Th>Nb</Table.Th>
+                          <Table.Th>Form.</Table.Th>
+                          <Table.Th>Heures</Table.Th>
+                          <Table.Th>Nb</Table.Th>
+                          <Table.Th>Form.</Table.Th>
+                          <Table.Th>Heures</Table.Th>
+                        </Table.Tr>
+                      </Table.Thead>
+                      <Table.Tbody>
+                        <Table.Tr>
+                          <Table.Td><Badge color="violet" variant="light">Directeur</Badge></Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.directeur.homme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.directeur.homme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.directeur.homme.heures}h</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.directeur.femme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.directeur.femme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.directeur.femme.heures}h</Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td><Badge color="teal" variant="light">Manager</Badge></Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.manager.homme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.manager.homme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.manager.homme.heures}h</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.manager.femme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.manager.femme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.manager.femme.heures}h</Table.Td>
+                        </Table.Tr>
+                        <Table.Tr>
+                          <Table.Td><Badge color="gray" variant="light">Non-manager</Badge></Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.nonManager.homme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.nonManager.homme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.nonManager.homme.heures}h</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.nonManager.femme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.nonManager.femme.formations}</Table.Td>
+                          <Table.Td>{detailedData.parRoleGenre.nonManager.femme.heures}h</Table.Td>
+                        </Table.Tr>
+                      </Table.Tbody>
+                    </Table>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
 
-            {/* Stats par Département */}
             {detailedData.parDepartement && detailedData.parDepartement.length > 0 && (
               <motion.div
-                className={styles.departementCard}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.8 }}
               >
-                <h3 className={styles.tableTitle}>
-                  <Buildings size={20} weight="bold" style={{ color: '#20C997' }} />
-                  Par département
-                </h3>
-                <div className={styles.departementList}>
-                  {detailedData.parDepartement.map((dept) => (
-                    <div key={dept.id} className={styles.departementItem}>
-                      <div className={styles.departementHeader}>
-                        <span className={styles.departementName}>{dept.nom}</span>
-                        <div className={styles.departementStats}>
-                          <span>{dept.stats.nombre} pers.</span>
-                          <span>{dept.stats.formations} form.</span>
-                          <span className={styles.departementHeures}>{dept.stats.heures}h</span>
-                        </div>
-                      </div>
-                      {dept.sousEquipes && dept.sousEquipes.length > 0 && (
-                        <div className={styles.sousEquipes}>
-                          {dept.sousEquipes.map((sub) => (
-                            <div key={sub.id} className={styles.sousEquipeItem}>
-                              <span className={styles.sousEquipeName}>↳ {sub.nom}</span>
-                              <div className={styles.sousEquipeStats}>
-                                <span>{sub.stats.nombre} pers.</span>
-                                <span>{sub.stats.formations} form.</span>
-                                <span>{sub.stats.heures}h</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="teal" variant="light"><Buildings size={18} weight="bold" /></ThemeIcon>
+                      <Title order={3}>Par département</Title>
+                    </Group>
+                    <Stack gap="sm">
+                      {detailedData.parDepartement.map((dept) => (
+                        <Paper key={dept.id} withBorder p="md" radius="md">
+                          <Group justify="space-between">
+                            <Text fw={600}>{dept.nom}</Text>
+                            <Group gap="md">
+                              <Text size="sm" c="dimmed">{dept.stats.nombre} pers.</Text>
+                              <Text size="sm" c="dimmed">{dept.stats.formations} form.</Text>
+                              <Text size="sm" fw={600}>{dept.stats.heures}h</Text>
+                            </Group>
+                          </Group>
+                          {dept.sousEquipes && dept.sousEquipes.length > 0 && (
+                            <Stack gap={4} mt="sm" pl="md">
+                              {dept.sousEquipes.map((sub) => (
+                                <Group key={sub.id} justify="space-between">
+                                  <Text size="sm">↳ {sub.nom}</Text>
+                                  <Group gap="md">
+                                    <Text size="xs" c="dimmed">{sub.stats.nombre} pers.</Text>
+                                    <Text size="xs" c="dimmed">{sub.stats.formations} form.</Text>
+                                    <Text size="xs">{sub.stats.heures}h</Text>
+                                  </Group>
+                                </Group>
+                              ))}
+                            </Stack>
+                          )}
+                        </Paper>
+                      ))}
+                    </Stack>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
 
-            {/* Stats par Catégorie de Formation */}
             {detailedData.parCategorie && detailedData.parCategorie.length > 0 && (
               <motion.div
-                className={styles.categorieCard}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.9 }}
               >
-                <h3 className={styles.tableTitle}>
-                  <ChartBar size={20} weight="bold" style={{ color: '#F59F00' }} />
-                  Par catégorie de formation
-                </h3>
-                <div className={styles.categorieList}>
-                  {detailedData.parCategorie.map((cat, index) => (
-                    <div key={cat.id} className={styles.categorieItem}>
-                      <div className={styles.categorieHeader}>
-                        <span className={styles.categorieName}>{cat.nom}</span>
-                        <span className={styles.categoriePourcentage}>{cat.stats.pourcentage}%</span>
-                      </div>
-                      <div className={styles.categorieBar}>
-                        <div
-                          className={styles.categorieProgress}
-                          style={{
-                            width: `${cat.stats.pourcentage}%`,
-                            backgroundColor: `hsl(${(index * 45) % 360}, 70%, 55%)`
-                          }}
-                        />
-                      </div>
-                      <div className={styles.categorieDetails}>
-                        <span>{cat.stats.nombre} collaborateurs</span>
-                        <span>{cat.stats.formations} formation{cat.stats.formations > 1 ? 's' : ''}</span>
-                        <span className={styles.categorieHeures}>{cat.stats.heures}h</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Card withBorder p="lg" radius="md">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <ThemeIcon color="orange" variant="light"><ChartBar size={18} weight="bold" /></ThemeIcon>
+                      <Title order={3}>Par catégorie de formation</Title>
+                    </Group>
+                    <Stack gap="md">
+                      {detailedData.parCategorie.map((cat) => (
+                        <Stack key={cat.id} gap={4}>
+                          <Group justify="space-between">
+                            <Text fw={600}>{cat.nom}</Text>
+                            <Text fw={600}>{cat.stats.pourcentage}%</Text>
+                          </Group>
+                          <Progress value={cat.stats.pourcentage} />
+                          <Group gap="md">
+                            <Text size="xs" c="dimmed">{cat.stats.nombre} collaborateurs</Text>
+                            <Text size="xs" c="dimmed">{cat.stats.formations} formation{cat.stats.formations > 1 ? 's' : ''}</Text>
+                            <Text size="xs" fw={600}>{cat.stats.heures}h</Text>
+                          </Group>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
           </>
         ) : null}
 
-        {/* ===== SECTION CONFORMITÉ/ÉTHIQUE ===== */}
         {complianceLoading ? (
-          <motion.div
-            className={styles.complianceSection}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className={styles.loadingContainer}>
-              <div className={styles.loadingSpinner} />
-              <span className={styles.loadingText}>Chargement des KPIs Conformité...</span>
-            </div>
-          </motion.div>
+          <Card withBorder p="lg" radius="md">
+            <Center mih={150}>
+              <Stack align="center" gap="md">
+                <Loader />
+                <Text c="dimmed">Chargement des KPIs Conformité...</Text>
+              </Stack>
+            </Center>
+          </Card>
         ) : complianceData || availableFormations.length > 0 ? (
           <>
-            {/* Divider Section Éthique */}
-            <div className={styles.divider}>
-              <div className={styles.dividerLine} />
-              <div className={styles.dividerContent}>
-                <Scales size={18} weight="bold" className={styles.dividerIcon} />
-                <span className={styles.dividerText}>Conformité & Éthique</span>
-                {complianceData?.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                )}
-              </div>
-              <div className={styles.dividerLine} />
-            </div>
+            <Divider
+              my="md"
+              label={
+                <Group gap="xs">
+                  <Scales size={18} weight="bold" />
+                  <Text fw={600}>Conformité & Éthique</Text>
+                  {complianceData?.periode?.libelle && (
+                    <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
+                  )}
+                </Group>
+              }
+              labelPosition="center"
+            />
 
-            {/* Formations éthique identifiées - sélectionnables */}
             <motion.div
-              className={styles.complianceSection}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <h3 className={styles.tableTitle}>
-                <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                Formations Éthique ({selectedFormationIds.length}/{availableFormations.length} sélectionnées)
-              </h3>
-              <div className={styles.formationSelectionHeader}>
-                <button
-                  className={styles.formationSelectAllBtn}
-                  onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
-                  disabled={selectedFormationIds.length === availableFormations.length}
-                >
-                  Tout sélectionner
-                </button>
-                <button
-                  className={styles.formationDeselectAllBtn}
-                  onClick={() => setSelectedFormationIds([])}
-                  disabled={selectedFormationIds.length === 0}
-                >
-                  Tout désélectionner
-                </button>
-                <button
-                  className={styles.formationAddBtn}
-                  onClick={() => {
-                    setShowSearch(!showSearch)
-                    setTimeout(() => searchInputRef.current?.focus(), 100)
-                  }}
-                >
-                  <Plus size={14} weight="bold" style={{ marginRight: '4px' }} />
-                  Ajouter une formation
-                </button>
-              </div>
-
-              {/* Champ de recherche pour ajouter des formations */}
-              {showSearch && (
-                <div className={styles.formationSearchContainer}>
-                  <div className={styles.formationSearchInputWrapper}>
-                    <MagnifyingGlass size={16} className={styles.searchIcon} />
-                    <input
-                      ref={searchInputRef}
-                      type="text"
-                      className={styles.formationSearchInput}
-                      placeholder="Rechercher une formation..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <button
-                      className={styles.searchCloseBtn}
+              <Card withBorder p="lg" radius="md">
+                <Stack gap="md">
+                  <Group gap="xs">
+                    <ThemeIcon color="teal" variant="light"><ShieldCheck size={18} weight="bold" /></ThemeIcon>
+                    <Title order={3}>Formations Éthique ({selectedFormationIds.length}/{availableFormations.length} sélectionnées)</Title>
+                  </Group>
+                  <Group>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
+                      disabled={selectedFormationIds.length === availableFormations.length}
+                    >
+                      Tout sélectionner
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="gray"
+                      onClick={() => setSelectedFormationIds([])}
+                      disabled={selectedFormationIds.length === 0}
+                    >
+                      Tout désélectionner
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="green"
+                      leftSection={<Plus size={14} weight="bold" />}
                       onClick={() => {
-                        setShowSearch(false)
-                        setSearchQuery('')
+                        setShowSearch(!showSearch)
+                        setTimeout(() => searchInputRef.current?.focus(), 100)
                       }}
                     >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  {searchQuery && filteredSearchResults.length > 0 && (
-                    <div className={styles.formationSearchResults}>
-                      {filteredSearchResults.map(f => (
-                        <button
-                          key={f.id}
-                          className={styles.formationSearchResultItem}
-                          onClick={() => addFormationToList(f)}
-                        >
-                          <Plus size={14} style={{ marginRight: '8px', opacity: 0.6 }} />
-                          {f.nom}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {searchQuery && filteredSearchResults.length === 0 && (
-                    <div className={styles.formationSearchNoResults}>
-                      Aucune formation trouvée
-                    </div>
-                  )}
-                </div>
-              )}
+                      Ajouter une formation
+                    </Button>
+                  </Group>
 
-              <div className={styles.formationsEthiqueList}>
-                {availableFormations.map(f => (
-                  <div key={f.id} className={styles.formationTagWrapper}>
-                    <button
-                      className={`${styles.formationEthiqueTag} ${selectedFormationIds.includes(f.id) ? styles.formationSelected : styles.formationUnselected}`}
-                      onClick={() => {
-                        if (selectedFormationIds.includes(f.id)) {
-                          setSelectedFormationIds(selectedFormationIds.filter(id => id !== f.id))
-                        } else {
-                          setSelectedFormationIds([...selectedFormationIds, f.id])
-                        }
-                      }}
-                    >
-                      {selectedFormationIds.includes(f.id) ? (
-                        <CheckCircle size={14} weight="fill" style={{ marginRight: '4px' }} />
-                      ) : (
-                        <XCircle size={14} weight="regular" style={{ marginRight: '4px', opacity: 0.5 }} />
-                      )}
-                      {f.nom}
-                    </button>
-                    <button
-                      className={styles.formationRemoveBtn}
-                      onClick={() => removeFormationFromList(f.id)}
-                      title="Retirer de la liste"
-                    >
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
-                <div className={styles.noSelectionMessage}>
-                  <Warning size={16} style={{ marginRight: '8px' }} />
-                  Aucune formation sélectionnée - Utilisez "Ajouter une formation" pour en ajouter
-                </div>
-              )}
+                  {showSearch && (
+                    <Stack gap="xs">
+                      <MultiSelect
+                        ref={searchInputRef as any}
+                        placeholder="Rechercher une formation..."
+                        searchable
+                        searchValue={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        data={filteredSearchResults.map(f => ({ value: String(f.id), label: f.nom }))}
+                        value={[]}
+                        onChange={(values) => {
+                          values.forEach(v => {
+                            const f = allFormations.find(af => af.id === Number(v))
+                            if (f) addFormationToList(f)
+                          })
+                        }}
+                        nothingFoundMessage="Aucune formation trouvée"
+                      />
+                    </Stack>
+                  )}
+
+                  <Group gap="xs">
+                    {availableFormations.map(f => {
+                      const isSelected = selectedFormationIds.includes(f.id)
+                      return (
+                        <Group key={f.id} gap={4}>
+                          <Button
+                            size="xs"
+                            variant={isSelected ? 'filled' : 'outline'}
+                            color={isSelected ? 'teal' : 'gray'}
+                            leftSection={isSelected ? <CheckCircle size={14} weight="fill" /> : <XCircle size={14} />}
+                            onClick={() => {
+                              if (isSelected) {
+                                setSelectedFormationIds(selectedFormationIds.filter(id => id !== f.id))
+                              } else {
+                                setSelectedFormationIds([...selectedFormationIds, f.id])
+                              }
+                            }}
+                          >
+                            {f.nom}
+                          </Button>
+                          <ActionIcon
+                            size="sm"
+                            variant="subtle"
+                            color="red"
+                            onClick={() => removeFormationFromList(f.id)}
+                            title="Retirer de la liste"
+                          >
+                            <X size={12} />
+                          </ActionIcon>
+                        </Group>
+                      )
+                    })}
+                  </Group>
+                  {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
+                    <Alert color="yellow" icon={<Warning size={16} />}>
+                      Aucune formation sélectionnée - Utilisez "Ajouter une formation" pour en ajouter
+                    </Alert>
+                  )}
+                </Stack>
+              </Card>
             </motion.div>
 
-            {/* Stats globales compliance - affiché uniquement si des formations sont sélectionnées */}
             {complianceData && (
-            <>
-            <motion.div
-              className={styles.complianceSection}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
-              <h3 className={styles.globalStatsTitle}>
-                Statistiques Globales
-                {complianceData?.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+              <>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 }}
+                >
+                  <Card withBorder p="lg" radius="md">
+                    <Stack gap="md">
+                      <Group justify="space-between">
+                        <Title order={3}>Statistiques Globales</Title>
+                        {complianceData?.periode?.libelle && (
+                          <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
+                        )}
+                      </Group>
+                      <SimpleGrid cols={{ base: 2, sm: 4 }}>
+                        <Paper withBorder p="md" radius="md">
+                          <Title order={2}>{complianceData.comparatifGlobal.tauxCouverture}%</Title>
+                          <Text size="xs" c="dimmed">Taux couverture</Text>
+                        </Paper>
+                        <Paper withBorder p="md" radius="md">
+                          <Title order={2}>{complianceData.comparatifGlobal.formes}</Title>
+                          <Text size="xs" c="dimmed">Formés</Text>
+                        </Paper>
+                        <Paper withBorder p="md" radius="md">
+                          <Title order={2} c="red">{complianceData.comparatifGlobal.nonFormes}</Title>
+                          <Text size="xs" c="dimmed">Non formés</Text>
+                        </Paper>
+                        <Paper withBorder p="md" radius="md">
+                          <Title order={2} c="blue">{complianceData.comparatifGlobal.totalEmployesRisque}</Title>
+                          <Text size="xs" c="dimmed">Employés à risque</Text>
+                        </Paper>
+                      </SimpleGrid>
+                    </Stack>
+                  </Card>
+                </motion.div>
+
+                {complianceData.parCategorieCroisee.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.2 }}
+                  >
+                    <Card withBorder p="lg" radius="md">
+                      <Stack gap="md">
+                        <Group justify="space-between">
+                          <Title order={3}>Catégories à Risque</Title>
+                          {complianceData?.periode?.libelle && (
+                            <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
+                          )}
+                        </Group>
+                        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+                          {complianceData.parCategorieCroisee.map((cat) => (
+                            <Paper key={cat.categorie} withBorder p="md" radius="md">
+                              <Stack gap="xs">
+                                <Group justify="space-between">
+                                  <Text fw={600} size="sm">{cat.categorie}</Text>
+                                  <Badge color={getCategoryBadgeColor(cat.categorie)} variant="light">
+                                    {cat.tauxCouverture}%
+                                  </Badge>
+                                </Group>
+                                <SimpleGrid cols={2} spacing="xs">
+                                  <Group justify="space-between">
+                                    <Text size="xs" c="dimmed">Effectif</Text>
+                                    <Text size="xs" fw={600}>{cat.total}</Text>
+                                  </Group>
+                                  <Group justify="space-between">
+                                    <Text size="xs" c="dimmed">Formés</Text>
+                                    <Text size="xs" fw={600} c="teal">{cat.formes}</Text>
+                                  </Group>
+                                  <Group justify="space-between">
+                                    <Text size="xs" c="dimmed">Non formés</Text>
+                                    <Text size="xs" fw={600} c="red">{cat.nonFormes}</Text>
+                                  </Group>
+                                  <Group justify="space-between">
+                                    <Text size="xs" c="dimmed">Heures</Text>
+                                    <Text size="xs" fw={600}>{cat.heures}h</Text>
+                                  </Group>
+                                </SimpleGrid>
+                                <Progress value={cat.tauxCouverture} color={getCoverageColor(cat.tauxCouverture)} />
+                              </Stack>
+                            </Paper>
+                          ))}
+                        </SimpleGrid>
+                      </Stack>
+                    </Card>
+                  </motion.div>
                 )}
-              </h3>
-              <div className={styles.complianceGlobalStats}>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue}>
-                    {complianceData.comparatifGlobal.tauxCouverture}%
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Taux couverture</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue}>
-                    {complianceData.comparatifGlobal.formes}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Formés</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue} style={{ color: '#FA5252' }}>
-                    {complianceData.comparatifGlobal.nonFormes}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Non formés</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue} style={{ color: '#4DABF7' }}>
-                    {complianceData.comparatifGlobal.totalEmployesRisque}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Employés à risque</span>
-                </div>
-              </div>
-            </motion.div>
 
-            {/* Cards par catégorie croisée */}
-            {complianceData.parCategorieCroisee.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
-              >
-                <h3 className={styles.globalStatsTitle}>
-                  Catégories à Risque
-                  {complianceData?.periode?.libelle && (
-                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                  )}
-                </h3>
-                <div className={styles.riskCategoriesGrid}>
-                  {complianceData.parCategorieCroisee.map((cat, index) => (
-                    <div key={cat.categorie} className={styles.riskCategoryCard}>
-                      <div className={styles.riskCategoryHeader}>
-                        <span className={styles.riskCategoryLabel}>{cat.categorie}</span>
-                        <span className={`${styles.riskCategoryBadge} ${getCategoryBadgeClass(cat.categorie)}`}>
-                          {cat.tauxCouverture}%
-                        </span>
-                      </div>
-                      <div className={styles.riskCategoryStats}>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Effectif</span>
-                          <span className={styles.riskCategoryStatValue}>{cat.total}</span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Formés</span>
-                          <span className={styles.riskCategoryStatValue} style={{ color: '#38D9A9' }}>
-                            {cat.formes}
-                          </span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Non formés</span>
-                          <span className={styles.riskCategoryStatValue} style={{ color: '#FA5252' }}>
-                            {cat.nonFormes}
-                          </span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Heures</span>
-                          <span className={styles.riskCategoryStatValue}>{cat.heures}h</span>
-                        </div>
-                      </div>
-                      <div className={styles.coverageIndicator}>
-                        <div className={styles.coverageBar}>
-                          <div
-                            className={`${styles.coverageProgress} ${getCoverageClass(cat.tauxCouverture)}`}
-                            style={{ width: `${cat.tauxCouverture}%` }}
-                          />
-                        </div>
-                        <span className={styles.coveragePercent}>{cat.tauxCouverture}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                >
+                  <Card withBorder p="lg" radius="md">
+                    <Stack gap="md">
+                      <Group gap="xs">
+                        <ThemeIcon color="teal" variant="light"><CheckCircle size={18} weight="bold" /></ThemeIcon>
+                        <Title order={3}>Comparatif Formés vs Non-Formés par Catégorie</Title>
+                        {complianceData?.periode?.libelle && (
+                          <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
+                        )}
+                      </Group>
+                      <Table striped withTableBorder>
+                        <Table.Thead>
+                          <Table.Tr>
+                            <Table.Th>Catégorie</Table.Th>
+                            <Table.Th>Total</Table.Th>
+                            <Table.Th>Formés</Table.Th>
+                            <Table.Th>Non formés</Table.Th>
+                            <Table.Th>Heures</Table.Th>
+                            <Table.Th>Taux</Table.Th>
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          <Table.Tr>
+                            <Table.Td><Badge color="blue" variant="light">B2B</Badge></Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.b2b.total}</Table.Td>
+                            <Table.Td c="teal">{complianceData.parCategorieSimple.b2b.formes}</Table.Td>
+                            <Table.Td c="red">{complianceData.parCategorieSimple.b2b.nonFormes}</Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.b2b.heures}h</Table.Td>
+                            <Table.Td>
+                              <Text fw={700} c={complianceData.parCategorieSimple.b2b.tauxCouverture >= 80 ? 'teal' : 'red'}>
+                                {complianceData.parCategorieSimple.b2b.tauxCouverture}%
+                              </Text>
+                            </Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td><Badge color="pink" variant="light">B2C</Badge></Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.b2c.total}</Table.Td>
+                            <Table.Td c="teal">{complianceData.parCategorieSimple.b2c.formes}</Table.Td>
+                            <Table.Td c="red">{complianceData.parCategorieSimple.b2c.nonFormes}</Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.b2c.heures}h</Table.Td>
+                            <Table.Td>
+                              <Text fw={700} c={complianceData.parCategorieSimple.b2c.tauxCouverture >= 80 ? 'teal' : 'red'}>
+                                {complianceData.parCategorieSimple.b2c.tauxCouverture}%
+                              </Text>
+                            </Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td><Badge color="teal" variant="light">Managers</Badge></Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.managers.total}</Table.Td>
+                            <Table.Td c="teal">{complianceData.parCategorieSimple.managers.formes}</Table.Td>
+                            <Table.Td c="red">{complianceData.parCategorieSimple.managers.nonFormes}</Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.managers.heures}h</Table.Td>
+                            <Table.Td>
+                              <Text fw={700} c={complianceData.parCategorieSimple.managers.tauxCouverture >= 80 ? 'teal' : 'red'}>
+                                {complianceData.parCategorieSimple.managers.tauxCouverture}%
+                              </Text>
+                            </Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td><Badge color="violet" variant="light">Directeurs</Badge></Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.directeurs.total}</Table.Td>
+                            <Table.Td c="teal">{complianceData.parCategorieSimple.directeurs.formes}</Table.Td>
+                            <Table.Td c="red">{complianceData.parCategorieSimple.directeurs.nonFormes}</Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.directeurs.heures}h</Table.Td>
+                            <Table.Td>
+                              <Text fw={700} c={complianceData.parCategorieSimple.directeurs.tauxCouverture >= 80 ? 'teal' : 'red'}>
+                                {complianceData.parCategorieSimple.directeurs.tauxCouverture}%
+                              </Text>
+                            </Table.Td>
+                          </Table.Tr>
+                          <Table.Tr>
+                            <Table.Td><Badge color="gray" variant="light">Autres Collaborateurs</Badge></Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.collaborateurs.total}</Table.Td>
+                            <Table.Td c="teal">{complianceData.parCategorieSimple.collaborateurs.formes}</Table.Td>
+                            <Table.Td c="red">{complianceData.parCategorieSimple.collaborateurs.nonFormes}</Table.Td>
+                            <Table.Td>{complianceData.parCategorieSimple.collaborateurs.heures}h</Table.Td>
+                            <Table.Td>
+                              <Text fw={700} c={complianceData.parCategorieSimple.collaborateurs.tauxCouverture >= 80 ? 'teal' : 'red'}>
+                                {complianceData.parCategorieSimple.collaborateurs.tauxCouverture}%
+                              </Text>
+                            </Table.Td>
+                          </Table.Tr>
+                        </Table.Tbody>
+                      </Table>
+                    </Stack>
+                  </Card>
+                </motion.div>
 
-            {/* Tableau comparatif Formés vs Non-Formés */}
-            <motion.div
-              className={styles.comparisonTableCard}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.3 }}
-            >
-              <h3 className={styles.tableTitle}>
-                <CheckCircle size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                Comparatif Formés vs Non-Formés par Catégorie
-                {complianceData?.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
+                {complianceData.parCategorieCroisee.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.4 }}
+                  >
+                    <Card withBorder p="lg" radius="md">
+                      <Stack gap="md">
+                        <Group gap="xs">
+                          <ThemeIcon color="blue" variant="light"><GenderMale size={16} weight="bold" /></ThemeIcon>
+                          <ThemeIcon color="pink" variant="light"><GenderFemale size={16} weight="bold" /></ThemeIcon>
+                          <Title order={3}>Répartition par Genre (employés formés)</Title>
+                          {complianceData?.periode?.libelle && (
+                            <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
+                          )}
+                        </Group>
+                        <Table striped withTableBorder>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Catégorie</Table.Th>
+                              <Table.Th>Hommes</Table.Th>
+                              <Table.Th>Heures H</Table.Th>
+                              <Table.Th>Femmes</Table.Th>
+                              <Table.Th>Heures F</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {complianceData.parCategorieCroisee.map(cat => (
+                              <Table.Tr key={cat.categorie}>
+                                <Table.Td><Badge color={getCategoryBadgeColor(cat.categorie)} variant="light">{cat.categorie}</Badge></Table.Td>
+                                <Table.Td c="blue">{cat.parGenre.homme.nombre}</Table.Td>
+                                <Table.Td>{cat.parGenre.homme.heures}h</Table.Td>
+                                <Table.Td c="pink">{cat.parGenre.femme.nombre}</Table.Td>
+                                <Table.Td>{cat.parGenre.femme.heures}h</Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </Stack>
+                    </Card>
+                  </motion.div>
                 )}
-              </h3>
-              <table className={styles.comparisonTable}>
-                <thead>
-                  <tr>
-                    <th>Catégorie</th>
-                    <th>Total</th>
-                    <th>Formés</th>
-                    <th>Non formés</th>
-                    <th>Heures</th>
-                    <th>Taux</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {/* Catégories simples */}
-                  <tr>
-                    <td><span className={styles.badgeB2B}>B2B</span></td>
-                    <td>{complianceData.parCategorieSimple.b2b.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.b2b.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.b2b.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.b2b.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.b2b.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.b2b.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeB2C}>B2C</span></td>
-                    <td>{complianceData.parCategorieSimple.b2c.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.b2c.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.b2c.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.b2c.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.b2c.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.b2c.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeManager}>Managers</span></td>
-                    <td>{complianceData.parCategorieSimple.managers.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.managers.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.managers.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.managers.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.managers.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.managers.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeDirecteur}>Directeurs</span></td>
-                    <td>{complianceData.parCategorieSimple.directeurs.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.directeurs.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.directeurs.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.directeurs.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.directeurs.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.directeurs.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td><span className={styles.badgeCollaborateur}>Autres Collaborateurs</span></td>
-                    <td>{complianceData.parCategorieSimple.collaborateurs.total}</td>
-                    <td style={{ color: '#38D9A9' }}>{complianceData.parCategorieSimple.collaborateurs.formes}</td>
-                    <td style={{ color: '#FA5252' }}>{complianceData.parCategorieSimple.collaborateurs.nonFormes}</td>
-                    <td>{complianceData.parCategorieSimple.collaborateurs.heures}h</td>
-                    <td>
-                      <strong style={{ color: complianceData.parCategorieSimple.collaborateurs.tauxCouverture >= 80 ? '#38D9A9' : '#FA5252' }}>
-                        {complianceData.parCategorieSimple.collaborateurs.tauxCouverture}%
-                      </strong>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </motion.div>
 
-            {/* Répartition par genre dans les catégories croisées */}
-            {complianceData.parCategorieCroisee.length > 0 && (
-              <motion.div
-                className={styles.comparisonTableCard}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
-                <h3 className={styles.tableTitle}>
-                  <GenderMale size={20} weight="bold" style={{ color: '#4DABF7' }} />
-                  <GenderFemale size={20} weight="bold" style={{ color: '#F06595', marginLeft: '-8px' }} />
-                  Répartition par Genre (employés formés)
-                  {complianceData?.periode?.libelle && (
-                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                  )}
-                </h3>
-                <table className={styles.comparisonTable}>
-                  <thead>
-                    <tr>
-                      <th>Catégorie</th>
-                      <th>Hommes</th>
-                      <th>Heures H</th>
-                      <th>Femmes</th>
-                      <th>Heures F</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {complianceData.parCategorieCroisee.map(cat => (
-                      <tr key={cat.categorie}>
-                        <td><span className={getCategoryBadgeClass(cat.categorie)}>{cat.categorie}</span></td>
-                        <td style={{ color: '#4DABF7' }}>{cat.parGenre.homme.nombre}</td>
-                        <td>{cat.parGenre.homme.heures}h</td>
-                        <td style={{ color: '#F06595' }}>{cat.parGenre.femme.nombre}</td>
-                        <td>{cat.parGenre.femme.heures}h</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </motion.div>
-            )}
-
-            {/* Détail par formation */}
-            {complianceData.parFormation.length > 0 && (
-              <motion.div
-                className={styles.comparisonTableCard}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-              >
-                <h3 className={styles.tableTitle}>
-                  <ShieldCheck size={20} weight="bold" style={{ color: '#38D9A9' }} />
-                  Participation par Formation Éthique
-                </h3>
-                <table className={styles.comparisonTable}>
-                  <thead>
-                    <tr>
-                      <th>Formation</th>
-                      <th>Total</th>
-                      <th>B2B</th>
-                      <th>B2C</th>
-                      <th>Managers</th>
-                      <th>Directeurs</th>
-                      <th>Collab.</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {complianceData.parFormation.map(f => (
-                      <tr key={f.formationId}>
-                        <td>{f.nomFormation}</td>
-                        <td><strong>{f.participants.total}</strong></td>
-                        <td>{f.participants.b2b}</td>
-                        <td>{f.participants.b2c}</td>
-                        <td>{f.participants.managers}</td>
-                        <td>{f.participants.directeurs}</td>
-                        <td>{f.participants.collaborateurs}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </motion.div>
-            )}
-            </>
+                {complianceData.parFormation.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.5 }}
+                  >
+                    <Card withBorder p="lg" radius="md">
+                      <Stack gap="md">
+                        <Group gap="xs">
+                          <ThemeIcon color="teal" variant="light"><ShieldCheck size={18} weight="bold" /></ThemeIcon>
+                          <Title order={3}>Participation par Formation Éthique</Title>
+                        </Group>
+                        <Table striped withTableBorder>
+                          <Table.Thead>
+                            <Table.Tr>
+                              <Table.Th>Formation</Table.Th>
+                              <Table.Th>Total</Table.Th>
+                              <Table.Th>B2B</Table.Th>
+                              <Table.Th>B2C</Table.Th>
+                              <Table.Th>Managers</Table.Th>
+                              <Table.Th>Directeurs</Table.Th>
+                              <Table.Th>Collab.</Table.Th>
+                            </Table.Tr>
+                          </Table.Thead>
+                          <Table.Tbody>
+                            {complianceData.parFormation.map(f => (
+                              <Table.Tr key={f.formationId}>
+                                <Table.Td>{f.nomFormation}</Table.Td>
+                                <Table.Td fw={700}>{f.participants.total}</Table.Td>
+                                <Table.Td>{f.participants.b2b}</Table.Td>
+                                <Table.Td>{f.participants.b2c}</Table.Td>
+                                <Table.Td>{f.participants.managers}</Table.Td>
+                                <Table.Td>{f.participants.directeurs}</Table.Td>
+                                <Table.Td>{f.participants.collaborateurs}</Table.Td>
+                              </Table.Tr>
+                            ))}
+                          </Table.Tbody>
+                        </Table>
+                      </Stack>
+                    </Card>
+                  </motion.div>
+                )}
+              </>
             )}
           </>
         ) : null}
 
-        {/* Divider */}
-        <div className={styles.divider}>
-          <div className={styles.dividerLine} />
-          <div className={styles.dividerContent}>
-            <ChartBar size={18} weight="bold" className={styles.dividerIcon} />
-            <span className={styles.dividerText}>Vue d'ensemble générale</span>
-          </div>
-          <div className={styles.dividerLine} />
-        </div>
+        <Divider
+          my="md"
+          label={
+            <Group gap="xs">
+              <ChartBar size={18} weight="bold" />
+              <Text fw={600}>Vue d'ensemble générale</Text>
+            </Group>
+          }
+          labelPosition="center"
+        />
 
-        {/* Overview Cards */}
-        <div className={styles.overviewGrid}>
+        <SimpleGrid cols={{ base: 1, sm: 2 }}>
           <GlassCard
             label="Total Collaborateurs"
             value={data.summary.totalCollaborateurs}
@@ -1440,93 +1359,94 @@ export default function CollaborateursKPIsPage() {
             iconVariant="orange"
             delay={0.8}
           />
-        </div>
+        </SimpleGrid>
 
-        {/* Types de contrat */}
         <motion.div
-          className={styles.contractCard}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.9 }}
         >
-          <h3 className={styles.tableTitle}>
-            <Briefcase size={20} weight="bold" style={{ color: '#38D9A9' }} />
-            Types de contrat
-          </h3>
-          {data.repartitionContrat.map((item, index) => (
-            <motion.div
-              key={index}
-              className={styles.contractItem}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 1 + index * 0.1 }}
-            >
-              <div className={styles.contractHeader}>
-                <div className={styles.contractLabel}>
-                  <Handshake size={16} className={styles.contractIcon} />
-                  {item.type}
-                </div>
-                <span className={styles.contractCount}>{item.nombre}</span>
-              </div>
-              <div className={styles.contractProgress}>
-                <motion.div
-                  className={styles.contractProgressBar}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${item.pourcentage}%` }}
-                  transition={{ duration: 0.8, delay: 1.1 + index * 0.1 }}
-                />
-              </div>
-            </motion.div>
-          ))}
+          <Card withBorder p="lg" radius="md">
+            <Stack gap="md">
+              <Group gap="xs">
+                <ThemeIcon color="teal" variant="light"><Briefcase size={18} weight="bold" /></ThemeIcon>
+                <Title order={3}>Types de contrat</Title>
+              </Group>
+              <Stack gap="md">
+                {data.repartitionContrat.map((item, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 1 + index * 0.1 }}
+                  >
+                    <Stack gap={4}>
+                      <Group justify="space-between">
+                        <Group gap="xs">
+                          <Handshake size={16} />
+                          <Text>{item.type}</Text>
+                        </Group>
+                        <Text fw={600}>{item.nombre}</Text>
+                      </Group>
+                      <Progress value={item.pourcentage} />
+                    </Stack>
+                  </motion.div>
+                ))}
+              </Stack>
+            </Stack>
+          </Card>
         </motion.div>
 
-        {/* Top 10 Participants */}
         <motion.div
-          className={styles.topParticipantsCard}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 1.2 }}
         >
-          <h3 className={styles.topParticipantsTitle}>
-            <Trophy size={24} weight="fill" className={styles.trophyIcon} />
-            Top 10 des participants
-          </h3>
-
-          {data.topParticipants.map((participant, index) => (
-            <motion.div
-              key={participant.id}
-              className={styles.participantRow}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3, delay: 1.3 + index * 0.05 }}
-            >
-              <div className={`${styles.participantRank} ${getRankClass(index)}`}>
-                #{index + 1}
-              </div>
-              <div className={styles.participantName}>
-                {index < 3 && (
-                  <Trophy
-                    size={18}
-                    weight="fill"
-                    color={getTrophyColor(index)}
-                    className={styles.participantTrophySmall}
-                  />
-                )}
-                <span className={styles.participantNameText}>{participant.nom}</span>
-              </div>
-              <div className={styles.participantDepartment}>
-                {participant.departement}
-              </div>
-              <div className={styles.participantFormations}>
-                <span className={styles.participantFormationsValue}>{participant.nombreFormations}</span> formations
-              </div>
-              <div className={styles.participantHours}>
-                {participant.heuresTotal}h
-              </div>
-            </motion.div>
-          ))}
+          <Card withBorder p="lg" radius="md">
+            <Stack gap="md">
+              <Group gap="xs">
+                <ThemeIcon color="yellow" variant="light"><Trophy size={20} weight="fill" /></ThemeIcon>
+                <Title order={3}>Top 10 des participants</Title>
+              </Group>
+              <Stack gap="sm">
+                {data.topParticipants.map((participant, index) => (
+                  <motion.div
+                    key={participant.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 1.3 + index * 0.05 }}
+                  >
+                    <Paper withBorder p="sm" radius="md">
+                      <Group justify="space-between" wrap="nowrap">
+                        <Group gap="sm" wrap="nowrap">
+                          {index < 3 ? (
+                            <Badge color={getRankColor(index)} variant="filled">#{index + 1}</Badge>
+                          ) : (
+                            <Badge color="blue" variant="light">#{index + 1}</Badge>
+                          )}
+                          {index < 3 && (
+                            <ThemeIcon color={getRankColor(index)} variant="light" size="sm">
+                              <Trophy size={14} weight="fill" />
+                            </ThemeIcon>
+                          )}
+                          <Text fw={600}>{participant.nom}</Text>
+                        </Group>
+                        <Group gap="lg" wrap="nowrap">
+                          <Text size="sm" c="dimmed">{participant.departement}</Text>
+                          <Text size="sm">
+                            <Text span fw={700}>{participant.nombreFormations}</Text> formations
+                          </Text>
+                          <Text size="sm" fw={600}>{participant.heuresTotal}h</Text>
+                        </Group>
+                      </Group>
+                    </Paper>
+                  </motion.div>
+                ))}
+              </Stack>
+            </Stack>
+          </Card>
         </motion.div>
-      </div>
-    </div>
+      </Stack>
+    </Container>
   )
 }

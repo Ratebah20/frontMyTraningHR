@@ -29,11 +29,9 @@ const nextConfig = {
       '@mantine/modals',
       '@mantine/nprogress',
       '@mantine/dropzone',
-      '@mantine/carousel',
       '@phosphor-icons/react',
       'recharts',
       'date-fns',
-      'react-use',
     ],
   },
 }

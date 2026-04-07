@@ -46,6 +46,7 @@ import {
 } from '@mantine/core'
 import axios from 'axios'
 import { motion } from 'framer-motion'
+import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import { statsService, formationsService } from '@/lib/services'
 import { DetailedKPIsResponse, ComplianceEthicsKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
@@ -221,6 +222,7 @@ function GlassCard({
 }
 
 export default function CollaborateursKPIsPage() {
+  const reducedMotion = useReducedMotionPreference()
   const [data, setData] = useState<CollaborateursKPIs | null>(null)
   const [detailedData, setDetailedData] = useState<DetailedKPIsResponse | null>(null)
   const [loading, setLoading] = useState(true)
@@ -449,9 +451,9 @@ export default function CollaborateursKPIsPage() {
     <Container size="xl" py="md">
       <Stack gap="lg">
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          initial={reducedMotion ? false : { opacity: 0, y: -20 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.5 }}
         >
           <Stack gap={4}>
             <Title order={1}>KPIs Collaborateurs</Title>
@@ -460,9 +462,9 @@ export default function CollaborateursKPIsPage() {
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
+          initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.1 }}
         >
           <Card withBorder p="lg" radius="md">
             <Stack gap="md">
@@ -526,9 +528,9 @@ export default function CollaborateursKPIsPage() {
           <>
             {detailedData.heuresFormation && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.15 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.15 }}
               >
                 <Card withBorder p="lg" radius="md">
                   <Stack gap="md">
@@ -562,9 +564,9 @@ export default function CollaborateursKPIsPage() {
 
             {detailedData.heuresParOrganisme && detailedData.heuresParOrganisme.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.2 }}
               >
                 <Card withBorder p="lg" radius="md">
                   <Stack gap="md">
@@ -592,9 +594,9 @@ export default function CollaborateursKPIsPage() {
 
             {detailedData.collaborateurs && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.25 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.25 }}
               >
                 <Card withBorder p="lg" radius="md">
                   <Stack gap="md">
@@ -694,9 +696,9 @@ export default function CollaborateursKPIsPage() {
 
             <SimpleGrid cols={{ base: 1, md: 2 }}>
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
+                initial={reducedMotion ? false : { opacity: 0, x: -20 }}
+                animate={reducedMotion ? undefined : { opacity: 1, x: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.5 }}
               >
                 <Card withBorder p="lg" radius="md">
                   <Stack gap="md">
@@ -737,9 +739,9 @@ export default function CollaborateursKPIsPage() {
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.6 }}
+                initial={reducedMotion ? false : { opacity: 0, x: 20 }}
+                animate={reducedMotion ? undefined : { opacity: 1, x: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.6 }}
               >
                 <Card withBorder p="lg" radius="md">
                   <Stack gap="md">
@@ -851,9 +853,9 @@ export default function CollaborateursKPIsPage() {
 
             {detailedData.parDepartement && detailedData.parDepartement.length > 0 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.8 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.8 }}
               >
                 <Card withBorder p="lg" radius="md">
                   <Stack gap="md">

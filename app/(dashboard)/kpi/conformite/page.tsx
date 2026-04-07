@@ -14,7 +14,20 @@ import {
   Divider,
   Paper,
   Group,
-  Accordion
+  Accordion,
+  Container,
+  Card,
+  Title,
+  SimpleGrid,
+  ThemeIcon,
+  Loader,
+  Center,
+  Table,
+  Progress,
+  TextInput,
+  ActionIcon,
+  Tabs,
+  Box,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck'
@@ -36,7 +49,6 @@ import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import { statsService, formationsService, notificationsService } from '@/lib/services'
 import { ComplianceEthicsKPIsResponse } from '@/lib/types'
-import styles from './conformite.module.css'
 
 // ===== Interfaces =====
 
@@ -121,25 +133,23 @@ function KPICard({
 }) {
   return (
     <motion.div
-      className={styles.kpiCard}
       initial={{ opacity: 0, y: 40, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 100, damping: 15, delay }}
-      whileHover={{ y: -6, scale: 1.02 }}
     >
-      <div className={styles.kpiCardInner}>
-        <div className={styles.kpiHeader}>
-          <span className={styles.kpiTitle}>{title}</span>
-          <div className={styles.kpiIcon} data-color={color}>
+      <Card withBorder radius="md" padding="lg" h="100%">
+        <Group justify="space-between" mb="xs">
+          <Text size="sm" c="dimmed" fw={500}>{title}</Text>
+          <ThemeIcon variant="light" color={color} size="lg" radius="md">
             {icon}
-          </div>
-        </div>
-        <div className={styles.kpiValue}>
-          <span className={styles.kpiNumber}>{value.toLocaleString('fr-FR')}</span>
-          {suffix && <span className={styles.kpiSuffix}>{suffix}</span>}
-        </div>
-        {subtitle && <div className={styles.kpiSubtitle}>{subtitle}</div>}
-      </div>
+          </ThemeIcon>
+        </Group>
+        <Group align="baseline" gap={4}>
+          <Text size="xl" fw={700}>{value.toLocaleString('fr-FR')}</Text>
+          {suffix && <Text size="md" fw={600} c="dimmed">{suffix}</Text>}
+        </Group>
+        {subtitle && <Text size="xs" c="dimmed" mt={4}>{subtitle}</Text>}
+      </Card>
     </motion.div>
   )
 }
@@ -472,67 +482,58 @@ export default function ConformitePage() {
 
   // ===== Helper Functions =====
 
-  const getCoverageClass = (taux: number) => {
-    if (taux >= 80) return styles.coverageHigh
-    if (taux >= 50) return styles.coverageMedium
-    return styles.coverageLow
+  const getCoverageColor = (taux: number) => {
+    if (taux >= 80) return 'green'
+    if (taux >= 50) return 'yellow'
+    return 'red'
   }
 
-  const getCategoryBadgeClass = (categorie: string) => {
-    if (categorie.includes('Autres Collaborateurs')) return styles.badgeCollaborateur
-    if (categorie.includes('B2B')) return styles.badgeB2B
-    if (categorie.includes('B2C')) return styles.badgeB2C
-    if (categorie.includes('Manager')) return styles.badgeManager
-    if (categorie.includes('Directeur')) return styles.badgeDirecteur
-    return styles.badgeCrossCategory
+  const getCategoryBadgeColor = (categorie: string) => {
+    if (categorie.includes('Autres Collaborateurs')) return 'gray'
+    if (categorie.includes('B2B')) return 'blue'
+    if (categorie.includes('B2C')) return 'cyan'
+    if (categorie.includes('Manager')) return 'violet'
+    if (categorie.includes('Directeur')) return 'grape'
+    return 'teal'
   }
 
   // ===== Loading State =====
 
   if (mandatoryLoading && !mandatoryData) {
     return (
-      <div className={styles.pageContainer}>
-        <div className={styles.content}>
-          <div className={styles.loadingContainer}>
-            <div className={styles.loadingSpinner} />
-            <span className={styles.loadingText}>Chargement des donnees de conformite...</span>
-          </div>
-        </div>
-      </div>
+      <Container size="xl" py="md">
+        <Center h={400}>
+          <Stack align="center" gap="md">
+            <Loader size="lg" />
+            <Text c="dimmed">Chargement des donnees de conformite...</Text>
+          </Stack>
+        </Center>
+      </Container>
     )
   }
 
   // ===== Render =====
 
   return (
-    <div className={styles.pageContainer}>
-      <div className={styles.content}>
+    <Container size="xl" py="md">
+      <Stack gap="lg">
 
         {/* ===== HEADER ===== */}
         <motion.div
-          className={styles.pageHeader}
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <div className={styles.headerContent}>
-            <div>
-              <h1 className={styles.title}>Conformite & Formations Obligatoires</h1>
-              <p className={styles.subtitle}>
-                Suivi de la conformite reglementaire et des formations obligatoires
-              </p>
-            </div>
-            <div className={styles.liveTag}>
-              <span className={styles.liveDot} />
-              Temps reel
-            </div>
-          </div>
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            style={{ marginTop: '1rem' }}
-          >
+          <Stack gap="md">
+            <Group justify="space-between" align="flex-start">
+              <Stack gap={4}>
+                <Title order={1}>Conformite & Formations Obligatoires</Title>
+                <Text c="dimmed">
+                  Suivi de la conformite reglementaire et des formations obligatoires
+                </Text>
+              </Stack>
+              <Badge color="green" variant="light" size="lg">Temps reel</Badge>
+            </Group>
             <PeriodSelector
               periode={periode}
               date={date}
@@ -541,127 +542,142 @@ export default function ConformitePage() {
               onChange={(p, d) => { setPeriode(p); setDate(d) }}
               onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin) }}
             />
-          </motion.div>
+          </Stack>
         </motion.div>
 
         {/* ===== SECTION 1: SCOPE DES FORMATIONS ===== */}
         <motion.div
-          className={styles.scopeSection}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <h3 className={styles.scopeTitle}>
-            <ShieldCheck size={20} weight="bold" className={styles.iconColorTeal} />
-            Formations obligatoires ({selectedFormationIds.length}/{availableFormations.length} selectionnees)
-          </h3>
-          <div className={styles.formationSelectionHeader}>
-            <button
-              className={styles.formationSelectAllBtn}
-              onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
-              disabled={selectedFormationIds.length === availableFormations.length}
-            >
-              Tout selectionner
-            </button>
-            <button
-              className={styles.formationDeselectAllBtn}
-              onClick={() => setSelectedFormationIds([])}
-              disabled={selectedFormationIds.length === 0}
-            >
-              Tout deselectionner
-            </button>
-            <button
-              className={styles.formationAddBtn}
-              onClick={() => {
-                setShowSearch(!showSearch)
-                setTimeout(() => searchInputRef.current?.focus(), 100)
-              }}
-            >
-              <Plus size={14} weight="bold" style={{ marginRight: '4px' }} />
-              Ajouter une formation
-            </button>
-          </div>
+          <Card withBorder radius="md" padding="lg">
+            <Stack gap="md">
+              <Group gap="xs">
+                <ThemeIcon variant="light" color="teal" size="md" radius="md">
+                  <ShieldCheck size={18} weight="bold" />
+                </ThemeIcon>
+                <Title order={4}>
+                  Formations obligatoires ({selectedFormationIds.length}/{availableFormations.length} selectionnees)
+                </Title>
+              </Group>
 
-          {/* Search to add formations */}
-          {showSearch && (
-            <div className={styles.formationSearchContainer}>
-              <div className={styles.formationSearchInputWrapper}>
-                <MagnifyingGlass size={16} className={styles.searchIcon} />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  className={styles.formationSearchInput}
-                  placeholder="Rechercher une formation..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                <button
-                  className={styles.searchCloseBtn}
-                  onClick={() => { setShowSearch(false); setSearchQuery('') }}
+              <Group gap="xs">
+                <Button
+                  variant="light"
+                  size="xs"
+                  onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
+                  disabled={selectedFormationIds.length === availableFormations.length}
                 >
-                  <X size={14} />
-                </button>
-              </div>
-              {searchQuery && filteredSearchResults.length > 0 && (
-                <div className={styles.formationSearchResults}>
-                  {filteredSearchResults.map(f => (
-                    <button
-                      key={f.id}
-                      className={styles.formationSearchResultItem}
-                      onClick={() => addFormationToList(f)}
-                    >
-                      <Plus size={14} style={{ marginRight: '8px', opacity: 0.6 }} />
-                      {f.nom}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {searchQuery && filteredSearchResults.length === 0 && (
-                <div className={styles.formationSearchNoResults}>
-                  Aucune formation trouvee
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Formation tags */}
-          <div className={styles.formationsTagList}>
-            {availableFormations.map(f => (
-              <div key={f.id} className={styles.formationTagWrapper}>
-                <button
-                  className={`${styles.formationTag} ${selectedFormationIds.includes(f.id) ? styles.formationSelected : styles.formationUnselected}`}
+                  Tout selectionner
+                </Button>
+                <Button
+                  variant="light"
+                  color="gray"
+                  size="xs"
+                  onClick={() => setSelectedFormationIds([])}
+                  disabled={selectedFormationIds.length === 0}
+                >
+                  Tout deselectionner
+                </Button>
+                <Button
+                  variant="light"
+                  color="cyan"
+                  size="xs"
+                  leftSection={<Plus size={14} weight="bold" />}
                   onClick={() => {
-                    if (selectedFormationIds.includes(f.id)) {
-                      setSelectedFormationIds(prev => prev.filter(id => id !== f.id))
-                    } else {
-                      setSelectedFormationIds(prev => [...prev, f.id])
-                    }
+                    setShowSearch(!showSearch)
+                    setTimeout(() => searchInputRef.current?.focus(), 100)
                   }}
                 >
-                  {selectedFormationIds.includes(f.id) ? (
-                    <CheckCircle size={14} weight="fill" style={{ marginRight: '4px' }} />
-                  ) : (
-                    <XCircle size={14} weight="regular" style={{ marginRight: '4px', opacity: 0.5 }} />
-                  )}
-                  {f.nom}
-                </button>
-                <button
-                  className={styles.formationRemoveBtn}
-                  onClick={() => removeFormationFromList(f.id)}
-                  title="Retirer de la liste"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            ))}
-          </div>
+                  Ajouter une formation
+                </Button>
+              </Group>
 
-          {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
-            <div className={styles.noSelectionMessage}>
-              <Warning size={16} style={{ marginRight: '8px' }} />
-              Aucune formation obligatoire trouvee - Utilisez "Ajouter une formation" pour en ajouter
-            </div>
-          )}
+              {/* Search to add formations */}
+              {showSearch && (
+                <Stack gap="xs">
+                  <TextInput
+                    ref={searchInputRef}
+                    leftSection={<MagnifyingGlass size={16} />}
+                    rightSection={
+                      <ActionIcon variant="subtle" color="gray" onClick={() => { setShowSearch(false); setSearchQuery('') }}>
+                        <X size={14} />
+                      </ActionIcon>
+                    }
+                    placeholder="Rechercher une formation..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && filteredSearchResults.length > 0 && (
+                    <Paper withBorder p="xs">
+                      <Stack gap={4}>
+                        {filteredSearchResults.map(f => (
+                          <Button
+                            key={f.id}
+                            variant="subtle"
+                            justify="flex-start"
+                            leftSection={<Plus size={14} />}
+                            onClick={() => addFormationToList(f)}
+                          >
+                            {f.nom}
+                          </Button>
+                        ))}
+                      </Stack>
+                    </Paper>
+                  )}
+                  {searchQuery && filteredSearchResults.length === 0 && (
+                    <Text size="sm" c="dimmed" ta="center">Aucune formation trouvee</Text>
+                  )}
+                </Stack>
+              )}
+
+              {/* Formation tags */}
+              <Group gap="xs">
+                {availableFormations.map(f => {
+                  const isSelected = selectedFormationIds.includes(f.id)
+                  return (
+                    <Group key={f.id} gap={4} wrap="nowrap">
+                      <Button
+                        variant={isSelected ? 'filled' : 'default'}
+                        color={isSelected ? 'teal' : 'gray'}
+                        size="xs"
+                        leftSection={
+                          isSelected
+                            ? <CheckCircle size={14} weight="fill" />
+                            : <XCircle size={14} weight="regular" />
+                        }
+                        onClick={() => {
+                          if (isSelected) {
+                            setSelectedFormationIds(prev => prev.filter(id => id !== f.id))
+                          } else {
+                            setSelectedFormationIds(prev => [...prev, f.id])
+                          }
+                        }}
+                      >
+                        {f.nom}
+                      </Button>
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        size="sm"
+                        onClick={() => removeFormationFromList(f.id)}
+                        title="Retirer de la liste"
+                      >
+                        <X size={12} />
+                      </ActionIcon>
+                    </Group>
+                  )
+                })}
+              </Group>
+
+              {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
+                <Alert color="orange" icon={<Warning size={16} />}>
+                  Aucune formation obligatoire trouvee - Utilisez "Ajouter une formation" pour en ajouter
+                </Alert>
+              )}
+            </Stack>
+          </Card>
         </motion.div>
 
         {/* ===== SECTION 2: STATS GLOBALES (KPI CARDS) ===== */}
@@ -671,7 +687,7 @@ export default function ConformitePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.15 }}
           >
-            <div className={styles.kpiGrid}>
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
               <KPICard
                 title="Formations obligatoires"
                 value={mandatoryData.stats.totalFormations}
@@ -726,194 +742,206 @@ export default function ConformitePage() {
                   />
                 </>
               )}
-            </div>
+            </SimpleGrid>
           </motion.div>
         )}
 
         {/* ===== SECTION 3: DETAIL PAR FORMATION (TABLE) ===== */}
         {mandatoryData && mandatoryData.formations.length > 0 && (
           <motion.div
-            className={styles.tableSection}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <h3 className={styles.sectionTitle}>Detail par formation</h3>
-            <p className={styles.sectionSubtitle}>Taux de conformite pour chaque formation obligatoire</p>
+            <Card withBorder radius="md" padding="lg">
+              <Stack gap="md">
+                <Stack gap={4}>
+                  <Title order={3}>Detail par formation</Title>
+                  <Text size="sm" c="dimmed">Taux de conformite pour chaque formation obligatoire</Text>
+                </Stack>
 
-            <table className={styles.detailTable}>
-              <thead>
-                <tr>
-                  <th>Formation</th>
-                  <th>Categorie</th>
-                  <th>Formes</th>
-                  <th>Non formes</th>
-                  <th>Taux</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {mandatoryData.formations.map((formation, index) => (
-                  <motion.tr
-                    key={formation.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + index * 0.05 }}
-                  >
-                    <td>
-                      <div>
-                        <div style={{ fontWeight: 600 }}>{formation.nomFormation}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--mantine-color-dimmed)' }}>{formation.codeFormation}</div>
-                      </div>
-                    </td>
-                    <td>
-                      <Badge variant="light" color="gray" size="sm">{formation.categorie}</Badge>
-                    </td>
-                    <td style={{ color: 'var(--mantine-color-green-6)', fontWeight: 600 }}>{formation.collaborateursFormes}</td>
-                    <td style={{ color: 'var(--mantine-color-red-6)', fontWeight: 600 }}>{formation.collaborateursNonFormes}</td>
-                    <td>
-                      <span
-                        className={styles.tauxBadge}
-                        data-level={formation.tauxConformite >= 80 ? 'high' : formation.tauxConformite >= 50 ? 'medium' : 'low'}
-                      >
-                        {formation.tauxConformite}%
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className={styles.detailButton}
-                        onClick={() => {
-                          setSelectedFormation(formation)
-                          setModalTab('nonFormes')
-                        }}
-                      >
-                        <Eye size={14} weight="bold" style={{ marginRight: 4 }} />
-                        Details
-                      </button>
-                    </td>
-                  </motion.tr>
-                ))}
-              </tbody>
-            </table>
+                <Table striped withTableBorder highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Formation</Table.Th>
+                      <Table.Th>Categorie</Table.Th>
+                      <Table.Th>Formes</Table.Th>
+                      <Table.Th>Non formes</Table.Th>
+                      <Table.Th>Taux</Table.Th>
+                      <Table.Th>Actions</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {mandatoryData.formations.map((formation) => (
+                      <Table.Tr key={formation.id}>
+                        <Table.Td>
+                          <Stack gap={2}>
+                            <Text fw={600} size="sm">{formation.nomFormation}</Text>
+                            <Text size="xs" c="dimmed">{formation.codeFormation}</Text>
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge variant="light" color="gray" size="sm">{formation.categorie}</Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text c="green" fw={600}>{formation.collaborateursFormes}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text c="red" fw={600}>{formation.collaborateursNonFormes}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            color={formation.tauxConformite >= 80 ? 'green' : formation.tauxConformite >= 50 ? 'yellow' : 'red'}
+                            variant="light"
+                          >
+                            {formation.tauxConformite}%
+                          </Badge>
+                        </Table.Td>
+                        <Table.Td>
+                          <Button
+                            variant="light"
+                            size="xs"
+                            leftSection={<Eye size={14} weight="bold" />}
+                            onClick={() => {
+                              setSelectedFormation(formation)
+                              setModalTab('nonFormes')
+                            }}
+                          >
+                            Details
+                          </Button>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </Stack>
+            </Card>
           </motion.div>
         )}
 
         {/* ===== SECTION 4: PAR DEPARTEMENT ===== */}
         {mandatoryData && mandatoryData.parDepartement.length > 0 && (
           <motion.div
-            className={styles.deptSection}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <h3 className={styles.sectionTitle}>
-              <Buildings size={24} weight="bold" style={{ marginRight: 8, verticalAlign: 'middle' }} />
-              Conformite par departement
-            </h3>
-            <p className={styles.sectionSubtitle}>
-              Pourcentage de collaborateurs ayant complete toutes les formations obligatoires
-            </p>
+            <Card withBorder radius="md" padding="lg">
+              <Stack gap="md">
+                <Group gap="xs">
+                  <ThemeIcon variant="light" color="blue" size="md" radius="md">
+                    <Buildings size={18} weight="bold" />
+                  </ThemeIcon>
+                  <Stack gap={2}>
+                    <Title order={3}>Conformite par departement</Title>
+                    <Text size="sm" c="dimmed">
+                      Pourcentage de collaborateurs ayant complete toutes les formations obligatoires
+                    </Text>
+                  </Stack>
+                </Group>
 
-            <div className={styles.deptProgressList}>
-              {mandatoryData.parDepartement.slice(0, 10).map((dept, index) => (
-                <motion.div
-                  key={dept.departementId}
-                  className={styles.deptProgressRow}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.5 + index * 0.05 }}
-                >
-                  <span className={styles.deptName}>{dept.departement}</span>
-                  <div className={styles.deptBarContainer}>
-                    <motion.div
-                      className={styles.deptBar}
-                      data-level={dept.tauxConformite >= 80 ? 'high' : dept.tauxConformite >= 50 ? 'medium' : 'low'}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${dept.tauxConformite}%` }}
-                      transition={{ duration: 0.8, delay: 0.6 + index * 0.05, ease: 'easeOut' }}
-                    />
-                  </div>
-                  <span className={styles.deptStats}>{dept.formes}/{dept.totalCollaborateurs}</span>
-                  <span className={styles.deptTaux}>{dept.tauxConformite}%</span>
-                </motion.div>
-              ))}
-            </div>
+                <Stack gap="sm">
+                  {mandatoryData.parDepartement.slice(0, 10).map((dept) => (
+                    <Group key={dept.departementId} justify="space-between" wrap="nowrap" gap="md">
+                      <Text size="sm" fw={500} style={{ minWidth: 180 }}>{dept.departement}</Text>
+                      <Box style={{ flex: 1 }}>
+                        <Progress
+                          value={dept.tauxConformite}
+                          color={dept.tauxConformite >= 80 ? 'green' : dept.tauxConformite >= 50 ? 'yellow' : 'red'}
+                          size="lg"
+                          radius="md"
+                          animated
+                        />
+                      </Box>
+                      <Text size="sm" c="dimmed" style={{ minWidth: 70, textAlign: 'right' }}>
+                        {dept.formes}/{dept.totalCollaborateurs}
+                      </Text>
+                      <Text size="sm" fw={700} style={{ minWidth: 50, textAlign: 'right' }}>
+                        {dept.tauxConformite}%
+                      </Text>
+                    </Group>
+                  ))}
+                </Stack>
 
-            {mandatoryData.parDepartement.length > 10 && (
-              <Text size="sm" c="dimmed" ta="center" mt="md">
-                +{mandatoryData.parDepartement.length - 10} autres departements
-              </Text>
-            )}
+                {mandatoryData.parDepartement.length > 10 && (
+                  <Text size="sm" c="dimmed" ta="center">
+                    +{mandatoryData.parDepartement.length - 10} autres departements
+                  </Text>
+                )}
+              </Stack>
+            </Card>
           </motion.div>
         )}
 
         {/* ===== SECTION 5: CATEGORIES A RISQUE ===== */}
         {complianceLoading ? (
-          <motion.div
-            className={styles.globalStatsSection}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <div className={styles.loadingContainer}>
-              <div className={styles.loadingSpinner} />
-              <span className={styles.loadingText}>Chargement des KPIs Conformite...</span>
-            </div>
-          </motion.div>
+          <Card withBorder radius="md" padding="lg">
+            <Center h={150}>
+              <Stack align="center" gap="sm">
+                <Loader />
+                <Text size="sm" c="dimmed">Chargement des KPIs Conformite...</Text>
+              </Stack>
+            </Center>
+          </Card>
         ) : complianceData ? (
           <>
             {/* Divider */}
-            <div className={styles.divider}>
-              <div className={styles.dividerLine} />
-              <div className={styles.dividerContent}>
-                <Scales size={18} weight="bold" className={styles.dividerIcon} />
-                <span className={styles.dividerText}>Analyse par categorie</span>
-                {complianceData.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                )}
-              </div>
-              <div className={styles.dividerLine} />
-            </div>
+            <Divider
+              my="md"
+              label={
+                <Group gap="xs">
+                  <Scales size={18} weight="bold" />
+                  <Text fw={600}>Analyse par categorie</Text>
+                  {complianceData.periode?.libelle && (
+                    <Badge variant="light">{complianceData.periode.libelle}</Badge>
+                  )}
+                </Group>
+              }
+              labelPosition="center"
+            />
 
             {/* Global compliance stats */}
             <motion.div
-              className={styles.globalStatsSection}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.1 }}
             >
-              <h3 className={styles.globalStatsTitle}>
-                Statistiques Globales
-                {complianceData.periode?.libelle && (
-                  <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                )}
-              </h3>
-              <div className={styles.complianceGlobalStats}>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue}>
-                    {complianceData.comparatifGlobal.tauxCouverture}%
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Taux couverture</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={styles.complianceGlobalStatValue}>
-                    {complianceData.comparatifGlobal.formes}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Formes</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={`${styles.complianceGlobalStatValue} ${styles.statValueRed}`}>
-                    {complianceData.comparatifGlobal.nonFormes}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Non formes</span>
-                </div>
-                <div className={styles.complianceGlobalStat}>
-                  <span className={`${styles.complianceGlobalStatValue} ${styles.statValueBlue}`}>
-                    {complianceData.comparatifGlobal.totalEmployesRisque}
-                  </span>
-                  <span className={styles.complianceGlobalStatLabel}>Employes a risque</span>
-                </div>
-              </div>
+              <Card withBorder radius="md" padding="lg">
+                <Stack gap="md">
+                  <Group gap="xs">
+                    <Title order={3}>Statistiques Globales</Title>
+                    {complianceData.periode?.libelle && (
+                      <Badge variant="light">{complianceData.periode.libelle}</Badge>
+                    )}
+                  </Group>
+                  <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+                    <Paper withBorder p="md" radius="md">
+                      <Stack gap={4} align="center">
+                        <Text size="xl" fw={700}>{complianceData.comparatifGlobal.tauxCouverture}%</Text>
+                        <Text size="xs" c="dimmed">Taux couverture</Text>
+                      </Stack>
+                    </Paper>
+                    <Paper withBorder p="md" radius="md">
+                      <Stack gap={4} align="center">
+                        <Text size="xl" fw={700}>{complianceData.comparatifGlobal.formes}</Text>
+                        <Text size="xs" c="dimmed">Formes</Text>
+                      </Stack>
+                    </Paper>
+                    <Paper withBorder p="md" radius="md">
+                      <Stack gap={4} align="center">
+                        <Text size="xl" fw={700} c="red">{complianceData.comparatifGlobal.nonFormes}</Text>
+                        <Text size="xs" c="dimmed">Non formes</Text>
+                      </Stack>
+                    </Paper>
+                    <Paper withBorder p="md" radius="md">
+                      <Stack gap={4} align="center">
+                        <Text size="xl" fw={700} c="blue">{complianceData.comparatifGlobal.totalEmployesRisque}</Text>
+                        <Text size="xs" c="dimmed">Employes a risque</Text>
+                      </Stack>
+                    </Paper>
+                  </SimpleGrid>
+                </Stack>
+              </Card>
             </motion.div>
 
             {/* Risk categories grid */}
@@ -923,55 +951,59 @@ export default function ConformitePage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.2 }}
               >
-                <h3 className={styles.globalStatsTitle}>
-                  Categories a Risque
-                  {complianceData.periode?.libelle && (
-                    <span className={styles.yearBadge}>{complianceData.periode.libelle}</span>
-                  )}
-                </h3>
-                <div className={styles.riskCategoriesGrid}>
-                  {complianceData.parCategorieCroisee.map((cat) => (
-                    <div key={cat.categorie} className={styles.riskCategoryCard}>
-                      <div className={styles.riskCategoryHeader}>
-                        <span className={styles.riskCategoryLabel}>{cat.categorie}</span>
-                        <span className={`${styles.riskCategoryBadge} ${getCategoryBadgeClass(cat.categorie)}`}>
-                          {cat.tauxCouverture}%
-                        </span>
-                      </div>
-                      <div className={styles.riskCategoryStats}>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Effectif</span>
-                          <span className={styles.riskCategoryStatValue}>{cat.total}</span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Formes</span>
-                          <span className={`${styles.riskCategoryStatValue} ${styles.textFormes}`}>
-                            {cat.formes}
-                          </span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Non formes</span>
-                          <span className={`${styles.riskCategoryStatValue} ${styles.textNonFormes}`}>
-                            {cat.nonFormes}
-                          </span>
-                        </div>
-                        <div className={styles.riskCategoryStat}>
-                          <span>Heures</span>
-                          <span className={styles.riskCategoryStatValue}>{cat.heures}h</span>
-                        </div>
-                      </div>
-                      <div className={styles.coverageIndicator}>
-                        <div className={styles.coverageBar}>
-                          <div
-                            className={`${styles.coverageProgress} ${getCoverageClass(cat.tauxCouverture)}`}
-                            style={{ width: `${cat.tauxCouverture}%` }}
-                          />
-                        </div>
-                        <span className={styles.coveragePercent}>{cat.tauxCouverture}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Card withBorder radius="md" padding="lg">
+                  <Stack gap="md">
+                    <Group gap="xs">
+                      <Title order={3}>Categories a Risque</Title>
+                      {complianceData.periode?.libelle && (
+                        <Badge variant="light">{complianceData.periode.libelle}</Badge>
+                      )}
+                    </Group>
+                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="md">
+                      {complianceData.parCategorieCroisee.map((cat) => (
+                        <Card key={cat.categorie} withBorder radius="md" padding="md">
+                          <Stack gap="sm">
+                            <Group justify="space-between" wrap="nowrap">
+                              <Text size="sm" fw={600}>{cat.categorie}</Text>
+                              <Badge color={getCategoryBadgeColor(cat.categorie)} variant="light">
+                                {cat.tauxCouverture}%
+                              </Badge>
+                            </Group>
+                            <SimpleGrid cols={2} spacing="xs">
+                              <Group justify="space-between">
+                                <Text size="xs" c="dimmed">Effectif</Text>
+                                <Text size="xs" fw={600}>{cat.total}</Text>
+                              </Group>
+                              <Group justify="space-between">
+                                <Text size="xs" c="dimmed">Formes</Text>
+                                <Text size="xs" fw={600} c="green">{cat.formes}</Text>
+                              </Group>
+                              <Group justify="space-between">
+                                <Text size="xs" c="dimmed">Non formes</Text>
+                                <Text size="xs" fw={600} c="red">{cat.nonFormes}</Text>
+                              </Group>
+                              <Group justify="space-between">
+                                <Text size="xs" c="dimmed">Heures</Text>
+                                <Text size="xs" fw={600}>{cat.heures}h</Text>
+                              </Group>
+                            </SimpleGrid>
+                            <Group gap="xs" align="center">
+                              <Box style={{ flex: 1 }}>
+                                <Progress
+                                  value={cat.tauxCouverture}
+                                  color={getCoverageColor(cat.tauxCouverture)}
+                                  size="md"
+                                  radius="md"
+                                />
+                              </Box>
+                              <Text size="xs" fw={600}>{cat.tauxCouverture}%</Text>
+                            </Group>
+                          </Stack>
+                        </Card>
+                      ))}
+                    </SimpleGrid>
+                  </Stack>
+                </Card>
               </motion.div>
             )}
           </>
@@ -979,178 +1011,194 @@ export default function ConformitePage() {
 
         {/* ===== SECTION 6: VUE PAR MANAGER ===== */}
         <motion.div
-          className={styles.managerViewSection}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <div className={styles.managerViewHeader}>
-            <div>
-              <h3 className={styles.sectionTitle}>
-                <UserList size={24} weight="bold" style={{ marginRight: 8, verticalAlign: 'middle' }} />
-                Vue par departement et manager
-              </h3>
-              <p className={styles.sectionSubtitle}>
-                Selectionnez les managers a notifier pour les formations obligatoires manquantes
-              </p>
-            </div>
-            <Select
-              placeholder="Tous les departements"
-              data={departementOptions}
-              value={selectedDept}
-              onChange={setSelectedDept}
-              clearable
-              style={{ minWidth: 220 }}
-            />
-          </div>
+          <Card withBorder radius="md" padding="lg">
+            <Stack gap="md">
+              <Group justify="space-between" align="flex-start" wrap="wrap">
+                <Group gap="xs" align="flex-start">
+                  <ThemeIcon variant="light" color="cyan" size="md" radius="md">
+                    <UserList size={18} weight="bold" />
+                  </ThemeIcon>
+                  <Stack gap={2}>
+                    <Title order={3}>Vue par departement et manager</Title>
+                    <Text size="sm" c="dimmed">
+                      Selectionnez les managers a notifier pour les formations obligatoires manquantes
+                    </Text>
+                  </Stack>
+                </Group>
+                <Select
+                  placeholder="Tous les departements"
+                  data={departementOptions}
+                  value={selectedDept}
+                  onChange={setSelectedDept}
+                  clearable
+                  style={{ minWidth: 220 }}
+                />
+              </Group>
 
-          {/* Grouped actions */}
-          <div className={styles.managerActions}>
-            <Checkbox
-              label="Selectionner tous les managers"
-              checked={!!(byManagerData && selectedManagers.length === byManagerData.departements.flatMap(d => d.managers).length && selectedManagers.length > 0)}
-              indeterminate={!!(selectedManagers.length > 0 && byManagerData && selectedManagers.length < byManagerData.departements.flatMap(d => d.managers).length)}
-              onChange={toggleSelectAllManagers}
-            />
-            <Button
-              leftSection={<EnvelopeSimple size={18} weight="bold" />}
-              disabled={selectedManagers.length === 0}
-              onClick={() => setShowReminderModal(true)}
-              variant="filled"
-            >
-              Envoyer rappels ({selectedManagers.length})
-            </Button>
-          </div>
+              {/* Grouped actions */}
+              <Group justify="space-between">
+                <Checkbox
+                  label="Selectionner tous les managers"
+                  checked={!!(byManagerData && selectedManagers.length === byManagerData.departements.flatMap(d => d.managers).length && selectedManagers.length > 0)}
+                  indeterminate={!!(selectedManagers.length > 0 && byManagerData && selectedManagers.length < byManagerData.departements.flatMap(d => d.managers).length)}
+                  onChange={toggleSelectAllManagers}
+                />
+                <Button
+                  leftSection={<EnvelopeSimple size={18} weight="bold" />}
+                  disabled={selectedManagers.length === 0}
+                  onClick={() => setShowReminderModal(true)}
+                  variant="filled"
+                >
+                  Envoyer rappels ({selectedManagers.length})
+                </Button>
+              </Group>
 
-          {/* Loading state */}
-          {byManagerLoading ? (
-            <div className={styles.managerLoadingState}>
-              <motion.div
-                className={styles.loadingOrb}
-                animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              />
-              <span>Chargement de la vue par manager...</span>
-            </div>
-          ) : byManagerData && byManagerData.departements.length === 0 && byManagerData.sansManager.length === 0 ? (
-            <div className={styles.managerEmptyState}>
-              <div className={styles.managerEmptyIcon}>
-                <CheckCircle size={40} weight="duotone" />
-              </div>
-              <h4>Tous les collaborateurs sont conformes</h4>
-              <p>Aucun collaborateur n'a de formation obligatoire manquante.</p>
-            </div>
-          ) : byManagerData && (
-            <>
-              {/* Summary stats bar */}
-              <div className={styles.managerStatsBar}>
-                <div className={styles.managerStat}>
-                  <Buildings size={16} weight="bold" />
-                  <span>{byManagerData.stats.totalDepartements} departements</span>
-                </div>
-                <div className={styles.managerStat}>
-                  <UserList size={16} weight="bold" />
-                  <span>{byManagerData.stats.totalManagers} managers</span>
-                </div>
-                <div className={styles.managerStat}>
-                  <WarningCircle size={16} weight="bold" />
-                  <span>{byManagerData.stats.totalCollaborateursNonFormes} collaborateurs a former</span>
-                </div>
-              </div>
-
-              {/* Department accordion */}
-              <Accordion
-                classNames={{
-                  root: styles.managerAccordion,
-                  item: styles.accordionItem,
-                  control: styles.accordionControl,
-                  content: styles.accordionContent,
-                  chevron: styles.accordionChevron
-                }}
-                multiple
-                defaultValue={byManagerData.departements.slice(0, 2).map(d => `dept-${d.id}`)}
-              >
-                {byManagerData.departements.map(dept => (
-                  <Accordion.Item key={dept.id} value={`dept-${dept.id}`}>
-                    <Accordion.Control>
-                      <Group gap="sm">
-                        <Buildings size={20} weight="bold" style={{ color: 'var(--mantine-primary-color-filled)' }} />
-                        <Text fw={600}>{dept.nom}</Text>
-                        <Badge color="red" variant="filled" size="sm">{dept.totalNonFormes} non formes</Badge>
-                        <Badge color="gray" variant="light" size="sm">{dept.managers.length} managers</Badge>
+              {/* Loading state */}
+              {byManagerLoading ? (
+                <Center h={150}>
+                  <Stack align="center" gap="sm">
+                    <Loader />
+                    <Text size="sm" c="dimmed">Chargement de la vue par manager...</Text>
+                  </Stack>
+                </Center>
+              ) : byManagerData && byManagerData.departements.length === 0 && byManagerData.sansManager.length === 0 ? (
+                <Center py="xl">
+                  <Stack align="center" gap="sm">
+                    <ThemeIcon variant="light" color="green" size={64} radius="xl">
+                      <CheckCircle size={40} weight="duotone" />
+                    </ThemeIcon>
+                    <Title order={4}>Tous les collaborateurs sont conformes</Title>
+                    <Text size="sm" c="dimmed">Aucun collaborateur n'a de formation obligatoire manquante.</Text>
+                  </Stack>
+                </Center>
+              ) : byManagerData && (
+                <>
+                  {/* Summary stats bar */}
+                  <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                    <Paper withBorder p="md" radius="md">
+                      <Group gap="xs">
+                        <ThemeIcon variant="light" color="blue" size="md" radius="md">
+                          <Buildings size={16} weight="bold" />
+                        </ThemeIcon>
+                        <Text size="sm">{byManagerData.stats.totalDepartements} departements</Text>
                       </Group>
-                    </Accordion.Control>
-                    <Accordion.Panel>
-                      <div className={styles.managerList}>
-                        {dept.managers.map(manager => (
-                          <motion.div
-                            key={manager.id}
-                            className={styles.managerRow}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            whileHover={{ scale: 1.005 }}
-                          >
-                            <Checkbox
-                              checked={selectedManagers.includes(manager.id)}
-                              onChange={() => toggleManager(manager.id)}
-                              styles={{ root: { alignSelf: 'flex-start', marginTop: 4 } }}
-                            />
-                            <div className={styles.managerInfo}>
-                              <div className={styles.managerHeader}>
-                                <Text fw={600} size="sm">{manager.nomComplet}</Text>
-                                <Badge variant="light" size="xs">
-                                  {manager.totalSubordonnes} collaborateur{manager.totalSubordonnes > 1 ? 's' : ''}
-                                </Badge>
-                              </div>
-                              <div className={styles.collaborateursList}>
-                                {manager.collaborateursNonFormes.map(collab => (
-                                  <div key={collab.id} className={styles.collaborateurItem}>
-                                    <Text size="xs" c="dimmed">{collab.nomComplet}</Text>
-                                    <div className={styles.formationsManquantes}>
-                                      {collab.formationsManquantes.map(f => (
-                                        <Badge key={f.id} size="xs" color="pink" variant="light">
-                                          {f.nomFormation}
-                                        </Badge>
-                                      ))}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </Accordion.Panel>
-                  </Accordion.Item>
-                ))}
-              </Accordion>
+                    </Paper>
+                    <Paper withBorder p="md" radius="md">
+                      <Group gap="xs">
+                        <ThemeIcon variant="light" color="cyan" size="md" radius="md">
+                          <UserList size={16} weight="bold" />
+                        </ThemeIcon>
+                        <Text size="sm">{byManagerData.stats.totalManagers} managers</Text>
+                      </Group>
+                    </Paper>
+                    <Paper withBorder p="md" radius="md">
+                      <Group gap="xs">
+                        <ThemeIcon variant="light" color="red" size="md" radius="md">
+                          <WarningCircle size={16} weight="bold" />
+                        </ThemeIcon>
+                        <Text size="sm">{byManagerData.stats.totalCollaborateursNonFormes} collaborateurs a former</Text>
+                      </Group>
+                    </Paper>
+                  </SimpleGrid>
 
-              {/* Collaborateurs without manager */}
-              {byManagerData.sansManager.length > 0 && (
-                <div className={styles.sansManagerSection}>
-                  <h4 className={styles.sansManagerTitle}>
-                    <WarningCircle size={18} weight="bold" style={{ marginRight: 6 }} />
-                    Collaborateurs sans manager ({byManagerData.sansManager.length})
-                  </h4>
-                  <div className={styles.sansManagerList}>
-                    {byManagerData.sansManager.map(collab => (
-                      <div key={collab.id} className={styles.sansManagerItem}>
-                        <Text size="sm">{collab.nomComplet}</Text>
-                        <Text size="xs" c="dimmed">{collab.departement}</Text>
-                        <div className={styles.formationsManquantes}>
-                          {collab.formationsManquantes.map(f => (
-                            <Badge key={f.id} size="xs" color="pink" variant="light">
-                              {f.nomFormation}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
+                  {/* Department accordion */}
+                  <Accordion
+                    multiple
+                    defaultValue={byManagerData.departements.slice(0, 2).map(d => `dept-${d.id}`)}
+                    variant="separated"
+                  >
+                    {byManagerData.departements.map(dept => (
+                      <Accordion.Item key={dept.id} value={`dept-${dept.id}`}>
+                        <Accordion.Control>
+                          <Group gap="sm">
+                            <ThemeIcon variant="light" color="blue" size="md" radius="md">
+                              <Buildings size={18} weight="bold" />
+                            </ThemeIcon>
+                            <Text fw={600}>{dept.nom}</Text>
+                            <Badge color="red" variant="filled" size="sm">{dept.totalNonFormes} non formes</Badge>
+                            <Badge color="gray" variant="light" size="sm">{dept.managers.length} managers</Badge>
+                          </Group>
+                        </Accordion.Control>
+                        <Accordion.Panel>
+                          <Stack gap="sm">
+                            {dept.managers.map(manager => (
+                              <Paper key={manager.id} withBorder p="md" radius="md">
+                                <Group align="flex-start" wrap="nowrap">
+                                  <Checkbox
+                                    checked={selectedManagers.includes(manager.id)}
+                                    onChange={() => toggleManager(manager.id)}
+                                  />
+                                  <Stack gap="xs" style={{ flex: 1 }}>
+                                    <Group gap="xs">
+                                      <Text fw={600} size="sm">{manager.nomComplet}</Text>
+                                      <Badge variant="light" size="xs">
+                                        {manager.totalSubordonnes} collaborateur{manager.totalSubordonnes > 1 ? 's' : ''}
+                                      </Badge>
+                                    </Group>
+                                    <Stack gap={4}>
+                                      {manager.collaborateursNonFormes.map(collab => (
+                                        <Group key={collab.id} gap="xs" wrap="wrap">
+                                          <Text size="xs" c="dimmed">{collab.nomComplet}</Text>
+                                          <Group gap={4}>
+                                            {collab.formationsManquantes.map(f => (
+                                              <Badge key={f.id} size="xs" color="pink" variant="light">
+                                                {f.nomFormation}
+                                              </Badge>
+                                            ))}
+                                          </Group>
+                                        </Group>
+                                      ))}
+                                    </Stack>
+                                  </Stack>
+                                </Group>
+                              </Paper>
+                            ))}
+                          </Stack>
+                        </Accordion.Panel>
+                      </Accordion.Item>
                     ))}
-                  </div>
-                </div>
+                  </Accordion>
+
+                  {/* Collaborateurs without manager */}
+                  {byManagerData.sansManager.length > 0 && (
+                    <Card withBorder radius="md" padding="md">
+                      <Stack gap="sm">
+                        <Group gap="xs">
+                          <ThemeIcon variant="light" color="orange" size="md" radius="md">
+                            <WarningCircle size={16} weight="bold" />
+                          </ThemeIcon>
+                          <Title order={5}>
+                            Collaborateurs sans manager ({byManagerData.sansManager.length})
+                          </Title>
+                        </Group>
+                        <Stack gap="xs">
+                          {byManagerData.sansManager.map(collab => (
+                            <Paper key={collab.id} withBorder p="sm" radius="md">
+                              <Stack gap={4}>
+                                <Text size="sm">{collab.nomComplet}</Text>
+                                <Text size="xs" c="dimmed">{collab.departement}</Text>
+                                <Group gap={4}>
+                                  {collab.formationsManquantes.map(f => (
+                                    <Badge key={f.id} size="xs" color="pink" variant="light">
+                                      {f.nomFormation}
+                                    </Badge>
+                                  ))}
+                                </Group>
+                              </Stack>
+                            </Paper>
+                          ))}
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  )}
+                </>
               )}
-            </>
-          )}
+            </Stack>
+          </Card>
         </motion.div>
 
         {/* ===== REMINDER MODAL ===== */}
@@ -1162,7 +1210,6 @@ export default function ConformitePage() {
           centered
           closeOnClickOutside={!sendingReminders}
           closeOnEscape={!sendingReminders}
-          styles={{ title: { fontWeight: 700 } }}
         >
           <Stack>
             <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
@@ -1195,14 +1242,14 @@ export default function ConformitePage() {
                   <Text size="sm">Voir les {selectedManagers.length} destinataires</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                  <Box style={{ maxHeight: 200, overflowY: 'auto' }}>
                     {getSelectedManagersList().map(m => (
-                      <Group key={m.id} justify="space-between" py="xs" style={{ borderBottom: '1px solid var(--mantine-color-default-border)' }}>
+                      <Group key={m.id} justify="space-between" py="xs">
                         <Text size="sm">{m.nomComplet}</Text>
                         <Badge size="sm">{m.collaborateursNonFormes.length} a former</Badge>
                       </Group>
                     ))}
-                  </div>
+                  </Box>
                 </Accordion.Panel>
               </Accordion.Item>
             </Accordion>
@@ -1234,107 +1281,98 @@ export default function ConformitePage() {
         </Modal>
 
         {/* ===== FORMATION DETAIL MODAL ===== */}
-        <AnimatePresence>
+        <Modal
+          opened={!!selectedFormation}
+          onClose={() => setSelectedFormation(null)}
+          title={
+            selectedFormation && (
+              <Stack gap={2}>
+                <Title order={4}>{selectedFormation.nomFormation}</Title>
+                <Text size="xs" c="dimmed">
+                  {selectedFormation.codeFormation} - {selectedFormation.categorie}
+                </Text>
+              </Stack>
+            )
+          }
+          size="lg"
+          centered
+        >
           {selectedFormation && (
-            <motion.div
-              className={styles.modalOverlay}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedFormation(null)}
-            >
-              <motion.div
-                className={styles.modalContent}
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className={styles.modalHeader}>
-                  <div>
-                    <h2 className={styles.modalTitle}>{selectedFormation.nomFormation}</h2>
-                    <p className={styles.modalSubtitle}>
-                      {selectedFormation.codeFormation} - {selectedFormation.categorie}
-                    </p>
-                  </div>
-                  <button className={styles.modalClose} onClick={() => setSelectedFormation(null)}>
-                    <X size={20} weight="bold" />
-                  </button>
-                </div>
+            <Tabs value={modalTab} onChange={(v) => setModalTab(v as 'formes' | 'nonFormes')}>
+              <Tabs.List>
+                <Tabs.Tab
+                  value="nonFormes"
+                  leftSection={<WarningCircle size={16} weight="bold" />}
+                >
+                  Non formes ({selectedFormation.collaborateursNonFormes})
+                </Tabs.Tab>
+                <Tabs.Tab
+                  value="formes"
+                  leftSection={<CheckCircle size={16} weight="bold" />}
+                >
+                  Formes ({selectedFormation.collaborateursFormes})
+                </Tabs.Tab>
+              </Tabs.List>
 
-                <div className={styles.modalBody}>
-                  <div className={styles.modalTabs}>
-                    <button
-                      className={styles.modalTab}
-                      data-active={modalTab === 'nonFormes'}
-                      onClick={() => setModalTab('nonFormes')}
-                    >
-                      <WarningCircle size={16} weight="bold" style={{ marginRight: 6 }} />
-                      Non formes ({selectedFormation.collaborateursNonFormes})
-                    </button>
-                    <button
-                      className={styles.modalTab}
-                      data-active={modalTab === 'formes'}
-                      onClick={() => setModalTab('formes')}
-                    >
-                      <CheckCircle size={16} weight="bold" style={{ marginRight: 6 }} />
-                      Formes ({selectedFormation.collaborateursFormes})
-                    </button>
-                  </div>
+              <Tabs.Panel value="nonFormes" pt="md">
+                {selectedFormation.nonFormes.length === 0 ? (
+                  <Center py="xl">
+                    <Stack align="center" gap="sm">
+                      <ThemeIcon variant="light" color="green" size={56} radius="xl">
+                        <CheckCircle size={32} weight="duotone" />
+                      </ThemeIcon>
+                      <Text size="lg" fw={600}>Tous les collaborateurs sont formes !</Text>
+                      <Text size="sm" c="dimmed">Aucun collaborateur n'est en attente de cette formation.</Text>
+                    </Stack>
+                  </Center>
+                ) : (
+                  <Stack gap="xs">
+                    {selectedFormation.nonFormes.map((collab) => (
+                      <Paper key={collab.id} withBorder p="sm" radius="md">
+                        <Group justify="space-between">
+                          <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                          <Text size="xs" c="dimmed">{collab.departement}</Text>
+                        </Group>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+              </Tabs.Panel>
 
-                  {modalTab === 'nonFormes' ? (
-                    selectedFormation.nonFormes.length === 0 ? (
-                      <div className={styles.modalEmptyState}>
-                        <div className={styles.modalEmptyIcon}>
-                          <CheckCircle size={32} weight="duotone" />
-                        </div>
-                        <Text size="lg" fw={600}>Tous les collaborateurs sont formes !</Text>
-                        <Text size="sm" c="dimmed">Aucun collaborateur n'est en attente de cette formation.</Text>
-                      </div>
-                    ) : (
-                      <div className={styles.modalList}>
-                        {selectedFormation.nonFormes.map((collab) => (
-                          <div key={collab.id} className={styles.modalListItem}>
-                            <div>
-                              <span className={styles.modalListName}>{collab.nomComplet}</span>
-                              <span className={styles.modalListDept}>- {collab.departement}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  ) : (
-                    selectedFormation.formes.length === 0 ? (
-                      <div className={styles.modalEmptyState}>
-                        <div className={styles.modalEmptyIcon} style={{ background: 'var(--mantine-color-red-light)' }}>
-                          <WarningCircle size={32} weight="duotone" color="var(--mantine-color-red-6)" />
-                        </div>
-                        <Text size="lg" fw={600}>Aucun collaborateur forme</Text>
-                        <Text size="sm" c="dimmed">Personne n'a encore suivi cette formation sur la periode.</Text>
-                      </div>
-                    ) : (
-                      <div className={styles.modalList}>
-                        {selectedFormation.formes.map((collab) => (
-                          <div key={collab.id} className={styles.modalListItem}>
-                            <div>
-                              <span className={styles.modalListName}>{collab.nomComplet}</span>
-                              <span className={styles.modalListDept}>- {collab.departement}</span>
-                            </div>
-                            <span className={styles.modalListDate}>
-                              {new Date(collab.dateFormation).toLocaleDateString('fr-FR')}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )
-                  )}
-                </div>
-              </motion.div>
-            </motion.div>
+              <Tabs.Panel value="formes" pt="md">
+                {selectedFormation.formes.length === 0 ? (
+                  <Center py="xl">
+                    <Stack align="center" gap="sm">
+                      <ThemeIcon variant="light" color="red" size={56} radius="xl">
+                        <WarningCircle size={32} weight="duotone" />
+                      </ThemeIcon>
+                      <Text size="lg" fw={600}>Aucun collaborateur forme</Text>
+                      <Text size="sm" c="dimmed">Personne n'a encore suivi cette formation sur la periode.</Text>
+                    </Stack>
+                  </Center>
+                ) : (
+                  <Stack gap="xs">
+                    {selectedFormation.formes.map((collab) => (
+                      <Paper key={collab.id} withBorder p="sm" radius="md">
+                        <Group justify="space-between">
+                          <Stack gap={2}>
+                            <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                            <Text size="xs" c="dimmed">{collab.departement}</Text>
+                          </Stack>
+                          <Badge variant="light" color="green">
+                            {new Date(collab.dateFormation).toLocaleDateString('fr-FR')}
+                          </Badge>
+                        </Group>
+                      </Paper>
+                    ))}
+                  </Stack>
+                )}
+              </Tabs.Panel>
+            </Tabs>
           )}
-        </AnimatePresence>
+        </Modal>
 
-      </div>
-    </div>
+      </Stack>
+    </Container>
   )
 }

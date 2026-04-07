@@ -1,6 +1,7 @@
 'use client';
 
 import { MainLayout } from '@/components/layout/MainLayout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -51,7 +52,7 @@ export default function DashboardLayout({
   return (
     <ModalsProvider>
       <MainLayout user={user}>
-        {children}
+        <ErrorBoundary>{children}</ErrorBoundary>
         <SpotlightSearch />
       </MainLayout>
     </ModalsProvider>

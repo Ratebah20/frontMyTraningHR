@@ -56,6 +56,7 @@ import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { UserList } from '@phosphor-icons/react/dist/ssr/UserList';
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion } from 'framer-motion'
+import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import axios from 'axios'
 import dynamic from 'next/dynamic'
 const LazyTauxFormationContratGraphique = dynamic(
@@ -511,6 +512,7 @@ interface MandatoryByManagerResponse {
 }
 
 export default function FormationsKPIsPage() {
+  const reducedMotion = useReducedMotionPreference()
   const searchParams = useSearchParams()
   const router = useRouter()
   const [data, setData] = useState<FormationsKPIs | null>(null)
@@ -845,9 +847,9 @@ export default function FormationsKPIsPage() {
       <Stack gap="lg">
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, type: 'spring' }}
+          initial={reducedMotion ? false : { opacity: 0, y: -30 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={reducedMotion ? { duration: 0 } : { duration: 0.6, type: 'spring' }}
         >
           <Group justify="space-between" align="flex-start" wrap="wrap">
             <Stack gap={4}>
@@ -867,9 +869,9 @@ export default function FormationsKPIsPage() {
 
         {/* Tabs Navigation */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65 }}
+          initial={reducedMotion ? false : { opacity: 0, y: -10 }}
+          animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={reducedMotion ? { duration: 0 } : { delay: 0.65 }}
         >
           <Tabs value={activeTab} onChange={handleTabChange} variant="pills" color="orange">
             <Tabs.List>
@@ -894,8 +896,8 @@ export default function FormationsKPIsPage() {
             {/* KPIs */}
             <motion.div
               variants={containerVariants}
-              initial="hidden"
-              animate="visible"
+              initial={reducedMotion ? false : 'hidden'}
+              animate={reducedMotion ? undefined : 'visible'}
             >
               <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
                 <KPICard
@@ -925,9 +927,9 @@ export default function FormationsKPIsPage() {
 
             {/* Utilization Ring */}
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.6 }}
+              initial={reducedMotion ? false : { opacity: 0, scale: 0.9 }}
+              animate={reducedMotion ? undefined : { opacity: 1, scale: 1 }}
+              transition={reducedMotion ? { duration: 0 } : { delay: 0.6 }}
             >
               <Card withBorder padding="lg" radius="md">
                 <Stack gap="sm">
@@ -967,9 +969,9 @@ export default function FormationsKPIsPage() {
             {/* Taux de Formation par Type de Contrat */}
             {(tauxContratData || tauxContratLoading) && (
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.75 }}
+                initial={reducedMotion ? false : { opacity: 0, y: 30 }}
+                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                transition={reducedMotion ? { duration: 0 } : { delay: 0.75 }}
               >
                 <Card withBorder padding="lg" radius="md" pos="relative">
                   {tauxContratLoading && (
@@ -1126,9 +1128,9 @@ export default function FormationsKPIsPage() {
 
             {/* Top Formations */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              initial={reducedMotion ? false : { opacity: 0, y: 30 }}
+              animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+              transition={reducedMotion ? { duration: 0 } : { delay: 0.8 }}
             >
               <Card withBorder padding="lg" radius="md">
                 <Stack gap="md">
@@ -1158,9 +1160,9 @@ export default function FormationsKPIsPage() {
 
             {/* Footer insight */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.2 }}
+              initial={reducedMotion ? false : { opacity: 0 }}
+              animate={reducedMotion ? undefined : { opacity: 1 }}
+              transition={reducedMotion ? { duration: 0 } : { delay: 1.2 }}
             >
               <Alert
                 color="yellow"

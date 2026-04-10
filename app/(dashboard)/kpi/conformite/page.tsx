@@ -941,7 +941,7 @@ export default function ConformitePage() {
                           return (
                             <Table.Tr key={dept}>
                               <Table.Td>
-                                {getManagersForDept(dept).length > 0 ? (
+                                {hasDeptManagers(dept) ? (
                                   <Tooltip label={isDeptSelected(dept) ? 'Desélectionner' : 'Sélectionner pour rappel'}>
                                     <Checkbox
                                       size="xs"

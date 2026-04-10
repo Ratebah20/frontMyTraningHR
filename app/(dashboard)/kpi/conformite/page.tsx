@@ -354,7 +354,7 @@ export default function ConformitePage() {
         selectedDept ? parseInt(selectedDept) : undefined
       )
       setByManagerData(response)
-      setSelectedManagers([])
+      setSelectedDepts(new Set())
     } catch (error) {
       console.error('Erreur lors du chargement des donnees par manager:', error)
     } finally {
@@ -393,47 +393,53 @@ export default function ConformitePage() {
     )
   }
 
-  const toggleSelectAllManagers = () => {
-    if (!byManagerData) return
-    const allManagerIds = byManagerData.departements.flatMap((d: any) => d.managers.map((m: any) => m.id))
-    if (selectedManagers.length === allManagerIds.length) {
-      setSelectedManagers([])
-    } else {
-      setSelectedManagers(allManagerIds)
-    }
+  // Sélection par département (pas par manager, pour éviter les sélections croisées)
+  const [selectedDepts, setSelectedDepts] = useState<Set<string>>(new Set())
+
+  const hasDeptManagers = (deptName: string): boolean => {
+    if (!byManagerData) return false
+    return byManagerData.departements.some((d: any) => d.nom === deptName && d.managers.length > 0)
   }
 
-  const getManagersForDept = (deptName: string): number[] => {
-    if (!byManagerData) return []
-    const dept = byManagerData.departements.find((d: any) => d.nom === deptName)
-    return dept ? dept.managers.map((m: any) => m.id) : []
-  }
-
-  const isDeptSelected = (deptName: string): boolean => {
-    const managerIds = getManagersForDept(deptName)
-    return managerIds.length > 0 && managerIds.every(id => selectedManagers.includes(id))
-  }
-
-  const isDeptIndeterminate = (deptName: string): boolean => {
-    const managerIds = getManagersForDept(deptName)
-    const selected = managerIds.filter(id => selectedManagers.includes(id))
-    return selected.length > 0 && selected.length < managerIds.length
-  }
+  const isDeptSelected = (deptName: string): boolean => selectedDepts.has(deptName)
 
   const toggleDept = (deptName: string) => {
-    const managerIds = getManagersForDept(deptName)
-    if (managerIds.length === 0) return
-    if (isDeptSelected(deptName)) {
-      setSelectedManagers(prev => prev.filter(id => !managerIds.includes(id)))
+    setSelectedDepts(prev => {
+      const next = new Set(prev)
+      if (next.has(deptName)) {
+        next.delete(deptName)
+      } else {
+        next.add(deptName)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAllManagers = () => {
+    if (!byManagerData) return
+    const allDeptNames = byManagerData.departements.map((d: any) => d.nom)
+    if (selectedDepts.size === allDeptNames.length) {
+      setSelectedDepts(new Set())
     } else {
-      setSelectedManagers(prev => [...new Set([...prev, ...managerIds])])
+      setSelectedDepts(new Set(allDeptNames))
     }
+  }
+
+  // Dériver les manager IDs uniquement des départements sélectionnés (dédoublonnés)
+  const getSelectedManagerIds = (): number[] => {
+    if (!byManagerData) return []
+    const ids = new Set<number>()
+    byManagerData.departements
+      .filter((d: any) => selectedDepts.has(d.nom))
+      .forEach((d: any) => d.managers.forEach((m: any) => ids.add(m.id)))
+    return Array.from(ids)
   }
 
   const getSelectedManagersList = () => {
     if (!byManagerData) return []
+    const ids = getSelectedManagerIds()
     return byManagerData.departements.flatMap((d: any) =>
-      d.managers.filter((m: any) => selectedManagers.includes(m.id))
+      d.managers.filter((m: any) => ids.includes(m.id))
     )
   }
 
@@ -466,8 +472,9 @@ export default function ConformitePage() {
       const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
       const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
+      const managerIds = getSelectedManagerIds()
       const result = await notificationsService.sendMandatoryTrainingReminders({
-        managerIds: selectedManagers,
+        managerIds,
         periode,
         date,
         startDate: startDateStr,
@@ -492,7 +499,7 @@ export default function ConformitePage() {
         })
       }
 
-      setSelectedManagers([])
+      setSelectedDepts(new Set())
     } catch (error: any) {
       notifications.show({
         title: "Erreur d'envoi",
@@ -901,12 +908,12 @@ export default function ConformitePage() {
                     </Group>
                     <Button
                       leftSection={<EnvelopeSimple size={18} weight="bold" />}
-                      disabled={selectedManagers.length === 0}
+                      disabled={selectedDepts.size === 0}
                       onClick={() => setShowReminderModal(true)}
                       variant="filled"
                       size="sm"
                     >
-                      Envoyer rappels ({selectedManagers.length})
+                      Envoyer rappels ({selectedDepts.size} equipe{selectedDepts.size > 1 ? 's' : ''})
                     </Button>
                   </Group>
 
@@ -939,7 +946,6 @@ export default function ConformitePage() {
                                     <Checkbox
                                       size="xs"
                                       checked={isDeptSelected(dept)}
-                                      indeterminate={isDeptIndeterminate(dept)}
                                       onChange={() => toggleDept(dept)}
                                     />
                                   </Tooltip>
@@ -1004,14 +1010,14 @@ export default function ConformitePage() {
                       <Group gap="sm">
                         <Checkbox
                           label="Tout selectionner"
-                          checked={!!(selectedManagers.length === byManagerData.departements.flatMap((d: any) => d.managers).length && selectedManagers.length > 0)}
-                          indeterminate={!!(selectedManagers.length > 0 && selectedManagers.length < byManagerData.departements.flatMap((d: any) => d.managers).length)}
+                          checked={!!(selectedDepts.size === byManagerData.departements.length && selectedDepts.size > 0)}
+                          indeterminate={!!(selectedDepts.size > 0 && selectedDepts.size < byManagerData.departements.length)}
                           onChange={toggleSelectAllManagers}
                           size="xs"
                         />
-                        {selectedManagers.length > 0 && (
+                        {selectedDepts.size > 0 && (
                           <Badge variant="light" color="blue" size="sm">
-                            {selectedManagers.length} manager{selectedManagers.length > 1 ? 's' : ''} selectionne{selectedManagers.length > 1 ? 's' : ''}
+                            {selectedDepts.size} equipe{selectedDepts.size > 1 ? 's' : ''} — {getSelectedManagerIds().length} manager{getSelectedManagerIds().length > 1 ? 's' : ''}
                           </Badge>
                         )}
                       </Group>
@@ -1119,7 +1125,7 @@ export default function ConformitePage() {
               Assurez-vous que la configuration SMTP est en place.
             </Alert>
 
-            <Text fw={500}>Managers selectionnes : {selectedManagers.length}</Text>
+            <Text fw={500}>Equipes selectionnees : {selectedDepts.size} — {getSelectedManagerIds().length} manager(s)</Text>
 
             {/* Message preview */}
             <Paper withBorder p="md">
@@ -1141,7 +1147,7 @@ export default function ConformitePage() {
             <Accordion>
               <Accordion.Item value="recipients">
                 <Accordion.Control>
-                  <Text size="sm">Voir les {selectedManagers.length} destinataires</Text>
+                  <Text size="sm">Voir les {getSelectedManagerIds().length} destinataires</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Box style={{ maxHeight: 200, overflowY: 'auto' }}>

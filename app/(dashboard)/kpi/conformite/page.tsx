@@ -395,7 +395,7 @@ export default function ConformitePage() {
 
   const toggleSelectAllManagers = () => {
     if (!byManagerData) return
-    const allManagerIds = byManagerData.departements.flatMap(d => d.managers.map(m => m.id))
+    const allManagerIds = byManagerData.departements.flatMap((d: any) => d.managers.map((m: any) => m.id))
     if (selectedManagers.length === allManagerIds.length) {
       setSelectedManagers([])
     } else {
@@ -403,17 +403,39 @@ export default function ConformitePage() {
     }
   }
 
-  const getSelectedManagersList = () => {
+  const getManagersForDept = (deptName: string): number[] => {
     if (!byManagerData) return []
-    return byManagerData.departements.flatMap(d =>
-      d.managers.filter(m => selectedManagers.includes(m.id))
-    )
+    const dept = byManagerData.departements.find((d: any) => d.nom === deptName)
+    return dept ? dept.managers.map((m: any) => m.id) : []
   }
 
-  const departementOptions = byManagerData?.departements.map(d => ({
-    value: d.id.toString(),
-    label: `${d.nom} (${d.totalNonFormes})`
-  })) || []
+  const isDeptSelected = (deptName: string): boolean => {
+    const managerIds = getManagersForDept(deptName)
+    return managerIds.length > 0 && managerIds.every(id => selectedManagers.includes(id))
+  }
+
+  const isDeptIndeterminate = (deptName: string): boolean => {
+    const managerIds = getManagersForDept(deptName)
+    const selected = managerIds.filter(id => selectedManagers.includes(id))
+    return selected.length > 0 && selected.length < managerIds.length
+  }
+
+  const toggleDept = (deptName: string) => {
+    const managerIds = getManagersForDept(deptName)
+    if (managerIds.length === 0) return
+    if (isDeptSelected(deptName)) {
+      setSelectedManagers(prev => prev.filter(id => !managerIds.includes(id)))
+    } else {
+      setSelectedManagers(prev => [...new Set([...prev, ...managerIds])])
+    }
+  }
+
+  const getSelectedManagersList = () => {
+    if (!byManagerData) return []
+    return byManagerData.departements.flatMap((d: any) =>
+      d.managers.filter((m: any) => selectedManagers.includes(m.id))
+    )
+  }
 
   // ===== SMTP & Reminders =====
 
@@ -892,6 +914,7 @@ export default function ConformitePage() {
                     <Table striped highlightOnHover withTableBorder withColumnBorders>
                       <Table.Thead>
                         <Table.Tr>
+                          <Table.Th style={{ width: 40 }}></Table.Th>
                           <Table.Th style={{ minWidth: 180 }}>Departement</Table.Th>
                           {mandatoryData.formations.map((f: any) => (
                             <Table.Th key={f.id} style={{ textAlign: 'center', minWidth: 120 }}>
@@ -910,6 +933,22 @@ export default function ConformitePage() {
                           const deptTaux = getDeptTotal(dept);
                           return (
                             <Table.Tr key={dept}>
+                              <Table.Td>
+                                {getManagersForDept(dept).length > 0 ? (
+                                  <Tooltip label={isDeptSelected(dept) ? 'Desélectionner' : 'Sélectionner pour rappel'}>
+                                    <Checkbox
+                                      size="xs"
+                                      checked={isDeptSelected(dept)}
+                                      indeterminate={isDeptIndeterminate(dept)}
+                                      onChange={() => toggleDept(dept)}
+                                    />
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip label="Aucun manager identifié">
+                                    <Text size="xs" c="dimmed">-</Text>
+                                  </Tooltip>
+                                )}
+                              </Table.Td>
                               <Table.Td>
                                 <Text size="sm" fw={500}>{dept}</Text>
                               </Table.Td>
@@ -959,16 +998,23 @@ export default function ConformitePage() {
                     </Table>
                   </Table.ScrollContainer>
 
-                  {/* Sélection managers pour rappels */}
+                  {/* Info sélection */}
                   {byManagerData && byManagerData.departements.length > 0 && (
                     <Group justify="space-between" mt="xs">
-                      <Checkbox
-                        label={`Selectionner tous les managers (${byManagerData.departements.flatMap((d: any) => d.managers).length})`}
-                        checked={!!(selectedManagers.length === byManagerData.departements.flatMap((d: any) => d.managers).length && selectedManagers.length > 0)}
-                        indeterminate={!!(selectedManagers.length > 0 && selectedManagers.length < byManagerData.departements.flatMap((d: any) => d.managers).length)}
-                        onChange={toggleSelectAllManagers}
-                        size="sm"
-                      />
+                      <Group gap="sm">
+                        <Checkbox
+                          label="Tout selectionner"
+                          checked={!!(selectedManagers.length === byManagerData.departements.flatMap((d: any) => d.managers).length && selectedManagers.length > 0)}
+                          indeterminate={!!(selectedManagers.length > 0 && selectedManagers.length < byManagerData.departements.flatMap((d: any) => d.managers).length)}
+                          onChange={toggleSelectAllManagers}
+                          size="xs"
+                        />
+                        {selectedManagers.length > 0 && (
+                          <Badge variant="light" color="blue" size="sm">
+                            {selectedManagers.length} manager{selectedManagers.length > 1 ? 's' : ''} selectionne{selectedManagers.length > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </Group>
                     </Group>
                   )}
                 </Stack>

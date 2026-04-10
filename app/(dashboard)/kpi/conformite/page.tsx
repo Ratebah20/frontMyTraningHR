@@ -527,9 +527,9 @@ export default function ConformitePage() {
           <Stack gap="md">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
-                <Title order={1}>Conformite & Formations Obligatoires</Title>
+                <Title order={1}>Formations Obligatoires</Title>
                 <Text c="dimmed">
-                  Suivi de la conformite reglementaire et des formations obligatoires
+                  Suivi des formations obligatoires
                 </Text>
               </Stack>
               <Badge color="green" variant="light" size="lg">Temps reel</Badge>
@@ -819,59 +819,7 @@ export default function ConformitePage() {
           </motion.div>
         )}
 
-        {/* ===== SECTION 4: PAR DEPARTEMENT ===== */}
-        {mandatoryData && mandatoryData.parDepartement.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-          >
-            <Card withBorder radius="md" padding="lg">
-              <Stack gap="md">
-                <Group gap="xs">
-                  <ThemeIcon variant="light" color="blue" size="md" radius="md">
-                    <Buildings size={18} weight="bold" />
-                  </ThemeIcon>
-                  <Stack gap={2}>
-                    <Title order={3}>Conformite par departement</Title>
-                    <Text size="sm" c="dimmed">
-                      Pourcentage de collaborateurs ayant complete toutes les formations obligatoires
-                    </Text>
-                  </Stack>
-                </Group>
-
-                <Stack gap="sm">
-                  {mandatoryData.parDepartement.slice(0, 10).map((dept) => (
-                    <Group key={dept.departementId} justify="space-between" wrap="nowrap" gap="md">
-                      <Text size="sm" fw={500} style={{ minWidth: 180 }}>{dept.departement}</Text>
-                      <Box style={{ flex: 1 }}>
-                        <Progress
-                          value={dept.tauxConformite}
-                          color={dept.tauxConformite >= 80 ? 'green' : dept.tauxConformite >= 50 ? 'yellow' : 'red'}
-                          size="lg"
-                          radius="md"
-                          animated
-                        />
-                      </Box>
-                      <Text size="sm" c="dimmed" style={{ minWidth: 70, textAlign: 'right' }}>
-                        {dept.formes}/{dept.totalCollaborateurs}
-                      </Text>
-                      <Text size="sm" fw={700} style={{ minWidth: 50, textAlign: 'right' }}>
-                        {dept.tauxConformite}%
-                      </Text>
-                    </Group>
-                  ))}
-                </Stack>
-
-                {mandatoryData.parDepartement.length > 10 && (
-                  <Text size="sm" c="dimmed" ta="center">
-                    +{mandatoryData.parDepartement.length - 10} autres departements
-                  </Text>
-                )}
-              </Stack>
-            </Card>
-          </motion.div>
-        )}
+        {/* SECTION 4: PAR DEPARTEMENT - Supprimée */}
 
         {/* ===== SECTION 5: CATEGORIES A RISQUE ===== */}
         {complianceLoading ? (
@@ -899,50 +847,6 @@ export default function ConformitePage() {
               }
               labelPosition="center"
             />
-
-            {/* Global compliance stats */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.1 }}
-            >
-              <Card withBorder radius="md" padding="lg">
-                <Stack gap="md">
-                  <Group gap="xs">
-                    <Title order={3}>Statistiques Globales</Title>
-                    {complianceData.periode?.libelle && (
-                      <Badge variant="light">{complianceData.periode.libelle}</Badge>
-                    )}
-                  </Group>
-                  <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
-                    <Paper withBorder p="md" radius="md">
-                      <Stack gap={4} align="center">
-                        <Text size="xl" fw={700}>{complianceData.comparatifGlobal.tauxCouverture}%</Text>
-                        <Text size="xs" c="dimmed">Taux couverture</Text>
-                      </Stack>
-                    </Paper>
-                    <Paper withBorder p="md" radius="md">
-                      <Stack gap={4} align="center">
-                        <Text size="xl" fw={700}>{complianceData.comparatifGlobal.formes}</Text>
-                        <Text size="xs" c="dimmed">Formes</Text>
-                      </Stack>
-                    </Paper>
-                    <Paper withBorder p="md" radius="md">
-                      <Stack gap={4} align="center">
-                        <Text size="xl" fw={700} c="red">{complianceData.comparatifGlobal.nonFormes}</Text>
-                        <Text size="xs" c="dimmed">Non formes</Text>
-                      </Stack>
-                    </Paper>
-                    <Paper withBorder p="md" radius="md">
-                      <Stack gap={4} align="center">
-                        <Text size="xl" fw={700} c="blue">{complianceData.comparatifGlobal.totalEmployesRisque}</Text>
-                        <Text size="xs" c="dimmed">Employes a risque</Text>
-                      </Stack>
-                    </Paper>
-                  </SimpleGrid>
-                </Stack>
-              </Card>
-            </motion.div>
 
             {/* Risk categories grid */}
             {complianceData.parCategorieCroisee.length > 0 && (

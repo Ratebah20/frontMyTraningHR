@@ -438,9 +438,19 @@ export default function ConformitePage() {
   const getSelectedManagersList = () => {
     if (!byManagerData) return []
     const ids = getSelectedManagerIds()
-    return byManagerData.departements.flatMap((d: any) =>
-      d.managers.filter((m: any) => ids.includes(m.id))
-    )
+    const seen = new Set<number>()
+    const result: any[] = []
+    byManagerData.departements
+      .filter((d: any) => selectedDepts.has(d.nom))
+      .forEach((d: any) => {
+        d.managers.forEach((m: any) => {
+          if (ids.includes(m.id) && !seen.has(m.id)) {
+            seen.add(m.id)
+            result.push(m)
+          }
+        })
+      })
+    return result
   }
 
   // ===== SMTP & Reminders =====

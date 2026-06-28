@@ -136,9 +136,9 @@ const navigationItems: NavigationItem[] = [
     href: '/budget',
     color: 'grape',
     subItems: [
-      { label: 'Vue d\'ensemble', href: '/budget' },
-      { label: 'Dashboard KPIs', href: '/budget/dashboard' },
-      { label: 'Analytics Avancés', href: '/budget/analytics' },
+      { label: 'Saisie des budgets', href: '/budget' },
+      { label: 'Tableau de bord', href: '/budget/dashboard' },
+      { label: 'Analyses détaillées', href: '/budget/analytics' },
     ]
   },
   { 

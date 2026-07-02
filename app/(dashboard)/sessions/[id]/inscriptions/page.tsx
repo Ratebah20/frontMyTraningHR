@@ -273,7 +273,6 @@ export default function SessionInscriptionsPage({ params }: Props) {
                 variant="subtle"
                 size="xs"
                 onClick={handleSelectAll}
-                disabled={isFull}
               >
                 Tout sélectionner
               </Button>
@@ -300,7 +299,6 @@ export default function SessionInscriptionsPage({ params }: Props) {
                     checked={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length === filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length}
                     indeterminate={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length < filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length}
                     onChange={() => selectedCollaborateurs.length === filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length ? handleDeselectAll() : handleSelectAll()}
-                    disabled={isFull}
                   />
                 </Table.Th>
                 <Table.Th>Collaborateur</Table.Th>
@@ -312,7 +310,7 @@ export default function SessionInscriptionsPage({ params }: Props) {
               {filteredCollaborateurs.map((collaborateur) => {
                 const isAlreadyParticipant = existingParticipants.includes(collaborateur.id);
                 const isSelected = selectedCollaborateurs.includes(collaborateur.id);
-                const canSelect = !isAlreadyParticipant && (!isFull || isSelected);
+                const canSelect = !isAlreadyParticipant;
 
                 return (
                   <Table.Tr
@@ -344,7 +342,9 @@ export default function SessionInscriptionsPage({ params }: Props) {
                       </Group>
                     </Table.Td>
                     <Table.Td>
-                      {collaborateur.departement?.nomDepartement || 'Non défini'}
+                      {(typeof collaborateur.departement === 'string'
+                        ? collaborateur.departement
+                        : collaborateur.departement?.nomDepartement) || 'Non défini'}
                     </Table.Td>
                     <Table.Td>
                       {isAlreadyParticipant ? (
@@ -382,7 +382,7 @@ export default function SessionInscriptionsPage({ params }: Props) {
             <Button
               leftSection={<UserPlus size={16} />}
               onClick={handleInscrire}
-              disabled={selectedCollaborateurs.length === 0 || isFull || isSubmitting}
+              disabled={selectedCollaborateurs.length === 0 || isSubmitting}
               loading={isSubmitting}
             >
               Inscrire {selectedCollaborateurs.length} participant(s)

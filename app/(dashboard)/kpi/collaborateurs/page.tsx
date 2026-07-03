@@ -15,12 +15,6 @@ import { Handshake } from '@phosphor-icons/react/dist/ssr/Handshake';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { UserSwitch } from '@phosphor-icons/react/dist/ssr/UserSwitch';
-import { Scales } from '@phosphor-icons/react/dist/ssr/Scales';
-import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
-import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
-import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
-import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
-import { X } from '@phosphor-icons/react/dist/ssr/X';
 import {
   Container,
   Card,
@@ -30,7 +24,6 @@ import {
   Group,
   Stack,
   SimpleGrid,
-  Grid,
   Badge,
   ThemeIcon,
   Loader,
@@ -39,16 +32,14 @@ import {
   Progress,
   Switch,
   MultiSelect,
-  Button,
   Alert,
   Divider,
-  ActionIcon,
 } from '@mantine/core'
 import axios from 'axios'
 import { motion } from 'framer-motion'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
-import { statsService, formationsService } from '@/lib/services'
-import { DetailedKPIsResponse, ComplianceEthicsKPIsResponse } from '@/lib/types'
+import { statsService } from '@/lib/services'
+import { DetailedKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -238,19 +229,7 @@ export default function CollaborateursKPIsPage() {
   const [contratFilters, setContratFilters] = useState<number[]>([])
   const [typesContrats, setTypesContrats] = useState<{ id: number; typeContrat: string }[]>([])
 
-  const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
-  const [complianceLoading, setComplianceLoading] = useState(false)
-  const [selectedFormationIds, setSelectedFormationIds] = useState<number[]>([])
-  const [availableFormations, setAvailableFormations] = useState<{ id: number; nom: string }[]>([])
-
-  const [allFormations, setAllFormations] = useState<{ id: number; nom: string }[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const [hasInitialized, setHasInitialized] = useState(false)
-
   useEffect(() => {
-    fetchAllFormations()
     fetchTypesContrats()
   }, [])
 
@@ -270,10 +249,6 @@ export default function CollaborateursKPIsPage() {
   useEffect(() => {
     fetchDetailedData()
   }, [periode, date, dateDebut, dateFin, includeInactifs, contratFilters])
-
-  useEffect(() => {
-    fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, includeInactifs, selectedFormationIds, availableFormations.length, hasInitialized, contratFilters])
 
   const fetchData = async () => {
     if (periode === 'plage' && (!dateDebut || !dateFin)) {
@@ -296,36 +271,6 @@ export default function CollaborateursKPIsPage() {
     }
   }
 
-  const fetchAllFormations = async () => {
-    try {
-      const response = await formationsService.getFormations({ limit: 1000 })
-      setAllFormations(response.data.map(f => ({ id: f.id, nom: f.nomFormation })))
-    } catch (error) {
-      console.error('Erreur lors du chargement des formations:', error)
-    }
-  }
-
-  const addFormationToList = (formation: { id: number; nom: string }) => {
-    if (!availableFormations.find(f => f.id === formation.id)) {
-      const newAvailable = [...availableFormations, formation]
-      const newSelected = [...selectedFormationIds, formation.id]
-      setAvailableFormations(newAvailable)
-      setSelectedFormationIds(newSelected)
-    }
-    setSearchQuery('')
-    setShowSearch(false)
-  }
-
-  const removeFormationFromList = (formationId: number) => {
-    setAvailableFormations(availableFormations.filter(f => f.id !== formationId))
-    setSelectedFormationIds(selectedFormationIds.filter(id => id !== formationId))
-  }
-
-  const filteredSearchResults = allFormations.filter(f =>
-    !availableFormations.find(af => af.id === f.id) &&
-    f.nom.toLowerCase().includes(searchQuery.toLowerCase())
-  ).slice(0, 10)
-
   const fetchDetailedData = async () => {
     if (periode === 'plage' && (!dateDebut || !dateFin)) {
       return
@@ -344,72 +289,6 @@ export default function CollaborateursKPIsPage() {
     } finally {
       setDetailedLoading(false)
     }
-  }
-
-  const fetchComplianceData = async () => {
-    if (periode === 'plage' && (!dateDebut || !dateFin)) {
-      return
-    }
-
-    if (hasInitialized && selectedFormationIds.length === 0) {
-      const zeroGenre = { nombre: 0, heures: 0, formations: 0, moyenne: 0 }
-      const zeroCategory = {
-        total: 0, formes: 0, nonFormes: 0, heures: 0, formations: 0,
-        tauxCouverture: 0, moyenneHeuresParPersonne: 0,
-        parGenre: { homme: zeroGenre, femme: zeroGenre }
-      }
-      setComplianceData({
-        periode: { annee: parseInt(date) || new Date().getFullYear(), mois: null, dateDebut: null, dateFin: null, libelle: 'Aucune formation sélectionnée' },
-        formationsEthique: { liste: [], nombreFormations: 0 },
-        parCategorieSimple: {
-          b2b: zeroCategory,
-          b2c: zeroCategory,
-          managers: zeroCategory,
-          directeurs: zeroCategory
-        },
-        parCategorieCroisee: [],
-        comparatifGlobal: { totalEmployesRisque: 0, formes: 0, nonFormes: 0, tauxCouverture: 0 },
-        parFormation: []
-      })
-      return
-    }
-
-    setComplianceLoading(true)
-    try {
-      const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
-                        dateDebut ? new Date(dateDebut).toISOString() : undefined
-      const endDate = dateFin instanceof Date ? dateFin.toISOString() :
-                      dateFin ? new Date(dateFin).toISOString() : undefined
-
-      const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
-      const response = await statsService.getComplianceEthicsKpis(periode, date, startDate, endDate, includeInactifs, formationIds, contratFilters.length > 0 ? contratFilters : undefined)
-      setComplianceData(response)
-
-      if (!hasInitialized && response.formationsEthique.liste.length > 0) {
-        setAvailableFormations(response.formationsEthique.liste)
-        setSelectedFormationIds(response.formationsEthique.liste.map(f => f.id))
-        setHasInitialized(true)
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des KPIs compliance:', error)
-    } finally {
-      setComplianceLoading(false)
-    }
-  }
-
-  const getCoverageColor = (taux: number) => {
-    if (taux >= 80) return 'teal'
-    if (taux >= 50) return 'yellow'
-    return 'red'
-  }
-
-  const getCategoryBadgeColor = (categorie: string) => {
-    if (categorie.includes('Autres Collaborateurs')) return 'gray'
-    if (categorie.includes('B2B')) return 'blue'
-    if (categorie.includes('B2C')) return 'pink'
-    if (categorie.includes('Manager')) return 'teal'
-    if (categorie.includes('Directeur')) return 'violet'
-    return 'indigo'
   }
 
   const getRankColor = (index: number): 'yellow' | 'gray' | 'orange' | 'blue' => {
@@ -927,408 +806,6 @@ export default function CollaborateursKPIsPage() {
                   </Stack>
                 </Card>
               </motion.div>
-            )}
-          </>
-        ) : null}
-
-        {complianceLoading ? (
-          <Card withBorder p="lg" radius="md">
-            <Center mih={150}>
-              <Stack align="center" gap="md">
-                <Loader />
-                <Text c="dimmed">Chargement des KPIs Conformité...</Text>
-              </Stack>
-            </Center>
-          </Card>
-        ) : complianceData || availableFormations.length > 0 ? (
-          <>
-            <Divider
-              my="md"
-              label={
-                <Group gap="xs">
-                  <Scales size={18} weight="bold" />
-                  <Text fw={600}>Conformité & Éthique</Text>
-                  {complianceData?.periode?.libelle && (
-                    <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
-                  )}
-                </Group>
-              }
-              labelPosition="center"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
-            >
-              <Card withBorder p="lg" radius="md">
-                <Stack gap="md">
-                  <Group gap="xs">
-                    <ThemeIcon color="teal" variant="light"><ShieldCheck size={18} weight="bold" /></ThemeIcon>
-                    <Title order={3}>Formations Éthique ({selectedFormationIds.length}/{availableFormations.length} sélectionnées)</Title>
-                  </Group>
-                  <Group>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      onClick={() => setSelectedFormationIds(availableFormations.map(f => f.id))}
-                      disabled={selectedFormationIds.length === availableFormations.length}
-                    >
-                      Tout sélectionner
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="gray"
-                      onClick={() => setSelectedFormationIds([])}
-                      disabled={selectedFormationIds.length === 0}
-                    >
-                      Tout désélectionner
-                    </Button>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="green"
-                      leftSection={<Plus size={14} weight="bold" />}
-                      onClick={() => {
-                        setShowSearch(!showSearch)
-                        setTimeout(() => searchInputRef.current?.focus(), 100)
-                      }}
-                    >
-                      Ajouter une formation
-                    </Button>
-                  </Group>
-
-                  {showSearch && (
-                    <Stack gap="xs">
-                      <MultiSelect
-                        ref={searchInputRef as any}
-                        placeholder="Rechercher une formation..."
-                        searchable
-                        searchValue={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        data={filteredSearchResults.map(f => ({ value: String(f.id), label: f.nom }))}
-                        value={[]}
-                        onChange={(values) => {
-                          values.forEach(v => {
-                            const f = allFormations.find(af => af.id === Number(v))
-                            if (f) addFormationToList(f)
-                          })
-                        }}
-                        nothingFoundMessage="Aucune formation trouvée"
-                      />
-                    </Stack>
-                  )}
-
-                  <Group gap="xs">
-                    {availableFormations.map(f => {
-                      const isSelected = selectedFormationIds.includes(f.id)
-                      return (
-                        <Group key={f.id} gap={4}>
-                          <Button
-                            size="xs"
-                            variant={isSelected ? 'filled' : 'outline'}
-                            color={isSelected ? 'teal' : 'gray'}
-                            leftSection={isSelected ? <CheckCircle size={14} weight="fill" /> : <XCircle size={14} />}
-                            onClick={() => {
-                              if (isSelected) {
-                                setSelectedFormationIds(selectedFormationIds.filter(id => id !== f.id))
-                              } else {
-                                setSelectedFormationIds([...selectedFormationIds, f.id])
-                              }
-                            }}
-                          >
-                            {f.nom}
-                          </Button>
-                          <ActionIcon
-                            size="sm"
-                            variant="subtle"
-                            color="red"
-                            onClick={() => removeFormationFromList(f.id)}
-                            title="Retirer de la liste"
-                          >
-                            <X size={12} />
-                          </ActionIcon>
-                        </Group>
-                      )
-                    })}
-                  </Group>
-                  {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
-                    <Alert color="yellow" icon={<Warning size={16} />}>
-                      Aucune formation sélectionnée - Utilisez "Ajouter une formation" pour en ajouter
-                    </Alert>
-                  )}
-                </Stack>
-              </Card>
-            </motion.div>
-
-            {complianceData && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.1 }}
-                >
-                  <Card withBorder p="lg" radius="md">
-                    <Stack gap="md">
-                      <Group justify="space-between">
-                        <Title order={3}>Statistiques Globales</Title>
-                        {complianceData?.periode?.libelle && (
-                          <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
-                        )}
-                      </Group>
-                      <SimpleGrid cols={{ base: 2, sm: 4 }}>
-                        <Paper withBorder p="md" radius="md">
-                          <Title order={2}>{complianceData.comparatifGlobal.tauxCouverture}%</Title>
-                          <Text size="xs" c="dimmed">Taux couverture</Text>
-                        </Paper>
-                        <Paper withBorder p="md" radius="md">
-                          <Title order={2}>{complianceData.comparatifGlobal.formes}</Title>
-                          <Text size="xs" c="dimmed">Formés</Text>
-                        </Paper>
-                        <Paper withBorder p="md" radius="md">
-                          <Title order={2} c="red">{complianceData.comparatifGlobal.nonFormes}</Title>
-                          <Text size="xs" c="dimmed">Non formés</Text>
-                        </Paper>
-                        <Paper withBorder p="md" radius="md">
-                          <Title order={2} c="blue">{complianceData.comparatifGlobal.totalEmployesRisque}</Title>
-                          <Text size="xs" c="dimmed">Employés à risque</Text>
-                        </Paper>
-                      </SimpleGrid>
-                    </Stack>
-                  </Card>
-                </motion.div>
-
-                {complianceData.parCategorieCroisee.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                  >
-                    <Card withBorder p="lg" radius="md">
-                      <Stack gap="md">
-                        <Group justify="space-between">
-                          <Title order={3}>Catégories à Risque</Title>
-                          {complianceData?.periode?.libelle && (
-                            <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
-                          )}
-                        </Group>
-                        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
-                          {complianceData.parCategorieCroisee.map((cat) => (
-                            <Paper key={cat.categorie} withBorder p="md" radius="md">
-                              <Stack gap="xs">
-                                <Group justify="space-between">
-                                  <Text fw={600} size="sm">{cat.categorie}</Text>
-                                  <Badge color={getCategoryBadgeColor(cat.categorie)} variant="light">
-                                    {cat.tauxCouverture}%
-                                  </Badge>
-                                </Group>
-                                <SimpleGrid cols={2} spacing="xs">
-                                  <Group justify="space-between">
-                                    <Text size="xs" c="dimmed">Effectif</Text>
-                                    <Text size="xs" fw={600}>{cat.total}</Text>
-                                  </Group>
-                                  <Group justify="space-between">
-                                    <Text size="xs" c="dimmed">Formés</Text>
-                                    <Text size="xs" fw={600} c="teal">{cat.formes}</Text>
-                                  </Group>
-                                  <Group justify="space-between">
-                                    <Text size="xs" c="dimmed">Non formés</Text>
-                                    <Text size="xs" fw={600} c="red">{cat.nonFormes}</Text>
-                                  </Group>
-                                  <Group justify="space-between">
-                                    <Text size="xs" c="dimmed">Heures</Text>
-                                    <Text size="xs" fw={600}>{cat.heures}h</Text>
-                                  </Group>
-                                </SimpleGrid>
-                                <Progress value={cat.tauxCouverture} color={getCoverageColor(cat.tauxCouverture)} />
-                              </Stack>
-                            </Paper>
-                          ))}
-                        </SimpleGrid>
-                      </Stack>
-                    </Card>
-                  </motion.div>
-                )}
-
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, delay: 0.3 }}
-                >
-                  <Card withBorder p="lg" radius="md">
-                    <Stack gap="md">
-                      <Group gap="xs">
-                        <ThemeIcon color="teal" variant="light"><CheckCircle size={18} weight="bold" /></ThemeIcon>
-                        <Title order={3}>Comparatif Formés vs Non-Formés par Catégorie</Title>
-                        {complianceData?.periode?.libelle && (
-                          <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
-                        )}
-                      </Group>
-                      <Table striped withTableBorder>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Catégorie</Table.Th>
-                            <Table.Th>Total</Table.Th>
-                            <Table.Th>Formés</Table.Th>
-                            <Table.Th>Non formés</Table.Th>
-                            <Table.Th>Heures</Table.Th>
-                            <Table.Th>Taux</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          <Table.Tr>
-                            <Table.Td><Badge color="blue" variant="light">B2B</Badge></Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.b2b.total}</Table.Td>
-                            <Table.Td c="teal">{complianceData.parCategorieSimple.b2b.formes}</Table.Td>
-                            <Table.Td c="red">{complianceData.parCategorieSimple.b2b.nonFormes}</Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.b2b.heures}h</Table.Td>
-                            <Table.Td>
-                              <Text fw={700} c={complianceData.parCategorieSimple.b2b.tauxCouverture >= 80 ? 'teal' : 'red'}>
-                                {complianceData.parCategorieSimple.b2b.tauxCouverture}%
-                              </Text>
-                            </Table.Td>
-                          </Table.Tr>
-                          <Table.Tr>
-                            <Table.Td><Badge color="pink" variant="light">B2C</Badge></Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.b2c.total}</Table.Td>
-                            <Table.Td c="teal">{complianceData.parCategorieSimple.b2c.formes}</Table.Td>
-                            <Table.Td c="red">{complianceData.parCategorieSimple.b2c.nonFormes}</Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.b2c.heures}h</Table.Td>
-                            <Table.Td>
-                              <Text fw={700} c={complianceData.parCategorieSimple.b2c.tauxCouverture >= 80 ? 'teal' : 'red'}>
-                                {complianceData.parCategorieSimple.b2c.tauxCouverture}%
-                              </Text>
-                            </Table.Td>
-                          </Table.Tr>
-                          <Table.Tr>
-                            <Table.Td><Badge color="teal" variant="light">Managers</Badge></Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.managers.total}</Table.Td>
-                            <Table.Td c="teal">{complianceData.parCategorieSimple.managers.formes}</Table.Td>
-                            <Table.Td c="red">{complianceData.parCategorieSimple.managers.nonFormes}</Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.managers.heures}h</Table.Td>
-                            <Table.Td>
-                              <Text fw={700} c={complianceData.parCategorieSimple.managers.tauxCouverture >= 80 ? 'teal' : 'red'}>
-                                {complianceData.parCategorieSimple.managers.tauxCouverture}%
-                              </Text>
-                            </Table.Td>
-                          </Table.Tr>
-                          <Table.Tr>
-                            <Table.Td><Badge color="violet" variant="light">Directeurs</Badge></Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.directeurs.total}</Table.Td>
-                            <Table.Td c="teal">{complianceData.parCategorieSimple.directeurs.formes}</Table.Td>
-                            <Table.Td c="red">{complianceData.parCategorieSimple.directeurs.nonFormes}</Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.directeurs.heures}h</Table.Td>
-                            <Table.Td>
-                              <Text fw={700} c={complianceData.parCategorieSimple.directeurs.tauxCouverture >= 80 ? 'teal' : 'red'}>
-                                {complianceData.parCategorieSimple.directeurs.tauxCouverture}%
-                              </Text>
-                            </Table.Td>
-                          </Table.Tr>
-                          <Table.Tr>
-                            <Table.Td><Badge color="gray" variant="light">Autres Collaborateurs</Badge></Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.collaborateurs.total}</Table.Td>
-                            <Table.Td c="teal">{complianceData.parCategorieSimple.collaborateurs.formes}</Table.Td>
-                            <Table.Td c="red">{complianceData.parCategorieSimple.collaborateurs.nonFormes}</Table.Td>
-                            <Table.Td>{complianceData.parCategorieSimple.collaborateurs.heures}h</Table.Td>
-                            <Table.Td>
-                              <Text fw={700} c={complianceData.parCategorieSimple.collaborateurs.tauxCouverture >= 80 ? 'teal' : 'red'}>
-                                {complianceData.parCategorieSimple.collaborateurs.tauxCouverture}%
-                              </Text>
-                            </Table.Td>
-                          </Table.Tr>
-                        </Table.Tbody>
-                      </Table>
-                    </Stack>
-                  </Card>
-                </motion.div>
-
-                {complianceData.parCategorieCroisee.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.4 }}
-                  >
-                    <Card withBorder p="lg" radius="md">
-                      <Stack gap="md">
-                        <Group gap="xs">
-                          <ThemeIcon color="blue" variant="light"><GenderMale size={16} weight="bold" /></ThemeIcon>
-                          <ThemeIcon color="pink" variant="light"><GenderFemale size={16} weight="bold" /></ThemeIcon>
-                          <Title order={3}>Répartition par Genre (employés formés)</Title>
-                          {complianceData?.periode?.libelle && (
-                            <Badge variant="light" color="grape">{complianceData.periode.libelle}</Badge>
-                          )}
-                        </Group>
-                        <Table striped withTableBorder>
-                          <Table.Thead>
-                            <Table.Tr>
-                              <Table.Th>Catégorie</Table.Th>
-                              <Table.Th>Hommes</Table.Th>
-                              <Table.Th>Heures H</Table.Th>
-                              <Table.Th>Femmes</Table.Th>
-                              <Table.Th>Heures F</Table.Th>
-                            </Table.Tr>
-                          </Table.Thead>
-                          <Table.Tbody>
-                            {complianceData.parCategorieCroisee.map(cat => (
-                              <Table.Tr key={cat.categorie}>
-                                <Table.Td><Badge color={getCategoryBadgeColor(cat.categorie)} variant="light">{cat.categorie}</Badge></Table.Td>
-                                <Table.Td c="blue">{cat.parGenre.homme.nombre}</Table.Td>
-                                <Table.Td>{cat.parGenre.homme.heures}h</Table.Td>
-                                <Table.Td c="pink">{cat.parGenre.femme.nombre}</Table.Td>
-                                <Table.Td>{cat.parGenre.femme.heures}h</Table.Td>
-                              </Table.Tr>
-                            ))}
-                          </Table.Tbody>
-                        </Table>
-                      </Stack>
-                    </Card>
-                  </motion.div>
-                )}
-
-                {complianceData.parFormation.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.5 }}
-                  >
-                    <Card withBorder p="lg" radius="md">
-                      <Stack gap="md">
-                        <Group gap="xs">
-                          <ThemeIcon color="teal" variant="light"><ShieldCheck size={18} weight="bold" /></ThemeIcon>
-                          <Title order={3}>Participation par Formation Éthique</Title>
-                        </Group>
-                        <Table striped withTableBorder>
-                          <Table.Thead>
-                            <Table.Tr>
-                              <Table.Th>Formation</Table.Th>
-                              <Table.Th>Total</Table.Th>
-                              <Table.Th>B2B</Table.Th>
-                              <Table.Th>B2C</Table.Th>
-                              <Table.Th>Managers</Table.Th>
-                              <Table.Th>Directeurs</Table.Th>
-                              <Table.Th>Collab.</Table.Th>
-                            </Table.Tr>
-                          </Table.Thead>
-                          <Table.Tbody>
-                            {complianceData.parFormation.map(f => (
-                              <Table.Tr key={f.formationId}>
-                                <Table.Td>{f.nomFormation}</Table.Td>
-                                <Table.Td fw={700}>{f.participants.total}</Table.Td>
-                                <Table.Td>{f.participants.b2b}</Table.Td>
-                                <Table.Td>{f.participants.b2c}</Table.Td>
-                                <Table.Td>{f.participants.managers}</Table.Td>
-                                <Table.Td>{f.participants.directeurs}</Table.Td>
-                                <Table.Td>{f.participants.collaborateurs}</Table.Td>
-                              </Table.Tr>
-                            ))}
-                          </Table.Tbody>
-                        </Table>
-                      </Stack>
-                    </Card>
-                  </motion.div>
-                )}
-              </>
             )}
           </>
         ) : null}

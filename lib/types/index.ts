@@ -1206,3 +1206,41 @@ export interface ComplianceEthicsKPIsResponse {
 
   parFormation: ComplianceFormationStats[];
 }
+
+// ==================== BILAN ANNUEL ====================
+
+export interface BilanAnnuelResponse {
+  annee: number;
+  anneePrecedente: number;
+  stagiaires: {
+    valeur: number;
+    precedent: number;
+    evolutionPct: number | null;
+  };
+  heures: {
+    cumulees: number;
+    dispensees: number;
+    precedent: number;
+    evolutionPct: number | null;
+  };
+  categoriesPrioritaires: {
+    pourcentage: number;
+    stagiaires: number;
+    categories: string[];
+  };
+  distanciel: {
+    pourcentage: number;
+    precedentPct: number;
+    evolutionPts: number;
+    sessionsDistanciel: number;
+    sessionsTotal: number;
+  };
+  maxParticipants: {
+    nombre: number;
+    titreSession: string | null;
+  };
+  formateurs: {
+    formateursDistincts: number;
+    organismesDistincts: number;
+  };
+}

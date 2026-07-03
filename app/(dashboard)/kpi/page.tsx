@@ -8,6 +8,9 @@ import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
 import { TrendUp } from '@phosphor-icons/react/dist/ssr/TrendUp';
 import { Building } from '@phosphor-icons/react/dist/ssr/Building';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+import { Target } from '@phosphor-icons/react/dist/ssr/Target';
+import { Trophy } from '@phosphor-icons/react/dist/ssr/Trophy';
 import { useRouter } from 'next/navigation'
 
 export default function KPIMainPage() {
@@ -15,15 +18,27 @@ export default function KPIMainPage() {
 
   const kpiModules = [
     {
+      title: 'Formations obligatoires',
+      description: 'Conformité des formations obligatoires : matrice département × formation, listes par collaborateur, rappels managers et export Excel',
+      href: '/kpi/conformite',
+      icon: <ShieldCheck size={32} weight="bold" />,
+      color: 'orange',
+      metrics: [
+        { label: 'Conformité', value: 'Matrice dept × formation' },
+        { label: 'À relancer', value: 'Listes par manager' },
+        { label: 'Actions', value: 'Rappels + export Excel' },
+      ]
+    },
+    {
       title: 'KPIs Formations',
-      description: 'Analyse détaillée du catalogue de formations, taux d\'utilisation, formations populaires et orphelines',
+      description: 'Analyse détaillée du catalogue de formations, taux d\'utilisation, heures dispensées et cumulées',
       href: '/kpi/formations',
       icon: <Book size={32} weight="bold" />,
       color: 'blue',
       metrics: [
         { label: 'Catalogue complet', value: 'Toutes les formations' },
         { label: 'Taux utilisation', value: 'Performance formations' },
-        { label: 'Top formations', value: 'Les plus populaires' },
+        { label: 'Heures & activité', value: 'Organismes, catégories' },
       ]
     },
     {
@@ -38,10 +53,34 @@ export default function KPIMainPage() {
         { label: 'Top participants', value: 'Classement' },
       ]
     },
+    {
+      title: 'Objectifs L&D',
+      description: 'Suivi des objectifs Learning & Development par catégorie : certifiants, IA, Cybersécurité...',
+      href: '/kpi/objectifs-ld',
+      icon: <Target size={32} weight="bold" />,
+      color: 'violet',
+      metrics: [
+        { label: 'Par catégorie', value: 'Cibles et atteinte' },
+        { label: 'Évolution', value: 'Comparaison N-1' },
+        { label: 'Radar', value: 'Vue synthétique' },
+      ]
+    },
+    {
+      title: 'Bilan annuel',
+      description: 'Chiffres clés de l\'année en un coup d\'œil : stagiaires, heures, distanciel, formateurs mobilisés',
+      href: '/kpi/bilan',
+      icon: <Trophy size={32} weight="bold" />,
+      color: 'yellow',
+      metrics: [
+        { label: 'Stagiaires & heures', value: 'Avec évolution vs N-1' },
+        { label: 'Distanciel', value: 'Part des sessions' },
+        { label: 'Records', value: 'Formateurs, participants' },
+      ]
+    },
   ]
 
   const quickStats = [
-    { label: 'Modules disponibles', value: '2', icon: <Building size={20} />, color: 'blue' },
+    { label: 'Modules disponibles', value: '5', icon: <Building size={20} />, color: 'blue' },
     { label: 'KPIs actifs', value: '80+', icon: <ChartLine size={20} />, color: 'green' },
     { label: 'Mise à jour', value: 'Temps réel', icon: <Clock size={20} />, color: 'orange' },
     { label: 'Performance', value: '< 2s', icon: <TrendUp size={20} />, color: 'teal' },

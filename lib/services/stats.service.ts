@@ -6,7 +6,8 @@ import {
   DepartementStats,
   ChartData,
   DetailedKPIsResponse,
-  ComplianceEthicsKPIsResponse
+  ComplianceEthicsKPIsResponse,
+  BilanAnnuelResponse
 } from '../types';
 
 export const statsService = {
@@ -311,6 +312,14 @@ export const statsService = {
     limit?: number;
   }): Promise<any[]> {
     const response = await api.get('/notifications/reminder-history', { params });
+    return response.data;
+  },
+
+  // Bilan annuel : chiffres clés de l'année avec comparaison N-1
+  async getBilanAnnuel(annee?: number): Promise<BilanAnnuelResponse> {
+    const params: Record<string, string> = {};
+    if (annee) params.annee = String(annee);
+    const response = await api.get('/stats/bilan-annuel', { params });
     return response.data;
   },
 };

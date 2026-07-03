@@ -158,6 +158,7 @@ const navigationItems: NavigationItem[] = [
       { label: 'Formations', href: '/kpi/formations' },
       { label: 'Collaborateurs', href: '/kpi/collaborateurs' },
       { label: 'Objectifs L&D', href: '/kpi/objectifs-ld' },
+      { label: 'Bilan annuel', href: '/kpi/bilan' },
     ]
   },
   { 

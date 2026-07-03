@@ -55,6 +55,19 @@ export const exportsService = {
     return response.data;
   },
 
+  async exportFormationsObligatoires(annee?: number): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (annee) params.append('annee', String(annee));
+
+    const queryString = params.toString();
+    const url = `/export/formations-obligatoires.xlsx${queryString ? `?${queryString}` : ''}`;
+
+    const response = await api.get(url, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
   downloadBlob(blob: Blob, filename: string): void {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');

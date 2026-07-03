@@ -45,9 +45,10 @@ import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple'
 import { Info } from '@phosphor-icons/react/dist/ssr/Info'
 import { UserList } from '@phosphor-icons/react/dist/ssr/UserList'
 import { Scales } from '@phosphor-icons/react/dist/ssr/Scales'
+import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
-import { statsService, formationsService, notificationsService } from '@/lib/services'
+import { statsService, formationsService, notificationsService, exportsService } from '@/lib/services'
 import { ComplianceEthicsKPIsResponse } from '@/lib/types'
 
 // ===== Interfaces =====
@@ -196,6 +197,7 @@ export default function ConformitePage() {
   // Reminder modal
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [sendingReminders, setSendingReminders] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [smtpLoading, setSmtpLoading] = useState(false)
 
   // Email status
@@ -476,6 +478,37 @@ export default function ConformitePage() {
     }
   }
 
+  // Export Excel du suivi (liste à relancer, une feuille par formation, synthèse)
+  const handleExportExcel = async () => {
+    setExporting(true)
+    try {
+      const annee = periode === 'annee'
+        ? parseInt(date, 10)
+        : periode === 'mois'
+          ? parseInt(date.split('-')[0], 10)
+          : (dateDebut ?? new Date()).getFullYear()
+      const anneeExport = isNaN(annee) ? new Date().getFullYear() : annee
+      const blob = await exportsService.exportFormationsObligatoires(anneeExport)
+      exportsService.downloadBlob(blob, `formations-obligatoires_${anneeExport}.xlsx`)
+      notifications.show({
+        title: 'Export généré',
+        message: 'Le fichier Excel de suivi a été téléchargé',
+        color: 'green',
+        icon: <CheckCircle size={20} weight="fill" />,
+      })
+    } catch (error) {
+      console.error("Erreur lors de l'export Excel:", error)
+      notifications.show({
+        title: 'Erreur',
+        message: "Impossible de générer l'export Excel",
+        color: 'red',
+        icon: <WarningCircle size={20} weight="fill" />,
+      })
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const handleSendReminders = async () => {
     setSendingReminders(true)
     try {
@@ -574,7 +607,17 @@ export default function ConformitePage() {
                   Suivi des formations obligatoires
                 </Text>
               </Stack>
-              <Badge color="green" variant="light" size="lg">Temps reel</Badge>
+              <Group gap="sm">
+                <Button
+                  leftSection={<DownloadSimple size={18} />}
+                  variant="light"
+                  onClick={handleExportExcel}
+                  loading={exporting}
+                >
+                  Exporter (Excel)
+                </Button>
+                <Badge color="green" variant="light" size="lg">Temps reel</Badge>
+              </Group>
             </Group>
             <PeriodSelector
               periode={periode}

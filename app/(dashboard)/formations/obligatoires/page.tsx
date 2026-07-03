@@ -12,27 +12,25 @@ import {
   Group,
   TextInput,
   Stack,
-  Tabs,
   SimpleGrid,
   ThemeIcon,
   Center,
   Loader,
   ActionIcon,
   Tooltip,
-  RingProgress,
-  Progress,
   Alert,
+  Button,
 } from '@mantine/core';
+import { notifications } from '@mantine/notifications';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
-import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
-import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
-import { formationsService, statsService } from '@/lib/services';
+import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple';
+import { formationsService, statsService, exportsService } from '@/lib/services';
 import { Formation } from '@/lib/types';
 
 interface MandatoryKPIs {
@@ -44,40 +42,21 @@ interface MandatoryKPIs {
     totalNonFormes: number;
     tauxConformiteGlobal: number;
   };
-  formations: Array<{
-    id: number;
-    codeFormation: string;
-    nomFormation: string;
-    categorie: string;
-    collaborateursFormes: number;
-    collaborateursNonFormes: number;
-    tauxConformite: number;
-  }>;
-  parDepartement: Array<{
-    departementId: number;
-    departement: string;
-    totalCollaborateurs: number;
-    formes: number;
-    nonFormes: number;
-    tauxConformite: number;
-  }>;
 }
 
 export default function FormationsObligatoiresPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<string | null>('formations');
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
-  // Conformity data
+  // Résumé de conformité (le suivi détaillé vit sur /kpi/conformite)
   const [conformityData, setConformityData] = useState<MandatoryKPIs | null>(null);
-  const [conformityLoading, setConformityLoading] = useState(false);
 
-  // Charger les formations obligatoires
   useEffect(() => {
-    const loadFormations = async () => {
+    const loadData = async () => {
       setLoading(true);
       setError(null);
       try {
@@ -92,27 +71,40 @@ export default function FormationsObligatoiresPage() {
       } finally {
         setLoading(false);
       }
+
+      try {
+        const data = await statsService.getMandatoryTrainingsKPIs('annee', new Date().getFullYear().toString());
+        setConformityData(data);
+      } catch (err) {
+        console.error('Erreur lors du chargement des données de conformité:', err);
+      }
     };
 
-    loadFormations();
+    loadData();
   }, []);
 
-  // Charger les KPIs de conformité quand l'onglet est sélectionné
-  useEffect(() => {
-    if (activeTab === 'conformite') {
-      loadConformityData();
-    }
-  }, [activeTab]);
-
-  const loadConformityData = async () => {
-    setConformityLoading(true);
+  const handleExport = async () => {
+    setExporting(true);
     try {
-      const data = await statsService.getMandatoryTrainingsKPIs('annee', new Date().getFullYear().toString());
-      setConformityData(data);
+      const annee = new Date().getFullYear();
+      const blob = await exportsService.exportFormationsObligatoires(annee);
+      exportsService.downloadBlob(blob, `formations-obligatoires_${annee}.xlsx`);
+      notifications.show({
+        title: 'Export généré',
+        message: 'Le fichier Excel de suivi des formations obligatoires a été téléchargé',
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
     } catch (err) {
-      console.error('Erreur lors du chargement des données de conformité:', err);
+      console.error("Erreur lors de l'export:", err);
+      notifications.show({
+        title: 'Erreur',
+        message: "Impossible de générer l'export Excel",
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
     } finally {
-      setConformityLoading(false);
+      setExporting(false);
     }
   };
 
@@ -156,12 +148,22 @@ export default function FormationsObligatoiresPage() {
   return (
     <Container size="xl">
       <Stack gap="xl">
-        <div>
-          <Title order={2}>Formations obligatoires</Title>
-          <Text c="dimmed" size="sm">
-            Gestion et suivi des formations réglementaires et obligatoires
-          </Text>
-        </div>
+        <Group justify="space-between" align="flex-end" wrap="wrap">
+          <div>
+            <Title order={2}>Formations obligatoires</Title>
+            <Text c="dimmed" size="sm">
+              Catalogue des formations réglementaires et obligatoires
+            </Text>
+          </div>
+          <Button
+            leftSection={<DownloadSimple size={18} />}
+            variant="light"
+            onClick={handleExport}
+            loading={exporting}
+          >
+            Exporter le suivi (Excel)
+          </Button>
+        </Group>
 
         <SimpleGrid cols={{ base: 1, md: 4 }} spacing="lg">
           <Card shadow="sm" p="lg" radius="md" withBorder>
@@ -240,284 +242,97 @@ export default function FormationsObligatoiresPage() {
           </Card>
         </SimpleGrid>
 
-        <Tabs value={activeTab} onChange={setActiveTab}>
-          <Tabs.List>
-            <Tabs.Tab value="formations">Formations obligatoires ({formations.length})</Tabs.Tab>
-            <Tabs.Tab value="conformite">Suivi conformité</Tabs.Tab>
-          </Tabs.List>
+        <Alert icon={<ShieldCheck size={20} />} color="blue" variant="light">
+          <Text size="sm">
+            Le suivi détaillé de la conformité (matrice département × formation, listes par collaborateur,
+            envoi de rappels aux managers) se trouve sur la page{' '}
+            <Text
+              component="a"
+              href="/kpi/conformite"
+              c="blue"
+              td="underline"
+              style={{ cursor: 'pointer' }}
+            >
+              KPI Obligatoires
+            </Text>.
+          </Text>
+        </Alert>
 
-          <Tabs.Panel value="formations" pt="xl">
-            <Stack gap="md">
-              <TextInput
-                placeholder="Rechercher une formation..."
-                leftSection={<MagnifyingGlass size={16} />}
-                value={search}
-                onChange={(e) => setSearch(e.currentTarget.value)}
-              />
+        <Stack gap="md">
+          <TextInput
+            placeholder="Rechercher une formation..."
+            leftSection={<MagnifyingGlass size={16} />}
+            value={search}
+            onChange={(e) => setSearch(e.currentTarget.value)}
+          />
 
-              <Card shadow="sm" p={0} radius="md" withBorder>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Formation</Table.Th>
-                      <Table.Th>Code</Table.Th>
-                      <Table.Th>Catégorie</Table.Th>
-                      <Table.Th>Type</Table.Th>
-                      <Table.Th>Durée</Table.Th>
-                      <Table.Th>Statut</Table.Th>
-                      <Table.Th>Actions</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {filteredFormations.map((formation) => (
-                      <Table.Tr key={formation.id}>
-                        <Table.Td>
-                          <Text size="sm" fw={500}>{formation.nomFormation}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm" c="dimmed">{formation.codeFormation}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge variant="light">
-                            {typeof formation.categorie === 'string'
-                              ? formation.categorie
-                              : formation.categorie?.nomCategorie || 'Non catégorisé'}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{formation.typeFormation || '-'}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{formatDuree(formation.dureePrevue, formation.uniteDuree)}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Badge
-                            color={formation.actif ? 'green' : 'gray'}
-                            variant="light"
-                          >
-                            {formation.actif ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </Table.Td>
-                        <Table.Td>
-                          <Tooltip label="Voir les détails">
-                            <ActionIcon
-                              variant="subtle"
-                              onClick={() => router.push(`/formations/${formation.id}`)}
-                            >
-                              <Eye size={18} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
+          <Card shadow="sm" p={0} radius="md" withBorder>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Formation</Table.Th>
+                  <Table.Th>Code</Table.Th>
+                  <Table.Th>Catégorie</Table.Th>
+                  <Table.Th>Type</Table.Th>
+                  <Table.Th>Durée</Table.Th>
+                  <Table.Th>Statut</Table.Th>
+                  <Table.Th>Actions</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {filteredFormations.map((formation) => (
+                  <Table.Tr key={formation.id}>
+                    <Table.Td>
+                      <Text size="sm" fw={500}>{formation.nomFormation}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" c="dimmed">{formation.codeFormation}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge variant="light">
+                        {typeof formation.categorie === 'string'
+                          ? formation.categorie
+                          : formation.categorie?.nomCategorie || 'Non catégorisé'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{formation.typeFormation || '-'}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{formatDuree(formation.dureePrevue, formation.uniteDuree)}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge
+                        color={formation.actif ? 'green' : 'gray'}
+                        variant="light"
+                      >
+                        {formation.actif ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Tooltip label="Voir les détails">
+                        <ActionIcon
+                          variant="subtle"
+                          onClick={() => router.push(`/formations/${formation.id}`)}
+                        >
+                          <Eye size={18} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
 
-                {filteredFormations.length === 0 && (
-                  <Text ta="center" p="xl" c="dimmed">
-                    {formations.length === 0
-                      ? 'Aucune formation n\'est marquée comme obligatoire. Éditez une formation pour la marquer comme obligatoire.'
-                      : 'Aucune formation obligatoire ne correspond à votre recherche'}
-                  </Text>
-                )}
-              </Card>
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="conformite" pt="xl">
-            {conformityLoading ? (
-              <Center h={300}>
-                <Loader size="lg" />
-              </Center>
-            ) : !conformityData || conformityData.stats.totalFormations === 0 ? (
-              <Stack gap="lg">
-                <Alert
-                  icon={<ShieldCheck size={20} />}
-                  title="Aucune donnée de conformité"
-                  color="blue"
-                  variant="light"
-                >
-                  <Text size="sm">
-                    Aucune formation obligatoire n'est définie ou aucune donnée de conformité n'est disponible pour la période en cours.
-                    Marquez des formations comme obligatoires pour activer le suivi de conformité.
-                  </Text>
-                </Alert>
-              </Stack>
-            ) : (
-              <Stack gap="lg">
-                {/* Taux de conformité global */}
-                <Card shadow="sm" p="lg" radius="md" withBorder>
-                  <Group justify="space-between" align="flex-start">
-                    <div>
-                      <Title order={4} mb="xs">Conformité globale</Title>
-                      <Text c="dimmed" size="sm" mb="md">
-                        {conformityData.periode.libelle} - {conformityData.stats.totalFormations} formation(s) obligatoire(s)
-                      </Text>
-                      <SimpleGrid cols={3} spacing="lg">
-                        <div>
-                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Collaborateurs à former</Text>
-                          <Text size="lg" fw={700}>{conformityData.stats.totalCollaborateursAFormer}</Text>
-                        </div>
-                        <div>
-                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Formés</Text>
-                          <Text size="lg" fw={700} c="green">{conformityData.stats.totalFormes}</Text>
-                        </div>
-                        <div>
-                          <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Non formés</Text>
-                          <Text size="lg" fw={700} c="red">{conformityData.stats.totalNonFormes}</Text>
-                        </div>
-                      </SimpleGrid>
-                    </div>
-                    <RingProgress
-                      size={140}
-                      thickness={12}
-                      roundCaps
-                      sections={[
-                        { value: conformityData.stats.tauxConformiteGlobal, color: getConformiteColor(conformityData.stats.tauxConformiteGlobal) }
-                      ]}
-                      label={
-                        <Center>
-                          <div style={{ textAlign: 'center' }}>
-                            <Text size="xl" fw={800}>{conformityData.stats.tauxConformiteGlobal}</Text>
-                            <Text size="xs" c="dimmed">%</Text>
-                          </div>
-                        </Center>
-                      }
-                    />
-                  </Group>
-                </Card>
-
-                {/* Détail par formation */}
-                <Card shadow="sm" p="lg" radius="md" withBorder>
-                  <Title order={4} mb="md">Par formation obligatoire</Title>
-                  <Table striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Formation</Table.Th>
-                        <Table.Th>Catégorie</Table.Th>
-                        <Table.Th>Formés</Table.Th>
-                        <Table.Th>Non formés</Table.Th>
-                        <Table.Th>Taux</Table.Th>
-                        <Table.Th style={{ width: 200 }}>Progression</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {conformityData.formations.map((f) => (
-                        <Table.Tr key={f.id}>
-                          <Table.Td>
-                            <div>
-                              <Text size="sm" fw={500}>{f.nomFormation}</Text>
-                              <Text size="xs" c="dimmed">{f.codeFormation}</Text>
-                            </div>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge variant="light" size="sm">{f.categorie}</Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" fw={600} c="green">{f.collaborateursFormes}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" fw={600} c="red">{f.collaborateursNonFormes}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge color={getConformiteColor(f.tauxConformite)} variant="filled" size="sm">
-                              {f.tauxConformite}%
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Progress
-                              value={f.tauxConformite}
-                              color={getConformiteColor(f.tauxConformite)}
-                              size="lg"
-                              radius="xl"
-                            />
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                </Card>
-
-                {/* Détail par département */}
-                <Card shadow="sm" p="lg" radius="md" withBorder>
-                  <Group mb="md">
-                    <Buildings size={20} weight="bold" />
-                    <Title order={4}>Conformité par département</Title>
-                  </Group>
-                  <Table striped highlightOnHover>
-                    <Table.Thead>
-                      <Table.Tr>
-                        <Table.Th>Département</Table.Th>
-                        <Table.Th>Total collaborateurs</Table.Th>
-                        <Table.Th>Formés</Table.Th>
-                        <Table.Th>Non formés</Table.Th>
-                        <Table.Th>Taux conformité</Table.Th>
-                        <Table.Th style={{ width: 200 }}>Progression</Table.Th>
-                      </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                      {conformityData.parDepartement.map((dept) => (
-                        <Table.Tr key={dept.departementId}>
-                          <Table.Td>
-                            <Text size="sm" fw={500}>{dept.departement}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm">{dept.totalCollaborateurs}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" fw={600} c="green">{dept.formes}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" fw={600} c="red">{dept.nonFormes}</Text>
-                          </Table.Td>
-                          <Table.Td>
-                            <Badge color={getConformiteColor(dept.tauxConformite)} variant="filled" size="sm">
-                              {dept.tauxConformite}%
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Progress
-                              value={dept.tauxConformite}
-                              color={getConformiteColor(dept.tauxConformite)}
-                              size="lg"
-                              radius="xl"
-                            />
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
-                  {conformityData.parDepartement.length === 0 && (
-                    <Text ta="center" p="xl" c="dimmed">
-                      Aucune donnée par département disponible.
-                    </Text>
-                  )}
-                </Card>
-
-                {/* Lien vers page KPI détaillée */}
-                <Alert
-                  icon={<ShieldCheck size={20} />}
-                  color="blue"
-                  variant="light"
-                >
-                  <Text size="sm">
-                    Pour une vue détaillée avec la possibilité d'envoyer des rappels aux managers,
-                    consultez la page{' '}
-                    <Text
-                      component="a"
-                      href="/kpi/formations?tab=obligatoires"
-                      c="blue"
-                      td="underline"
-                      style={{ cursor: 'pointer' }}
-                    >
-                      KPI Formations obligatoires
-                    </Text>.
-                  </Text>
-                </Alert>
-              </Stack>
+            {filteredFormations.length === 0 && (
+              <Text ta="center" p="xl" c="dimmed">
+                {formations.length === 0
+                  ? 'Aucune formation n\'est marquée comme obligatoire. Éditez une formation pour la marquer comme obligatoire.'
+                  : 'Aucune formation obligatoire ne correspond à votre recherche'}
+              </Text>
             )}
-          </Tabs.Panel>
-        </Tabs>
+          </Card>
+        </Stack>
       </Stack>
     </Container>
   );

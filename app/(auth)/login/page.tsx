@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   Paper,
   TextInput,
@@ -30,7 +30,6 @@ import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { useAuth } from '@/contexts/AuthContext';
 // Composant principal avec useSearchParams
 function LoginContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const explicitRedirect = searchParams.get('redirect');
   const successMessage = searchParams.get('success');
@@ -79,18 +78,21 @@ function LoginContent() {
     },
   });
 
-  // Redirect if already logged in
+  // Redirect if already logged in (and right after a successful login).
+  // Navigation "dure" (window.location) et non router.push : le cache du
+  // routeur Next.js peut rejouer la redirection middleware vers /login
+  // enregistrée avant la pose des cookies, ce qui obligeait à rafraîchir
+  // la page pour atteindre le dashboard.
   useEffect(() => {
     if (isAuthenticated && user) {
-      if (explicitRedirect) {
-        router.push(explicitRedirect);
-      } else {
-        // Redirect based on role
-        const defaultRedirect = user.role === 'MANAGER' ? '/manager/dashboard' : '/dashboard';
-        router.push(defaultRedirect);
-      }
+      const safeRedirect =
+        explicitRedirect && explicitRedirect.startsWith('/') && !explicitRedirect.startsWith('//')
+          ? explicitRedirect
+          : null;
+      const defaultRedirect = user.role === 'MANAGER' ? '/manager/dashboard' : '/dashboard';
+      window.location.replace(safeRedirect || defaultRedirect);
     }
-  }, [isAuthenticated, user, router, explicitRedirect]);
+  }, [isAuthenticated, user, explicitRedirect]);
 
   // Track cursor position in email field
   const handleEmailInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,7 +171,8 @@ function LoginContent() {
 
       // Success animation via CSS
       setFormAnimClass('login-success-out');
-      // Redirect is handled by AuthContext.login based on user role
+      // La redirection est déclenchée par le useEffect ci-dessus dès que
+      // le contexte d'auth expose l'utilisateur connecté.
     } catch (error: any) {
       console.error('Erreur de connexion:', error);
       const errorMessage = error.message || 'Identifiants invalides';

@@ -17,19 +17,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/**
- * Returns the default redirect path based on user role
- */
-function getRedirectByRole(role?: string): string {
-  switch (role) {
-    case 'MANAGER':
-      return '/manager/dashboard';
-    case 'RH':
-    default:
-      return '/dashboard';
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -78,9 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authService.login(email, password);
       setUser(response.user);
 
-      // Redirect based on user role
-      const redirectPath = getRedirectByRole(response.user.role);
-      router.push(redirectPath);
+      // La redirection est gérée par la page de login (navigation dure) :
+      // un router.push ici rejouait la redirection /login mise en cache par
+      // le routeur avant que le middleware ne voie les nouveaux cookies.
     } catch (error: any) {
       console.error('Login failed:', error);
 

@@ -220,7 +220,7 @@ export default function DashboardPage() {
       color: summary.nombreFormationsObligatoires > 0
         ? (summary.tauxObligatoires < 100 ? "orange" : "green")
         : "gray",
-      link: "/kpi/formations?tab=obligatoires",
+      link: "/kpi/conformite",
     },
 
     // Ligne 4 : Volumétrie (2 KPIs)

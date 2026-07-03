@@ -12,7 +12,6 @@ import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { Crown } from '@phosphor-icons/react/dist/ssr/Crown';
 import { Handshake } from '@phosphor-icons/react/dist/ssr/Handshake';
-import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { UserSwitch } from '@phosphor-icons/react/dist/ssr/UserSwitch';
 import {
@@ -405,72 +404,6 @@ export default function CollaborateursKPIsPage() {
           </Card>
         ) : detailedData ? (
           <>
-            {detailedData.heuresFormation && (
-              <motion.div
-                initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.15 }}
-              >
-                <Card withBorder p="lg" radius="md">
-                  <Stack gap="md">
-                    <Group gap="xs">
-                      <ThemeIcon color="blue" variant="light">
-                        <Clock size={20} weight="bold" />
-                      </ThemeIcon>
-                      <Title order={3}>Heures de formation</Title>
-                    </Group>
-                    <SimpleGrid cols={{ base: 1, sm: 2 }}>
-                      <Paper withBorder p="md" radius="md">
-                        <Text size="sm" c="dimmed">Heures dispensées</Text>
-                        <Title order={2}>{detailedData.heuresFormation.heuresDispensees.toLocaleString('fr-FR')}h</Title>
-                        <Text size="xs" c="dimmed">Sessions comptées 1 fois</Text>
-                      </Paper>
-                      <Paper withBorder p="md" radius="md">
-                        <Text size="sm" c="dimmed">Heures cumulées</Text>
-                        <Title order={2}>{detailedData.heuresFormation.heuresCumulees.toLocaleString('fr-FR')}h</Title>
-                        <Text size="xs" c="dimmed">Par participant (×N pour collectives)</Text>
-                      </Paper>
-                    </SimpleGrid>
-                    <Group gap="lg">
-                      <Text size="sm" c="dimmed">Individuelles: {detailedData.heuresFormation.heuresIndividuelles.toLocaleString('fr-FR')}h</Text>
-                      <Text size="sm" c="dimmed">Collectives dispensées: {detailedData.heuresFormation.heuresCollectivesDispensees.toLocaleString('fr-FR')}h</Text>
-                      <Text size="sm" c="dimmed">Collectives cumulées: {detailedData.heuresFormation.heuresCollectivesCumulees.toLocaleString('fr-FR')}h</Text>
-                    </Group>
-                  </Stack>
-                </Card>
-              </motion.div>
-            )}
-
-            {detailedData.heuresParOrganisme && detailedData.heuresParOrganisme.length > 0 && (
-              <motion.div
-                initial={reducedMotion ? false : { opacity: 0, y: 20 }}
-                animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
-                transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.2 }}
-              >
-                <Card withBorder p="lg" radius="md">
-                  <Stack gap="md">
-                    <Group gap="xs">
-                      <ThemeIcon color="teal" variant="light">
-                        <Buildings size={20} weight="bold" />
-                      </ThemeIcon>
-                      <Title order={3}>Heures par organisme</Title>
-                    </Group>
-                    <Stack gap="sm">
-                      {detailedData.heuresParOrganisme.slice(0, 5).map((org, index) => (
-                        <Group key={index} justify="space-between">
-                          <Group gap="sm">
-                            <Badge variant="light" color="teal">#{index + 1}</Badge>
-                            <Text>{org.organisme}</Text>
-                          </Group>
-                          <Text fw={600}>{org.heuresDispensees.toLocaleString('fr-FR')}h</Text>
-                        </Group>
-                      ))}
-                    </Stack>
-                  </Stack>
-                </Card>
-              </motion.div>
-            )}
-
             {detailedData.collaborateurs && (
               <motion.div
                 initial={reducedMotion ? false : { opacity: 0, y: 20 }}
@@ -775,38 +708,6 @@ export default function CollaborateursKPIsPage() {
               </motion.div>
             )}
 
-            {detailedData.parCategorie && detailedData.parCategorie.length > 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.9 }}
-              >
-                <Card withBorder p="lg" radius="md">
-                  <Stack gap="md">
-                    <Group gap="xs">
-                      <ThemeIcon color="orange" variant="light"><ChartBar size={18} weight="bold" /></ThemeIcon>
-                      <Title order={3}>Par catégorie de formation</Title>
-                    </Group>
-                    <Stack gap="md">
-                      {detailedData.parCategorie.map((cat) => (
-                        <Stack key={cat.id} gap={4}>
-                          <Group justify="space-between">
-                            <Text fw={600}>{cat.nom}</Text>
-                            <Text fw={600}>{cat.stats.pourcentage}%</Text>
-                          </Group>
-                          <Progress value={cat.stats.pourcentage} />
-                          <Group gap="md">
-                            <Text size="xs" c="dimmed">{cat.stats.nombre} collaborateurs</Text>
-                            <Text size="xs" c="dimmed">{cat.stats.formations} formation{cat.stats.formations > 1 ? 's' : ''}</Text>
-                            <Text size="xs" fw={600}>{cat.stats.heures}h</Text>
-                          </Group>
-                        </Stack>
-                      ))}
-                    </Stack>
-                  </Stack>
-                </Card>
-              </motion.div>
-            )}
           </>
         ) : null}
 

@@ -13,16 +13,12 @@ import {
   SegmentedControl,
   Tabs,
   Progress,
-  Accordion,
-  Modal,
   Button,
   Stack,
-  Checkbox,
   Alert,
   Divider,
   Paper,
   Group,
-  Select,
   Container,
   Card,
   Title,
@@ -30,11 +26,9 @@ import {
   ThemeIcon,
   Loader,
   Center,
-  Table,
   ColorSwatch,
   Box,
 } from '@mantine/core'
-import { notifications } from '@mantine/notifications'
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
 import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
@@ -47,13 +41,8 @@ import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
 import { ListBullets } from '@phosphor-icons/react/dist/ssr/ListBullets';
 import { UserMinus } from '@phosphor-icons/react/dist/ssr/UserMinus';
 import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
-import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
-import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
-import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
-import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
-import { Info } from '@phosphor-icons/react/dist/ssr/Info';
-import { UserList } from '@phosphor-icons/react/dist/ssr/UserList';
+import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion } from 'framer-motion'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
@@ -63,7 +52,8 @@ const LazyTauxFormationContratGraphique = dynamic(
   () => import('@/components/charts/TauxFormationContratGraphique').then(mod => mod.TauxFormationContratGraphique),
   { ssr: false, loading: () => <Center h={400}><Loader /></Center> }
 )
-import { statsService, notificationsService } from '@/lib/services'
+import { statsService } from '@/lib/services'
+import { DetailedKPIsResponse } from '@/lib/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -449,68 +439,6 @@ function TauxFormationContratChart({
   )
 }
 
-// Interface for mandatory trainings KPIs
-interface MandatoryTrainingsKPIs {
-  periode: { annee: number; mois?: number; libelle: string }
-  stats: {
-    totalFormations: number
-    totalCollaborateursAFormer: number
-    totalFormes: number
-    totalNonFormes: number
-    tauxConformiteGlobal: number
-  }
-  formations: Array<{
-    id: number
-    codeFormation: string
-    nomFormation: string
-    categorie: string
-    collaborateursFormes: number
-    collaborateursNonFormes: number
-    tauxConformite: number
-    formes: Array<{ id: number; nomComplet: string; departement: string; dateFormation: string }>
-    nonFormes: Array<{ id: number; nomComplet: string; departement: string }>
-  }>
-  parDepartement: Array<{
-    departementId: number
-    departement: string
-    totalCollaborateurs: number
-    formes: number
-    nonFormes: number
-    tauxConformite: number
-  }>
-}
-
-// Interface for mandatory trainings by manager
-interface MandatoryByManagerResponse {
-  periode: { annee: number; mois?: number; libelle: string }
-  stats: {
-    totalDepartements: number
-    totalManagers: number
-    totalCollaborateursNonFormes: number
-  }
-  departements: Array<{
-    id: number
-    nom: string
-    totalNonFormes: number
-    managers: Array<{
-      id: number
-      nomComplet: string
-      totalSubordonnes: number
-      collaborateursNonFormes: Array<{
-        id: number
-        nomComplet: string
-        formationsManquantes: Array<{ id: number; nomFormation: string }>
-      }>
-    }>
-  }>
-  sansManager: Array<{
-    id: number
-    nomComplet: string
-    departement: string
-    formationsManquantes: Array<{ id: number; nomFormation: string }>
-  }>
-}
-
 export default function FormationsKPIsPage() {
   const reducedMotion = useReducedMotionPreference()
   const searchParams = useSearchParams()
@@ -535,231 +463,32 @@ export default function FormationsKPIsPage() {
   const [includeInactifs, setIncludeInactifs] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'chart'>('list')
 
-  // États pour les formations obligatoires
-  const [mandatoryData, setMandatoryData] = useState<MandatoryTrainingsKPIs | null>(null)
-  const [mandatoryLoading, setMandatoryLoading] = useState(false)
-  const [selectedFormation, setSelectedFormation] = useState<MandatoryTrainingsKPIs['formations'][0] | null>(null)
-  const [modalTab, setModalTab] = useState<'formes' | 'nonFormes'>('nonFormes')
+  // États pour l'onglet Heures & activité (KPIs détaillés)
+  const [detailedData, setDetailedData] = useState<DetailedKPIsResponse | null>(null)
+  const [detailedLoading, setDetailedLoading] = useState(false)
 
-  // États pour la vue par manager
-  const [byManagerData, setByManagerData] = useState<MandatoryByManagerResponse | null>(null)
-  const [byManagerLoading, setByManagerLoading] = useState(false)
-  const [selectedDept, setSelectedDept] = useState<string | null>(null)
-  const [selectedManagers, setSelectedManagers] = useState<number[]>([])
-  const [showReminderModal, setShowReminderModal] = useState(false)
-  const [emailStatus, setEmailStatus] = useState<{ configured: boolean; connectionValid: boolean; message: string } | null>(null)
-  const [sendingReminders, setSendingReminders] = useState(false)
-
-  // Read tab from URL parameter
+  // Read tab from URL parameter.
+  // Le suivi des formations obligatoires a été consolidé sur /kpi/conformite :
+  // les anciens liens ?tab=obligatoires y sont redirigés.
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab === 'obligatoires') {
-      setActiveTab('obligatoires')
+      router.replace('/kpi/conformite')
+    } else if (tab === 'activite') {
+      setActiveTab('activite')
     }
-  }, [searchParams])
+  }, [searchParams, router])
 
   // Update URL when tab changes
   const handleTabChange = (value: string | null) => {
     if (!value) return
     setActiveTab(value)
-    if (value === 'obligatoires') {
-      router.push('/kpi/formations?tab=obligatoires', { scroll: false })
+    if (value === 'activite') {
+      router.push('/kpi/formations?tab=activite', { scroll: false })
     } else {
       router.push('/kpi/formations', { scroll: false })
     }
   }
-
-  // Check email status on component mount
-  useEffect(() => {
-    const checkEmail = async () => {
-      try {
-        const status = await statsService.checkEmailStatus()
-        setEmailStatus(status)
-      } catch (error) {
-        console.error('Erreur lors de la verification du statut email:', error)
-        setEmailStatus({ configured: false, connectionValid: false, message: 'Impossible de verifier le statut' })
-      }
-    }
-    checkEmail()
-  }, [])
-
-  // Load mandatory trainings data when tab is selected
-  useEffect(() => {
-    if (activeTab === 'obligatoires') {
-      fetchMandatoryData()
-    }
-  }, [activeTab, periode, date, dateDebut, dateFin])
-
-  const fetchMandatoryData = async () => {
-    setMandatoryLoading(true)
-    setByManagerLoading(true)
-    try {
-      const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
-      const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
-
-      // Charger les données principales (obligatoire)
-      const mandatoryResponse = await statsService.getMandatoryTrainingsKPIs(periode, date, startDateStr, endDateStr)
-      setMandatoryData(mandatoryResponse)
-      setMandatoryLoading(false)
-
-      // Charger les données par manager (optionnel - ne bloque pas l'affichage principal)
-      try {
-        const byManagerResponse = await statsService.getMandatoryTrainingsByManager(
-          periode,
-          date,
-          startDateStr,
-          endDateStr,
-          selectedDept ? parseInt(selectedDept) : undefined
-        )
-        setByManagerData(byManagerResponse)
-      } catch (managerError) {
-        console.error('Erreur lors du chargement des données par manager:', managerError)
-        setByManagerData(null)
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des formations obligatoires:', error)
-    } finally {
-      setMandatoryLoading(false)
-      setByManagerLoading(false)
-    }
-  }
-
-  // Recharger les données par manager quand le filtre département change
-  useEffect(() => {
-    if (activeTab === 'obligatoires' && mandatoryData) {
-      fetchByManagerData()
-    }
-  }, [selectedDept])
-
-  const fetchByManagerData = async () => {
-    setByManagerLoading(true)
-    try {
-      const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
-      const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
-
-      const response = await statsService.getMandatoryTrainingsByManager(
-        periode,
-        date,
-        startDateStr,
-        endDateStr,
-        selectedDept ? parseInt(selectedDept) : undefined
-      )
-      setByManagerData(response)
-      // Reset selection quand on change de filtre
-      setSelectedManagers([])
-    } catch (error) {
-      console.error('Erreur lors du chargement des données par manager:', error)
-    } finally {
-      setByManagerLoading(false)
-    }
-  }
-
-  // Toggle selection d'un manager
-  const toggleManager = (managerId: number) => {
-    setSelectedManagers(prev =>
-      prev.includes(managerId)
-        ? prev.filter(id => id !== managerId)
-        : [...prev, managerId]
-    )
-  }
-
-  // Sélectionner/désélectionner tous les managers
-  const toggleSelectAllManagers = () => {
-    if (!byManagerData) return
-    const allManagerIds = byManagerData.departements.flatMap(d => d.managers.map(m => m.id))
-    if (selectedManagers.length === allManagerIds.length) {
-      setSelectedManagers([])
-    } else {
-      setSelectedManagers(allManagerIds)
-    }
-  }
-
-  // État pour le statut SMTP
-  const [smtpStatus, setSmtpStatus] = useState<{ configured: boolean; connectionValid: boolean; message: string } | null>(null)
-  const [smtpLoading, setSmtpLoading] = useState(false)
-
-  // Vérifier le statut SMTP
-  const handleCheckSmtp = async () => {
-    setSmtpLoading(true)
-    try {
-      const status = await notificationsService.checkEmailStatus()
-      setSmtpStatus(status)
-      notifications.show({
-        title: status.configured ? 'SMTP configuré' : 'SMTP non configuré',
-        message: status.message,
-        color: status.connectionValid ? 'green' : status.configured ? 'orange' : 'red',
-        icon: status.connectionValid ? <CheckCircle size={20} weight="fill" /> : <WarningCircle size={20} weight="fill" />
-      })
-    } catch (error) {
-      notifications.show({
-        title: 'Erreur',
-        message: 'Impossible de vérifier le statut SMTP',
-        color: 'red'
-      })
-    } finally {
-      setSmtpLoading(false)
-    }
-  }
-
-  // Envoyer les rappels via l'API réelle
-  const handleSendReminders = async () => {
-    setSendingReminders(true)
-    try {
-      const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
-      const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
-
-      const result = await notificationsService.sendMandatoryTrainingReminders({
-        managerIds: selectedManagers,
-        periode,
-        date,
-        startDate: startDateStr,
-        endDate: endDateStr,
-      })
-
-      setShowReminderModal(false)
-
-      if (result.success) {
-        notifications.show({
-          title: 'Rappels envoyés',
-          message: `${result.envoyesAvecSucces}/${result.totalManagers} rappels envoyés avec succès.${result.erreurs > 0 ? ` ${result.erreurs} erreur(s).` : ''}`,
-          color: result.erreurs > 0 ? 'orange' : 'green',
-          icon: <CheckCircle size={20} weight="fill" />
-        })
-      } else {
-        notifications.show({
-          title: 'Erreur',
-          message: result.message,
-          color: 'red',
-          icon: <WarningCircle size={20} weight="fill" />
-        })
-      }
-
-      setSelectedManagers([])
-    } catch (error: any) {
-      notifications.show({
-        title: 'Erreur d\'envoi',
-        message: error?.response?.data?.message || 'Impossible d\'envoyer les rappels. Vérifiez la configuration SMTP.',
-        color: 'red',
-        icon: <WarningCircle size={20} weight="fill" />
-      })
-    } finally {
-      setSendingReminders(false)
-    }
-  }
-
-  // Récupérer les infos des managers sélectionnés pour le modal
-  const getSelectedManagersList = () => {
-    if (!byManagerData) return []
-    return byManagerData.departements.flatMap(d =>
-      d.managers.filter(m => selectedManagers.includes(m.id))
-    )
-  }
-
-  // Options pour le filtre département
-  const departementOptions = byManagerData?.departements.map(d => ({
-    value: d.id.toString(),
-    label: `${d.nom} (${d.totalNonFormes})`
-  })) || []
 
   useEffect(() => {
     fetchData()
@@ -769,6 +498,30 @@ export default function FormationsKPIsPage() {
   useEffect(() => {
     fetchTauxContratData()
   }, [includeInactifs])
+
+  // Charger les KPIs détaillés quand l'onglet Heures & activité est sélectionné
+  useEffect(() => {
+    if (activeTab === 'activite') {
+      fetchDetailedData()
+    }
+  }, [activeTab, periode, date, dateDebut, dateFin])
+
+  const fetchDetailedData = async () => {
+    if (periode === 'plage' && (!dateDebut || !dateFin)) {
+      return
+    }
+    setDetailedLoading(true)
+    try {
+      const startDate = dateDebut ? dateDebut.toISOString() : undefined
+      const endDate = dateFin ? dateFin.toISOString() : undefined
+      const response = await statsService.getCollaborateursDetailedKpis(periode, date, startDate, endDate)
+      setDetailedData(response)
+    } catch (error) {
+      console.error('Erreur lors du chargement des KPIs détaillés:', error)
+    } finally {
+      setDetailedLoading(false)
+    }
+  }
 
   const fetchData = async () => {
     try {
@@ -878,13 +631,8 @@ export default function FormationsKPIsPage() {
               <Tabs.Tab value="overview" leftSection={<ChartBar size={16} weight="bold" />}>
                 Vue d'ensemble
               </Tabs.Tab>
-              <Tabs.Tab value="obligatoires" leftSection={<ShieldCheck size={16} weight="bold" />}>
-                Formations obligatoires
-                {mandatoryData?.stats?.totalFormations && mandatoryData.stats.totalFormations > 0 ? (
-                  <Badge ml="xs" size="sm" variant="filled" color="orange">
-                    {mandatoryData.stats.totalFormations}
-                  </Badge>
-                ) : null}
+              <Tabs.Tab value="activite" leftSection={<Clock size={16} weight="bold" />}>
+                Heures &amp; activité
               </Tabs.Tab>
             </Tabs.List>
           </Tabs>
@@ -1175,554 +923,130 @@ export default function FormationsKPIsPage() {
           </>
         )}
 
-        {/* Tab Content: Formations Obligatoires */}
-        {activeTab === 'obligatoires' && (
+        {/* Tab Content: Heures & activité */}
+        {activeTab === 'activite' && (
           <>
-            {mandatoryLoading ? (
-              <Center py="xl">
-                <Stack align="center" gap="md">
-                  <Loader size="lg" />
-                  <Text c="dimmed">Chargement des formations obligatoires...</Text>
-                </Stack>
-              </Center>
-            ) : mandatoryData?.stats?.totalFormations === 0 ? (
-              <Center py="xl">
-                <Stack align="center" gap="md">
-                  <ThemeIcon size="xl" radius="xl" variant="light" color="gray">
-                    <ShieldCheck size={40} weight="duotone" />
-                  </ThemeIcon>
-                  <Title order={3}>Aucune formation obligatoire</Title>
-                  <Text c="dimmed">Aucune formation n'est marquee comme obligatoire dans le systeme.</Text>
-                </Stack>
-              </Center>
-            ) : mandatoryData && (
+            {detailedLoading ? (
+              <Card withBorder p="lg" radius="md">
+                <Center mih={200}>
+                  <Stack align="center" gap="md">
+                    <Loader />
+                    <Text c="dimmed">Chargement des heures de formation...</Text>
+                  </Stack>
+                </Center>
+              </Card>
+            ) : detailedData ? (
               <>
-                {/* Stats Cards */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                >
-                  <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="md">
-                    <KPICard
-                      title="Formations obligatoires"
-                      value={mandatoryData.stats.totalFormations}
-                      subtitle="A suivre par tous"
-                      icon={<ShieldCheck size={22} weight="bold" />}
-                      color="orange"
-                    />
-                    <KPICard
-                      title="Taux de conformite"
-                      value={mandatoryData.stats.tauxConformiteGlobal}
-                      suffix="%"
-                      subtitle="Toutes formations"
-                      icon={<CheckCircle size={22} weight="bold" />}
-                      color={mandatoryData.stats.tauxConformiteGlobal >= 80 ? 'green' : mandatoryData.stats.tauxConformiteGlobal >= 50 ? 'orange' : 'pink'}
-                    />
-                    <KPICard
-                      title="Collaborateurs conformes"
-                      value={mandatoryData.stats.totalFormes}
-                      subtitle={`sur ${mandatoryData.stats.totalCollaborateursAFormer}`}
-                      icon={<Users size={22} weight="bold" />}
-                      color="green"
-                    />
-                    <KPICard
-                      title="Collaborateurs non conformes"
-                      value={mandatoryData.stats.totalNonFormes}
-                      subtitle="A former"
-                      icon={<WarningCircle size={22} weight="bold" />}
-                      color="pink"
-                    />
-                  </SimpleGrid>
-                </motion.div>
-
-                {/* Formations Table */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <Card withBorder padding="lg" radius="md">
-                    <Stack gap="sm">
-                      <Stack gap={0}>
-                        <Title order={3}>Detail par formation</Title>
-                        <Text size="sm" c="dimmed">Taux de conformite pour chaque formation obligatoire</Text>
-                      </Stack>
-
-                      <Table striped withTableBorder highlightOnHover>
-                        <Table.Thead>
-                          <Table.Tr>
-                            <Table.Th>Formation</Table.Th>
-                            <Table.Th>Categorie</Table.Th>
-                            <Table.Th>Formes</Table.Th>
-                            <Table.Th>Non formes</Table.Th>
-                            <Table.Th>Taux</Table.Th>
-                            <Table.Th>Actions</Table.Th>
-                          </Table.Tr>
-                        </Table.Thead>
-                        <Table.Tbody>
-                          {mandatoryData.formations.map((formation) => (
-                            <Table.Tr key={formation.id}>
-                              <Table.Td>
-                                <Stack gap={0}>
-                                  <Text size="sm" fw={600}>{formation.nomFormation}</Text>
-                                  <Text size="xs" c="dimmed">{formation.codeFormation}</Text>
-                                </Stack>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge variant="light" color="gray" size="sm">{formation.categorie}</Badge>
-                              </Table.Td>
-                              <Table.Td>
-                                <Text size="sm" fw={600} c="green">{formation.collaborateursFormes}</Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Text size="sm" fw={600} c="red">{formation.collaborateursNonFormes}</Text>
-                              </Table.Td>
-                              <Table.Td>
-                                <Badge
-                                  color={formation.tauxConformite >= 80 ? 'green' : formation.tauxConformite >= 50 ? 'orange' : 'red'}
-                                  variant="light"
-                                  size="sm"
-                                >
-                                  {formation.tauxConformite}%
-                                </Badge>
-                              </Table.Td>
-                              <Table.Td>
-                                <Button
-                                  size="xs"
-                                  variant="light"
-                                  leftSection={<Eye size={14} weight="bold" />}
-                                  onClick={() => {
-                                    setSelectedFormation(formation)
-                                    setModalTab('nonFormes')
-                                  }}
-                                >
-                                  Details
-                                </Button>
-                              </Table.Td>
-                            </Table.Tr>
-                          ))}
-                        </Table.Tbody>
-                      </Table>
-                    </Stack>
-                  </Card>
-                </motion.div>
-
-                {/* Department Progress */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                >
-                  <Card withBorder padding="lg" radius="md">
-                    <Stack gap="md">
-                      <Group gap="sm">
-                        <Buildings size={24} weight="bold" />
-                        <Stack gap={0}>
-                          <Title order={3}>Conformite par departement</Title>
-                          <Text size="sm" c="dimmed">Pourcentage de collaborateurs ayant complete toutes les formations obligatoires</Text>
-                        </Stack>
-                      </Group>
-
-                      <Stack gap="sm">
-                        {mandatoryData.parDepartement.slice(0, 10).map((dept, index) => (
-                          <motion.div
-                            key={dept.departementId}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.5 + index * 0.05 }}
-                          >
-                            <Group gap="md" wrap="nowrap">
-                              <Text size="sm" style={{ minWidth: 180 }}>{dept.departement}</Text>
-                              <Box style={{ flex: 1 }}>
-                                <Progress
-                                  value={dept.tauxConformite}
-                                  color={dept.tauxConformite >= 80 ? 'green' : dept.tauxConformite >= 50 ? 'orange' : 'red'}
-                                  size="lg"
-                                  radius="xl"
-                                />
-                              </Box>
-                              <Text size="xs" c="dimmed" style={{ minWidth: 60, textAlign: 'right' }}>
-                                {dept.formes}/{dept.totalCollaborateurs}
-                              </Text>
-                              <Text size="sm" fw={600} style={{ minWidth: 50, textAlign: 'right' }}>
-                                {dept.tauxConformite}%
-                              </Text>
-                            </Group>
-                          </motion.div>
-                        ))}
-                      </Stack>
-
-                      {mandatoryData.parDepartement.length > 10 && (
-                        <Text size="sm" c="dimmed" ta="center" mt="md">
-                          +{mandatoryData.parDepartement.length - 10} autres departements
-                        </Text>
-                      )}
-                    </Stack>
-                  </Card>
-                </motion.div>
-
-                {/* Vue par Manager - Section rappels */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <Card withBorder padding="lg" radius="md">
-                    <Stack gap="md">
-                      <Group justify="space-between" align="flex-start" wrap="wrap">
-                        <Group gap="sm">
-                          <UserList size={24} weight="bold" />
-                          <Stack gap={0}>
-                            <Title order={3}>Vue par departement et manager</Title>
-                            <Text size="sm" c="dimmed">
-                              Selectionnez les managers a notifier pour les formations obligatoires manquantes
-                            </Text>
-                          </Stack>
-                        </Group>
-                        <Select
-                          placeholder="Tous les departements"
-                          data={departementOptions}
-                          value={selectedDept}
-                          onChange={setSelectedDept}
-                          clearable
-                          w={220}
-                        />
-                      </Group>
-
-                      {/* Actions groupées */}
-                      <Group justify="space-between" wrap="wrap">
-                        <Checkbox
-                          label="Selectionner tous les managers"
-                          checked={!!(byManagerData && selectedManagers.length === byManagerData.departements.flatMap(d => d.managers).length && selectedManagers.length > 0)}
-                          indeterminate={!!(selectedManagers.length > 0 && byManagerData && selectedManagers.length < byManagerData.departements.flatMap(d => d.managers).length)}
-                          onChange={toggleSelectAllManagers}
-                        />
-                        <Button
-                          leftSection={<EnvelopeSimple size={18} weight="bold" />}
-                          disabled={selectedManagers.length === 0}
-                          onClick={() => setShowReminderModal(true)}
-                          color="orange"
-                          variant="filled"
-                        >
-                          Envoyer rappels ({selectedManagers.length})
-                        </Button>
-                      </Group>
-
-                      {/* Loading state */}
-                      {byManagerLoading ? (
-                        <Center py="xl">
-                          <Stack align="center" gap="sm">
-                            <Loader />
-                            <Text size="sm" c="dimmed">Chargement de la vue par manager...</Text>
-                          </Stack>
-                        </Center>
-                      ) : byManagerData && byManagerData.departements.length === 0 && byManagerData.sansManager.length === 0 ? (
-                        <Center py="xl">
-                          <Stack align="center" gap="md">
-                            <ThemeIcon size="xl" radius="xl" variant="light" color="green">
-                              <CheckCircle size={40} weight="duotone" />
-                            </ThemeIcon>
-                            <Title order={4}>Tous les collaborateurs sont conformes</Title>
-                            <Text c="dimmed">Aucun collaborateur n'a de formation obligatoire manquante.</Text>
-                          </Stack>
-                        </Center>
-                      ) : byManagerData && (
-                        <>
-                          {/* Stats récapitulatifs */}
-                          <Group gap="xl" wrap="wrap">
-                            <Group gap={6}>
-                              <Buildings size={16} weight="bold" />
-                              <Text size="sm">{byManagerData.stats.totalDepartements} departements</Text>
-                            </Group>
-                            <Group gap={6}>
-                              <UserList size={16} weight="bold" />
-                              <Text size="sm">{byManagerData.stats.totalManagers} managers</Text>
-                            </Group>
-                            <Group gap={6}>
-                              <WarningCircle size={16} weight="bold" />
-                              <Text size="sm">{byManagerData.stats.totalCollaborateursNonFormes} collaborateurs a former</Text>
-                            </Group>
-                          </Group>
-
-                          {/* Accordéon par département */}
-                          <Accordion
-                            multiple
-                            defaultValue={byManagerData.departements.slice(0, 2).map(d => `dept-${d.id}`)}
-                            variant="separated"
-                          >
-                            {byManagerData.departements.map(dept => (
-                              <Accordion.Item key={dept.id} value={`dept-${dept.id}`}>
-                                <Accordion.Control>
-                                  <Group gap="sm">
-                                    <Buildings size={20} weight="bold" />
-                                    <Text fw={600}>{dept.nom}</Text>
-                                    <Badge color="red" variant="filled" size="sm">{dept.totalNonFormes} non formes</Badge>
-                                    <Badge color="gray" variant="light" size="sm">{dept.managers.length} managers</Badge>
-                                  </Group>
-                                </Accordion.Control>
-                                <Accordion.Panel>
-                                  <Stack gap="sm">
-                                    {dept.managers.map(manager => (
-                                      <motion.div
-                                        key={manager.id}
-                                        initial={{ opacity: 0, x: -10 }}
-                                        animate={{ opacity: 1, x: 0 }}
-                                      >
-                                        <Paper withBorder p="sm" radius="md">
-                                          <Group align="flex-start" wrap="nowrap">
-                                            <Checkbox
-                                              checked={selectedManagers.includes(manager.id)}
-                                              onChange={() => toggleManager(manager.id)}
-                                              mt={4}
-                                            />
-                                            <Stack gap="xs" style={{ flex: 1 }}>
-                                              <Group justify="space-between">
-                                                <Text fw={600} size="sm">{manager.nomComplet}</Text>
-                                                <Badge color="orange" variant="light" size="xs">
-                                                  {manager.totalSubordonnes} collaborateur{manager.totalSubordonnes > 1 ? 's' : ''}
-                                                </Badge>
-                                              </Group>
-                                              <Stack gap="xs">
-                                                {manager.collaborateursNonFormes.map(collab => (
-                                                  <Group key={collab.id} gap="xs" wrap="wrap">
-                                                    <Text size="xs" c="dimmed">{collab.nomComplet}</Text>
-                                                    <Group gap={4}>
-                                                      {collab.formationsManquantes.map(f => (
-                                                        <Badge key={f.id} size="xs" color="pink" variant="light">
-                                                          {f.nomFormation}
-                                                        </Badge>
-                                                      ))}
-                                                    </Group>
-                                                  </Group>
-                                                ))}
-                                              </Stack>
-                                            </Stack>
-                                          </Group>
-                                        </Paper>
-                                      </motion.div>
-                                    ))}
-                                  </Stack>
-                                </Accordion.Panel>
-                              </Accordion.Item>
-                            ))}
-                          </Accordion>
-
-                          {/* Collaborateurs sans manager */}
-                          {byManagerData.sansManager.length > 0 && (
-                            <Card withBorder padding="md" radius="md">
-                              <Stack gap="sm">
-                                <Group gap={6}>
-                                  <WarningCircle size={18} weight="bold" />
-                                  <Title order={5}>
-                                    Collaborateurs sans manager ({byManagerData.sansManager.length})
-                                  </Title>
-                                </Group>
-                                <Stack gap="xs">
-                                  {byManagerData.sansManager.map(collab => (
-                                    <Paper key={collab.id} withBorder p="sm" radius="sm">
-                                      <Stack gap={4}>
-                                        <Text size="sm">{collab.nomComplet}</Text>
-                                        <Text size="xs" c="dimmed">{collab.departement}</Text>
-                                        <Group gap={4}>
-                                          {collab.formationsManquantes.map(f => (
-                                            <Badge key={f.id} size="xs" color="pink" variant="light">
-                                              {f.nomFormation}
-                                            </Badge>
-                                          ))}
-                                        </Group>
-                                      </Stack>
-                                    </Paper>
-                                  ))}
-                                </Stack>
-                              </Stack>
-                            </Card>
+                {detailedData.heuresFormation && (
+                  <motion.div
+                    initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                    animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                    transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.1 }}
+                  >
+                    <Card withBorder p="lg" radius="md">
+                      <Stack gap="md">
+                        <Group gap="xs">
+                          <ThemeIcon color="blue" variant="light">
+                            <Clock size={20} weight="bold" />
+                          </ThemeIcon>
+                          <Title order={3}>Heures de formation</Title>
+                          {detailedData.periode?.libelle && (
+                            <Badge variant="light" color="grape">{detailedData.periode.libelle}</Badge>
                           )}
-                        </>
-                      )}
-                    </Stack>
-                  </Card>
-                </motion.div>
+                        </Group>
+                        <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                          <Paper withBorder p="md" radius="md">
+                            <Text size="sm" c="dimmed">Heures dispensées</Text>
+                            <Title order={2}>{detailedData.heuresFormation.heuresDispensees.toLocaleString('fr-FR')}h</Title>
+                            <Text size="xs" c="dimmed">Sessions comptées 1 fois</Text>
+                          </Paper>
+                          <Paper withBorder p="md" radius="md">
+                            <Text size="sm" c="dimmed">Heures cumulées</Text>
+                            <Title order={2}>{detailedData.heuresFormation.heuresCumulees.toLocaleString('fr-FR')}h</Title>
+                            <Text size="xs" c="dimmed">Par participant (×N pour collectives)</Text>
+                          </Paper>
+                        </SimpleGrid>
+                        <Group gap="lg">
+                          <Text size="sm" c="dimmed">Individuelles: {detailedData.heuresFormation.heuresIndividuelles.toLocaleString('fr-FR')}h</Text>
+                          <Text size="sm" c="dimmed">Collectives dispensées: {detailedData.heuresFormation.heuresCollectivesDispensees.toLocaleString('fr-FR')}h</Text>
+                          <Text size="sm" c="dimmed">Collectives cumulées: {detailedData.heuresFormation.heuresCollectivesCumulees.toLocaleString('fr-FR')}h</Text>
+                        </Group>
+                      </Stack>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {detailedData.heuresParOrganisme && detailedData.heuresParOrganisme.length > 0 && (
+                  <motion.div
+                    initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                    animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                    transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.2 }}
+                  >
+                    <Card withBorder p="lg" radius="md">
+                      <Stack gap="md">
+                        <Group gap="xs">
+                          <ThemeIcon color="teal" variant="light">
+                            <Buildings size={20} weight="bold" />
+                          </ThemeIcon>
+                          <Title order={3}>Heures par organisme</Title>
+                        </Group>
+                        <Stack gap="sm">
+                          {detailedData.heuresParOrganisme.slice(0, 5).map((org, index) => (
+                            <Group key={index} justify="space-between">
+                              <Group gap="sm">
+                                <Badge variant="light" color="teal">#{index + 1}</Badge>
+                                <Text>{org.organisme}</Text>
+                              </Group>
+                              <Text fw={600}>{org.heuresDispensees.toLocaleString('fr-FR')}h</Text>
+                            </Group>
+                          ))}
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {detailedData.parCategorie && detailedData.parCategorie.length > 0 && (
+                  <motion.div
+                    initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+                    animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
+                    transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.3 }}
+                  >
+                    <Card withBorder p="lg" radius="md">
+                      <Stack gap="md">
+                        <Group gap="xs">
+                          <ThemeIcon color="orange" variant="light"><ChartBar size={18} weight="bold" /></ThemeIcon>
+                          <Title order={3}>Par catégorie de formation</Title>
+                        </Group>
+                        <Stack gap="md">
+                          {detailedData.parCategorie.map((cat) => (
+                            <Stack key={cat.id} gap={4}>
+                              <Group justify="space-between">
+                                <Text fw={600}>{cat.nom}</Text>
+                                <Text fw={600}>{cat.stats.pourcentage}%</Text>
+                              </Group>
+                              <Progress value={cat.stats.pourcentage} />
+                              <Group gap="md">
+                                <Text size="xs" c="dimmed">{cat.stats.nombre} collaborateurs</Text>
+                                <Text size="xs" c="dimmed">{cat.stats.formations} formation{cat.stats.formations > 1 ? 's' : ''}</Text>
+                                <Text size="xs" fw={600}>{cat.stats.heures}h</Text>
+                              </Group>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      </Stack>
+                    </Card>
+                  </motion.div>
+                )}
               </>
+            ) : (
+              <Alert color="red" icon={<WarningCircle size={18} />} title="Erreur">
+                Impossible de charger les heures de formation
+              </Alert>
             )}
           </>
         )}
 
-        {/* Modal for sending reminders */}
-        <Modal
-          opened={showReminderModal}
-          onClose={() => !sendingReminders && setShowReminderModal(false)}
-          title="Envoyer des rappels aux managers"
-          size="lg"
-          centered
-          closeOnClickOutside={!sendingReminders}
-          closeOnEscape={!sendingReminders}
-        >
-          <Stack>
-            <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
-              Les rappels seront envoyés par email aux managers sélectionnés.
-              Assurez-vous que la configuration SMTP est en place.
-            </Alert>
-
-            <Text fw={500}>Managers selectionnes : {selectedManagers.length}</Text>
-
-            {/* Preview du message */}
-            <Paper withBorder p="md">
-              <Text size="sm" fw={600} c="dimmed" mb="xs">Apercu du message :</Text>
-              <Divider my="xs" />
-              <Text size="sm" style={{ lineHeight: 1.6 }}>
-                Bonjour [Nom du manager],<br/><br/>
-                Certains membres de votre equipe n'ont pas encore complete
-                les formations obligatoires suivantes :<br/>
-                - [Liste des formations par collaborateur]<br/><br/>
-                Merci de vous assurer qu'ils completent ces formations
-                dans les meilleurs delais.<br/><br/>
-                Cordialement,<br/>
-                L'equipe Formation
-              </Text>
-            </Paper>
-
-            {/* Liste des destinataires */}
-            <Accordion>
-              <Accordion.Item value="recipients">
-                <Accordion.Control>
-                  <Text size="sm">Voir les {selectedManagers.length} destinataires</Text>
-                </Accordion.Control>
-                <Accordion.Panel>
-                  <Box style={{ maxHeight: 200, overflowY: 'auto' }}>
-                    <Stack gap="xs">
-                      {getSelectedManagersList().map(m => (
-                        <Group key={m.id} justify="space-between" py="xs">
-                          <Text size="sm">{m.nomComplet}</Text>
-                          <Badge size="sm" color="orange">{m.collaborateursNonFormes.length} a former</Badge>
-                        </Group>
-                      ))}
-                    </Stack>
-                  </Box>
-                </Accordion.Panel>
-              </Accordion.Item>
-            </Accordion>
-
-            <Group justify="space-between" mt="md">
-              <Button
-                variant="light"
-                color="blue"
-                onClick={handleCheckSmtp}
-                loading={smtpLoading}
-                size="xs"
-              >
-                Vérifier config SMTP
-              </Button>
-              <Group>
-                <Button variant="light" color="gray" onClick={() => setShowReminderModal(false)}>
-                  Annuler
-                </Button>
-                <Button
-                  color="orange"
-                  leftSection={<EnvelopeSimple size={18} weight="bold" />}
-                  onClick={handleSendReminders}
-                  loading={sendingReminders}
-                >
-                  Envoyer les rappels
-                </Button>
-              </Group>
-            </Group>
-          </Stack>
-        </Modal>
-
-        {/* Modal for formation details */}
-        <Modal
-          opened={!!selectedFormation}
-          onClose={() => setSelectedFormation(null)}
-          title={
-            selectedFormation && (
-              <Stack gap={0}>
-                <Title order={4}>{selectedFormation.nomFormation}</Title>
-                <Text size="sm" c="dimmed">
-                  {selectedFormation.codeFormation} - {selectedFormation.categorie}
-                </Text>
-              </Stack>
-            )
-          }
-          size="lg"
-          centered
-        >
-          {selectedFormation && (
-            <Tabs value={modalTab} onChange={(value) => setModalTab((value as 'formes' | 'nonFormes') || 'nonFormes')}>
-              <Tabs.List>
-                <Tabs.Tab
-                  value="nonFormes"
-                  leftSection={<WarningCircle size={16} weight="bold" />}
-                >
-                  Non formes ({selectedFormation.collaborateursNonFormes})
-                </Tabs.Tab>
-                <Tabs.Tab
-                  value="formes"
-                  leftSection={<CheckCircle size={16} weight="bold" />}
-                >
-                  Formes ({selectedFormation.collaborateursFormes})
-                </Tabs.Tab>
-              </Tabs.List>
-
-              <Tabs.Panel value="nonFormes" pt="md">
-                {selectedFormation.nonFormes.length === 0 ? (
-                  <Center py="xl">
-                    <Stack align="center" gap="sm">
-                      <ThemeIcon size="xl" radius="xl" variant="light" color="green">
-                        <CheckCircle size={32} weight="duotone" />
-                      </ThemeIcon>
-                      <Text size="lg" fw={600}>Tous les collaborateurs sont formes !</Text>
-                      <Text size="sm" c="dimmed">Aucun collaborateur n'est en attente de cette formation.</Text>
-                    </Stack>
-                  </Center>
-                ) : (
-                  <Stack gap="xs">
-                    {selectedFormation.nonFormes.map((collab) => (
-                      <Paper key={collab.id} withBorder p="sm" radius="sm">
-                        <Group justify="space-between">
-                          <Group gap={4}>
-                            <Text size="sm" fw={500}>{collab.nomComplet}</Text>
-                            <Text size="sm" c="dimmed">- {collab.departement}</Text>
-                          </Group>
-                        </Group>
-                      </Paper>
-                    ))}
-                  </Stack>
-                )}
-              </Tabs.Panel>
-
-              <Tabs.Panel value="formes" pt="md">
-                {selectedFormation.formes.length === 0 ? (
-                  <Center py="xl">
-                    <Stack align="center" gap="sm">
-                      <ThemeIcon size="xl" radius="xl" variant="light" color="red">
-                        <WarningCircle size={32} weight="duotone" />
-                      </ThemeIcon>
-                      <Text size="lg" fw={600}>Aucun collaborateur forme</Text>
-                      <Text size="sm" c="dimmed">Personne n'a encore suivi cette formation sur la periode.</Text>
-                    </Stack>
-                  </Center>
-                ) : (
-                  <Stack gap="xs">
-                    {selectedFormation.formes.map((collab) => (
-                      <Paper key={collab.id} withBorder p="sm" radius="sm">
-                        <Group justify="space-between">
-                          <Group gap={4}>
-                            <Text size="sm" fw={500}>{collab.nomComplet}</Text>
-                            <Text size="sm" c="dimmed">- {collab.departement}</Text>
-                          </Group>
-                          <Text size="xs" c="dimmed">
-                            {new Date(collab.dateFormation).toLocaleDateString('fr-FR')}
-                          </Text>
-                        </Group>
-                      </Paper>
-                    ))}
-                  </Stack>
-                )}
-              </Tabs.Panel>
-            </Tabs>
-          )}
-        </Modal>
       </Stack>
     </Container>
   )

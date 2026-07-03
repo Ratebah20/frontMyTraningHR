@@ -127,8 +127,8 @@ export default function ComptesManagersPage() {
         collaborateurId: parseInt(selectedManagerId),
       });
       notifications.show({
-        title: 'Invitation envoyee',
-        message: `Invitation envoyee a ${result.account.email}`,
+        title: 'Invitation envoyée',
+        message: result.message || `Invitation envoyée à ${result.account.email}`,
         color: 'green',
         icon: <CheckCircle size={20} />,
       });

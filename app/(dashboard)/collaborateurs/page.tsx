@@ -82,7 +82,8 @@ export default function CollaborateursPage() {
   // Filtres et pagination
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  // Par défaut, n'afficher que les collaborateurs actifs
+  const [statusFilter, setStatusFilter] = useState<string>('actif');
   const [missingFieldsFilter, setMissingFieldsFilter] = useState<string[]>([]);
   const [contratFilter, setContratFilter] = useState<string>('');
   const [sansFormation, setSansFormation] = useState(searchParams.get('filter') === 'sansFormation');
@@ -130,15 +131,16 @@ export default function CollaborateursPage() {
         filters.contratId = parseInt(contratFilter);
       }
 
-      // Gérer le filtre de statut avec le nouveau paramètre actif
+      // Gérer le filtre de statut avec le paramètre actif
+      // (envoyé comme chaîne pour que axios le transmette correctement)
       if (statusFilter === 'actif') {
-        // Envoyer comme chaîne pour que axios le transmette correctement
         filters.actif = 'true' as any;
       } else if (statusFilter === 'inactif') {
-        // Envoyer comme chaîne pour que axios le transmette correctement
         filters.actif = 'false' as any;
+      } else if (statusFilter === 'tous') {
+        // 'all' = inclure les inactifs (aucun filtre côté backend)
+        filters.actif = 'all' as any;
       }
-      // Pour 'tous', on n'envoie pas de paramètre actif
 
       // Filtre des informations manquantes
       if (missingFieldsFilter.length > 0) {
@@ -711,14 +713,15 @@ export default function CollaborateursPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
-              placeholder="Tous les statuts"
+              placeholder="Statut"
               data={[
-                { value: '', label: 'Tous' },
-                { value: 'actif', label: 'Actifs seulement' },
-                { value: 'inactif', label: 'Inactifs seulement' },
+                { value: 'actif', label: 'Actifs' },
+                { value: 'inactif', label: 'Inactifs' },
+                { value: 'tous', label: 'Tous (inclure inactifs)' },
               ]}
               value={statusFilter}
-              onChange={(value) => setStatusFilter(value || '')}
+              onChange={(value) => setStatusFilter(value || 'actif')}
+              allowDeselect={false}
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>

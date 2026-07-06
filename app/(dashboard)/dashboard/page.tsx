@@ -170,9 +170,9 @@ export default function DashboardPage() {
   const kpiCards = summary ? [
     // Ligne 1 : Vue d'ensemble (2 KPIs)
     {
-      title: "Total collaborateurs",
-      value: summary.totalCollaborateurs || 0,
-      subtitle: `${(summary.totalCollaborateurs || 0) - (summary.collaborateursActifs || 0)} inactifs`,
+      title: "Collaborateurs actifs",
+      value: summary.collaborateursActifs || 0,
+      subtitle: `${summary.totalCollaborateurs || 0} au total · ${(summary.totalCollaborateurs || 0) - (summary.collaborateursActifs || 0)} inactifs`,
       icon: Users,
       color: "blue",
     },

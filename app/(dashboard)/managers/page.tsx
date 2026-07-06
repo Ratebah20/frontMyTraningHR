@@ -27,6 +27,7 @@ import {
   Avatar,
 } from '@mantine/core';
 import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { ChartLine } from '@phosphor-icons/react/dist/ssr/ChartLine';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
@@ -45,6 +46,7 @@ import { managersService, commonService } from '@/lib/services';
 import { ManagerListResponse, OrganizationHierarchy } from '@/lib/types';
 import { OrganizationChart } from '@/components/managers/OrganizationChart';
 import { ManagerStatsCard } from '@/components/managers/ManagerStatsCard';
+import { AssignTeamModal } from '@/components/managers/AssignTeamModal';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 
@@ -59,6 +61,7 @@ export default function ManagersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
+  const [assignTeamModalOpened, setAssignTeamModalOpened] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -156,6 +159,12 @@ export default function ManagersPage() {
                 <ArrowsClockwise size={20} />
               </ActionIcon>
             </Tooltip>
+            <Button
+              leftSection={<UsersThree size={16} />}
+              onClick={() => setAssignTeamModalOpened(true)}
+            >
+              Rattacher une équipe
+            </Button>
           </Group>
         </Group>
 
@@ -477,6 +486,13 @@ export default function ManagersPage() {
           </Stack>
         </Tabs.Panel>
       </Tabs>
+
+      {/* Modal de rattachement d'une équipe à un manager */}
+      <AssignTeamModal
+        opened={assignTeamModalOpened}
+        onClose={() => setAssignTeamModalOpened(false)}
+        onSuccess={() => loadData(false)}
+      />
     </Container>
   );
 }

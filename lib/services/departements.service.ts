@@ -32,7 +32,7 @@ export const departementsService = {
   /**
    * Créer un nouveau département
    */
-  async create(data: CreateDepartementDto): Promise<Departement> {
+  async create(data: CreateDepartementDto & { directeurId?: number | null }): Promise<Departement> {
     const response = await api.post('/departements', data);
     return response.data;
   },
@@ -40,7 +40,7 @@ export const departementsService = {
   /**
    * Mettre à jour un département
    */
-  async update(id: number, data: UpdateDepartementDto): Promise<Departement> {
+  async update(id: number, data: UpdateDepartementDto & { directeurId?: number | null }): Promise<Departement> {
     const response = await api.put(`/departements/${id}`, data);
     return response.data;
   },

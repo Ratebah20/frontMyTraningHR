@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Modal,
   TextInput,
+  Select,
   Stack,
   Group,
   Button,
@@ -14,6 +15,7 @@ import { useForm } from '@mantine/form';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { Departement, CreateDepartementDto, UpdateDepartementDto } from '@/lib/types';
+import { collaborateursService } from '@/lib/services';
 import { ParentSelector } from './ParentSelector';
 
 interface DepartementFormModalProps {
@@ -35,12 +37,16 @@ export function DepartementFormModal({
   initialType,
   initialParentId,
 }: DepartementFormModalProps) {
+  const [directeurs, setDirecteurs] = useState<{ value: string; label: string }[]>([]);
+  const [isLoadingDirecteurs, setIsLoadingDirecteurs] = useState(false);
+
   const form = useForm({
     initialValues: {
       nomDepartement: '',
       codeDepartement: '',
       type: 'DEPARTEMENT' as string,
       parentId: null as number | null,
+      directeurId: null as string | null,
       actif: true,
     },
     validate: {
@@ -68,6 +74,35 @@ export function DepartementFormModal({
     },
   });
 
+  // Charger la liste des directeurs à l'ouverture
+  useEffect(() => {
+    if (opened) {
+      loadDirecteurs();
+    }
+  }, [opened]);
+
+  const loadDirecteurs = async () => {
+    setIsLoadingDirecteurs(true);
+    try {
+      const response = await collaborateursService.getCollaborateurs({ limit: 2000, actif: 'true' });
+      const collabs = response.data || [];
+      // Prioriser les collaborateurs avec le rôle Directeur,
+      // fallback sur tous les collaborateurs actifs (liste recherchable)
+      const directeursOnly = collabs.filter((c: any) => c.typeUtilisateur === 'Directeur');
+      const source = directeursOnly.length > 0 ? directeursOnly : collabs;
+      setDirecteurs(
+        source.map((c: any) => ({
+          value: c.id.toString(),
+          label: c.nomComplet,
+        }))
+      );
+    } catch (error) {
+      console.error('Erreur lors du chargement des directeurs:', error);
+    } finally {
+      setIsLoadingDirecteurs(false);
+    }
+  };
+
   // Pré-remplir le formulaire en mode édition ou avec des valeurs initiales
   useEffect(() => {
     if (departement && opened) {
@@ -77,6 +112,9 @@ export function DepartementFormModal({
         codeDepartement: departement.codeDepartement || '',
         type: departement.type || 'DEPARTEMENT',
         parentId: departement.parentId || null,
+        directeurId: (departement as any).directeurId
+          ? String((departement as any).directeurId)
+          : null,
         actif: departement.actif,
       });
     } else if (!departement && opened) {
@@ -92,7 +130,12 @@ export function DepartementFormModal({
   }, [departement, opened, initialType, initialParentId]);
 
   const handleSubmit = async (values: typeof form.values) => {
-    await onSubmit(values);
+    // Convertir directeurId (string du Select) en number | null pour l'API
+    const payload = {
+      ...values,
+      directeurId: values.directeurId ? parseInt(values.directeurId, 10) : null,
+    };
+    await onSubmit(payload);
     form.reset();
   };
 
@@ -180,6 +223,23 @@ export function DepartementFormModal({
                 ? "Recommandé : sélectionnez le département auquel cette équipe appartient"
                 : "Optionnel : sélectionnez un département parent pour créer une hiérarchie"
             }
+          />
+
+          <Select
+            label="Directeur"
+            placeholder="Sélectionner le directeur"
+            description={
+              form.values.type === 'EQUIPE'
+                ? 'Optionnel : directeur responsable de cette équipe'
+                : 'Optionnel : directeur responsable de ce département'
+            }
+            data={directeurs}
+            value={form.values.directeurId}
+            onChange={(value) => form.setFieldValue('directeurId', value)}
+            searchable
+            clearable
+            nothingFoundMessage="Aucun résultat"
+            disabled={isSubmitting || isLoadingDirecteurs}
           />
 
           <Switch

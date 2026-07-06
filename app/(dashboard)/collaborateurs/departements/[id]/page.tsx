@@ -222,6 +222,11 @@ export default function DepartementDetailPage() {
                     Code: {departement.codeDepartement}
                   </Text>
                 )}
+                {(departement as any).directeur?.nomComplet && (
+                  <Text c="dimmed" size="sm" mt={4}>
+                    Directeur: {(departement as any).directeur.nomComplet}
+                  </Text>
+                )}
                 {departement.cheminComplet && (
                   <Text c="dimmed" size="sm" mt={4}>
                     Chemin: {departement.cheminComplet}

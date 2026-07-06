@@ -98,6 +98,22 @@ export const collaborateursService = {
     return response.data;
   },
 
+  // Rattacher plusieurs collaborateurs à un manager (en lot)
+  async bulkAssignManager(
+    managerId: number,
+    collaborateurIds: number[]
+  ): Promise<{
+    updated: number;
+    manager?: { id: number; nomComplet: string };
+    message?: string;
+  }> {
+    const response = await api.patch('/collaborateurs/bulk-assign-manager', {
+      managerId,
+      collaborateurIds,
+    });
+    return response.data;
+  },
+
   // Importer des collaborateurs depuis Excel
   async importCollaborateurs(file: File, type: 'initial' | 'olu'): Promise<any> {
     const formData = new FormData();

@@ -67,6 +67,7 @@ export default function CollaborateurEditPage({ params }: Props) {
       departementId: '',
       managerId: '',
       contratId: '',
+      typeUtilisateur: 'Collaborateur',
       actif: true,
       dateInactivation: null as Date | null,
     },
@@ -147,6 +148,7 @@ export default function CollaborateurEditPage({ params }: Props) {
           departementId: collabData.departementId ? collabData.departementId.toString() : '',
           managerId: collabData.managerId ? collabData.managerId.toString() : '',
           contratId: collabData.contratId ? collabData.contratId.toString() : '',
+          typeUtilisateur: collabData.typeUtilisateur || 'Collaborateur',
           actif: collabData.actif !== false,
           dateInactivation: collabData.dateInactivation ? new Date(collabData.dateInactivation) : null,
         });
@@ -211,6 +213,7 @@ export default function CollaborateurEditPage({ params }: Props) {
         departementId: values.departementId ? parseInt(values.departementId) : undefined,
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
+        typeUtilisateur: values.typeUtilisateur || undefined,
         actif: values.actif,
         dateInactivation: values.dateInactivation
           ? formatDateOnly(values.dateInactivation)
@@ -408,6 +411,23 @@ export default function CollaborateurEditPage({ params }: Props) {
                     clearable
                     searchable
                     {...form.getInputProps('managerId')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <Select
+                    label="Rôle"
+                    placeholder="Sélectionner le rôle"
+                    description="Détermine la classification dans les statistiques (Collaborateur / Manager / Directeur)"
+                    data={[
+                      { value: 'Collaborateur', label: 'Collaborateur' },
+                      { value: 'Manager', label: 'Manager' },
+                      { value: 'Directeur', label: 'Directeur' },
+                      ...(form.values.typeUtilisateur === 'Admin'
+                        ? [{ value: 'Admin', label: 'Admin' }]
+                        : []),
+                    ]}
+                    allowDeselect={false}
+                    {...form.getInputProps('typeUtilisateur')}
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 6 }}>

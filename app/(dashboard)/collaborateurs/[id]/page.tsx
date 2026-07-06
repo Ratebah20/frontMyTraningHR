@@ -21,7 +21,10 @@ import {
   ThemeIcon,
   ActionIcon,
   Tooltip,
+  TextInput,
+  Select,
 } from '@mantine/core';
+import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
 import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
@@ -38,6 +41,7 @@ import { Star } from '@phosphor-icons/react/dist/ssr/Star';
 import { Download } from '@phosphor-icons/react/dist/ssr/Download';
 import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
 import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
+import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { collaborateursService } from '@/lib/services';
 import { Collaborateur, SessionFormation } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
@@ -58,6 +62,11 @@ export default function CollaborateurDetailPage({ params }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [changeEquipeModalOpened, setChangeEquipeModalOpened] = useState(false);
+
+  // Filtres de l'historique des formations
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statutFilter, setStatutFilter] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState<[Date | null, Date | null]>([null, null]);
 
   // Fonction pour recharger les données après changement d'équipe
   const reloadData = async () => {
@@ -170,7 +179,70 @@ export default function CollaborateurDetailPage({ params }: Props) {
 
   // S'assurer que formations est un tableau
   const formationsArray = Array.isArray(formations) ? formations : [];
-  
+
+  // --- Filtres de l'historique des formations ---
+
+  // Normaliser une valeur de date (Date ou chaîne) en Date, sans muter l'original
+  const toDate = (value: Date | string | null): Date | null => {
+    if (!value) return null;
+    const d = value instanceof Date ? new Date(value.getTime()) : new Date(value);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  // Options de statut dérivées des données (statuts uniques + 'Tous')
+  const statutOptions = [
+    { value: 'tous', label: 'Tous' },
+    ...Array.from(
+      new Set(
+        formationsArray
+          .map((s) => s.statut)
+          .filter((statut): statut is string => Boolean(statut))
+      )
+    ).map((statut) => ({
+      value: statut,
+      label: getStatusLabel(statut),
+    })),
+  ];
+
+  const filtreDateDebut = toDate(dateRange[0]);
+  if (filtreDateDebut) filtreDateDebut.setHours(0, 0, 0, 0);
+  const filtreDateFin = toDate(dateRange[1]);
+  if (filtreDateFin) filtreDateFin.setHours(23, 59, 59, 999);
+
+  const filtersActive =
+    searchQuery.trim() !== '' ||
+    (statutFilter !== null && statutFilter !== 'tous') ||
+    filtreDateDebut !== null ||
+    filtreDateFin !== null;
+
+  const filteredFormations = formationsArray.filter((session) => {
+    // Recherche sur le nom de la formation (insensible à la casse)
+    if (searchQuery.trim() !== '') {
+      const nom = (session.formation?.nomFormation || session.formation?.nom || '').toLowerCase();
+      if (!nom.includes(searchQuery.trim().toLowerCase())) return false;
+    }
+
+    // Filtre statut
+    if (statutFilter && statutFilter !== 'tous' && session.statut !== statutFilter) return false;
+
+    // Filtre période sur la date de début
+    if (filtreDateDebut || filtreDateFin) {
+      const dateDebutSession = session.dateDebut ? new Date(session.dateDebut) : null;
+      if (!dateDebutSession || isNaN(dateDebutSession.getTime())) return false;
+      if (filtreDateDebut && dateDebutSession < filtreDateDebut) return false;
+      if (filtreDateFin && dateDebutSession > filtreDateFin) return false;
+    }
+
+    return true;
+  });
+
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatutFilter(null);
+    setDateRange([null, null]);
+  };
+
+
   // Utiliser les stats du backend si disponibles, sinon calculer localement
   const displayStats = stats || {
     totalFormations: formationsArray.length,
@@ -377,6 +449,50 @@ export default function CollaborateurDetailPage({ params }: Props) {
           </Button>
         </Group>
         
+        {formationsArray.length > 0 && (
+          <Stack gap="xs" px="lg" pb="md">
+            <Group gap="md" align="flex-end" wrap="wrap">
+              <TextInput
+                label="Rechercher une formation"
+                placeholder="Nom de la formation..."
+                leftSection={<MagnifyingGlass size={16} />}
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.currentTarget.value)}
+                w={{ base: '100%', sm: 260 }}
+              />
+              <Select
+                label="Statut"
+                data={statutOptions}
+                value={statutFilter || 'tous'}
+                onChange={setStatutFilter}
+                allowDeselect={false}
+                w={180}
+              />
+              <DatePickerInput
+                type="range"
+                label="Période"
+                placeholder="Filtrer par date de début"
+                value={dateRange}
+                onChange={setDateRange}
+                locale="fr"
+                valueFormat="DD/MM/YYYY"
+                clearable
+                w={260}
+              />
+            </Group>
+            {filtersActive && (
+              <Group gap="sm">
+                <Text size="sm" c="dimmed">
+                  {filteredFormations.length} formation{filteredFormations.length > 1 ? 's' : ''} affichée{filteredFormations.length > 1 ? 's' : ''} sur {formationsArray.length}
+                </Text>
+                <Button variant="subtle" size="xs" onClick={resetFilters}>
+                  Réinitialiser
+                </Button>
+              </Group>
+            )}
+          </Stack>
+        )}
+
         {formationsArray.length > 0 ? (
           <Table.ScrollContainer minWidth={800}>
             <Table verticalSpacing="sm">
@@ -392,7 +508,16 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {formationsArray.map((session) => (
+                {filteredFormations.length === 0 && (
+                  <Table.Tr>
+                    <Table.Td colSpan={7}>
+                      <Text c="dimmed" ta="center" py="md">
+                        Aucune formation ne correspond aux filtres
+                      </Text>
+                    </Table.Td>
+                  </Table.Tr>
+                )}
+                {filteredFormations.map((session) => (
                   <Table.Tr key={session.id}>
                     <Table.Td>
                       <Text fw={500}>

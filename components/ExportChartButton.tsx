@@ -7,12 +7,36 @@ import { Camera } from '@phosphor-icons/react/dist/ssr/Camera';
 import { exportSvgElementToPng } from '@/lib/utils/export-image';
 
 interface ExportChartButtonProps {
-  /** Référence vers le conteneur du graphique (le premier <svg> trouvé est exporté). */
+  /** Référence vers le conteneur du graphique (le SVG Recharts trouvé est exporté). */
   containerRef: React.RefObject<HTMLElement>;
   /** Nom du fichier PNG téléchargé (extension ajoutée automatiquement). */
   filename: string;
   /** Fond forcé du PNG. Par défaut : selon le thème (sombre/clair). */
   background?: string;
+}
+
+/**
+ * Trouve le SVG du GRAPHIQUE dans le conteneur — et pas n'importe quel <svg> :
+ * les icônes (dont celle de ce bouton) sont aussi des SVG. On privilégie le
+ * svg Recharts (.recharts-surface), sinon le plus grand SVG hors boutons.
+ */
+function findChartSvg(container: HTMLElement): SVGSVGElement | null {
+  const rechartsSvg = container.querySelector<SVGSVGElement>('svg.recharts-surface');
+  if (rechartsSvg) return rechartsSvg;
+
+  let best: SVGSVGElement | null = null;
+  let bestArea = 0;
+  container.querySelectorAll<SVGSVGElement>('svg').forEach((svg) => {
+    if (svg.closest('button')) return; // icônes de boutons
+    const rect = svg.getBoundingClientRect();
+    const area = rect.width * rect.height;
+    if (area > bestArea) {
+      bestArea = area;
+      best = svg;
+    }
+  });
+  // Un vrai graphique fait au moins ~100x100 px — en dessous, c'est une icône
+  return bestArea >= 10000 ? best : null;
 }
 
 /**
@@ -24,7 +48,7 @@ export function ExportChartButton({ containerRef, filename, background }: Export
   const computedColorScheme = useComputedColorScheme('light');
 
   const handleExport = async () => {
-    const svgEl = containerRef.current?.querySelector('svg');
+    const svgEl = containerRef.current ? findChartSvg(containerRef.current) : null;
     if (!svgEl) {
       notifications.show({
         title: 'Erreur',

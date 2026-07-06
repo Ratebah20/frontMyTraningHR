@@ -35,6 +35,15 @@ export interface EmailStatusResponse {
   message: string;
 }
 
+export interface SendConvocationResponse {
+  success: boolean;
+  message: string;
+  totalDestinataires: number;
+  envoyes: number;
+  erreurs: number;
+  sansEmail: number;
+}
+
 export const notificationsService = {
   async sendMandatoryTrainingReminders(dto: SendReminderDto): Promise<SendRemindersResponse> {
     const response = await api.post('/notifications/send-mandatory-training-reminders', dto);
@@ -48,6 +57,11 @@ export const notificationsService = {
 
   async sendSessionNotification(sessionId: number, type: 'individuelle' | 'collective'): Promise<{ success: boolean; message: string; recipients?: number }> {
     const response = await api.post('/notifications/send-session-notification', { sessionId, type });
+    return response.data;
+  },
+
+  async sendConvocation(sessionId: number, type: 'individuelle' | 'collective'): Promise<SendConvocationResponse> {
+    const response = await api.post('/notifications/send-convocation', { sessionId, type });
     return response.data;
   },
 

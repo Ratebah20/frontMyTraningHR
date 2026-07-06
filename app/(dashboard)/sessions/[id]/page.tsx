@@ -26,6 +26,7 @@ import {
   Box,
   Flex,
   Modal,
+  Menu,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
@@ -64,7 +65,10 @@ import { Percent } from '@phosphor-icons/react/dist/ssr/Percent';
 import { Wallet } from '@phosphor-icons/react/dist/ssr/Wallet';
 import { CalendarPlus } from '@phosphor-icons/react/dist/ssr/CalendarPlus';
 import { Info } from '@phosphor-icons/react/dist/ssr/Info';
-import { sessionsService } from '@/lib/services';
+import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
+import { sessionsService, notificationsService } from '@/lib/services';
+import { evaluationsService } from '@/lib/services/evaluations.service';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { CollectiveSessionsService } from '@/lib/services/collective-sessions.service';
 import { SessionFormationResponse, UnifiedSession, CollectiveSession } from '@/lib/types';
@@ -110,6 +114,87 @@ export default function SessionDetailPage({ params }: Props) {
   const [deletePreview, setDeletePreview] = useState<any>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // États pour la convocation par email
+  const [convocationModalOpened, setConvocationModalOpened] = useState(false);
+  const [isSendingConvocation, setIsSendingConvocation] = useState(false);
+
+  // États pour l'envoi des évaluations (chaud/froid)
+  const [evalModalType, setEvalModalType] = useState<'chaud' | 'froid' | null>(null);
+  const [isSendingEval, setIsSendingEval] = useState(false);
+
+  // Handler pour envoyer la convocation par email
+  const handleSendConvocation = async () => {
+    if (!session) return;
+
+    setIsSendingConvocation(true);
+    try {
+      const type = session.type === 'collective' ? 'collective' : 'individuelle';
+      const result = await notificationsService.sendConvocation(session.id, type);
+
+      if (result.success) {
+        notifications.show({
+          title: 'Convocation envoyée',
+          message: `${result.envoyes} email(s) envoyé(s)${result.sansEmail > 0 ? ` — ${result.sansEmail} destinataire(s) sans email` : ''}`,
+          color: 'green',
+          icon: <CheckCircle size={20} />,
+        });
+      } else {
+        notifications.show({
+          title: 'Envoi incomplet',
+          message: result.message,
+          color: result.envoyes > 0 ? 'orange' : 'red',
+          icon: <Warning size={20} />,
+        });
+      }
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erreur',
+        message: error.response?.data?.message || error.message || 'Impossible d\'envoyer la convocation',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setIsSendingConvocation(false);
+      setConvocationModalOpened(false);
+    }
+  };
+
+  // Handler pour envoyer les évaluations (à chaud ou à froid)
+  const handleSendEvaluations = async () => {
+    if (!session || !evalModalType) return;
+
+    setIsSendingEval(true);
+    try {
+      const type = session.type === 'collective' ? 'collective' : 'individuelle';
+      const result = await evaluationsService.sendEvaluations(session.id, type, evalModalType);
+
+      const details: string[] = [];
+      if (result.envoyes > 0) details.push(`${result.envoyes} envoyée(s)`);
+      if (result.dejaEnvoyees > 0) details.push(`${result.dejaEnvoyees} déjà envoyée(s)`);
+      if (result.sansEmail > 0) details.push(`${result.sansEmail} sans email`);
+      if (result.erreurs > 0) details.push(`${result.erreurs} en erreur`);
+
+      notifications.show({
+        title: result.erreurs === 0
+          ? `Évaluation à ${evalModalType} envoyée`
+          : 'Envoi partiel des évaluations',
+        message: details.join(' — ') || result.message,
+        color: result.erreurs === 0 ? 'green' : 'orange',
+        icon: result.erreurs === 0 ? <CheckCircle size={20} /> : <Warning size={20} />,
+      });
+    } catch (error: any) {
+      notifications.show({
+        title: 'Erreur',
+        message: error.response?.data?.message || error.message || 'Impossible d\'envoyer les évaluations',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setIsSendingEval(false);
+      setEvalModalType(null);
+    }
+  };
 
   // Handler pour supprimer un participant
   const handleRemoveParticipant = async (collaborateurId: number) => {
@@ -286,6 +371,11 @@ export default function SessionDetailPage({ params }: Props) {
   const coutTTC = session.tarifTTC || session.tarifHT || 0;
   const coutTotal = coutTTC;
 
+  // Nombre de destinataires potentiels (convocation / évaluations)
+  const recipientCount = session.type === 'collective'
+    ? (session.participants?.length || 0)
+    : (session.collaborateur ? 1 : 0);
+
   return (
     <>
       {/* Modal de confirmation de suppression */}
@@ -381,6 +471,91 @@ export default function SessionDetailPage({ params }: Props) {
           ) : (
             <Text c="dimmed">Impossible de charger les détails</Text>
           )}
+        </Stack>
+      </Modal>
+
+      {/* Modal de confirmation d'envoi de convocation */}
+      <Modal
+        opened={convocationModalOpened}
+        onClose={() => setConvocationModalOpened(false)}
+        title={<Group gap="xs"><EnvelopeSimple size={20} /> Envoyer la convocation</Group>}
+        centered
+        size="md"
+      >
+        <Stack>
+          <Text>
+            Envoyer la convocation par email pour la formation{' '}
+            <Text span fw={600}>
+              {session.formation?.nom || session.formation?.nomFormation || session.formationNom || 'sélectionnée'}
+            </Text>{' '}?
+          </Text>
+
+          <Alert color="blue" variant="light" icon={<Info size={16} />}>
+            {recipientCount > 0
+              ? `${recipientCount} destinataire(s) potentiel(s). Seuls ceux disposant d'une adresse email recevront la convocation.`
+              : 'Aucun destinataire identifié pour cette session.'}
+          </Alert>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={() => setConvocationModalOpened(false)}>
+              Annuler
+            </Button>
+            <Button
+              leftSection={<EnvelopeSimple size={16} />}
+              loading={isSendingConvocation}
+              onClick={handleSendConvocation}
+              disabled={recipientCount === 0}
+            >
+              Envoyer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Modal de confirmation d'envoi des évaluations */}
+      <Modal
+        opened={evalModalType !== null}
+        onClose={() => setEvalModalType(null)}
+        title={
+          <Group gap="xs">
+            <ClipboardText size={20} />
+            {evalModalType === 'froid' ? 'Évaluation à froid' : 'Évaluation à chaud'}
+          </Group>
+        }
+        centered
+        size="md"
+      >
+        <Stack>
+          <Text>
+            {evalModalType === 'froid'
+              ? 'Envoyer l\'évaluation à froid aux managers des participants de cette session ?'
+              : 'Envoyer l\'évaluation à chaud aux participants de cette session ?'}
+          </Text>
+
+          <Alert color="blue" variant="light" icon={<Info size={16} />}>
+            {evalModalType === 'froid'
+              ? `${recipientCount} participant(s) concerné(s). Chaque manager recevra un lien personnel par collaborateur ayant suivi la formation.`
+              : `${recipientCount} participant(s) concerné(s). Chaque participant recevra un lien personnel vers le questionnaire.`}
+          </Alert>
+
+          <Text size="xs" c="dimmed">
+            Les évaluations déjà envoyées pour cette session ne seront pas renvoyées.
+          </Text>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={() => setEvalModalType(null)}>
+              Annuler
+            </Button>
+            <Button
+              color="orange"
+              leftSection={<ClipboardText size={16} />}
+              loading={isSendingEval}
+              onClick={handleSendEvaluations}
+              disabled={recipientCount === 0}
+            >
+              Envoyer
+            </Button>
+          </Group>
         </Stack>
       </Modal>
 
@@ -925,6 +1100,45 @@ export default function SessionDetailPage({ params }: Props) {
                 >
                   Modifier la session
                 </Button>
+
+                {/* Convocation par email */}
+                <Button
+                  fullWidth
+                  variant="light"
+                  color="teal"
+                  leftSection={<EnvelopeSimple size={16} />}
+                  onClick={() => setConvocationModalOpened(true)}
+                >
+                  Envoyer la convocation
+                </Button>
+
+                {/* Évaluations à chaud / à froid */}
+                <Menu shadow="md" width={220} position="bottom-end">
+                  <Menu.Target>
+                    <Button
+                      fullWidth
+                      variant="light"
+                      color="orange"
+                      leftSection={<ClipboardText size={16} />}
+                    >
+                      Évaluations
+                    </Button>
+                  </Menu.Target>
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      leftSection={<Star size={16} />}
+                      onClick={() => setEvalModalType('chaud')}
+                    >
+                      Évaluation à chaud
+                    </Menu.Item>
+                    <Menu.Item
+                      leftSection={<Hourglass size={16} />}
+                      onClick={() => setEvalModalType('froid')}
+                    >
+                      Évaluation à froid
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
 
                 {/* Bouton pour ajouter des participants (sessions collectives uniquement) */}
                 {session.type === 'collective' && (

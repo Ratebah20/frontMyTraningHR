@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 // Routes publiques qui ne nécessitent pas d'authentification
-const publicRoutes = ['/', '/login', '/invitation', '/api/auth/login', '/api/auth/refresh'];
+const publicRoutes = ['/', '/login', '/invitation', '/evaluation', '/api/auth/login', '/api/auth/refresh'];
 
 // Routes RH (dashboard) qui nécessitent le rôle RH
 const rhRoutes = [

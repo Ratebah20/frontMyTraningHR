@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { use } from 'react';
 import {
   Container,
   Title,
@@ -41,10 +40,9 @@ import { TeamDetails } from '@/lib/types';
 import { notifications } from '@mantine/notifications';
 import { ManagerSelector } from '@/components/managers/ManagerSelector';
 
-export default function ManagerTeamPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function ManagerTeamPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const managerId = parseInt(resolvedParams.id);
+  const managerId = parseInt(params.id);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

@@ -8,7 +8,6 @@ import {
   Group,
   Button,
   TextInput,
-  Card,
   Badge,
   SimpleGrid,
   Center,
@@ -25,8 +24,9 @@ import {
   Paper,
   Grid,
   Tooltip,
-  Skeleton,
   Table,
+  ThemeIcon,
+  Progress,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -39,18 +39,18 @@ import { DotsThreeVertical } from '@phosphor-icons/react/dist/ssr/DotsThreeVerti
 import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
 import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
-import { Tag } from '@phosphor-icons/react/dist/ssr/Tag';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
 import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
 import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
-import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
 import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
 import { List } from '@phosphor-icons/react/dist/ssr/List';
 import { SquaresFour } from '@phosphor-icons/react/dist/ssr/SquaresFour';
 import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { Building } from '@phosphor-icons/react/dist/ssr/Building';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { formationsService, commonService } from '@/lib/services';
 import { Formation, FormationFilters } from '@/lib/types';
@@ -178,11 +178,6 @@ export default function FormationsPage() {
           // Et toutes les formations visibles sont actives (car par défaut on ne voit que les actives)
           const activesCount = totalFromMeta; // Car par défaut, on ne montre que les actives
 
-          console.log('Mise à jour des stats depuis la réponse principale:', {
-            total: totalFromMeta,
-            actives: activesCount,
-            dataLength: response.data.length
-          });
 
           setGlobalStats(prev => ({
             ...prev,
@@ -255,29 +250,24 @@ export default function FormationsPage() {
   // Charger les statistiques globales
   const loadGlobalStats = async () => {
     try {
-      // D'abord, récupérer les formations actives (comportement par défaut)
-      const activeResponse = await formationsService.getFormations({ 
-        limit: 1,
-        page: 1
-        // Sans paramètre, on récupère seulement les actives
-      });
-      
-      // Ensuite, récupérer SEULEMENT les inactives
-      const inactiveResponse = await formationsService.getFormations({ 
-        limit: 1,
-        page: 1,
-        actif: 'false' as any // Récupérer seulement les inactives
-      });
-      
+      // Actives (défaut) et inactives en parallèle
+      const [activeResponse, inactiveResponse] = await Promise.all([
+        formationsService.getFormations({
+          limit: 1,
+          page: 1
+          // Sans paramètre, on récupère seulement les actives
+        }),
+        formationsService.getFormations({
+          limit: 1,
+          page: 1,
+          actif: 'false' as any // Récupérer seulement les inactives
+        }),
+      ]);
+
       const totalActives = activeResponse.meta?.total || 0;
       const totalInactives = inactiveResponse.meta?.total || 0;
       const totalAll = totalActives + totalInactives;
       
-      console.log('Stats calculées:', {
-        actives: totalActives,
-        inactives: totalInactives,
-        total: totalAll
-      });
       
       setGlobalStats(prev => ({
         totalFormations: totalAll,
@@ -341,16 +331,21 @@ export default function FormationsPage() {
     }
   };
 
-  // Charger les catégories et types au montage
+  // Charger les catégories, types et stats au montage (en parallèle, sans délai
+  // artificiel — l'ancien setTimeout de 1,5 s retardait l'affichage pour rien)
   useEffect(() => {
     loadCategories();
     loadTypesFormation();
-    // Charger aussi les stats au démarrage avec un délai plus long
-    setTimeout(() => {
-      console.log('Chargement des stats globales...');
-      loadGlobalStats();
-    }, 1500); // Délai plus long pour s'assurer que l'API est prête
+    loadGlobalStats();
   }, []);
+
+  // Indique si un filtre actif restreint la liste (pour adapter les cartes de stats)
+  // Note : reprend exactement la condition historique (statusFilter volontairement exclu)
+  const isFiltered = Boolean(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin);
+
+  // Compteurs dérivés des formations déjà chargées (page courante), sans appel API supplémentaire
+  const obligatoiresCount = formations.filter((f) => f.estObligatoire).length;
+  const certifiantesCount = formations.filter((f) => f.estCertifiante).length;
 
   return (
     <Container size="xl">
@@ -402,61 +397,83 @@ export default function FormationsPage() {
 
         {/* Statistiques rapides */}
         <Grid mt="lg">
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    {(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin) ? 'Résultats filtrés' : 'Total Formations'}
+                    {isFiltered ? 'Résultats filtrés' : 'Total Formations'}
                   </Text>
                   <Text size="xl" fw={700}>{total}</Text>
+                  <Text size="xs" c="dimmed">
+                    {isFiltered ? `sur ${globalStats.totalFormations} au catalogue` : 'au catalogue'}
+                  </Text>
                 </div>
-                <BookOpen size={24} color="#228BE6" />
+                <ThemeIcon size="lg" radius="md" variant="light" color="blue">
+                  <BookOpen size={20} />
+                </ThemeIcon>
               </Group>
             </Paper>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    {(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin) ? 'Résultats' : 'Formations Actives'}
+                    {isFiltered ? 'Résultats' : 'Formations Actives'}
                   </Text>
                   <Text size="xl" fw={700} c="green">
-                    {(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin) ? total : globalStats.totalActives}
+                    {isFiltered ? total : globalStats.totalActives}
                   </Text>
+                  {!isFiltered && (
+                    <Progress
+                      value={(globalStats.totalActives / (globalStats.totalFormations || 1)) * 100}
+                      size="xs"
+                      radius="xl"
+                      mt={4}
+                      color="green"
+                    />
+                  )}
                 </div>
-                <CheckCircle size={24} color="#40C057" />
+                <ThemeIcon size="lg" radius="md" variant="light" color="green">
+                  <CheckCircle size={20} />
+                </ThemeIcon>
               </Group>
             </Paper>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Catégories
+                    Obligatoires
                   </Text>
-                  <Text size="xl" fw={700}>
-                    {globalStats.totalCategories}
+                  <Text size="xl" fw={700} c="orange">{obligatoiresCount}</Text>
+                  <Text size="xs" c="dimmed">
+                    sur cette page
                   </Text>
                 </div>
-                <Tag size={24} color="#7950F2" />
+                <ThemeIcon size="lg" radius="md" variant="light" color="orange">
+                  <Warning size={20} />
+                </ThemeIcon>
               </Group>
             </Paper>
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, xs: 6, sm: 3 }}>
             <Paper withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Page Actuelle
+                    Certifiantes
                   </Text>
-                  <Text size="xl" fw={700}>
-                    {page} / {totalPages || 1}
+                  <Text size="xl" fw={700} c="teal">{certifiantesCount}</Text>
+                  <Text size="xs" c="dimmed">
+                    sur cette page
                   </Text>
                 </div>
-                <ChartBar size={24} color="#FD7E14" />
+                <ThemeIcon size="lg" radius="md" variant="light" color="teal">
+                  <Certificate size={20} />
+                </ThemeIcon>
               </Group>
             </Paper>
           </Grid.Col>
@@ -472,14 +489,16 @@ export default function FormationsPage() {
         <Grid>
           <Grid.Col span={{ base: 12, sm: 4 }}>
             <TextInput
+              aria-label="Rechercher une formation"
               placeholder="Rechercher par nom ou code..."
               leftSection={<MagnifyingGlass size={16} />}
               value={search}
               onChange={(event) => setSearch(event.currentTarget.value)}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
+              aria-label="Filtrer par catégorie"
               placeholder={loadingCategories ? "Chargement..." : "Catégorie"}
               data={categories}
               value={categoryFilter}
@@ -490,8 +509,9 @@ export default function FormationsPage() {
               nothingFoundMessage="Aucune catégorie trouvée"
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 3 }}>
+          <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
+              aria-label="Filtrer par type de formation"
               placeholder={loadingTypes ? "Chargement..." : "Type de formation"}
               data={typesFormation}
               value={typeFilter}
@@ -504,6 +524,7 @@ export default function FormationsPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 2 }}>
             <Select
+              aria-label="Filtrer par statut"
               placeholder="Statut"
               data={[
                 { value: '', label: 'Toutes' },
@@ -514,27 +535,32 @@ export default function FormationsPage() {
               onChange={(value) => setStatusFilter(value || '')}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 6 }}>
-            <DateInput
-              placeholder="Date de création (début)"
-              leftSection={<Calendar size={16} />}
-              value={createdAtDebut}
-              onChange={(value) => setCreatedAtDebut(typeof value === 'string' ? new Date(value) : value)}
-              clearable
-              valueFormat="DD/MM/YYYY"
-            />
-          </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 6 }}>
-            <DateInput
-              placeholder="Date de création (fin)"
-              leftSection={<Calendar size={16} />}
-              value={createdAtFin}
-              onChange={(value) => setCreatedAtFin(typeof value === 'string' ? new Date(value) : value)}
-              clearable
-              valueFormat="DD/MM/YYYY"
-            />
+          <Grid.Col span={{ base: 12, sm: 2 }}>
+            <Group grow gap="xs">
+              <DateInput
+                aria-label="Date de création (début)"
+                placeholder="Début"
+                leftSection={<Calendar size={16} />}
+                value={createdAtDebut}
+                onChange={(value) => setCreatedAtDebut(typeof value === 'string' ? new Date(value) : value)}
+                clearable
+                valueFormat="DD/MM/YYYY"
+              />
+              <DateInput
+                aria-label="Date de création (fin)"
+                placeholder="Fin"
+                leftSection={<Calendar size={16} />}
+                value={createdAtFin}
+                onChange={(value) => setCreatedAtFin(typeof value === 'string' ? new Date(value) : value)}
+                clearable
+                valueFormat="DD/MM/YYYY"
+              />
+            </Group>
           </Grid.Col>
         </Grid>
+        <Text size="sm" c="dimmed" mt="md">
+          Affichage : {formations.length} résultat{formations.length > 1 ? 's' : ''} sur cette page • Total : {isFiltered ? total : globalStats.totalFormations} formation{(isFiltered ? total : globalStats.totalFormations) > 1 ? 's' : ''}
+        </Text>
       </Paper>
 
       {/* Bannière filtre sans session */}
@@ -558,16 +584,9 @@ export default function FormationsPage() {
 
       {/* Liste des formations */}
       {isLoading ? (
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg">
-          {[...Array(8)].map((_, index) => (
-            <Card key={index} shadow="sm" padding="lg" radius="md" withBorder>
-              <Skeleton height={30} mb="md" />
-              <Skeleton height={20} mb="xs" />
-              <Skeleton height={20} mb="xs" />
-              <Skeleton height={40} mt="md" />
-            </Card>
-          ))}
-        </SimpleGrid>
+        <Center h={300}>
+          <Loader size="lg" variant="bars" />
+        </Center>
       ) : error ? (
         <Alert icon={<Warning size={16} />} color="red" variant="light">
           {error}
@@ -575,64 +594,75 @@ export default function FormationsPage() {
       ) : formations.length > 0 ? (
         <>
           {viewMode === 'cards' ? (
-            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="xl" mb="xl">
+            <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="lg" mb="xl">
             {formations.map((formation) => (
               <Paper
                 key={formation.id}
-                radius="lg"
+                radius="md"
                 withBorder
-                p={0}
+                p="lg"
                 style={{
-                  overflow: 'hidden',
-                  transition: 'all 0.3s ease',
+                  transition: 'all 0.2s',
                   cursor: 'pointer',
-                  borderColor: formation.actif ? 'var(--mantine-color-gray-3)' : 'var(--mantine-color-red-2)',
-                  position: 'relative',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px)';
-                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)';
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'translateY(0)';
                   e.currentTarget.style.boxShadow = '';
                 }}
+                onClick={() => handleViewDetails(formation.id)}
               >
-                {/* Bande colorée en haut */}
-                <Box
-                  style={{
-                    height: '4px',
-                    background: `linear-gradient(135deg, 
-                      var(--mantine-color-${categoryColors[getCategoryName(formation.categorie)] || 'blue'}-5) 0%, 
-                      var(--mantine-color-${categoryColors[getCategoryName(formation.categorie)] || 'blue'}-7) 100%)`,
-                  }}
-                />
-
-                {/* Header avec statut et menu */}
-                <Flex justify="space-between" align="center" p="md" pb={0}>
-                  <Badge
-                    size="sm"
-                    variant="dot"
-                    color={formation.actif ? 'green' : 'red'}
-                  >
-                    {formation.actif ? 'Active' : 'Inactive'}
-                  </Badge>
-                  <Menu withinPortal position="bottom-end" shadow="md">
+                {/* Header : statut, badges et menu */}
+                <Group justify="space-between" mb="md">
+                  <Group gap="xs">
+                    <Badge
+                      leftSection={formation.actif ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                      color={formation.actif ? 'green' : 'red'}
+                      variant="light"
+                    >
+                      {formation.actif ? 'Active' : 'Inactive'}
+                    </Badge>
+                    {formation.estObligatoire && (
+                      <Badge leftSection={<Warning size={14} />} color="orange" variant="light">
+                        Obligatoire
+                      </Badge>
+                    )}
+                    {formation.estCertifiante && (
+                      <Badge leftSection={<Certificate size={14} />} color="teal" variant="light">
+                        Certifiante
+                      </Badge>
+                    )}
+                  </Group>
+                  <Menu withinPortal position="bottom-end" shadow="sm">
                     <Menu.Target>
-                      <ActionIcon variant="subtle" color="gray" size="sm">
+                      <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <DotsThreeVertical size={16} />
                       </ActionIcon>
                     </Menu.Target>
                     <Menu.Dropdown>
                       <Menu.Item
                         leftSection={<Eye size={14} />}
-                        onClick={() => handleViewDetails(formation.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(formation.id);
+                        }}
                       >
                         Voir détails
                       </Menu.Item>
                       <Menu.Item
                         leftSection={<PencilSimple size={14} />}
-                        onClick={() => handleEdit(formation.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEdit(formation.id);
+                        }}
                       >
                         Modifier
                       </Menu.Item>
@@ -640,31 +670,31 @@ export default function FormationsPage() {
                       <Menu.Item
                         color="red"
                         leftSection={<Trash size={14} />}
-                        onClick={() => handleDelete(formation.id, formation.nomFormation || formation.titre || '')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(formation.id, formation.nomFormation || formation.titre || '');
+                        }}
                       >
                         Supprimer
                       </Menu.Item>
                     </Menu.Dropdown>
                   </Menu>
-                </Flex>
+                </Group>
 
-                {/* Contenu principal */}
-                <Box p="md" pt="xs">
-                  {/* Titre */}
-                  <Box mb="md">
-                    <Text fw={600} size="md" lineClamp={2} style={{ minHeight: '48px' }}>
+                {/* Nom de la formation */}
+                <Stack gap="xs" mb="md">
+                  <Group gap="xs">
+                    <GraduationCap size={20} color="#228BE6" />
+                    <Text size="md" fw={600} lineClamp={2}>
                       {formation.nomFormation || formation.titre}
                     </Text>
-                  </Box>
-
-                  {/* Badges catégorie et type */}
-                  <Flex gap="xs" wrap="wrap" mb="md" style={{ minHeight: '28px' }}>
+                  </Group>
+                  <Group gap="xs">
                     {getCategoryName(formation.categorie) && (
                       <Badge
-                        variant="light"
+                        variant="dot"
                         color={categoryColors[getCategoryName(formation.categorie)] || 'gray'}
                         size="sm"
-                        radius="sm"
                       >
                         {getCategoryName(formation.categorie)}
                       </Badge>
@@ -674,64 +704,44 @@ export default function FormationsPage() {
                         variant="outline"
                         color={typeColors[formation.typeFormation] || 'gray'}
                         size="sm"
-                        radius="sm"
                       >
                         {formation.typeFormation}
                       </Badge>
                     )}
-                  </Flex>
+                  </Group>
+                </Stack>
 
-                  {/* Section métriques */}
-                  <Box
-                    style={{
-                      background: 'light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-6))',
-                      borderRadius: 'var(--mantine-radius-md)',
-                      padding: '12px',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    <Grid gutter="md">
-                      <Grid.Col span={4}>
-                        <Stack gap={4} align="center">
-                          <Clock size={18} style={{ color: 'var(--mantine-color-blue-6)' }} />
-                          <Text size="xs" c="dimmed">Durée</Text>
-                          <Text size="sm" fw={600}>
-                            {formatDuration(formation.dureePrevue, formation.uniteDuree)}
-                          </Text>
-                        </Stack>
-                      </Grid.Col>
-                      <Grid.Col span={4}>
-                        <Stack gap={4} align="center">
-                          <Calendar size={18} style={{ color: 'var(--mantine-color-green-6)' }} />
-                          <Text size="xs" c="dimmed">Sessions</Text>
-                          <Text size="sm" fw={600}>
-                            {formation.nombreSessions || formation._count?.sessions || 0}
-                          </Text>
-                        </Stack>
-                      </Grid.Col>
-                      <Grid.Col span={4}>
-                        <Stack gap={4} align="center">
-                          <Users size={18} style={{ color: 'var(--mantine-color-violet-6)' }} />
-                          <Text size="xs" c="dimmed">Inscrits</Text>
-                          <Text size="sm" fw={600}>
-                            {formation.nombreParticipants || 0}
-                          </Text>
-                        </Stack>
-                      </Grid.Col>
-                    </Grid>
-                  </Box>
+                <Divider my="sm" />
 
-                  {/* Bouton d'action principal */}
-                  <Button
-                    fullWidth
-                    variant="light"
-                    color={categoryColors[getCategoryName(formation.categorie)] || 'blue'}
-                    onClick={() => handleViewDetails(formation.id)}
-                    size="sm"
-                  >
-                    Voir les détails
-                  </Button>
-                </Box>
+                {/* Métriques */}
+                <Stack gap="xs">
+                  <Group gap="xs">
+                    <Clock size={16} color="#868E96" />
+                    <Text size="xs" c="dimmed">
+                      {formatDuration(formation.dureePrevue, formation.uniteDuree)}
+                    </Text>
+                  </Group>
+                  <Group gap="xs">
+                    <Calendar size={16} color="#868E96" />
+                    <Text size="xs" c="dimmed">
+                      {formation.nombreSessions || formation._count?.sessions || 0} session(s)
+                    </Text>
+                  </Group>
+                  <Group gap="xs">
+                    <Users size={16} color="#868E96" />
+                    <Text size="xs" c="dimmed">
+                      {formation.nombreParticipants || 0} participant(s)
+                    </Text>
+                  </Group>
+                  {formation.organisme && (
+                    <Group gap="xs">
+                      <Building size={16} color="#868E96" />
+                      <Text size="xs" c="dimmed" lineClamp={1}>
+                        {formation.organisme.nomOrganisme}
+                      </Text>
+                    </Group>
+                  )}
+                </Stack>
               </Paper>
             ))}
           </SimpleGrid>
@@ -803,6 +813,18 @@ export default function FormationsPage() {
                               {formation.typeFormation}
                             </Badge>
                           )}
+                          <Group gap={4}>
+                            {formation.estObligatoire && (
+                              <Badge leftSection={<Warning size={10} />} color="orange" variant="light" size="xs">
+                                Obligatoire
+                              </Badge>
+                            )}
+                            {formation.estCertifiante && (
+                              <Badge leftSection={<Certificate size={10} />} color="teal" variant="light" size="xs">
+                                Certifiante
+                              </Badge>
+                            )}
+                          </Group>
                         </Stack>
                       </Table.Td>
 
@@ -908,7 +930,7 @@ export default function FormationsPage() {
           <Paper shadow="xs" p="lg" radius="md">
             <Group justify="space-between" align="center">
               <Text size="sm" c="dimmed">
-                Affichage de {((page - 1) * limit) + 1} à {Math.min(page * limit, total)} sur {total} formations
+                Page {page} sur {totalPages || 1} • Affichage de {((page - 1) * limit) + 1} à {Math.min(page * limit, total)} sur {total} formations
               </Text>
               <Pagination
                 value={page}

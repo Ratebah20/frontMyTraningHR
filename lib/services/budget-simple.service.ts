@@ -109,6 +109,72 @@ export interface BudgetDashboard {
   };
 }
 
+// ========== Types pour les vues de coûts estimés ==========
+// Ces vues ne nécessitent pas de budget annuel saisi côté backend.
+
+export interface CoutOrganisme {
+  organismeId: number | null;
+  nomOrganisme: string;
+  nbSessions: number;
+  nbCollaborateurs: number;
+  coutTotal: number;
+}
+
+export interface CoutsOrganismesResponse {
+  annee: number;
+  organismes: CoutOrganisme[];
+  total: number;
+  sessionsSansTarif: number;
+  budgetAnnuel: number | null;
+}
+
+export interface CoutFormation {
+  formationId: number;
+  nomFormation: string;
+  codeFormation: string;
+  categorie: string;
+  nbSessions: number;
+  nbParticipants: number;
+  coutTotal: number;
+}
+
+export interface CoutsFormationsResponse {
+  annee: number;
+  formations: CoutFormation[];
+  total: number;
+  sessionsSansTarif: number;
+  budgetAnnuel: number | null;
+}
+
+export interface CoutPersonne {
+  collaborateurId: number;
+  nomComplet: string;
+  departement: string;
+  nbFormations: number;
+  heures: number;
+  coutTotal: number;
+}
+
+export interface CoutsPersonnesResponse {
+  annee: number;
+  personnes: CoutPersonne[]; // Top 100 par coût décroissant
+  total: number; // Total global (tous collaborateurs)
+  nbCollaborateurs: number;
+  sessionsSansTarif: number;
+  budgetAnnuel: number | null;
+}
+
+// Forme réelle renvoyée par GET /budget-simple/:annee/analyse-categorie
+// (l'interface historique AnalyseCategorie ci-dessus ne reflète pas le backend)
+export interface CoutCategorie {
+  categorieId: number;
+  categorieNom: string;
+  totalConsomme: number;
+  nombreSessions: number;
+  coutMoyen: number;
+  pourcentageDuTotal: number;
+}
+
 // Types pour les tarifs
 export interface UpdateFormationTarif {
   tarifHT: number;
@@ -182,6 +248,32 @@ export const budgetSimpleService = {
   // Obtenir les formations sans tarif
   async getFormationsSansTarif(): Promise<FormationSansTarif[]> {
     const response = await api.get('/budget-simple/formations-sans-tarif');
+    return response.data;
+  },
+
+  // ========== Vues de coûts estimés ==========
+
+  // Coûts estimés par organisme de formation
+  async getCoutsParOrganisme(annee: number): Promise<CoutsOrganismesResponse> {
+    const response = await api.get(`/budget-simple/${annee}/couts-organismes`);
+    return response.data;
+  },
+
+  // Coûts estimés par formation
+  async getCoutsParFormation(annee: number): Promise<CoutsFormationsResponse> {
+    const response = await api.get(`/budget-simple/${annee}/couts-formations`);
+    return response.data;
+  },
+
+  // Coûts estimés par collaborateur (top 100)
+  async getCoutsParPersonne(annee: number): Promise<CoutsPersonnesResponse> {
+    const response = await api.get(`/budget-simple/${annee}/couts-personnes`);
+    return response.data;
+  },
+
+  // Coûts par catégorie (même endpoint que analyse-categorie, typé selon la réponse réelle du backend)
+  async getCoutsParCategorie(annee: number): Promise<CoutCategorie[]> {
+    const response = await api.get(`/budget-simple/${annee}/analyse-categorie`);
     return response.data;
   }
 };

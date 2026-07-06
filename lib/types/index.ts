@@ -162,6 +162,8 @@ export interface Formation {
   actif: boolean;
   estCertifiante: boolean;
   estObligatoire: boolean;
+  obligatoireType?: 'annuelle' | 'onboarding' | null;
+  obligatoireAnnee?: number | null;
   categorie?: CategorieFormation;
   organisme?: OrganismeFormation;
   sessions?: SessionFormation[];
@@ -279,6 +281,8 @@ export interface CreateFormationDto {
   actif?: boolean;
   estCertifiante?: boolean;
   estObligatoire?: boolean;
+  obligatoireType?: 'annuelle' | 'onboarding' | null;
+  obligatoireAnnee?: number | null;
 }
 
 export interface UpdateFormationDto {
@@ -290,6 +294,8 @@ export interface UpdateFormationDto {
   actif?: boolean;
   estCertifiante?: boolean;
   estObligatoire?: boolean;
+  obligatoireType?: 'annuelle' | 'onboarding' | null;
+  obligatoireAnnee?: number | null;
 }
 
 export interface CreateSessionDto {

@@ -274,6 +274,7 @@ export default function FormationsObligatoiresPage() {
                   <Table.Th>Code</Table.Th>
                   <Table.Th>Catégorie</Table.Th>
                   <Table.Th>Type</Table.Th>
+                  <Table.Th>Obligation</Table.Th>
                   <Table.Th>Durée</Table.Th>
                   <Table.Th>Statut</Table.Th>
                   <Table.Th>Actions</Table.Th>
@@ -297,6 +298,15 @@ export default function FormationsObligatoiresPage() {
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{formation.typeFormation || '-'}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      {formation.obligatoireType === 'onboarding' ? (
+                        <Badge color="grape" variant="light">Onboarding</Badge>
+                      ) : (
+                        <Badge color="blue" variant="light">
+                          {formation.obligatoireAnnee ? `Annuelle ${formation.obligatoireAnnee}` : 'Annuelle'}
+                        </Badge>
+                      )}
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{formatDuree(formation.dureePrevue, formation.uniteDuree)}</Text>

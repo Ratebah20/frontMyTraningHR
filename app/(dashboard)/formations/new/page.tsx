@@ -62,6 +62,8 @@ export default function NewFormationPage() {
       actif: true,
       estCertifiante: false,
       estObligatoire: false,
+      obligatoireType: 'annuelle',
+      obligatoireAnnee: undefined,
     },
     validate: {
       // Le code est généré automatiquement, pas de validation nécessaire
@@ -235,12 +237,18 @@ export default function NewFormationPage() {
     
     try {
       // Préparer les données pour l'envoi
+      const obligatoireType = values.estObligatoire ? (values.obligatoireType || 'annuelle') : null;
       const formData: any = {
         ...values,
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
         organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
+        obligatoireType,
+        obligatoireAnnee:
+          obligatoireType === 'annuelle' && values.obligatoireAnnee
+            ? Number(values.obligatoireAnnee)
+            : null,
       };
-      
+
       const formation = await formationsService.createFormation(formData);
 
       notifications.show({
@@ -518,6 +526,35 @@ export default function NewFormationPage() {
                 {...form.getInputProps('estObligatoire', { type: 'checkbox' })}
                 size="md"
               />
+
+              {form.values.estObligatoire && (
+                <Grid gutter="md">
+                  <Grid.Col span={{ base: 12, md: 6 }}>
+                    <Select
+                      label="Type d'obligation"
+                      description="Annuelle (à suivre chaque année ciblée) ou Onboarding (à l'arrivée)"
+                      data={[
+                        { value: 'annuelle', label: 'Annuelle' },
+                        { value: 'onboarding', label: 'Onboarding' },
+                      ]}
+                      allowDeselect={false}
+                      {...form.getInputProps('obligatoireType')}
+                    />
+                  </Grid.Col>
+                  {form.values.obligatoireType !== 'onboarding' && (
+                    <Grid.Col span={{ base: 12, md: 6 }}>
+                      <NumberInput
+                        label="Année"
+                        placeholder="Toutes les années"
+                        description="Année d'application (optionnel)"
+                        min={2000}
+                        max={2100}
+                        {...form.getInputProps('obligatoireAnnee')}
+                      />
+                    </Grid.Col>
+                  )}
+                </Grid>
+              )}
             </Stack>
           </Card>
 

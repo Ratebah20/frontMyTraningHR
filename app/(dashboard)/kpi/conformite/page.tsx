@@ -28,6 +28,7 @@ import {
   ActionIcon,
   Tabs,
   Box,
+  SegmentedControl,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck'
@@ -164,6 +165,9 @@ export default function ConformitePage() {
   const [dateDebut, setDateDebut] = useState<Date | null>(null)
   const [dateFin, setDateFin] = useState<Date | null>(null)
 
+  // Type d'obligation affiché (annuelle par défaut)
+  const [mandatoryType, setMandatoryType] = useState<'annuelle' | 'onboarding'>('annuelle')
+
   // Mandatory trainings data
   const [mandatoryData, setMandatoryData] = useState<MandatoryTrainingsKPIs | null>(null)
   const [mandatoryLoading, setMandatoryLoading] = useState(true)
@@ -210,10 +214,10 @@ export default function ConformitePage() {
     checkEmailStatusOnMount()
   }, [])
 
-  // Load data when period changes
+  // Load data when period or mandatory type changes
   useEffect(() => {
     fetchMandatoryData()
-  }, [periode, date, dateDebut, dateFin])
+  }, [periode, date, dateDebut, dateFin, mandatoryType])
 
   // Load compliance data when scope changes
   useEffect(() => {
@@ -257,7 +261,7 @@ export default function ConformitePage() {
       const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
       const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
-      const mandatoryResponse = await statsService.getMandatoryTrainingsKPIs(periode, date, startDateStr, endDateStr)
+      const mandatoryResponse = await statsService.getMandatoryTrainingsKPIs(periode, date, startDateStr, endDateStr, mandatoryType)
       setMandatoryData(mandatoryResponse)
 
       // Initialize scope with ALL mandatory formations on first load
@@ -277,7 +281,8 @@ export default function ConformitePage() {
       try {
         const byManagerResponse = await statsService.getMandatoryTrainingsByManager(
           periode, date, startDateStr, endDateStr,
-          selectedDept ? parseInt(selectedDept) : undefined
+          selectedDept ? parseInt(selectedDept) : undefined,
+          mandatoryType
         )
         setByManagerData(byManagerResponse)
       } catch (managerError) {
@@ -353,7 +358,8 @@ export default function ConformitePage() {
 
       const response = await statsService.getMandatoryTrainingsByManager(
         periode, date, startDateStr, endDateStr,
-        selectedDept ? parseInt(selectedDept) : undefined
+        selectedDept ? parseInt(selectedDept) : undefined,
+        mandatoryType
       )
       setByManagerData(response)
       setSelectedDepts(new Set())
@@ -627,6 +633,16 @@ export default function ConformitePage() {
               onChange={(p, d) => { setPeriode(p); setDate(d) }}
               onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin) }}
             />
+            <Group>
+              <SegmentedControl
+                value={mandatoryType}
+                onChange={(value) => setMandatoryType(value as 'annuelle' | 'onboarding')}
+                data={[
+                  { label: 'Obligatoires annuelles', value: 'annuelle' },
+                  { label: 'Onboarding', value: 'onboarding' },
+                ]}
+              />
+            </Group>
           </Stack>
         </motion.div>
 

@@ -161,7 +161,8 @@ export const statsService = {
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    type?: 'annuelle' | 'onboarding'
   ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -171,6 +172,7 @@ export const statsService = {
     } else {
       if (date) params.date = date;
     }
+    if (type) params.type = type;
     const response = await api.get('/stats/mandatory-trainings-kpis', { params });
     return response.data;
   },
@@ -181,7 +183,8 @@ export const statsService = {
     date?: string,
     startDate?: string,
     endDate?: string,
-    departementId?: number
+    departementId?: number,
+    type?: 'annuelle' | 'onboarding'
   ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -192,6 +195,7 @@ export const statsService = {
       if (date) params.date = date;
     }
     if (departementId) params.departementId = departementId;
+    if (type) params.type = type;
     const response = await api.get('/stats/mandatory-trainings-by-manager', { params });
     return response.data;
   },

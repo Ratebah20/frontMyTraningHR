@@ -70,6 +70,7 @@ export default function CollaborateurEditPage({ params }: Props) {
       typeUtilisateur: 'Collaborateur',
       actif: true,
       dateInactivation: null as Date | null,
+      dateEmbauche: null as Date | null,
     },
     validate: {
       nom: (value) => (!value?.trim() ? 'Le nom est requis' : null),
@@ -151,6 +152,7 @@ export default function CollaborateurEditPage({ params }: Props) {
           typeUtilisateur: collabData.typeUtilisateur || 'Collaborateur',
           actif: collabData.actif !== false,
           dateInactivation: collabData.dateInactivation ? new Date(collabData.dateInactivation) : null,
+          dateEmbauche: (collabData as any).dateEmbauche ? new Date((collabData as any).dateEmbauche) : null,
         });
         
         // Charger uniquement les vrais managers (qui ont des subordonnés)
@@ -217,6 +219,9 @@ export default function CollaborateurEditPage({ params }: Props) {
         actif: values.actif,
         dateInactivation: values.dateInactivation
           ? formatDateOnly(values.dateInactivation)
+          : null,
+        dateEmbauche: values.dateEmbauche
+          ? formatDateOnly(values.dateEmbauche)
           : null,
       };
 
@@ -445,6 +450,16 @@ export default function CollaborateurEditPage({ params }: Props) {
                     label="Sous-type de contrat"
                     placeholder="Ex: Employee FT, VIE, Trainee"
                     {...form.getInputProps('workerSubType')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <DateInput
+                    label="Date d'embauche"
+                    placeholder="Sélectionner la date d'embauche"
+                    description="Utilisée pour le suivi des formations obligatoires onboarding"
+                    valueFormat="DD/MM/YYYY"
+                    clearable
+                    {...form.getInputProps('dateEmbauche')}
                   />
                 </Grid.Col>
               </Grid>

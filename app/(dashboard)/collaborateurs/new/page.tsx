@@ -20,6 +20,7 @@ import {
   Text,
   SegmentedControl,
 } from '@mantine/core';
+import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
 import { Check } from '@phosphor-icons/react/dist/ssr/Check';
@@ -59,6 +60,7 @@ export default function CollaborateurNewPage() {
       managerId: '',
       contratId: '',
       actif: true,
+      dateEmbauche: null as Date | null,
     },
     validate: {
       nom: (value) => (!value?.trim() ? 'Le nom est requis' : null),
@@ -187,6 +189,9 @@ export default function CollaborateurNewPage() {
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         actif: values.actif,
+        dateEmbauche: values.dateEmbauche
+          ? `${values.dateEmbauche.getFullYear()}-${String(values.dateEmbauche.getMonth() + 1).padStart(2, '0')}-${String(values.dateEmbauche.getDate()).padStart(2, '0')}`
+          : undefined,
       };
 
       // Retirer les champs undefined
@@ -426,6 +431,16 @@ export default function CollaborateurNewPage() {
                     searchable
                     clearable
                     {...form.getInputProps('workerSubType')}
+                  />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, md: 6 }}>
+                  <DateInput
+                    label="Date d'embauche"
+                    placeholder="Sélectionner la date d'embauche"
+                    description="Utilisée pour le suivi des formations obligatoires onboarding"
+                    valueFormat="DD/MM/YYYY"
+                    clearable
+                    {...form.getInputProps('dateEmbauche')}
                   />
                 </Grid.Col>
               </Grid>

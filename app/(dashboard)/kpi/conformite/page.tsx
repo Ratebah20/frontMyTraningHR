@@ -636,13 +636,38 @@ export default function ConformitePage() {
             <Group>
               <SegmentedControl
                 value={mandatoryType}
-                onChange={(value) => setMandatoryType(value as 'annuelle' | 'onboarding')}
+                onChange={(value) => {
+                  setMandatoryType(value as 'annuelle' | 'onboarding')
+                  // Réinitialiser le scope : les formations annuelles et onboarding
+                  // sont des listes distinctes
+                  setHasInitialized(false)
+                  setAvailableFormations([])
+                  setSelectedFormationIds([])
+                }}
                 data={[
-                  { label: 'Obligatoires annuelles', value: 'annuelle' },
-                  { label: 'Onboarding', value: 'onboarding' },
+                  { label: 'Obligatoires annuelles (tout l\'effectif)', value: 'annuelle' },
+                  { label: 'Onboarding (nouveaux arrivants)', value: 'onboarding' },
                 ]}
               />
             </Group>
+            {mandatoryType === 'onboarding' && (
+              <Alert color="blue" variant="light" icon={<Info size={18} />}>
+                <Text size="sm">
+                  Le suivi <strong>Onboarding</strong> est distinct des obligatoires annuelles :
+                  il porte uniquement sur les <strong>collaborateurs arrivés durant la période
+                  sélectionnée</strong> (date d&apos;embauche de la fiche, à défaut date de création)
+                  et sur les formations marquées « Onboarding ».
+                </Text>
+                {mandatoryData?.stats?.totalFormations === 0 && (
+                  <Text size="sm" mt="xs">
+                    <strong>Aucune formation n&apos;est marquée « Onboarding » pour l&apos;instant.</strong>{' '}
+                    Pour en ajouter : Formations → ouvrir la formation → Modifier →
+                    cocher « Formation obligatoire » puis Type d&apos;obligation = <strong>Onboarding</strong>.
+                    La date d&apos;embauche se renseigne sur la fiche du collaborateur (Modifier).
+                  </Text>
+                )}
+              </Alert>
+            )}
           </Stack>
         </motion.div>
 

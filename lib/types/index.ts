@@ -54,6 +54,7 @@ export interface Collaborateur {
   dateModification: string;
   actif: boolean;
   dateInactivation?: string | null;
+  dateEmbauche?: string | null;
   manager?: Collaborateur;
   departement?: Departement | string;
   contrat?: TypeContrat;

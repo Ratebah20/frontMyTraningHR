@@ -1,7 +1,9 @@
 'use client';
 
 import { Box, Group, Text, Badge, Loader, Collapse, Paper, Stack } from '@mantine/core';
-import { CheckCircle, XCircle, Gear } from '@phosphor-icons/react';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
+import { Gear } from '@phosphor-icons/react/dist/ssr/Gear';
 import { useState } from 'react';
 import { ToolActivity, TOOL_DISPLAY_NAMES } from '@/lib/types/ai-agent';
 

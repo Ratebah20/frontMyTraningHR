@@ -1,7 +1,8 @@
 'use client';
 
 import { Box, Group, Text, Badge, ThemeIcon } from '@mantine/core';
-import { User, Robot } from '@phosphor-icons/react';
+import { User } from '@phosphor-icons/react/dist/ssr/User';
+import { Robot } from '@phosphor-icons/react/dist/ssr/Robot';
 import { AgentMessage } from '@/lib/types/ai-agent';
 import { StreamingText } from './StreamingText';
 import { ToolActivityDisplay } from './ToolActivityDisplay';

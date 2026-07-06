@@ -100,7 +100,7 @@ export function ParticipantSelector({
         error={error}
         leftSection={loading ? <Loader size="xs" /> : <MagnifyingGlass size={16} />}
         maxDropdownHeight={300}
-        limit={1000}
+        limit={50}
         nothingFoundMessage={
           searchValue
             ? 'Aucun collaborateur trouvé'

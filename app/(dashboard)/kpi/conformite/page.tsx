@@ -252,7 +252,19 @@ export default function ConformitePage() {
       const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
       const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
-      const mandatoryResponse = await statsService.getMandatoryTrainingsKPIs(periode, date, startDateStr, endDateStr, mandatoryType)
+      // Les deux appels partent réellement en parallèle (avant : séquentiels,
+      // ce qui doublait le temps d'affichage à chaque changement de période)
+      const mandatoryPromise = statsService.getMandatoryTrainingsKPIs(periode, date, startDateStr, endDateStr, mandatoryType)
+      const byManagerPromise = statsService.getMandatoryTrainingsByManager(
+        periode, date, startDateStr, endDateStr,
+        selectedDept ? parseInt(selectedDept) : undefined,
+        mandatoryType
+      ).catch((managerError: unknown) => {
+        console.error('Erreur lors du chargement des donnees par manager:', managerError)
+        return null
+      })
+
+      const mandatoryResponse = await mandatoryPromise
       setMandatoryData(mandatoryResponse)
 
       // Initialize scope with ALL mandatory formations on first load
@@ -268,18 +280,7 @@ export default function ConformitePage() {
 
       setMandatoryLoading(false)
 
-      // Load by-manager data in parallel
-      try {
-        const byManagerResponse = await statsService.getMandatoryTrainingsByManager(
-          periode, date, startDateStr, endDateStr,
-          selectedDept ? parseInt(selectedDept) : undefined,
-          mandatoryType
-        )
-        setByManagerData(byManagerResponse)
-      } catch (managerError) {
-        console.error('Erreur lors du chargement des donnees par manager:', managerError)
-        setByManagerData(null)
-      }
+      setByManagerData(await byManagerPromise)
     } catch (error) {
       console.error('Erreur lors du chargement des formations obligatoires:', error)
     } finally {

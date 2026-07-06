@@ -33,7 +33,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Vérifier si on a des tokens en localStorage
       if (!authService.isAuthenticated()) {
-        console.log('No tokens found in localStorage');
         setUser(null);
         setIsLoading(false);
         return;
@@ -42,7 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Récupérer l'utilisateur depuis le localStorage d'abord
       const storedUser = authService.getUser();
       if (storedUser) {
-        console.log('Found stored user:', storedUser);
         setUser(storedUser);
         setIsLoading(false);
         // Ne PAS essayer de récupérer le profil pour éviter les erreurs CORS/connexion
@@ -50,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Si pas d'utilisateur stocké mais qu'on a des tokens, ne pas rediriger
-      console.log('Has tokens but no stored user');
       setUser(null);
     } catch (error) {
       console.error('Auth check error:', error);

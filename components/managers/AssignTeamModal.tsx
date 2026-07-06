@@ -306,6 +306,7 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
             clearable
             nothingFoundMessage="Aucun résultat"
             maxDropdownHeight={220}
+            limit={50}
           />
 
           {selectedCollaborateurIds.length > 0 && (

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { UserCircle } from '@phosphor-icons/react/dist/ssr/UserCircle';
 import { Briefcase } from '@phosphor-icons/react/dist/ssr/Briefcase';
@@ -80,44 +80,11 @@ interface CollaborateursKPIs {
   }>
 }
 
-function useAnimatedCounter(endValue: number, duration: number = 1500) {
-  const [count, setCount] = useState(0)
-  const countRef = useRef(0)
-  const startTimeRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    if (endValue === 0) {
-      setCount(0)
-      return
-    }
-
-    const animate = (currentTime: number) => {
-      if (startTimeRef.current === null) {
-        startTimeRef.current = currentTime
-      }
-
-      const elapsed = currentTime - startTimeRef.current
-      const progress = Math.min(elapsed / duration, 1)
-      const easeOut = 1 - Math.pow(1 - progress, 3)
-      const currentCount = Math.floor(easeOut * endValue)
-
-      if (currentCount !== countRef.current) {
-        countRef.current = currentCount
-        setCount(currentCount)
-      }
-
-      if (progress < 1) {
-        requestAnimationFrame(animate)
-      } else {
-        setCount(endValue)
-      }
-    }
-
-    startTimeRef.current = null
-    requestAnimationFrame(animate)
-  }, [endValue, duration])
-
-  return count
+// Neutralisé pour la performance (comme sur kpi/formations) : la version animée
+// lançait une boucle requestAnimationFrame de 1,5 s avec setState à chaque frame
+// PAR carte (8-10 instances simultanées), sans cleanup au démontage.
+function useAnimatedCounter(endValue: number) {
+  return endValue
 }
 
 function HeroCard({

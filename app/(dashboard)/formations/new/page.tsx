@@ -92,16 +92,13 @@ export default function NewFormationPage() {
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
-      console.log('Chargement des catégories...');
       const cats = await commonService.getCategoriesFormation();
-      console.log('Catégories reçues:', cats);
       
       if (Array.isArray(cats) && cats.length > 0) {
         const categoriesList = cats.map(c => ({
           value: c.id.toString(),
           label: c.nomCategorie,
         }));
-        console.log('Catégories formatées:', categoriesList);
         setCategories(categoriesList);
       } else {
         console.warn('Aucune catégorie reçue ou format invalide');
@@ -126,9 +123,7 @@ export default function NewFormationPage() {
   const loadTypesFormation = async () => {
     setLoadingTypes(true);
     try {
-      console.log('Chargement des types de formation...');
       const types = await commonService.getTypesFormation();
-      console.log('Types de formation reçus:', types);
       
       if (Array.isArray(types)) {
         // Ajouter des types par défaut s'ils n'existent pas déjà
@@ -163,9 +158,7 @@ export default function NewFormationPage() {
   const loadUnitesDuree = async () => {
     setLoadingUnites(true);
     try {
-      console.log('Chargement des unités de durée...');
       const unites = await commonService.getUnitesDuree();
-      console.log('Unités de durée reçues:', unites);
       
       if (Array.isArray(unites)) {
         // Ajouter des unités par défaut s'ils n'existent pas déjà
@@ -195,16 +188,13 @@ export default function NewFormationPage() {
   const loadOrganismes = async () => {
     setLoadingOrganismes(true);
     try {
-      console.log('Chargement des organismes...');
       const orgs = await organismesService.getOrganismes(false); // Seulement les actifs
-      console.log('Organismes reçus:', orgs);
 
       if (Array.isArray(orgs) && orgs.length > 0) {
         const organismesList = orgs.map(o => ({
           value: o.id.toString(),
           label: o.nomOrganisme,
         }));
-        console.log('Organismes formatés:', organismesList);
         setOrganismes(organismesList);
       } else {
         console.warn('Aucun organisme reçu ou format invalide');

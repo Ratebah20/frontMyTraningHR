@@ -63,23 +63,14 @@ const removeCookie = (name: string) => {
 // Helper pour sauvegarder les tokens dans localStorage et cookies
 const saveTokens = (tokens: AuthTokens): void => {
   if (typeof window === 'undefined') return;
-  
-  console.log('Saving tokens:', tokens);
-  
+
   // Sauvegarder dans localStorage pour l'utilisation côté client
   localStorage.setItem('accessToken', tokens.accessToken);
   localStorage.setItem('refreshToken', tokens.refreshToken);
-  
+
   // Sauvegarder dans les cookies pour le middleware
   setCookie('accessToken', tokens.accessToken, 7); // 7 jours
   setCookie('refreshToken', tokens.refreshToken, 7);
-  
-  console.log('Tokens saved. Verification:', {
-    localStorage: {
-      accessToken: localStorage.getItem('accessToken'),
-      refreshToken: localStorage.getItem('refreshToken')
-    }
-  });
 };
 
 // Helper pour supprimer les tokens de localStorage et cookies
@@ -262,9 +253,7 @@ export const authService = {
   },
 
   isAuthenticated(): boolean {
-    const tokens = getTokens();
-    console.log('Checking authentication, tokens:', tokens);
-    return !!tokens;
+    return !!getTokens();
   },
   
   getUser() {

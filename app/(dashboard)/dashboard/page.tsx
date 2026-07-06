@@ -83,7 +83,6 @@ export default function DashboardPage() {
     const startDateStr = formatDate(dateDebut);
     const endDateStr = formatDate(dateFin);
 
-    console.log('🔄 Chargement dashboard avec:', { periode, date, startDateStr, endDateStr });
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
@@ -94,7 +93,6 @@ export default function DashboardPage() {
         statsService.getDashboardAlerts(periode, date, startDateStr, endDateStr)
       ]);
 
-      console.log('✅ Données chargées:', { summaryData, chartsData, alertsData });
       setSummary(summaryData);
       setCharts(chartsData);
       setAlerts(alertsData);

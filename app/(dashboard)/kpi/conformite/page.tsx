@@ -45,12 +45,10 @@ import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass'
 import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple'
 import { Info } from '@phosphor-icons/react/dist/ssr/Info'
 import { UserList } from '@phosphor-icons/react/dist/ssr/UserList'
-import { Scales } from '@phosphor-icons/react/dist/ssr/Scales'
 import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import { statsService, formationsService, notificationsService, exportsService } from '@/lib/services'
-import { ComplianceEthicsKPIsResponse } from '@/lib/types'
 
 // ===== Interfaces =====
 
@@ -173,8 +171,6 @@ export default function ConformitePage() {
   const [mandatoryLoading, setMandatoryLoading] = useState(true)
 
   // Compliance / risk category data
-  const [complianceData, setComplianceData] = useState<ComplianceEthicsKPIsResponse | null>(null)
-  const [complianceLoading, setComplianceLoading] = useState(false)
 
   // Formation scope selection
   const [selectedFormationIds, setSelectedFormationIds] = useState<number[]>([])
@@ -218,11 +214,6 @@ export default function ConformitePage() {
   useEffect(() => {
     fetchMandatoryData()
   }, [periode, date, dateDebut, dateFin, mandatoryType])
-
-  // Load compliance data when scope changes
-  useEffect(() => {
-    fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, selectedFormationIds, availableFormations.length, hasInitialized, mandatoryType])
 
   // Load manager data when dept filter changes
   useEffect(() => {
@@ -294,66 +285,6 @@ export default function ConformitePage() {
     } finally {
       setMandatoryLoading(false)
       setByManagerLoading(false)
-    }
-  }
-
-  const fetchComplianceData = async () => {
-    if (periode === 'plage' && (!dateDebut || !dateFin)) return
-
-    // Les indicateurs "couverture / employés à risque" (endpoint compliance-ethics)
-    // n'ont pas de sens pour le suivi onboarding : on ne les charge pas
-    if (mandatoryType === 'onboarding') {
-      setComplianceData(null)
-      return
-    }
-
-    // If user deselected everything after init, show zeros
-    if (hasInitialized && selectedFormationIds.length === 0) {
-      const zeroGenre = { nombre: 0, heures: 0, formations: 0, moyenne: 0 }
-      const zeroCategory = {
-        total: 0, formes: 0, nonFormes: 0, heures: 0, formations: 0,
-        tauxCouverture: 0, moyenneHeuresParPersonne: 0,
-        parGenre: { homme: zeroGenre, femme: zeroGenre }
-      }
-      setComplianceData({
-        periode: {
-          annee: parseInt(date) || new Date().getFullYear(),
-          mois: null,
-          dateDebut: null,
-          dateFin: null,
-          libelle: 'Aucune formation selectionnee'
-        },
-        formationsEthique: { liste: [], nombreFormations: 0 },
-        parCategorieSimple: {
-          b2b: zeroCategory,
-          b2c: zeroCategory,
-          managers: zeroCategory,
-          directeurs: zeroCategory,
-          collaborateurs: zeroCategory
-        },
-        parCategorieCroisee: [],
-        comparatifGlobal: { totalEmployesRisque: 0, formes: 0, nonFormes: 0, tauxCouverture: 0 },
-        parFormation: []
-      })
-      return
-    }
-
-    setComplianceLoading(true)
-    try {
-      const startDate = dateDebut instanceof Date ? dateDebut.toISOString() :
-                        dateDebut ? new Date(dateDebut).toISOString() : undefined
-      const endDate = dateFin instanceof Date ? dateFin.toISOString() :
-                      dateFin ? new Date(dateFin).toISOString() : undefined
-
-      const formationIds = selectedFormationIds.length > 0 ? selectedFormationIds : undefined
-      const response = await statsService.getComplianceEthicsKpis(
-        periode, date, startDate, endDate, undefined, formationIds
-      )
-      setComplianceData(response)
-    } catch (error) {
-      console.error('Erreur lors du chargement des KPIs compliance:', error)
-    } finally {
-      setComplianceLoading(false)
     }
   }
 
@@ -854,27 +785,6 @@ export default function ConformitePage() {
                 color="pink"
                 delay={0.25}
               />
-              {mandatoryType === 'annuelle' && complianceData && (
-                <>
-                  <KPICard
-                    title="Taux couverture"
-                    value={complianceData.comparatifGlobal.tauxCouverture}
-                    suffix="%"
-                    subtitle="Formations selectionnees"
-                    icon={<Scales size={22} weight="bold" />}
-                    color="teal"
-                    delay={0.3}
-                  />
-                  <KPICard
-                    title="Employes a risque"
-                    value={complianceData.comparatifGlobal.totalEmployesRisque}
-                    subtitle="Sans formations requises"
-                    icon={<Warning size={22} weight="bold" />}
-                    color="orange"
-                    delay={0.35}
-                  />
-                </>
-              )}
             </SimpleGrid>
           </motion.div>
         )}

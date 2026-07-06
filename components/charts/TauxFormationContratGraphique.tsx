@@ -1,5 +1,7 @@
 'use client';
 
+import { useRef } from 'react';
+import { Group } from '@mantine/core';
 import {
   BarChart,
   Bar,
@@ -15,34 +17,55 @@ import {
   Cell,
 } from 'recharts';
 import { motion } from 'framer-motion';
+import { ExportChartButton } from '@/components/ExportChartButton';
 
+interface TauxFormationContratStats {
+  effectif: number;
+  formes: number;
+  tauxFormation: number;
+}
+
+// Mode annuel : annees / parContrat[].annees / totauxParAnnee
+// Mode mensuel (granularite=mois) : periodes (labels 'YYYY-MM') / parContrat[].periodes / totauxParPeriode
 interface TauxFormationContrat {
-  annees: number[];
+  annees?: number[];
+  periodes?: string[];
   typesContrat: Array<{ id: number; nom: string }>;
   parContrat: Array<{
     typeContrat: string;
     contratId: number;
-    annees: {
-      [annee: number]: {
-        effectif: number;
-        formes: number;
-        tauxFormation: number;
-      };
+    annees?: {
+      [annee: number]: TauxFormationContratStats;
+    };
+    periodes?: {
+      [periode: string]: TauxFormationContratStats;
     };
   }>;
-  totauxParAnnee: {
-    [annee: number]: {
-      effectif: number;
-      formes: number;
-      tauxFormation: number;
-    };
+  totauxParAnnee?: {
+    [annee: number]: TauxFormationContratStats;
+  };
+  totauxParPeriode?: {
+    [periode: string]: TauxFormationContratStats;
   };
   meta: {
     includeInactifs: boolean;
     inactifsSansDate: number;
     nombreContrats: number;
     periodeAnalysee: string;
+    granularite?: 'annee' | 'mois';
+    derniersMois?: number;
   };
+}
+
+// Formate un label de période 'YYYY-MM' en 'MMM YYYY' (fr), ex: '2026-07' -> 'Juil. 2026'
+function formatMoisLabel(periode: string): string {
+  const [annee, mois] = periode.split('-').map(Number);
+  if (!annee || !mois) return periode;
+  const label = new Date(annee, mois - 1, 1).toLocaleDateString('fr-FR', {
+    month: 'short',
+    year: 'numeric',
+  });
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 const CONTRACT_COLORS: { [key: string]: string } = {
@@ -70,14 +93,19 @@ export function TauxFormationContratGraphique({
   selectedAnnee: number | 'all';
   chartContainerClass: string;
 }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+
   const contratsAffiches = data.parContrat.filter(c =>
     selectedContrats.length === 0 || selectedContrats.includes(c.contratId.toString())
   );
 
-  if (selectedAnnee !== 'all') {
+  // En mode mensuel (data.periodes present), on affiche toujours l'evolution (ligne)
+  const isMois = !!data.periodes;
+
+  if (!isMois && selectedAnnee !== 'all') {
     const chartData = contratsAffiches
       .map(contrat => {
-        const stats = contrat.annees[selectedAnnee];
+        const stats = contrat.annees?.[selectedAnnee];
         if (!stats || stats.effectif === 0) return null;
         return {
           name: contrat.typeContrat,
@@ -89,23 +117,32 @@ export function TauxFormationContratGraphique({
       })
       .filter(Boolean);
 
-    if (data.totauxParAnnee[selectedAnnee]) {
+    const totauxAnnee = data.totauxParAnnee?.[selectedAnnee];
+    if (totauxAnnee) {
       chartData.push({
         name: 'Total',
-        taux: data.totauxParAnnee[selectedAnnee].tauxFormation,
-        formes: data.totauxParAnnee[selectedAnnee].formes,
-        effectif: data.totauxParAnnee[selectedAnnee].effectif,
+        taux: totauxAnnee.tauxFormation,
+        formes: totauxAnnee.formes,
+        effectif: totauxAnnee.effectif,
         fill: '#ff7900',
       });
     }
 
     return (
-      <motion.div
-        className={chartContainerClass}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div ref={chartRef}>
+        <Group justify="flex-end" mb={4}>
+          <ExportChartButton
+            containerRef={chartRef}
+            filename={`taux-formation-contrat-${selectedAnnee}`}
+            background="#1a1b1e"
+          />
+        </Group>
+        <motion.div
+          className={chartContainerClass}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+        >
         <ResponsiveContainer width="100%" height={Math.max(300, chartData.length * 50)}>
           <BarChart
             data={chartData}
@@ -156,39 +193,68 @@ export function TauxFormationContratGraphique({
             </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </motion.div>
+        </motion.div>
+      </div>
     );
   }
 
-  const chartData = data.annees.map(annee => {
-    const point: any = { annee: annee.toString() };
+  // Evolution : axe X = mois ('YYYY-MM' formates en fr) en mode mensuel, annees sinon
+  const chartData = isMois
+    ? (data.periodes ?? []).map(periode => {
+        const point: any = { periode: formatMoisLabel(periode) };
 
-    contratsAffiches.forEach(contrat => {
-      const stats = contrat.annees[annee];
-      if (stats) {
-        point[contrat.typeContrat] = stats.tauxFormation;
-      }
-    });
+        contratsAffiches.forEach(contrat => {
+          const stats = contrat.periodes?.[periode];
+          if (stats) {
+            point[contrat.typeContrat] = stats.tauxFormation;
+          }
+        });
 
-    if (data.totauxParAnnee[annee]) {
-      point['Total'] = data.totauxParAnnee[annee].tauxFormation;
-    }
+        const totaux = data.totauxParPeriode?.[periode];
+        if (totaux) {
+          point['Total'] = totaux.tauxFormation;
+        }
 
-    return point;
-  });
+        return point;
+      })
+    : (data.annees ?? []).map(annee => {
+        const point: any = { periode: annee.toString() };
+
+        contratsAffiches.forEach(contrat => {
+          const stats = contrat.annees?.[annee];
+          if (stats) {
+            point[contrat.typeContrat] = stats.tauxFormation;
+          }
+        });
+
+        const totaux = data.totauxParAnnee?.[annee];
+        if (totaux) {
+          point['Total'] = totaux.tauxFormation;
+        }
+
+        return point;
+      });
 
   return (
-    <motion.div
-      className={chartContainerClass}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div ref={chartRef}>
+      <Group justify="flex-end" mb={4}>
+        <ExportChartButton
+          containerRef={chartRef}
+          filename={isMois ? 'taux-formation-contrat-evolution-mensuelle' : 'taux-formation-contrat-evolution'}
+          background="#1a1b1e"
+        />
+      </Group>
+      <motion.div
+        className={chartContainerClass}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+      >
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
           <XAxis
-            dataKey="annee"
+            dataKey="periode"
             stroke="rgba(255,255,255,0.7)"
             tick={{ fill: 'white' }}
             fontSize={12}
@@ -234,6 +300,7 @@ export function TauxFormationContratGraphique({
           />
         </LineChart>
       </ResponsiveContainer>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   RingProgress,
   Tooltip,
   MultiSelect,
+  Select,
   Chip,
   Switch,
   SegmentedControl,
@@ -58,33 +59,53 @@ import { DetailedKPIsResponse } from '@/lib/types'
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 // Interface pour le taux de formation par contrat
+// Mode annuel : annees / parContrat[].annees / totauxParAnnee
+// Mode mensuel (granularite=mois) : periodes (labels 'YYYY-MM') / parContrat[].periodes / totauxParPeriode
+interface TauxFormationContratStats {
+  effectif: number
+  formes: number
+  tauxFormation: number
+}
+
 interface TauxFormationContrat {
-  annees: number[]
+  annees?: number[]
+  periodes?: string[]
   typesContrat: Array<{ id: number; nom: string }>
   parContrat: Array<{
     typeContrat: string
     contratId: number
-    annees: {
-      [annee: number]: {
-        effectif: number
-        formes: number
-        tauxFormation: number
-      }
+    annees?: {
+      [annee: number]: TauxFormationContratStats
+    }
+    periodes?: {
+      [periode: string]: TauxFormationContratStats
     }
   }>
-  totauxParAnnee: {
-    [annee: number]: {
-      effectif: number
-      formes: number
-      tauxFormation: number
-    }
+  totauxParAnnee?: {
+    [annee: number]: TauxFormationContratStats
+  }
+  totauxParPeriode?: {
+    [periode: string]: TauxFormationContratStats
   }
   meta: {
     includeInactifs: boolean
     inactifsSansDate: number
     nombreContrats: number
     periodeAnalysee: string
+    granularite?: 'annee' | 'mois'
+    derniersMois?: number
   }
+}
+
+// Formate un label de période 'YYYY-MM' en 'MMM YYYY' (fr), ex: '2026-07' -> 'Juil. 2026'
+function formatMoisLabel(periode: string): string {
+  const [annee, mois] = periode.split('-').map(Number)
+  if (!annee || !mois) return periode
+  const label = new Date(annee, mois - 1, 1).toLocaleDateString('fr-FR', {
+    month: 'short',
+    year: 'numeric'
+  })
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
 interface FormationsKPIs {
@@ -318,11 +339,64 @@ function TauxFormationContratChart({
     selectedContrats.length === 0 || selectedContrats.includes(c.contratId.toString())
   )
 
+  // Vue mensuelle (granularite=mois) : comparaison sur les N derniers mois
+  const periodes = data.periodes
+  if (periodes) {
+    return (
+      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+        {contratsAffiches.map((contrat, contratIndex) => (
+          <motion.div
+            key={contrat.contratId}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: contratIndex * 0.15 }}
+          >
+            <Paper withBorder p="md" radius="md">
+              <Group gap="xs" mb="sm">
+                <ColorSwatch color={getContractColor(contrat.typeContrat)} size={12} />
+                <Text size="sm" fw={600}>{contrat.typeContrat}</Text>
+              </Group>
+              <Stack gap="xs">
+                {periodes.map(periode => {
+                  const stats = contrat.periodes?.[periode]
+                  if (!stats) return null
+
+                  return (
+                    <Tooltip
+                      key={periode}
+                      label={`${formatMoisLabel(periode)}: ${stats.formes}/${stats.effectif} formes (${stats.tauxFormation}%)`}
+                      withArrow
+                    >
+                      <Group gap="sm" wrap="nowrap">
+                        <Text size="xs" c="dimmed" style={{ minWidth: 70 }}>{formatMoisLabel(periode)}</Text>
+                        <Box style={{ flex: 1 }}>
+                          <Progress
+                            value={stats.tauxFormation}
+                            color={getContractColor(contrat.typeContrat)}
+                            size="md"
+                            radius="xl"
+                          />
+                        </Box>
+                        <Text size="xs" fw={600} style={{ minWidth: 40, textAlign: 'right' }}>
+                          {stats.tauxFormation}%
+                        </Text>
+                      </Group>
+                    </Tooltip>
+                  )
+                })}
+              </Stack>
+            </Paper>
+          </motion.div>
+        ))}
+      </SimpleGrid>
+    )
+  }
+
   if (selectedAnnee !== 'all') {
     return (
       <Stack gap="md">
         {contratsAffiches.map((contrat, index) => {
-          const stats = contrat.annees[selectedAnnee]
+          const stats = contrat.annees?.[selectedAnnee]
           if (!stats || stats.effectif === 0) return null
 
           return (
@@ -354,7 +428,7 @@ function TauxFormationContratChart({
           )
         })}
 
-        {data.totauxParAnnee[selectedAnnee] && (
+        {data.totauxParAnnee && data.totauxParAnnee[selectedAnnee] && (
           <>
             <Divider />
             <motion.div
@@ -404,8 +478,8 @@ function TauxFormationContratChart({
               <Text size="sm" fw={600}>{contrat.typeContrat}</Text>
             </Group>
             <Stack gap="xs">
-              {data.annees.map((annee, anneeIndex) => {
-                const stats = contrat.annees[annee]
+              {(data.annees ?? []).map((annee, anneeIndex) => {
+                const stats = contrat.annees?.[annee]
                 if (!stats) return null
 
                 return (
@@ -462,6 +536,9 @@ export default function FormationsKPIsPage() {
   const [selectedAnnee, setSelectedAnnee] = useState<number | 'all'>('all')
   const [includeInactifs, setIncludeInactifs] = useState(false)
   const [viewMode, setViewMode] = useState<'list' | 'chart'>('list')
+  // Granularité du taux par contrat : par année (défaut) ou par mois (N derniers mois)
+  const [granulariteContrat, setGranulariteContrat] = useState<'annee' | 'mois'>('annee')
+  const [derniersMoisContrat, setDerniersMoisContrat] = useState<string>('12')
 
   // États pour l'onglet Heures & activité (KPIs détaillés)
   const [detailedData, setDetailedData] = useState<DetailedKPIsResponse | null>(null)
@@ -494,10 +571,10 @@ export default function FormationsKPIsPage() {
     fetchData()
   }, [periode, date, dateDebut, dateFin])
 
-  // Recharger les données quand includeInactifs change
+  // Recharger les données quand les filtres du taux par contrat changent
   useEffect(() => {
     fetchTauxContratData()
-  }, [includeInactifs])
+  }, [includeInactifs, granulariteContrat, derniersMoisContrat])
 
   // Charger les KPIs détaillés quand l'onglet Heures & activité est sélectionné
   useEffect(() => {
@@ -548,10 +625,14 @@ export default function FormationsKPIsPage() {
       if (includeInactifs) {
         params.append('includeInactifs', 'true')
       }
+      if (granulariteContrat === 'mois') {
+        params.append('granularite', 'mois')
+        params.append('derniersMois', derniersMoisContrat)
+      }
       const response = await axios.get(`${API_URL}/stats/taux-formation-contrat?${params.toString()}`)
       setTauxContratData(response.data)
-      // Sélectionner l'année la plus récente par défaut (seulement si pas déjà défini)
-      if (response.data.annees?.length > 0 && selectedAnnee === 'all') {
+      // Sélectionner l'année la plus récente par défaut (seulement si pas déjà défini, mode annuel)
+      if (granulariteContrat === 'annee' && response.data.annees?.length > 0 && selectedAnnee === 'all') {
         setSelectedAnnee(response.data.annees[response.data.annees.length - 1])
       }
     } catch (error) {
@@ -737,7 +818,7 @@ export default function FormationsKPIsPage() {
                       <Stack gap={0}>
                         <Title order={3}>Taux de formation par type de contrat</Title>
                         <Text size="sm" c="dimmed">
-                          Pourcentage d'effectif forme par type de contrat et par annee
+                          Pourcentage d'effectif forme par type de contrat et par {granulariteContrat === 'mois' ? 'mois' : 'annee'}
                         </Text>
                       </Stack>
                     </Group>
@@ -746,31 +827,61 @@ export default function FormationsKPIsPage() {
                       <>
                         {/* Filtres */}
                         <Stack gap="sm">
-                          {/* Ligne 1: Année et Vue */}
+                          {/* Ligne 1: Granularite (annee/mois), Periode et Vue */}
                           <Group justify="space-between" wrap="wrap">
                             <Group gap="xs" wrap="wrap">
-                              <Text size="sm" fw={500}>Annee :</Text>
-                              <Chip
-                                checked={selectedAnnee === 'all'}
-                                onChange={() => setSelectedAnnee('all')}
-                                color="orange"
-                                variant="filled"
+                              <SegmentedControl
+                                value={granulariteContrat}
+                                onChange={(value) => setGranulariteContrat(value as 'annee' | 'mois')}
+                                data={[
+                                  { value: 'annee', label: 'Par annee' },
+                                  { value: 'mois', label: 'Par mois' }
+                                ]}
                                 size="sm"
-                              >
-                                Toutes
-                              </Chip>
-                              {tauxContratData.annees.map(annee => (
-                                <Chip
-                                  key={annee}
-                                  checked={selectedAnnee === annee}
-                                  onChange={() => setSelectedAnnee(annee)}
-                                  color="orange"
-                                  variant="filled"
-                                  size="sm"
-                                >
-                                  {annee}
-                                </Chip>
-                              ))}
+                                color="orange"
+                              />
+                              {granulariteContrat === 'annee' ? (
+                                <>
+                                  <Text size="sm" fw={500}>Annee :</Text>
+                                  <Chip
+                                    checked={selectedAnnee === 'all'}
+                                    onChange={() => setSelectedAnnee('all')}
+                                    color="orange"
+                                    variant="filled"
+                                    size="sm"
+                                  >
+                                    Toutes
+                                  </Chip>
+                                  {(tauxContratData.annees ?? []).map(annee => (
+                                    <Chip
+                                      key={annee}
+                                      checked={selectedAnnee === annee}
+                                      onChange={() => setSelectedAnnee(annee)}
+                                      color="orange"
+                                      variant="filled"
+                                      size="sm"
+                                    >
+                                      {annee}
+                                    </Chip>
+                                  ))}
+                                </>
+                              ) : (
+                                <>
+                                  <Text size="sm" fw={500}>Periode :</Text>
+                                  <Select
+                                    value={derniersMoisContrat}
+                                    onChange={(value) => value && setDerniersMoisContrat(value)}
+                                    data={[
+                                      { value: '6', label: '6 derniers mois' },
+                                      { value: '12', label: '12 derniers mois' },
+                                      { value: '24', label: '24 derniers mois' }
+                                    ]}
+                                    allowDeselect={false}
+                                    size="sm"
+                                    w={180}
+                                  />
+                                </>
+                              )}
                             </Group>
 
                             <SegmentedControl
@@ -848,7 +959,7 @@ export default function FormationsKPIsPage() {
                             variant="light"
                           >
                             <strong>{tauxContratData.meta.inactifsSansDate}</strong> collaborateurs inactifs
-                            n'ont pas de date d'inactivation renseignee. Ils sont comptes sur toutes les annees.
+                            n'ont pas de date d'inactivation renseignee. Ils sont comptes sur toutes les {granulariteContrat === 'mois' ? 'periodes' : 'annees'}.
                           </Alert>
                         )}
 

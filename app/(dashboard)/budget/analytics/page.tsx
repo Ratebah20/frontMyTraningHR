@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Title,
@@ -91,11 +91,26 @@ import {
   ComposedChart,
 } from 'recharts';
 import { budgetAnalyticsService, DashboardComplet, PivotBudget, AnalysePeriode, FormationSansTarif } from '@/lib/services/budget-analytics.service';
+import { ExportChartButton } from '@/components/ExportChartButton';
 
 const COLORS = ['#4C6EF5', '#15AABF', '#82C91E', '#FAB005', '#FA5252', '#BE4BDB', '#FD7E14', '#74C0FC'];
 const LIGHT_COLORS = ['#A5C7FF', '#6DD4E0', '#B0E157', '#FFD43B', '#FF8787', '#E599F7', '#FFB366', '#B3DFFC'];
 const QUARTER_COLORS = { Q1: '#4C6EF5', Q2: '#15AABF', Q3: '#82C91E', Q4: '#FAB005' };
 const SEMESTER_COLORS = { S1: '#BE4BDB', S2: '#FD7E14' };
+
+/** Enveloppe un graphique Recharts et affiche un bouton d'export PNG en haut à droite. */
+function ExportableChart({ filename, children }: { filename: string; children: React.ReactNode }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={chartRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 5 }}>
+        <ExportChartButton containerRef={chartRef} filename={filename} />
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function BudgetAnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -818,22 +833,24 @@ export default function BudgetAnalyticsPage() {
 
               {/* Graphique comparatif des périodes */}
               <Title order={5} mt="xl" mb="md">Comparaison des Périodes</Title>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={periodeData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="periode" />
-                  <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
-                  <RechartsTooltip 
-                    formatter={(value: number) => formatCurrency(value)}
-                    labelStyle={{ color: '#000' }}
-                  />
-                  <Bar 
-                    dataKey="totalConsomme" 
-                    fill="#4C6EF5"
-                    radius={[8, 8, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
+              <ExportableChart filename={`budget-comparaison-periodes-${selectedYear}`}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={periodeData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="periode" />
+                    <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
+                    <RechartsTooltip
+                      formatter={(value: number) => formatCurrency(value)}
+                      labelStyle={{ color: '#000' }}
+                    />
+                    <Bar
+                      dataKey="totalConsomme"
+                      fill="#4C6EF5"
+                      radius={[8, 8, 0, 0]}
+                    />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ExportableChart>
             </Paper>
           </Stack>
         </Tabs.Panel>
@@ -928,8 +945,9 @@ export default function BudgetAnalyticsPage() {
             {top5Departements.length > 0 && (
               <Paper shadow="xs" p="md" radius="md" withBorder>
                 <Title order={4} mb="md">Comparaison des Budgets</Title>
+                <ExportableChart filename={`budget-comparaison-departements-${selectedYear}`}>
                 <ResponsiveContainer width="100%" height={250}>
-                  <BarChart 
+                  <BarChart
                     data={top5Departements.slice(0, 5).map((dept, index) => ({
                       name: `#${index + 1}`,
                       budget: dept.totalConsomme,
@@ -977,6 +995,7 @@ export default function BudgetAnalyticsPage() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                </ExportableChart>
               </Paper>
             )}
           </Stack>
@@ -988,6 +1007,7 @@ export default function BudgetAnalyticsPage() {
             <Grid.Col span={{ base: 12, md: 6 }}>
               <Paper shadow="xs" p="md" radius="md" withBorder>
                 <Title order={4} mb="md">Répartition par Catégorie</Title>
+                <ExportableChart filename={`budget-repartition-categories-${selectedYear}`}>
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
@@ -1008,13 +1028,14 @@ export default function BudgetAnalyticsPage() {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <RechartsTooltip 
+                    <RechartsTooltip
                       formatter={(value: number, name: string) => [formatCurrency(value), name]}
                       labelStyle={{ color: '#000' }}
                       contentStyle={{ maxWidth: 250 }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
+                </ExportableChart>
                 {/* Légende des catégories */}
                 <Stack gap="xs" mt="md">
                   {top3Categories.map((cat, index) => (
@@ -1084,6 +1105,7 @@ export default function BudgetAnalyticsPage() {
         <Tabs.Panel value="evolution" pt="md">
           <Paper shadow="xs" p="md" radius="md" withBorder>
             <Title order={4} mb="md">Évolution Mensuelle Détaillée</Title>
+            <ExportableChart filename={`budget-evolution-mensuelle-${selectedYear}`}>
             <ResponsiveContainer width="100%" height={350}>
               <ComposedChart data={monthlyData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1117,6 +1139,7 @@ export default function BudgetAnalyticsPage() {
                 />
               </ComposedChart>
             </ResponsiveContainer>
+            </ExportableChart>
           </Paper>
         </Tabs.Panel>
       </Tabs>

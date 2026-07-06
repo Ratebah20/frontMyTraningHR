@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Title,
@@ -68,8 +68,23 @@ import {
   Radar,
 } from 'recharts';
 import { budgetSimpleService, BudgetDashboard } from '@/lib/services/budget-simple.service';
+import { ExportChartButton } from '@/components/ExportChartButton';
 
 const COLORS = ['#4C6EF5', '#15AABF', '#82C91E', '#FAB005', '#FA5252', '#BE4BDB', '#FD7E14', '#74C0FC'];
+
+/** Enveloppe un graphique Recharts et affiche un bouton d'export PNG en haut à droite. */
+function ExportableChart({ filename, children }: { filename: string; children: React.ReactNode }) {
+  const chartRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={chartRef} style={{ position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 5 }}>
+        <ExportChartButton containerRef={chartRef} filename={filename} />
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function BudgetDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -412,24 +427,26 @@ export default function BudgetDashboardPage() {
         <Tabs.Panel value="evolution" pt="md">
           <Paper shadow="xs" p="md" radius="md" withBorder>
             <Title order={4} mb="md">Évolution de la Consommation</Title>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mois" />
-                <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
-                <RechartsTooltip 
-                  formatter={(value: number) => formatCurrency(value)}
-                  labelStyle={{ color: '#000' }}
-                />
-                <Area 
-                  type="monotone" 
-                  dataKey="montant" 
-                  stroke="#4C6EF5" 
-                  fill="#4C6EF5" 
-                  fillOpacity={0.6}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <ExportableChart filename={`budget-evolution-consommation-${selectedYear}`}>
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="mois" />
+                  <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
+                  <RechartsTooltip
+                    formatter={(value: number) => formatCurrency(value)}
+                    labelStyle={{ color: '#000' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="montant"
+                    stroke="#4C6EF5"
+                    fill="#4C6EF5"
+                    fillOpacity={0.6}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </ExportableChart>
           </Paper>
         </Tabs.Panel>
 
@@ -438,18 +455,20 @@ export default function BudgetDashboardPage() {
             <Grid.Col span={{ base: 12, md: 7 }}>
               <Paper shadow="xs" p="md" radius="md" withBorder>
                 <Title order={4} mb="md">Top 5 Départements</Title>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={departmentChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
-                    <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
-                    <RechartsTooltip 
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelStyle={{ color: '#000' }}
-                    />
-                    <Bar dataKey="budget" fill="#15AABF" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <ExportableChart filename={`budget-top-departements-${selectedYear}`}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={departmentChartData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                      <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
+                      <RechartsTooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                        labelStyle={{ color: '#000' }}
+                      />
+                      <Bar dataKey="budget" fill="#15AABF" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ExportableChart>
               </Paper>
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 5 }}>
@@ -490,28 +509,30 @@ export default function BudgetDashboardPage() {
             <Grid.Col span={{ base: 12, md: 6 }}>
               <Paper shadow="xs" p="md" radius="md" withBorder>
                 <Title order={4} mb="md">Répartition par Catégorie</Title>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={categoryChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(entry) => `${entry.name}: ${consommation.totalConsomme > 0 ? formatPercentage(entry.value / consommation.totalConsomme * 100) : '0%'}`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip 
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelStyle={{ color: '#000' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
+                <ExportableChart filename={`budget-repartition-categories-${selectedYear}`}>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={categoryChartData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={(entry) => `${entry.name}: ${consommation.totalConsomme > 0 ? formatPercentage(entry.value / consommation.totalConsomme * 100) : '0%'}`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {categoryChartData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip
+                        formatter={(value: number) => formatCurrency(value)}
+                        labelStyle={{ color: '#000' }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </ExportableChart>
               </Paper>
             </Grid.Col>
             <Grid.Col span={{ base: 12, md: 6 }}>

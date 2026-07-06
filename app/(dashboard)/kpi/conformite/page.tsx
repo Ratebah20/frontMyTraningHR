@@ -222,7 +222,7 @@ export default function ConformitePage() {
   // Load compliance data when scope changes
   useEffect(() => {
     fetchComplianceData()
-  }, [periode, date, dateDebut, dateFin, selectedFormationIds, availableFormations.length, hasInitialized])
+  }, [periode, date, dateDebut, dateFin, selectedFormationIds, availableFormations.length, hasInitialized, mandatoryType])
 
   // Load manager data when dept filter changes
   useEffect(() => {
@@ -299,6 +299,13 @@ export default function ConformitePage() {
 
   const fetchComplianceData = async () => {
     if (periode === 'plage' && (!dateDebut || !dateFin)) return
+
+    // Les indicateurs "couverture / employés à risque" (endpoint compliance-ethics)
+    // n'ont pas de sens pour le suivi onboarding : on ne les charge pas
+    if (mandatoryType === 'onboarding') {
+      setComplianceData(null)
+      return
+    }
 
     // If user deselected everything after init, show zeros
     if (hasInitialized && selectedFormationIds.length === 0) {
@@ -815,9 +822,9 @@ export default function ConformitePage() {
           >
             <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
               <KPICard
-                title="Formations obligatoires"
+                title={mandatoryType === 'onboarding' ? 'Formations onboarding' : 'Formations obligatoires'}
                 value={mandatoryData.stats.totalFormations}
-                subtitle="A suivre par tous"
+                subtitle={mandatoryType === 'onboarding' ? 'Parcours nouveaux arrivants' : 'A suivre par tous'}
                 icon={<ShieldCheck size={22} weight="bold" />}
                 color="violet"
                 delay={0.1}
@@ -826,28 +833,28 @@ export default function ConformitePage() {
                 title="Taux de conformite"
                 value={mandatoryData.stats.tauxConformiteGlobal}
                 suffix="%"
-                subtitle="Toutes formations"
+                subtitle={mandatoryType === 'onboarding' ? 'Nouveaux arrivants de la periode' : 'Toutes formations'}
                 icon={<CheckCircle size={22} weight="bold" />}
                 color={mandatoryData.stats.tauxConformiteGlobal >= 80 ? 'green' : mandatoryData.stats.tauxConformiteGlobal >= 50 ? 'cyan' : 'pink'}
                 delay={0.15}
               />
               <KPICard
-                title="Collaborateurs conformes"
+                title={mandatoryType === 'onboarding' ? 'Arrivants conformes' : 'Collaborateurs conformes'}
                 value={mandatoryData.stats.totalFormes}
-                subtitle={`sur ${mandatoryData.stats.totalCollaborateursAFormer}`}
+                subtitle={`sur ${mandatoryData.stats.totalCollaborateursAFormer}${mandatoryType === 'onboarding' ? ' arrivants' : ''}`}
                 icon={<Users size={22} weight="bold" />}
                 color="green"
                 delay={0.2}
               />
               <KPICard
-                title="Collaborateurs non conformes"
+                title={mandatoryType === 'onboarding' ? 'Arrivants non conformes' : 'Collaborateurs non conformes'}
                 value={mandatoryData.stats.totalNonFormes}
                 subtitle="A former"
                 icon={<WarningCircle size={22} weight="bold" />}
                 color="pink"
                 delay={0.25}
               />
-              {complianceData && (
+              {mandatoryType === 'annuelle' && complianceData && (
                 <>
                   <KPICard
                     title="Taux couverture"

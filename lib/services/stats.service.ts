@@ -6,7 +6,6 @@ import {
   DepartementStats,
   ChartData,
   DetailedKPIsResponse,
-  ComplianceEthicsKPIsResponse,
   BilanAnnuelResponse
 } from '../types';
 
@@ -227,37 +226,6 @@ export const statsService = {
   // Mettre à jour les objectifs cibles par catégorie
   async updateLdObjectiveTargets(targets: { categorieId: number; objectifCible: number }[]): Promise<any> {
     const response = await api.put('/stats/ld-objectives/targets', targets);
-    return response.data;
-  },
-
-  // Récupérer les KPIs de conformité/éthique
-  async getComplianceEthicsKpis(
-    periode?: 'annee' | 'mois' | 'plage',
-    date?: string,
-    startDate?: string,
-    endDate?: string,
-    includeInactifs?: boolean,
-    formationIds?: number[],  // IDs des formations à inclure
-    contratIds?: number[]
-  ): Promise<ComplianceEthicsKPIsResponse> {
-    const params: any = {};
-    if (periode) params.periode = periode;
-    if (periode === 'plage') {
-      if (startDate) params.startDate = startDate;
-      if (endDate) params.endDate = endDate;
-    } else {
-      if (date) params.date = date;
-    }
-    if (includeInactifs !== undefined) {
-      params.includeInactifs = includeInactifs.toString();
-    }
-    if (formationIds && formationIds.length > 0) {
-      params.formationIds = formationIds.join(',');
-    }
-    if (contratIds && contratIds.length > 0) {
-      params.contratIds = contratIds.join(',');
-    }
-    const response = await api.get('/stats/compliance-ethics-kpis', { params });
     return response.data;
   },
 

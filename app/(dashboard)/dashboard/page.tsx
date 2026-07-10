@@ -209,11 +209,11 @@ export default function DashboardPage() {
 
     // Ligne 3 : Performance & Qualité (1 KPI)
     {
-      title: "Formations obligatoires",
-      value: summary.nombreFormationsObligatoires || 0,
-      subtitle: summary.formationsObligatoiresTotal > 0
-        ? `${summary.formationsObligatoiresCompletees || 0}/${summary.formationsObligatoiresTotal || 0} sessions terminées`
-        : "Aucune session sur la période",
+      title: "Conformité obligatoires",
+      value: `${summary.tauxObligatoires ?? 0}%`,
+      subtitle: summary.nombreFormationsObligatoires > 0
+        ? `${summary.collaborateursConformesObligatoires || 0}/${summary.collaborateursCiblesObligatoires || 0} collaborateurs à jour (report multi-année)`
+        : "Aucune formation obligatoire",
       icon: WarningCircle,
       color: summary.nombreFormationsObligatoires > 0
         ? (summary.tauxObligatoires < 100 ? "orange" : "green")

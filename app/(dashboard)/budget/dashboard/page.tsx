@@ -49,18 +49,17 @@ import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise'
 import { budgetSimpleService, BudgetDashboard } from '@/lib/services/budget-simple.service';
 
 // Graphiques Recharts chargés en différé (ssr: false) pour alléger le bundle initial
-const chartLoader = { ssr: false, loading: () => <Center h={300}><Loader /></Center> };
 const BudgetEvolutionAreaChart = dynamic(
   () => import('@/components/charts/BudgetDashboardCharts').then(mod => mod.BudgetEvolutionAreaChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 const BudgetTopDepartementsBarChart = dynamic(
   () => import('@/components/charts/BudgetDashboardCharts').then(mod => mod.BudgetTopDepartementsBarChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 const BudgetCategoriesPieChart = dynamic(
   () => import('@/components/charts/BudgetDashboardCharts').then(mod => mod.BudgetCategoriesPieChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 
 const COLORS = ['#4C6EF5', '#15AABF', '#82C91E', '#FAB005', '#FA5252', '#BE4BDB', '#FD7E14', '#74C0FC'];

@@ -71,22 +71,21 @@ import { CaretUp } from '@phosphor-icons/react/dist/ssr/CaretUp';
 import { budgetAnalyticsService, DashboardComplet, PivotBudget, AnalysePeriode, FormationSansTarif } from '@/lib/services/budget-analytics.service';
 
 // Graphiques Recharts chargés en différé (ssr: false) pour alléger le bundle initial
-const chartLoader = { ssr: false, loading: () => <Center h={300}><Loader /></Center> };
 const PeriodesComparisonBarChart = dynamic(
   () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.PeriodesComparisonBarChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 const DepartementsComparisonBarChart = dynamic(
   () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.DepartementsComparisonBarChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 const CategoriesRepartitionPieChart = dynamic(
   () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.CategoriesRepartitionPieChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 const EvolutionMensuelleComposedChart = dynamic(
   () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.EvolutionMensuelleComposedChart),
-  chartLoader
+  { ssr: false, loading: () => <Center h={300}><Loader /></Center> }
 );
 
 const COLORS = ['#4C6EF5', '#15AABF', '#82C91E', '#FAB005', '#FA5252', '#BE4BDB', '#FD7E14', '#74C0FC'];

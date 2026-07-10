@@ -8,7 +8,23 @@ import {
 import { sessionsService } from './sessions.service';
 import CollectiveSessionsService from './collective-sessions.service';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+
+/**
+ * fetch avec le Bearer token : le backend exige desormais un JWT sur toutes
+ * les routes (guard global). Fusionne Authorization avec les headers fournis.
+ */
+function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  return fetch(input, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 
 export interface UnifiedSessionFilters extends SessionFilters {
   type?: 'individuelle' | 'collective' | 'all';
@@ -248,7 +264,7 @@ export class SessionsUnifiedService {
    */
   static async getGlobalStats(filters?: any): Promise<GlobalSessionStats> {
     try {
-      const response = await fetch(`${API_BASE_URL}/sessions/stats/global`, {
+      const response = await authFetch(`${API_BASE_URL}/sessions/stats/global`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -279,7 +295,7 @@ export class SessionsUnifiedService {
    */
   static async getCollaborateurSessions(collaborateurId: number) {
     try {
-      const response = await fetch(
+      const response = await authFetch(
         `${API_BASE_URL}/sessions/unified/collaborateur/${collaborateurId}`,
         {
           method: 'GET',

@@ -47,7 +47,7 @@ import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion } from 'framer-motion'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
-import axios from 'axios'
+import api from '@/lib/api'
 import dynamic from 'next/dynamic'
 const LazyTauxFormationContratGraphique = dynamic(
   () => import('@/components/charts/TauxFormationContratGraphique').then(mod => mod.TauxFormationContratGraphique),
@@ -55,8 +55,6 @@ const LazyTauxFormationContratGraphique = dynamic(
 )
 import { statsService } from '@/lib/services'
 import { DetailedKPIsResponse } from '@/lib/types'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 // Interface pour le taux de formation par contrat
 // Mode annuel : annees / parContrat[].annees / totauxParAnnee
@@ -609,7 +607,7 @@ export default function FormationsKPIsPage() {
         params.append('startDate', dateDebut.toISOString().split('T')[0])
         params.append('endDate', dateFin.toISOString().split('T')[0])
       }
-      const response = await axios.get(`${API_URL}/stats/formations-kpis?${params.toString()}`)
+      const response = await api.get(`/stats/formations-kpis?${params.toString()}`)
       setData(response.data)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs formations:', error)
@@ -629,7 +627,7 @@ export default function FormationsKPIsPage() {
         params.append('granularite', 'mois')
         params.append('derniersMois', derniersMoisContrat)
       }
-      const response = await axios.get(`${API_URL}/stats/taux-formation-contrat?${params.toString()}`)
+      const response = await api.get(`/stats/taux-formation-contrat?${params.toString()}`)
       setTauxContratData(response.data)
       // Sélectionner l'année la plus récente par défaut (seulement si pas déjà défini, mode annuel)
       if (granulariteContrat === 'annee' && response.data.annees?.length > 0 && selectedAnnee === 'all') {

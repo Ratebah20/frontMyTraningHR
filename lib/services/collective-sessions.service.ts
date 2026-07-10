@@ -16,7 +16,23 @@ import {
   SessionPaginationMeta,
 } from '../types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
+
+/**
+ * fetch avec le Bearer token : le backend exige desormais un JWT sur toutes
+ * les routes (guard global). Fusionne Authorization avec les headers fournis.
+ */
+function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  return fetch(input, {
+    ...init,
+    headers: {
+      ...(init.headers as Record<string, string> | undefined),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 
 /**
  * Service pour gérer les sessions collectives via l'API
@@ -28,7 +44,7 @@ export class CollectiveSessionsService {
   static async create(
     data: CreateCollectiveSessionDto,
   ): Promise<CollectiveSession> {
-    const response = await fetch(`${API_BASE_URL}/collective-sessions`, {
+    const response = await authFetch(`${API_BASE_URL}/collective-sessions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -61,7 +77,7 @@ export class CollectiveSessionsService {
       });
     }
 
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions?${params.toString()}`,
       {
         method: 'GET',
@@ -83,7 +99,7 @@ export class CollectiveSessionsService {
    * Obtenir une session collective par ID
    */
   static async findOne(id: number): Promise<CollectiveSessionDetail> {
-    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/collective-sessions/${id}`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -105,7 +121,7 @@ export class CollectiveSessionsService {
     id: number,
     data: UpdateCollectiveSessionDto,
   ): Promise<CollectiveSession> {
-    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/collective-sessions/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -126,7 +142,7 @@ export class CollectiveSessionsService {
    * Supprimer une session collective (soft delete - annulation)
    */
   static async delete(id: number): Promise<{ message: string }> {
-    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/collective-sessions/${id}`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -148,7 +164,7 @@ export class CollectiveSessionsService {
     avertissement: string | null;
     canDelete: boolean;
   }> {
-    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}/delete-preview`, {
+    const response = await authFetch(`${API_BASE_URL}/collective-sessions/${id}/delete-preview`, {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -169,7 +185,7 @@ export class CollectiveSessionsService {
     message: string;
     details: { participantsSupprimes: number; formation: string | null };
   }> {
-    const response = await fetch(`${API_BASE_URL}/collective-sessions/${id}/confirm`, {
+    const response = await authFetch(`${API_BASE_URL}/collective-sessions/${id}/confirm`, {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -188,7 +204,7 @@ export class CollectiveSessionsService {
     id: number,
     statut: string,
   ): Promise<CollectiveSession> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${id}/status`,
       {
         method: 'PATCH',
@@ -212,7 +228,7 @@ export class CollectiveSessionsService {
    * Dupliquer une session collective
    */
   static async duplicate(id: number): Promise<CollectiveSession> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${id}/duplicate`,
       {
         method: 'POST',
@@ -231,7 +247,7 @@ export class CollectiveSessionsService {
    * Obtenir les statistiques d'une session
    */
   static async getStats(id: number): Promise<SessionStats> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${id}/stats`,
       {
         method: 'GET',
@@ -255,7 +271,7 @@ export class CollectiveSessionsService {
     sessionId: number,
     data: AddParticipantDto,
   ): Promise<CollectiveSessionParticipant> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${sessionId}/participants`,
       {
         method: 'POST',
@@ -282,7 +298,7 @@ export class CollectiveSessionsService {
     sessionId: number,
     data: AddParticipantsBulkDto,
   ): Promise<BulkAddResult> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${sessionId}/participants/bulk`,
       {
         method: 'POST',
@@ -308,7 +324,7 @@ export class CollectiveSessionsService {
   static async getParticipants(
     sessionId: number,
   ): Promise<CollectiveSessionParticipant[]> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${sessionId}/participants`,
       {
         method: 'GET',
@@ -331,7 +347,7 @@ export class CollectiveSessionsService {
     collaborateurId: number,
     data: UpdateParticipantDto,
   ): Promise<CollectiveSessionParticipant> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${sessionId}/participants/${collaborateurId}`,
       {
         method: 'PATCH',
@@ -358,7 +374,7 @@ export class CollectiveSessionsService {
     sessionId: number,
     collaborateurId: number,
   ): Promise<{ message: string }> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${sessionId}/participants/${collaborateurId}`,
       {
         method: 'DELETE',
@@ -379,7 +395,7 @@ export class CollectiveSessionsService {
    * Obtenir le rapport de présence d'une session
    */
   static async getAttendanceReport(id: number): Promise<AttendanceReport> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${id}/attendance`,
       {
         method: 'GET',
@@ -401,7 +417,7 @@ export class CollectiveSessionsService {
     id: number,
     present: boolean,
   ): Promise<{ message: string; totalUpdated: number }> {
-    const response = await fetch(
+    const response = await authFetch(
       `${API_BASE_URL}/collective-sessions/${id}/attendance/mark-all?present=${present}`,
       {
         method: 'POST',

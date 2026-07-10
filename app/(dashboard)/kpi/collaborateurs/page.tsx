@@ -34,14 +34,12 @@ import {
   Alert,
   Divider,
 } from '@mantine/core'
-import axios from 'axios'
+import api from '@/lib/api'
 import { motion } from 'framer-motion'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import { statsService } from '@/lib/services'
 import { DetailedKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 interface CollaborateursKPIs {
   summary: {
@@ -205,7 +203,7 @@ export default function CollaborateursKPIsPage() {
 
   const fetchTypesContrats = async () => {
     try {
-      const response = await axios.get(`${API_URL}/common/types-contrats`)
+      const response = await api.get('/common/types-contrats')
       setTypesContrats(response.data)
     } catch (error) {
       console.error('Erreur lors du chargement des types de contrats:', error)
@@ -228,7 +226,7 @@ export default function CollaborateursKPIsPage() {
         params.append('startDate', dateDebut.toISOString().split('T')[0])
         params.append('endDate', dateFin.toISOString().split('T')[0])
       }
-      const response = await axios.get(`${API_URL}/stats/collaborateurs-kpis?${params.toString()}`)
+      const response = await api.get(`/stats/collaborateurs-kpis?${params.toString()}`)
       setData(response.data)
     } catch (error) {
       console.error('Erreur lors du chargement des KPIs collaborateurs:', error)

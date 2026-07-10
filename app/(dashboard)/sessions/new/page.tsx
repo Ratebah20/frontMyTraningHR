@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Container,
@@ -85,6 +85,11 @@ export default function NewSessionPage() {
   // Données pour les selects
   const [formations, setFormations] = useState<Formation[]>([]);
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
+  // Recherche serveur des collaborateurs (liste par défaut + résultats de recherche)
+  const [collabSearchValue, setCollabSearchValue] = useState('');
+  const [collabSearchResults, setCollabSearchResults] = useState<Collaborateur[] | null>(null);
+  // Collaborateurs déjà vus : conserve les libellés des sélections hors des résultats courants
+  const knownCollabsRef = useRef<Map<number, Collaborateur>>(new Map());
   const [organismes, setOrganismes] = useState<OrganismeFormation[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingFormations, setLoadingFormations] = useState(false);
@@ -209,6 +214,30 @@ export default function NewSessionPage() {
     return () => clearTimeout(timeoutId);
   }, [formationSearchValue]);
 
+  // Recherche serveur de collaborateurs (debounce 300ms)
+  useEffect(() => {
+    const q = collabSearchValue.trim();
+    if (q.length < 2) {
+      setCollabSearchResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, {
+          includeInactive: true,
+          limit: 50,
+        });
+        const results = Array.isArray(data) ? data : [];
+        results.forEach(c => knownCollabsRef.current.set(c.id, c));
+        setCollabSearchResults(results);
+      } catch (error) {
+        console.error('Erreur lors de la recherche des collaborateurs:', error);
+        setCollabSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [collabSearchValue]);
+
   // Charger les données
   useEffect(() => {
     const loadData = async () => {
@@ -226,12 +255,30 @@ export default function NewSessionPage() {
           }
         }
 
-        // Charger tous les collaborateurs (actifs et inactifs)
+        // Charger une petite liste de collaborateurs par défaut (actifs et inactifs) :
+        // la sélection se fait ensuite via la recherche serveur
         const collaborateursResponse = await collaborateursService.getCollaborateurs({
-          limit: 1000,
+          limit: 50,
           includeInactive: true, // Inclure les collaborateurs inactifs
         });
-        setCollaborateurs(collaborateursResponse.data || []);
+        const defaultCollabs = collaborateursResponse.data || [];
+        defaultCollabs.forEach(c => knownCollabsRef.current.set(c.id, c));
+        setCollaborateurs(defaultCollabs);
+
+        // Si un collaborateur est pré-sélectionné, le charger individuellement
+        // pour que son libellé soit disponible dans le sélecteur
+        if (preselectedCollaborateurId) {
+          try {
+            const preselected = await collaborateursService.getCollaborateur(
+              parseInt(preselectedCollaborateurId)
+            );
+            if (preselected) {
+              knownCollabsRef.current.set(preselected.id, preselected);
+            }
+          } catch (error) {
+            console.error('Erreur lors du chargement du collaborateur pré-sélectionné:', error);
+          }
+        }
 
         // Charger les organismes de formation actifs
         const organismesResponse = await commonService.getOrganismesFormation();
@@ -251,7 +298,7 @@ export default function NewSessionPage() {
     };
 
     loadData();
-  }, [preselectedFormationId]);
+  }, [preselectedFormationId, preselectedCollaborateurId]);
 
   // Auto-remplir l'organismeId et le titre quand la formation change
   useEffect(() => {
@@ -498,11 +545,27 @@ export default function NewSessionPage() {
     );
   }
 
-  // Préparer les données pour les autocompletes
-  const collaborateursData = collaborateurs.map(c => ({
+  // Préparer les données pour les autocompletes :
+  // résultats de la recherche serveur (ou liste par défaut) + sélections hors résultats
+  const collabToOption = (c: Collaborateur) => ({
     value: c.id.toString(),
-    label: `${c.nomComplet} - ${c.departement?.nomDepartement || 'Sans département'}${!c.actif ? ' (Inactif)' : ''}`,
-  }));
+    label: `${c.nomComplet} - ${(c.departement as any)?.nomDepartement || 'Sans département'}${!c.actif ? ' (Inactif)' : ''}`,
+  });
+  const collabSource = collabSearchResults ?? collaborateurs;
+  const collabSourceIds = new Set(collabSource.map(c => c.id.toString()));
+  const selectedCollabIds = Array.from(new Set<string>([
+    ...selectedCollaborateurs,
+    ...(form.values.collaborateurId ? [String(form.values.collaborateurId)] : []),
+  ]));
+  const collaborateursData = [
+    ...collabSource.map(collabToOption),
+    ...selectedCollabIds
+      .filter(id => id !== '0' && !collabSourceIds.has(id))
+      .map(id => {
+        const known = knownCollabsRef.current.get(parseInt(id, 10));
+        return known ? collabToOption(known) : { value: id, label: `Collaborateur #${id}` };
+      }),
+  ];
 
   // Pour Autocomplete, on utilise un tableau de strings avec une map pour retrouver l'ID
   const formationsData = (formations || []).map(f => `${f.nomFormation} (${f.codeFormation})`);
@@ -685,21 +748,27 @@ export default function NewSessionPage() {
                   {batchMode ? (
                     <MultiSelect
                       label="Collaborateurs"
-                      placeholder="Sélectionner les collaborateurs"
+                      placeholder="Rechercher les collaborateurs"
                       required
                       searchable
+                      searchValue={collabSearchValue}
+                      onSearchChange={setCollabSearchValue}
+                      filter={({ options }) => options}
                       data={collaborateursData}
                       value={selectedCollaborateurs}
                       onChange={setSelectedCollaborateurs}
                       leftSection={<Users size={16} />}
-                      description={`${selectedCollaborateurs.length} collaborateur(s) sélectionné(s)`}
+                      description={`${selectedCollaborateurs.length} collaborateur(s) sélectionné(s) - tapez pour rechercher`}
                     />
                   ) : (
                     <Select
                       label="Collaborateur"
-                      placeholder="Sélectionner un collaborateur"
+                      placeholder="Rechercher un collaborateur"
                       required
                       searchable
+                      searchValue={collabSearchValue}
+                      onSearchChange={setCollabSearchValue}
+                      filter={({ options }) => options}
                       data={collaborateursData}
                       value={form.values.collaborateurId?.toString()}
                       onChange={(value) => form.setFieldValue('collaborateurId', value ? parseInt(value) : 0)}

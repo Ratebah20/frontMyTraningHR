@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Modal,
   Select,
@@ -39,14 +39,27 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingMembres, setIsLoadingMembres] = useState(false);
-  const [collaborateurs, setCollaborateurs] = useState<CollaborateurOption[]>([]);
+  // Liste par défaut (50 premiers actifs) affichée avant toute recherche
+  const [defaultCollabs, setDefaultCollabs] = useState<CollaborateurOption[]>([]);
+  // Résultats de recherche serveur pour chaque sélecteur
+  const [managerSearch, setManagerSearch] = useState('');
+  const [managerResults, setManagerResults] = useState<CollaborateurOption[] | null>(null);
+  const [collabSearch, setCollabSearch] = useState('');
+  const [collabResults, setCollabResults] = useState<CollaborateurOption[] | null>(null);
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
   const [mode, setMode] = useState<'MANUEL' | 'DEPARTEMENT'>('MANUEL');
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
   const [selectedDepartementId, setSelectedDepartementId] = useState<string | null>(null);
   const [selectedCollaborateurIds, setSelectedCollaborateurIds] = useState<string[]>([]);
+  // Tous les collaborateurs déjà vus (défauts, recherches, membres de département) :
+  // permet de conserver le libellé des éléments sélectionnés hors des résultats courants
+  const knownCollabsRef = useRef<Map<number, CollaborateurOption>>(new Map());
 
-  // Charger les collaborateurs et départements à l'ouverture
+  const rememberCollabs = (collabs: CollaborateurOption[]) => {
+    collabs.forEach(c => knownCollabsRef.current.set(c.id, c));
+  };
+
+  // Charger la liste par défaut et les départements à l'ouverture
   useEffect(() => {
     if (opened) {
       loadData();
@@ -57,17 +70,18 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
     setIsLoading(true);
     try {
       const [collabsResponse, departementsData] = await Promise.all([
-        collaborateursService.getCollaborateurs({ limit: 2000, actif: 'true' }),
+        // Recherche serveur : ne charger qu'une petite liste par défaut (50)
+        collaborateursService.getCollaborateurs({ limit: 50, actif: 'true' }),
         departementsService.getAll(),
       ]);
 
-      setCollaborateurs(
-        (collabsResponse.data || []).map((c: any) => ({
-          id: c.id,
-          nomComplet: c.nomComplet,
-          typeUtilisateur: c.typeUtilisateur,
-        }))
-      );
+      const collabs = (collabsResponse.data || []).map((c: any) => ({
+        id: c.id,
+        nomComplet: c.nomComplet,
+        typeUtilisateur: c.typeUtilisateur,
+      }));
+      setDefaultCollabs(collabs);
+      rememberCollabs(collabs);
 
       setDepartements(
         (departementsData || []).map(d => ({
@@ -88,17 +102,76 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
     }
   };
 
-  // Données du sélecteur de manager (Managers & Directeurs en premier)
-  const managersEtDirecteurs = collaborateurs.filter(
-    c => c.typeUtilisateur === 'Manager' || c.typeUtilisateur === 'Directeur'
-  );
-  const autresCollaborateurs = collaborateurs.filter(
-    c => c.typeUtilisateur !== 'Manager' && c.typeUtilisateur !== 'Directeur'
-  );
+  // Recherche serveur (manager) avec debounce 300ms
+  useEffect(() => {
+    const q = managerSearch.trim();
+    if (q.length < 2) {
+      setManagerResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, { limit: 50 });
+        const collabs = (Array.isArray(data) ? data : []).map((c: any) => ({
+          id: c.id,
+          nomComplet: c.nomComplet,
+          typeUtilisateur: c.typeUtilisateur,
+        }));
+        rememberCollabs(collabs);
+        setManagerResults(collabs);
+      } catch (error) {
+        console.error('Erreur lors de la recherche de managers:', error);
+        setManagerResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [managerSearch]);
+
+  // Recherche serveur (collaborateurs) avec debounce 300ms
+  useEffect(() => {
+    const q = collabSearch.trim();
+    if (q.length < 2) {
+      setCollabResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, { limit: 50 });
+        const collabs = (Array.isArray(data) ? data : []).map((c: any) => ({
+          id: c.id,
+          nomComplet: c.nomComplet,
+          typeUtilisateur: c.typeUtilisateur,
+        }));
+        rememberCollabs(collabs);
+        setCollabResults(collabs);
+      } catch (error) {
+        console.error('Erreur lors de la recherche de collaborateurs:', error);
+        setCollabResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [collabSearch]);
+
   const toOption = (c: CollaborateurOption) => ({
     value: c.id.toString(),
     label: c.nomComplet,
   });
+
+  // Données du sélecteur de manager (Managers & Directeurs en premier)
+  const managerSource = managerResults ?? defaultCollabs;
+  const managersEtDirecteurs = managerSource.filter(
+    c => c.typeUtilisateur === 'Manager' || c.typeUtilisateur === 'Directeur'
+  );
+  const autresCollaborateurs = managerSource.filter(
+    c => c.typeUtilisateur !== 'Manager' && c.typeUtilisateur !== 'Directeur'
+  );
+  // Conserver le manager sélectionné comme option valide même hors des résultats courants
+  const selectedManager = selectedManagerId
+    ? knownCollabsRef.current.get(parseInt(selectedManagerId, 10))
+    : undefined;
+  const managerInSource = selectedManagerId
+    ? managerSource.some(c => c.id.toString() === selectedManagerId)
+    : true;
   const managerSelectData = [
     ...(managersEtDirecteurs.length > 0
       ? [{ group: 'Managers & Directeurs', items: managersEtDirecteurs.map(toOption) }]
@@ -106,12 +179,26 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
     ...(autresCollaborateurs.length > 0
       ? [{ group: 'Autres collaborateurs', items: autresCollaborateurs.map(toOption) }]
       : []),
+    ...(!managerInSource && selectedManager
+      ? [{ group: 'Sélection', items: [toOption(selectedManager)] }]
+      : []),
   ];
 
-  // Collaborateurs sélectionnables (exclure le manager choisi)
-  const collaborateursSelectData = collaborateurs
-    .filter(c => c.id.toString() !== selectedManagerId)
-    .map(toOption);
+  // Collaborateurs sélectionnables : résultats courants (hors manager choisi)
+  // + éléments déjà sélectionnés absents des résultats (pour garder leurs libellés)
+  const collabSource = collabResults ?? defaultCollabs;
+  const collabSourceIds = new Set(collabSource.map(c => c.id.toString()));
+  const collaborateursSelectData = [
+    ...collabSource
+      .filter(c => c.id.toString() !== selectedManagerId)
+      .map(toOption),
+    ...selectedCollaborateurIds
+      .filter(id => !collabSourceIds.has(id))
+      .map(id => {
+        const known = knownCollabsRef.current.get(parseInt(id, 10));
+        return known ? toOption(known) : { value: id, label: `Collaborateur #${id}` };
+      }),
+  ];
 
   // Changer de manager : le retirer de la sélection si présent
   const handleManagerChange = (value: string | null) => {
@@ -132,10 +219,17 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
     setIsLoadingMembres(true);
     try {
       const membres = await departementsService.getCollaborateurs(parseInt(value, 10), false);
-      const availableIds = new Set(collaborateursSelectData.map(o => o.value));
+      // Mémoriser les membres pour que leurs libellés restent disponibles
+      rememberCollabs(
+        (membres || []).map((m: any) => ({
+          id: m.id,
+          nomComplet: m.nomComplet,
+          typeUtilisateur: m.typeUtilisateur,
+        }))
+      );
       const ids = (membres || [])
         .map(m => m.id.toString())
-        .filter(id => id !== selectedManagerId && availableIds.has(id));
+        .filter(id => id !== selectedManagerId);
       setSelectedCollaborateurIds(ids);
     } catch (error) {
       console.error('Erreur lors du chargement des membres du département:', error);
@@ -179,7 +273,7 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
     setIsSaving(true);
     try {
       const result = await collaborateursService.bulkAssignManager(managerId, ids);
-      const managerNom = collaborateurs.find(c => c.id === managerId)?.nomComplet;
+      const managerNom = knownCollabsRef.current.get(managerId)?.nomComplet;
 
       notifications.show({
         title: 'Succès',
@@ -208,6 +302,10 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
     setSelectedManagerId(null);
     setSelectedDepartementId(null);
     setSelectedCollaborateurIds([]);
+    setManagerSearch('');
+    setCollabSearch('');
+    setManagerResults(null);
+    setCollabResults(null);
     onClose();
   };
 
@@ -234,14 +332,17 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
             (individuellement ou via un département/équipe entier).
           </Text>
 
-          {/* Sélecteur de manager */}
+          {/* Sélecteur de manager (recherche serveur) */}
           <Select
             label="Manager"
-            placeholder="Sélectionner le manager"
+            placeholder="Rechercher le manager"
             data={managerSelectData}
             value={selectedManagerId}
             onChange={handleManagerChange}
             searchable
+            searchValue={managerSearch}
+            onSearchChange={setManagerSearch}
+            filter={({ options }) => options}
             clearable
             nothingFoundMessage="Aucun résultat"
           />
@@ -295,14 +396,17 @@ export function AssignTeamModal({ opened, onClose, onSuccess }: AssignTeamModalP
             />
           )}
 
-          {/* Multi-sélection des collaborateurs */}
+          {/* Multi-sélection des collaborateurs (recherche serveur) */}
           <MultiSelect
             label="Collaborateurs à rattacher"
-            placeholder={selectedCollaborateurIds.length === 0 ? 'Sélectionner les collaborateurs' : ''}
+            placeholder={selectedCollaborateurIds.length === 0 ? 'Rechercher les collaborateurs' : ''}
             data={collaborateursSelectData}
             value={selectedCollaborateurIds}
             onChange={setSelectedCollaborateurIds}
             searchable
+            searchValue={collabSearch}
+            onSearchChange={setCollabSearch}
+            filter={({ options }) => options}
             clearable
             nothingFoundMessage="Aucun résultat"
             maxDropdownHeight={220}

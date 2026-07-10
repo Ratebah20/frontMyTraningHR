@@ -66,11 +66,19 @@ export const collaborateursService = {
     return response.data;
   },
 
-  // Rechercher des collaborateurs
-  async searchCollaborateurs(query: string): Promise<Collaborateur[]> {
-    const response = await api.get('/collaborateurs/search', {
-      params: { q: query }
-    });
+  // Rechercher des collaborateurs (recherche serveur, résultats limités côté backend)
+  async searchCollaborateurs(
+    query: string,
+    options?: { includeInactive?: boolean; limit?: number }
+  ): Promise<Collaborateur[]> {
+    const params: any = { q: query };
+    if (options?.includeInactive) {
+      params.includeInactive = 'true';
+    }
+    if (options?.limit) {
+      params.limit = String(options.limit);
+    }
+    const response = await api.get('/collaborateurs/search', { params });
     return response.data;
   },
 

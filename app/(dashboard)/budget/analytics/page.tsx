@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Container,
   Title,
@@ -67,50 +68,31 @@ import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
 import { CaretUp } from '@phosphor-icons/react/dist/ssr/CaretUp';
-import {
-  LineChart,
-  Line,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ComposedChart,
-} from 'recharts';
 import { budgetAnalyticsService, DashboardComplet, PivotBudget, AnalysePeriode, FormationSansTarif } from '@/lib/services/budget-analytics.service';
-import { ExportChartButton } from '@/components/ExportChartButton';
+
+// Graphiques Recharts chargés en différé (ssr: false) pour alléger le bundle initial
+const chartLoader = { ssr: false, loading: () => <Center h={300}><Loader /></Center> };
+const PeriodesComparisonBarChart = dynamic(
+  () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.PeriodesComparisonBarChart),
+  chartLoader
+);
+const DepartementsComparisonBarChart = dynamic(
+  () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.DepartementsComparisonBarChart),
+  chartLoader
+);
+const CategoriesRepartitionPieChart = dynamic(
+  () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.CategoriesRepartitionPieChart),
+  chartLoader
+);
+const EvolutionMensuelleComposedChart = dynamic(
+  () => import('@/components/charts/BudgetAnalyticsCharts').then(mod => mod.EvolutionMensuelleComposedChart),
+  chartLoader
+);
 
 const COLORS = ['#4C6EF5', '#15AABF', '#82C91E', '#FAB005', '#FA5252', '#BE4BDB', '#FD7E14', '#74C0FC'];
 const LIGHT_COLORS = ['#A5C7FF', '#6DD4E0', '#B0E157', '#FFD43B', '#FF8787', '#E599F7', '#FFB366', '#B3DFFC'];
 const QUARTER_COLORS = { Q1: '#4C6EF5', Q2: '#15AABF', Q3: '#82C91E', Q4: '#FAB005' };
 const SEMESTER_COLORS = { S1: '#BE4BDB', S2: '#FD7E14' };
-
-/** Enveloppe un graphique Recharts et affiche un bouton d'export PNG en haut à droite. */
-function ExportableChart({ filename, children }: { filename: string; children: React.ReactNode }) {
-  const chartRef = useRef<HTMLDivElement>(null);
-
-  return (
-    <div ref={chartRef} style={{ position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 0, right: 0, zIndex: 5 }}>
-        <ExportChartButton containerRef={chartRef} filename={filename} />
-      </div>
-      {children}
-    </div>
-  );
-}
 
 export default function BudgetAnalyticsPage() {
   const [loading, setLoading] = useState(true);
@@ -833,24 +815,10 @@ export default function BudgetAnalyticsPage() {
 
               {/* Graphique comparatif des périodes */}
               <Title order={5} mt="xl" mb="md">Comparaison des Périodes</Title>
-              <ExportableChart filename={`budget-comparaison-periodes-${selectedYear}`}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={periodeData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="periode" />
-                    <YAxis tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
-                    <RechartsTooltip
-                      formatter={(value: number) => formatCurrency(value)}
-                      labelStyle={{ color: '#000' }}
-                    />
-                    <Bar
-                      dataKey="totalConsomme"
-                      fill="#4C6EF5"
-                      radius={[8, 8, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </ExportableChart>
+              <PeriodesComparisonBarChart
+                data={periodeData}
+                filename={`budget-comparaison-periodes-${selectedYear}`}
+              />
             </Paper>
           </Stack>
         </Tabs.Panel>
@@ -945,57 +913,10 @@ export default function BudgetAnalyticsPage() {
             {top5Departements.length > 0 && (
               <Paper shadow="xs" p="md" radius="md" withBorder>
                 <Title order={4} mb="md">Comparaison des Budgets</Title>
-                <ExportableChart filename={`budget-comparaison-departements-${selectedYear}`}>
-                <ResponsiveContainer width="100%" height={250}>
-                  <BarChart
-                    data={top5Departements.slice(0, 5).map((dept, index) => ({
-                      name: `#${index + 1}`,
-                      budget: dept.totalConsomme,
-                      fullName: dept.departementNom,
-                    }))}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                    <XAxis 
-                      dataKey="name"
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis 
-                      tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`}
-                      tick={{ fontSize: 11 }}
-                    />
-                    <RechartsTooltip 
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <Paper p="xs" shadow="md" withBorder style={{ backgroundColor: 'white' }}>
-                              <Text size="xs" fw={600}>{data.fullName}</Text>
-                              <Text size="sm" c="blue" fw={700} mt={4}>
-                                {formatCurrency(data.budget)}
-                              </Text>
-                            </Paper>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar 
-                      dataKey="budget" 
-                      radius={[8, 8, 0, 0]}
-                      label={{
-                        position: 'top' as const,
-                        fontSize: 10,
-                        formatter: (value: any) => `${(value / 1000).toFixed(0)}k€`
-                      }}
-                    >
-                      {top5Departements.slice(0, 5).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index]} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                </ExportableChart>
+                <DepartementsComparisonBarChart
+                  departements={top5Departements}
+                  filename={`budget-comparaison-departements-${selectedYear}`}
+                />
               </Paper>
             )}
           </Stack>
@@ -1007,35 +928,11 @@ export default function BudgetAnalyticsPage() {
             <Grid.Col span={{ base: 12, md: 6 }}>
               <Paper shadow="xs" p="md" radius="md" withBorder>
                 <Title order={4} mb="md">Répartition par Catégorie</Title>
-                <ExportableChart filename={`budget-repartition-categories-${selectedYear}`}>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={top3Categories.map(cat => ({
-                        name: cat.categorieNom,
-                        value: cat.totalConsomme,
-                        percentage: (cat.totalConsomme / consommationGlobale.totalConsomme) * 100
-                      }))}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(entry) => `${formatPercentage(entry.percentage)}`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {top3Categories.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip
-                      formatter={(value: number, name: string) => [formatCurrency(value), name]}
-                      labelStyle={{ color: '#000' }}
-                      contentStyle={{ maxWidth: 250 }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                </ExportableChart>
+                <CategoriesRepartitionPieChart
+                  categories={top3Categories}
+                  totalConsomme={consommationGlobale.totalConsomme}
+                  filename={`budget-repartition-categories-${selectedYear}`}
+                />
                 {/* Légende des catégories */}
                 <Stack gap="xs" mt="md">
                   {top3Categories.map((cat, index) => (
@@ -1105,41 +1002,10 @@ export default function BudgetAnalyticsPage() {
         <Tabs.Panel value="evolution" pt="md">
           <Paper shadow="xs" p="md" radius="md" withBorder>
             <Title order={4} mb="md">Évolution Mensuelle Détaillée</Title>
-            <ExportableChart filename={`budget-evolution-mensuelle-${selectedYear}`}>
-            <ResponsiveContainer width="100%" height={350}>
-              <ComposedChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mois" />
-                <YAxis yAxisId="left" tickFormatter={(value) => `${(value / 1000).toFixed(0)}k€`} />
-                <YAxis yAxisId="right" orientation="right" />
-                <RechartsTooltip 
-                  formatter={(value: number, name: string) => 
-                    name === 'sessions' ? value : formatCurrency(value)
-                  }
-                  labelStyle={{ color: '#000' }}
-                />
-                <Legend />
-                <Area 
-                  yAxisId="left"
-                  type="monotone" 
-                  dataKey="montant" 
-                  stroke="#4C6EF5" 
-                  fill="#4C6EF5" 
-                  fillOpacity={0.6}
-                  name="Montant"
-                />
-                <Line 
-                  yAxisId="right"
-                  type="monotone" 
-                  dataKey="sessions" 
-                  stroke="#82C91E"
-                  strokeWidth={2}
-                  name="Sessions"
-                  dot={{ fill: '#82C91E' }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-            </ExportableChart>
+            <EvolutionMensuelleComposedChart
+              data={monthlyData}
+              filename={`budget-evolution-mensuelle-${selectedYear}`}
+            />
           </Paper>
         </Tabs.Panel>
       </Tabs>

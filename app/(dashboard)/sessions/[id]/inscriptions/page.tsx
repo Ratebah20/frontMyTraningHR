@@ -54,6 +54,8 @@ export default function SessionInscriptionsPage({ params }: Props) {
   // États
   const [session, setSession] = useState<any | null>(null);
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
+  // Résultats de la recherche serveur (null = pas de recherche active)
+  const [searchResults, setSearchResults] = useState<Collaborateur[] | null>(null);
   const [existingParticipants, setExistingParticipants] = useState<number[]>([]);
   const [search, setSearch] = useState('');
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<number[]>([]);
@@ -90,12 +92,13 @@ export default function SessionInscriptionsPage({ params }: Props) {
     }
   };
 
-  // Charger tous les collaborateurs
+  // Charger une petite liste de collaborateurs par défaut
+  // (la recherche se fait ensuite côté serveur)
   const loadCollaborateurs = async () => {
     try {
       const response = await collaborateursService.getCollaborateurs({
         page: 1,
-        limit: 1000, // Charger tous les collaborateurs (actifs et inactifs)
+        limit: 50,
         includeInactive: true, // Inclure les collaborateurs inactifs
       });
       setCollaborateurs(response.data || []);
@@ -114,6 +117,28 @@ export default function SessionInscriptionsPage({ params }: Props) {
     loadSession();
     loadCollaborateurs();
   }, [sessionId]);
+
+  // Recherche serveur avec debounce 300ms
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setSearchResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, {
+          includeInactive: true,
+          limit: 50,
+        });
+        setSearchResults(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.error('Erreur lors de la recherche de collaborateurs:', err);
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [search]);
 
   const handleSelectAll = () => {
     const availableIds = filteredCollaborateurs
@@ -176,13 +201,8 @@ export default function SessionInscriptionsPage({ params }: Props) {
     }
   };
 
-  // Filtrer les collaborateurs
-  const filteredCollaborateurs = collaborateurs.filter(c =>
-    search === '' ||
-    c.nom?.toLowerCase().includes(search.toLowerCase()) ||
-    c.prenom?.toLowerCase().includes(search.toLowerCase()) ||
-    c.nomComplet?.toLowerCase().includes(search.toLowerCase())
-  );
+  // Collaborateurs affichés : résultats de la recherche serveur, sinon liste par défaut
+  const filteredCollaborateurs = searchResults ?? collaborateurs;
 
   // Affichage pendant le chargement
   if (isLoading) {

@@ -37,8 +37,14 @@ export function DepartementFormModal({
   initialType,
   initialParentId,
 }: DepartementFormModalProps) {
+  // Liste par défaut (directeurs en priorité, sinon 50 premiers actifs)
   const [directeurs, setDirecteurs] = useState<{ value: string; label: string }[]>([]);
   const [isLoadingDirecteurs, setIsLoadingDirecteurs] = useState(false);
+  // Recherche serveur pour le sélecteur de directeur
+  const [directeurSearch, setDirecteurSearch] = useState('');
+  const [directeurResults, setDirecteurResults] = useState<{ value: string; label: string }[] | null>(null);
+  // Option du directeur actuel (mode édition) pour conserver son libellé
+  const [currentDirecteurOption, setCurrentDirecteurOption] = useState<{ value: string; label: string } | null>(null);
 
   const form = useForm({
     initialValues: {
@@ -84,14 +90,21 @@ export function DepartementFormModal({
   const loadDirecteurs = async () => {
     setIsLoadingDirecteurs(true);
     try {
-      const response = await collaborateursService.getCollaborateurs({ limit: 2000, actif: 'true' });
-      const collabs = response.data || [];
+      // Recherche serveur : ne charger qu'une petite liste par défaut.
       // Prioriser les collaborateurs avec le rôle Directeur,
-      // fallback sur tous les collaborateurs actifs (liste recherchable)
-      const directeursOnly = collabs.filter((c: any) => c.typeUtilisateur === 'Directeur');
-      const source = directeursOnly.length > 0 ? directeursOnly : collabs;
+      // fallback sur les 50 premiers collaborateurs actifs (liste recherchable)
+      const directeursResponse = await collaborateursService.getCollaborateurs({
+        limit: 50,
+        actif: 'true',
+        typeUtilisateur: 'Directeur',
+      } as any);
+      let collabs = directeursResponse.data || [];
+      if (collabs.length === 0) {
+        const fallbackResponse = await collaborateursService.getCollaborateurs({ limit: 50, actif: 'true' });
+        collabs = fallbackResponse.data || [];
+      }
       setDirecteurs(
-        source.map((c: any) => ({
+        collabs.map((c: any) => ({
           value: c.id.toString(),
           label: c.nomComplet,
         }))
@@ -102,6 +115,63 @@ export function DepartementFormModal({
       setIsLoadingDirecteurs(false);
     }
   };
+
+  // Recherche serveur du directeur avec debounce 300ms
+  useEffect(() => {
+    const q = directeurSearch.trim();
+    if (q.length < 2) {
+      setDirecteurResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, { limit: 50 });
+        setDirecteurResults(
+          (Array.isArray(data) ? data : []).map((c: any) => ({
+            value: c.id.toString(),
+            label: c.nomComplet,
+          }))
+        );
+      } catch (error) {
+        console.error('Erreur lors de la recherche de directeurs:', error);
+        setDirecteurResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [directeurSearch]);
+
+  // Mode édition : charger le directeur actuel pour afficher son libellé
+  useEffect(() => {
+    const directeurId = departement ? (departement as any).directeurId : null;
+    if (!opened || !directeurId) {
+      setCurrentDirecteurOption(null);
+      return;
+    }
+    let cancelled = false;
+    collaborateursService
+      .getCollaborateur(directeurId)
+      .then((collab) => {
+        if (!cancelled && collab) {
+          setCurrentDirecteurOption({ value: String(collab.id), label: collab.nomComplet });
+        }
+      })
+      .catch((error) => console.error('Erreur lors du chargement du directeur actuel:', error));
+    return () => {
+      cancelled = true;
+    };
+  }, [departement, opened]);
+
+  // Options : résultats courants + sélection absente des résultats (libellé conservé)
+  const directeurSource = directeurResults ?? directeurs;
+  const directeurData = [...directeurSource];
+  const selectedDirecteurId = form.values.directeurId;
+  if (selectedDirecteurId && !directeurSource.some(o => o.value === selectedDirecteurId)) {
+    directeurData.push(
+      currentDirecteurOption && currentDirecteurOption.value === selectedDirecteurId
+        ? currentDirecteurOption
+        : { value: selectedDirecteurId, label: `Collaborateur #${selectedDirecteurId}` }
+    );
+  }
 
   // Pré-remplir le formulaire en mode édition ou avec des valeurs initiales
   useEffect(() => {
@@ -233,10 +303,13 @@ export function DepartementFormModal({
                 ? 'Optionnel : directeur responsable de cette équipe'
                 : 'Optionnel : directeur responsable de ce département'
             }
-            data={directeurs}
+            data={directeurData}
             value={form.values.directeurId}
             onChange={(value) => form.setFieldValue('directeurId', value)}
             searchable
+            searchValue={directeurSearch}
+            onSearchChange={setDirecteurSearch}
+            filter={({ options }) => options}
             clearable
             nothingFoundMessage="Aucun résultat"
             disabled={isSubmitting || isLoadingDirecteurs}

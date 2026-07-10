@@ -10,7 +10,6 @@ import {
   Select,
   Alert,
   Avatar,
-  Badge,
   Loader,
   Center,
 } from '@mantine/core';
@@ -20,6 +19,7 @@ import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { collaborateursService, managersService } from '@/lib/services';
 import { notifications } from '@mantine/notifications';
+import { Collaborateur } from '@/lib/types';
 
 interface ManagerSelectorProps {
   opened: boolean;
@@ -29,6 +29,16 @@ interface ManagerSelectorProps {
   currentManagerId?: number | null;
   onSuccess?: () => void;
 }
+
+interface ManagerOption {
+  value: string;
+  label: string;
+}
+
+const toManagerOption = (collab: Collaborateur): ManagerOption => ({
+  value: String(collab.id),
+  label: `${collab.nomComplet}${collab.departement && typeof collab.departement !== 'string' ? ` - ${collab.departement.nomDepartement}` : ''}`,
+});
 
 export function ManagerSelector({
   opened,
@@ -40,7 +50,15 @@ export function ManagerSelector({
 }: ManagerSelectorProps) {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [managers, setManagers] = useState<Array<{ value: string; label: string; data: any }>>([]);
+  // Liste par défaut (50 premiers actifs) affichée avant toute recherche
+  const [defaultManagers, setDefaultManagers] = useState<ManagerOption[]>([]);
+  // Résultats de la recherche serveur
+  const [searchValue, setSearchValue] = useState('');
+  const [searchResults, setSearchResults] = useState<ManagerOption[] | null>(null);
+  // Option du manager actuel (chargée individuellement pour afficher son libellé)
+  const [currentManagerOption, setCurrentManagerOption] = useState<ManagerOption | null>(null);
+  // Libellés des options déjà vues (pour garder la sélection valide hors résultats courants)
+  const [knownOptions, setKnownOptions] = useState<Map<string, ManagerOption>>(new Map());
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(
     currentManagerId ? String(currentManagerId) : null
   );
@@ -51,24 +69,43 @@ export function ManagerSelector({
     }
   }, [opened]);
 
+  const rememberOptions = (options: ManagerOption[]) => {
+    setKnownOptions(prev => {
+      const next = new Map(prev);
+      options.forEach(o => next.set(o.value, o));
+      return next;
+    });
+  };
+
   const loadManagers = async () => {
     setLoading(true);
     try {
-      // Récupérer tous les collaborateurs actifs pour pouvoir choisir n'importe qui comme manager
+      // Recherche serveur : ne charger qu'une petite liste par défaut (50)
       const response = await collaborateursService.getCollaborateurs({
         actif: true,
-        limit: 1000,
+        limit: 50,
       });
 
       const managerOptions = response.data
         .filter(collab => collab.id !== collaborateurId) // Exclure le collaborateur lui-même
-        .map(collab => ({
-          value: String(collab.id),
-          label: `${collab.nomComplet}${collab.departement ? ` - ${collab.departement.nomDepartement}` : ''}`,
-          data: collab,
-        }));
+        .map(toManagerOption);
 
-      setManagers(managerOptions);
+      setDefaultManagers(managerOptions);
+      rememberOptions(managerOptions);
+
+      // Charger le manager actuel individuellement pour afficher son libellé
+      if (currentManagerId) {
+        try {
+          const current = await collaborateursService.getCollaborateur(currentManagerId);
+          const option = toManagerOption(current);
+          setCurrentManagerOption(option);
+          rememberOptions([option]);
+        } catch (err) {
+          console.error('Erreur lors du chargement du manager actuel:', err);
+        }
+      } else {
+        setCurrentManagerOption(null);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des managers:', error);
       notifications.show({
@@ -80,6 +117,50 @@ export function ManagerSelector({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Recherche serveur avec debounce 300ms
+  useEffect(() => {
+    const q = searchValue.trim();
+    if (q.length < 2) {
+      setSearchResults(null);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, { limit: 50 });
+        const options = (Array.isArray(data) ? data : [])
+          .filter(collab => collab.id !== collaborateurId)
+          .map(toManagerOption);
+        rememberOptions(options);
+        setSearchResults(options);
+      } catch (err) {
+        console.error('Erreur lors de la recherche de managers:', err);
+        setSearchResults([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [searchValue, collaborateurId]);
+
+  // Options courantes + sélection/manager actuel absents des résultats (libellés conservés)
+  const currentSource = searchResults ?? defaultManagers;
+  const sourceIds = new Set(currentSource.map(o => o.value));
+  const managers: ManagerOption[] = [...currentSource];
+  [selectedManagerId, currentManagerId ? String(currentManagerId) : null].forEach(id => {
+    if (id && !sourceIds.has(id) && !managers.some(o => o.value === id)) {
+      const known = knownOptions.get(id) || currentManagerOption;
+      if (known && known.value === id) {
+        managers.push(known);
+      } else {
+        managers.push({ value: id, label: `Collaborateur #${id}` });
+      }
+    }
+  });
+
+  const findLabel = (id: string | null | undefined): string | undefined => {
+    if (!id) return undefined;
+    return knownOptions.get(id)?.label
+      || managers.find(m => m.value === id)?.label;
   };
 
   const handleSubmit = async () => {
@@ -155,11 +236,14 @@ export function ManagerSelector({
           <>
             <Select
               label="Nouveau manager"
-              placeholder="Sélectionner un manager"
+              placeholder="Rechercher un manager"
               data={managers}
               value={selectedManagerId}
               onChange={setSelectedManagerId}
               searchable
+              searchValue={searchValue}
+              onSearchChange={setSearchValue}
+              filter={({ options }) => options}
               clearable
               nothingFoundMessage="Aucun collaborateur trouvé"
               leftSection={<Users size={16} />}
@@ -173,7 +257,7 @@ export function ManagerSelector({
                 variant="light"
               >
                 <Text size="sm">
-                  {managers.find(m => m.value === String(currentManagerId))?.label || 'Inconnu'}
+                  {findLabel(String(currentManagerId)) || 'Inconnu'}
                 </Text>
               </Alert>
             )}
@@ -186,7 +270,7 @@ export function ManagerSelector({
                 variant="light"
               >
                 <Text size="sm">
-                  {managers.find(m => m.value === selectedManagerId)?.label}
+                  {findLabel(selectedManagerId)}
                 </Text>
               </Alert>
             )}

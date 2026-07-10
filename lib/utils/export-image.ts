@@ -147,3 +147,45 @@ export async function exportSvgElementToPng(
 
   triggerDownload(canvas.toDataURL('image/png'), filename);
 }
+
+export interface ExportElementToPngOptions {
+  /** Couleur de fond peinte derrière l'élément (défaut: blanc). */
+  background?: string;
+  /** Facteur d'échelle du PNG (défaut: 2 pour un rendu net en slide). */
+  scale?: number;
+}
+
+/**
+ * Exporte un élément HTML (ex: grille de tuiles KPI) en fichier PNG téléchargé.
+ *
+ * Utilise html2canvas chargé dynamiquement : la librairie ne rejoint le bundle
+ * principal qu'au premier export, pas au chargement de la page.
+ *
+ * @param el       Élément HTML à capturer (doit être visible à l'écran).
+ * @param filename Nom du fichier (l'extension .png est ajoutée si absente).
+ * @param options  Fond et facteur d'échelle.
+ */
+export async function exportElementToPng(
+  el: HTMLElement,
+  filename: string,
+  options: ExportElementToPngOptions = {},
+): Promise<void> {
+  const { background = '#ffffff', scale = 2 } = options;
+
+  const rect = el.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) {
+    throw new Error("L'élément à exporter est invisible ou de taille nulle");
+  }
+
+  // Import dynamique : html2canvas reste hors du bundle principal
+  const html2canvas = (await import('html2canvas')).default;
+
+  const canvas = await html2canvas(el, {
+    backgroundColor: background,
+    scale,
+    useCORS: true,
+    logging: false,
+  });
+
+  triggerDownload(canvas.toDataURL('image/png'), filename);
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Container,
   Card,
@@ -24,6 +24,7 @@ import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour'
 import { ChalkboardTeacher } from '@phosphor-icons/react/dist/ssr/ChalkboardTeacher'
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
+import { ExportTilesButton } from '@/components/ExportTilesButton'
 import { statsService } from '@/lib/services'
 import { BilanAnnuelResponse } from '@/lib/types'
 
@@ -93,6 +94,7 @@ export default function BilanAnnuelPage() {
   const [data, setData] = useState<BilanAnnuelResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const tilesRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const fetchData = async () => {
@@ -203,6 +205,10 @@ export default function BilanAnnuelPage() {
                 w={110}
                 aria-label="Année du bilan"
               />
+              <ExportTilesButton
+                containerRef={tilesRef}
+                filename={`bilan-annuel_${annee}`}
+              />
             </Group>
           </Group>
         </motion.div>
@@ -220,11 +226,13 @@ export default function BilanAnnuelPage() {
           </Alert>
         ) : (
           <>
-            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-              {tiles.map((tile, index) => (
-                <BilanTile key={tile.key} tile={tile} delay={0.1 + index * 0.08} reducedMotion={reducedMotion} />
-              ))}
-            </SimpleGrid>
+            <div ref={tilesRef}>
+              <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+                {tiles.map((tile, index) => (
+                  <BilanTile key={tile.key} tile={tile} delay={0.1 + index * 0.08} reducedMotion={reducedMotion} />
+                ))}
+              </SimpleGrid>
+            </div>
             <Text size="xs" c="dimmed">
               Stagiaires et heures : sessions complétées de l&apos;année (individuelles et collectives).
               Part à distance : sessions collectives dont la modalité n&apos;est pas « présentiel ».

@@ -56,8 +56,27 @@ const setCookie = (name: string, value: string, days: number = 7) => {
 
 const removeCookie = (name: string) => {
   if (typeof document === 'undefined') return;
-  
+
   document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`;
+};
+
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+};
+
+// Lecture de l'expiration d'un JWT sans dépendance externe
+const isTokenExpired = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    if (!payload?.exp) return false;
+    return payload.exp * 1000 <= Date.now();
+  } catch {
+    // Token illisible : on laisse l'API trancher plutôt que de déconnecter
+    return false;
+  }
 };
 
 // Helper pour sauvegarder les tokens dans localStorage et cookies
@@ -254,6 +273,38 @@ export const authService = {
 
   isAuthenticated(): boolean {
     return !!getTokens();
+  },
+
+  // Le middleware ne voit que les cookies : sans ce cookie, toute navigation
+  // vers une route protégée sera renvoyée vers /login.
+  hasAuthCookie(): boolean {
+    return !!getCookie('accessToken');
+  },
+
+  /**
+   * Réaligne les cookies (lus par le middleware) sur le localStorage (lu par
+   * le client). Une désynchronisation des deux faisait boucler indéfiniment
+   * la redirection /login <-> /dashboard.
+   * Retourne true si une session exploitable subsiste.
+   */
+  syncSession(): boolean {
+    if (typeof window === 'undefined') return false;
+
+    const tokens = getTokens();
+    const user = this.getUser();
+
+    // Session incomplète ou refresh token expiré -> purge complète des deux côtés
+    if (!tokens || !user || isTokenExpired(tokens.refreshToken)) {
+      clearTokens();
+      return false;
+    }
+
+    saveTokens(tokens);
+    if (user.role) {
+      setCookie('userRole', user.role, 7);
+    }
+
+    return true;
   },
   
   getUser() {

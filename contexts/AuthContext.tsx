@@ -31,24 +31,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
 
-      // Vérifier si on a des tokens en localStorage
-      if (!authService.isAuthenticated()) {
+      // Réaligner cookies (middleware) et localStorage (client) AVANT toute
+      // redirection : une désynchronisation des deux faisait boucler
+      // /login <-> /dashboard à l'infini. Purge les deux si la session est
+      // incomplète ou expirée.
+      if (!authService.syncSession()) {
         setUser(null);
-        setIsLoading(false);
         return;
       }
 
-      // Récupérer l'utilisateur depuis le localStorage d'abord
-      const storedUser = authService.getUser();
-      if (storedUser) {
-        setUser(storedUser);
-        setIsLoading(false);
-        // Ne PAS essayer de récupérer le profil pour éviter les erreurs CORS/connexion
-        return;
-      }
-
-      // Si pas d'utilisateur stocké mais qu'on a des tokens, ne pas rediriger
-      setUser(null);
+      // Utilisateur repris du localStorage : on ne rappelle pas /auth/me ici
+      // pour éviter les erreurs CORS/connexion au chargement.
+      setUser(authService.getUser());
     } catch (error) {
       console.error('Auth check error:', error);
       setUser(null);

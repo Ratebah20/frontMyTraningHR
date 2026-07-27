@@ -28,6 +28,7 @@ import { EyeSlash } from '@phosphor-icons/react/dist/ssr/EyeSlash';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { useAuth } from '@/contexts/AuthContext';
+import { authService } from '@/lib/services';
 // Composant principal avec useSearchParams
 function LoginContent() {
   const searchParams = useSearchParams();
@@ -84,14 +85,22 @@ function LoginContent() {
   // enregistrée avant la pose des cookies, ce qui obligeait à rafraîchir
   // la page pour atteindre le dashboard.
   useEffect(() => {
-    if (isAuthenticated && user) {
-      const safeRedirect =
-        explicitRedirect && explicitRedirect.startsWith('/') && !explicitRedirect.startsWith('//')
-          ? explicitRedirect
-          : null;
-      const defaultRedirect = user.role === 'MANAGER' ? '/manager/dashboard' : '/dashboard';
-      window.location.replace(safeRedirect || defaultRedirect);
-    }
+    if (!isAuthenticated || !user) return;
+
+    // Garde anti-boucle : le middleware ne raisonne que sur le cookie
+    // accessToken. Sans lui, la navigation dure serait immédiatement renvoyée
+    // vers /login, provoquant un rechargement infini.
+    if (!authService.hasAuthCookie()) return;
+
+    const safeRedirect =
+      explicitRedirect &&
+      explicitRedirect.startsWith('/') &&
+      !explicitRedirect.startsWith('//') &&
+      !explicitRedirect.startsWith('/login')
+        ? explicitRedirect
+        : null;
+    const defaultRedirect = user.role === 'MANAGER' ? '/manager/dashboard' : '/dashboard';
+    window.location.replace(safeRedirect || defaultRedirect);
   }, [isAuthenticated, user, explicitRedirect]);
 
   // Track cursor position in email field

@@ -1,4 +1,5 @@
 import api from '../api';
+import type { EffectifReconciliation } from '../types/effectif.types';
 
 export interface ImportHistory {
   id: number;
@@ -29,6 +30,10 @@ export interface ImportResult {
   warnings: { line: number; column?: string; value?: any; message: string; type: 'error' | 'warning' }[];
   duration: number;
   importLogId?: number;
+  /** Collaborateurs rapproches par nom/prenom lors de l'import RH */
+  collaborateursReconcilies?: number;
+  /** Controle d'effectif joue automatiquement a la fin de l'import RH */
+  controleEffectif?: EffectifReconciliation;
   // Legacy stats format for backward compatibility
   message?: string;
   stats?: {

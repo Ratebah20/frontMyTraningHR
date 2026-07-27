@@ -35,6 +35,7 @@ import { Database } from '@phosphor-icons/react/dist/ssr/Database';
 import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { UsersThree } from '@phosphor-icons/react/dist/ssr/UsersThree';
 import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
 import { CalendarCheck } from '@phosphor-icons/react/dist/ssr/CalendarCheck';
 import { FileText } from '@phosphor-icons/react/dist/ssr/FileText';
@@ -45,6 +46,9 @@ import { importPreviewService } from '@/lib/services/import-preview.service';
 import type { ImportHistory, ImportResult } from '@/lib/services/import.service';
 import type { ImportPreviewResponse } from '@/lib/types/import-preview.types';
 import { ImportPreviewModal } from '@/components/import/ImportPreviewModal';
+import { EffectifReconciliationPanel } from '@/components/import/EffectifReconciliationPanel';
+import { EffectifEcartsReport } from '@/components/import/EffectifEcartsReport';
+import type { EffectifReconciliation } from '@/lib/types/effectif.types';
 import Link from 'next/link';
 
 export default function ImportPage() {
@@ -57,6 +61,8 @@ export default function ImportPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [importProgress, setImportProgress] = useState(0);
   const [currentImportStats, setCurrentImportStats] = useState<ImportResult | null>(null);
+  // Contrôle d'effectif renvoyé par l'import RH (départs jamais répercutés)
+  const [controleEffectif, setControleEffectif] = useState<EffectifReconciliation | null>(null);
 
   // States pour le mode preview OLU
   const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
@@ -266,6 +272,7 @@ export default function ImportPage() {
     setIsImporting(true);
     setImportProgress(0);
     setCurrentImportStats(null);
+    setControleEffectif(null);
 
     // Simuler la progression
     const progressInterval = setInterval(() => {
@@ -277,14 +284,26 @@ export default function ImportPage() {
       clearInterval(progressInterval);
       setImportProgress(100);
       setCurrentImportStats(result);
+      setControleEffectif(result.controleEffectif || null);
 
       notifications.show({
         title: 'Import terminé',
-        message: `Import collaborateurs réussi: ${result.stats?.created || 0} créés, ${result.stats?.updated || 0} mis à jour`,
+        message: `Effectif RH importé : ${result.collaborateursAdded || 0} créés, ${result.collaborateursUpdated || 0} mis à jour`,
         color: 'green',
         icon: <CheckCircle size={20} />,
         autoClose: 10000,
       });
+
+      const nbFantomes = result.controleEffectif?.stats.nbFantomes || 0;
+      if (nbFantomes > 0) {
+        notifications.show({
+          title: 'Contrôle d\'effectif',
+          message: `${nbFantomes} collaborateur(s) restent actifs alors qu'ils ne figurent plus dans le fichier RH`,
+          color: 'orange',
+          icon: <Warning size={20} />,
+          autoClose: false,
+        });
+      }
 
       // Recharger l'historique
       await loadImportHistory();
@@ -485,6 +504,12 @@ export default function ImportPage() {
             <Tabs.Tab value="olu" leftSection={<ArrowsClockwise size={16} />}>
               Import Récurrent (OLU)
             </Tabs.Tab>
+            <Tabs.Tab value="rh" leftSection={<Users size={16} />}>
+              Effectif RH (collaborateurs)
+            </Tabs.Tab>
+            <Tabs.Tab value="effectif" leftSection={<UsersThree size={16} />}>
+              Contrôle Effectif
+            </Tabs.Tab>
             <Tabs.Tab value="history" leftSection={<Clock size={16} />}>
               Historique
             </Tabs.Tab>
@@ -557,6 +582,85 @@ export default function ImportPage() {
                 </Button>
               </Group>
             </Stack>
+          </Tabs.Panel>
+
+          {/* Import RH des collaborateurs (+ contrôle d'effectif automatique) */}
+          <Tabs.Panel value="rh" pt="xl" px="lg" pb="lg">
+            <Stack gap="lg">
+              <Alert icon={<Info size={16} />} color="blue" variant="light">
+                <Text fw={600} mb="xs">Import de l&apos;effectif RH</Text>
+                <Text size="sm">
+                  Crée les nouveaux arrivants et met à jour départements, managers et
+                  types de contrat à partir du fichier RH. À la fin de l&apos;import, le{' '}
+                  <Text span fw={600}>contrôle d&apos;effectif</Text> s&apos;exécute
+                  automatiquement et liste les collaborateurs restés actifs alors
+                  qu&apos;ils ne figurent plus dans le fichier.
+                </Text>
+              </Alert>
+
+              <FileInput
+                label="Fichier Excel RH"
+                description="Colonnes attendues : Matricule du salarié, ID COLLABORATEUR, Worker Sub-Type, Prénom, Nom, Département, Sexe"
+                placeholder="Cliquez pour sélectionner un fichier"
+                accept=".xlsx,.xls"
+                leftSection={<FileXls size={20} />}
+                value={collaborateursFile}
+                onChange={setCollaborateursFile}
+                disabled={isImporting}
+                required
+              />
+
+              {isImporting && importProgress > 0 && (
+                <div>
+                  <Text size="sm" mb="xs">Import en cours...</Text>
+                  <Progress value={importProgress} animated />
+                </div>
+              )}
+
+              {currentImportStats && (
+                <Alert icon={<CheckCircle size={16} />} color="green" variant="light">
+                  <Text fw={600} mb="xs">Import terminé</Text>
+                  <Group gap="xl">
+                    <Text size="sm">Lignes traitées : {currentImportStats.processedRows ?? 0}</Text>
+                    <Text size="sm">Créés : {currentImportStats.collaborateursAdded ?? 0}</Text>
+                    <Text size="sm">Mis à jour : {currentImportStats.collaborateursUpdated ?? 0}</Text>
+                    {!!currentImportStats.collaborateursReconcilies && (
+                      <Text size="sm">Réconciliés : {currentImportStats.collaborateursReconcilies}</Text>
+                    )}
+                  </Group>
+                </Alert>
+              )}
+
+              <Group justify="flex-end">
+                <Button
+                  leftSection={<Upload size={16} />}
+                  onClick={handleCollaborateursImport}
+                  loading={isImporting}
+                  disabled={!collaborateursFile}
+                  size="md"
+                >
+                  Importer l&apos;effectif RH
+                </Button>
+              </Group>
+
+              {controleEffectif && (
+                <>
+                  <Text fw={600} size="lg" mt="md">
+                    Contrôle d&apos;effectif
+                  </Text>
+                  <EffectifEcartsReport
+                    analyse={controleEffectif}
+                    onChange={setControleEffectif}
+                    fantomesUniquement
+                  />
+                </>
+              )}
+            </Stack>
+          </Tabs.Panel>
+
+          {/* Contrôle d'effectif : fichier RH vs collaborateurs actifs */}
+          <Tabs.Panel value="effectif" pt="xl" px="lg" pb="lg">
+            <EffectifReconciliationPanel />
           </Tabs.Panel>
 
           {/* Historique */}

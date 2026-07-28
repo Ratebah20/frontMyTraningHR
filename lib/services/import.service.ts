@@ -1,5 +1,9 @@
 import api from '../api';
 import type { EffectifReconciliation } from '../types/effectif.types';
+import type {
+  ConfirmRhImportRequest,
+  RhPreview,
+} from '../types/import-rh.types';
 
 export interface ImportHistory {
   id: number;
@@ -99,6 +103,39 @@ export const importService = {
     });
 
     return response.data;
+  },
+
+  // Preview de l'import RH : simule l'import sans rien ecrire
+  async previewCollaborateurs(file: File): Promise<RhPreview> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post('/import/rh-collaborateurs/preview', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 320000,
+    });
+
+    return response.data;
+  },
+
+  // Execute l'import RH apres validation du preview
+  async confirmCollaborateurs(
+    request: ConfirmRhImportRequest,
+  ): Promise<ImportResult> {
+    const response = await api.post(
+      '/import/rh-collaborateurs/confirm',
+      request,
+      { timeout: 320000 },
+    );
+
+    return response.data;
+  },
+
+  // Abandonne un preview et supprime le fichier cote serveur
+  async cancelCollaborateursPreview(previewId: string): Promise<void> {
+    await api.delete(`/import/rh-collaborateurs/preview/${previewId}`);
   },
 
   // Récupérer l'historique des imports

@@ -48,6 +48,8 @@ import type { ImportPreviewResponse } from '@/lib/types/import-preview.types';
 import { ImportPreviewModal } from '@/components/import/ImportPreviewModal';
 import { EffectifReconciliationPanel } from '@/components/import/EffectifReconciliationPanel';
 import { EffectifEcartsReport } from '@/components/import/EffectifEcartsReport';
+import { RhImportPreview } from '@/components/import/RhImportPreview';
+import type { RhPreview } from '@/lib/types/import-rh.types';
 import type { EffectifReconciliation } from '@/lib/types/effectif.types';
 import Link from 'next/link';
 
@@ -63,6 +65,9 @@ export default function ImportPage() {
   const [currentImportStats, setCurrentImportStats] = useState<ImportResult | null>(null);
   // Contrôle d'effectif renvoyé par l'import RH (départs jamais répercutés)
   const [controleEffectif, setControleEffectif] = useState<EffectifReconciliation | null>(null);
+  // Aperçu de l'import RH : rien n'est écrit tant qu'il n'est pas validé
+  const [rhPreview, setRhPreview] = useState<RhPreview | null>(null);
+  const [isPreviewingRh, setIsPreviewingRh] = useState(false);
 
   // States pour le mode preview OLU
   const [previewData, setPreviewData] = useState<ImportPreviewResponse | null>(null);
@@ -258,7 +263,8 @@ export default function ImportPage() {
     setPreviewData(null);
   };
 
-  const handleCollaborateursImport = async () => {
+  // Etape 1 : analyser le fichier sans rien ecrire
+  const handleRhPreview = async () => {
     if (!collaborateursFile) {
       notifications.show({
         title: 'Erreur',
@@ -269,26 +275,65 @@ export default function ImportPage() {
       return;
     }
 
-    setIsImporting(true);
-    setImportProgress(0);
+    setIsPreviewingRh(true);
     setCurrentImportStats(null);
     setControleEffectif(null);
+    setRhPreview(null);
 
-    // Simuler la progression
+    try {
+      const preview = await importService.previewCollaborateurs(collaborateursFile);
+      setRhPreview(preview);
+
+      notifications.show({
+        title: 'Aperçu prêt',
+        message: `${preview.stats.nbCreations} création(s), ${preview.stats.nbReactivations} réactivation(s), ${preview.stats.nbModifications} modification(s). Rien n'est encore modifié.`,
+        color: 'blue',
+        icon: <Info size={20} />,
+        autoClose: 10000,
+      });
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Analyse impossible';
+      notifications.show({
+        title: 'Erreur',
+        message: errorMessage,
+        color: 'red',
+        icon: <XCircle size={20} />,
+        autoClose: false,
+      });
+    } finally {
+      setIsPreviewingRh(false);
+    }
+  };
+
+  // Etape 2 : executer l'import, en laissant inactives les fiches decochees
+  const handleRhConfirm = async (reactivationsExclues: number[]) => {
+    if (!rhPreview) return;
+
+    setIsImporting(true);
+    setImportProgress(0);
+
     const progressInterval = setInterval(() => {
       setImportProgress((prev) => Math.min(prev + 10, 90));
     }, 800);
 
     try {
-      const result = await importService.importCollaborateurs(collaborateursFile);
+      const result = await importService.confirmCollaborateurs({
+        previewId: rhPreview.previewId,
+        reactivationsExclues,
+      });
       clearInterval(progressInterval);
       setImportProgress(100);
       setCurrentImportStats(result);
       setControleEffectif(result.controleEffectif || null);
+      setRhPreview(null);
 
       notifications.show({
         title: 'Import terminé',
-        message: `Effectif RH importé : ${result.collaborateursAdded || 0} créés, ${result.collaborateursUpdated || 0} mis à jour`,
+        message: `Effectif RH importé : ${result.collaborateursAdded || 0} créés, ${result.collaborateursUpdated || 0} mis à jour${
+          reactivationsExclues.length > 0
+            ? `, ${reactivationsExclues.length} laissé(s) inactif(s)`
+            : ''
+        }`,
         color: 'green',
         icon: <CheckCircle size={20} />,
         autoClose: 10000,
@@ -297,7 +342,7 @@ export default function ImportPage() {
       const nbFantomes = result.controleEffectif?.stats.nbFantomes || 0;
       if (nbFantomes > 0) {
         notifications.show({
-          title: 'Contrôle d\'effectif',
+          title: "Contrôle d'effectif",
           message: `${nbFantomes} collaborateur(s) restent actifs alors qu'ils ne figurent plus dans le fichier RH`,
           color: 'orange',
           icon: <Warning size={20} />,
@@ -305,10 +350,8 @@ export default function ImportPage() {
         });
       }
 
-      // Recharger l'historique
       await loadImportHistory();
 
-      // Réinitialiser après succès
       setTimeout(() => {
         setCollaborateursFile(null);
         setImportProgress(0);
@@ -327,6 +370,17 @@ export default function ImportPage() {
       });
     } finally {
       setIsImporting(false);
+    }
+  };
+
+  const handleRhCancel = async () => {
+    if (!rhPreview) return;
+    const { previewId } = rhPreview;
+    setRhPreview(null);
+    try {
+      await importService.cancelCollaborateursPreview(previewId);
+    } catch {
+      // La session expirera d'elle-meme : rien de bloquant pour l'utilisateur
     }
   };
 
@@ -590,11 +644,12 @@ export default function ImportPage() {
               <Alert icon={<Info size={16} />} color="blue" variant="light">
                 <Text fw={600} mb="xs">Import de l&apos;effectif RH</Text>
                 <Text size="sm">
-                  Crée les nouveaux arrivants et met à jour départements, managers et
-                  types de contrat à partir du fichier RH. À la fin de l&apos;import, le{' '}
-                  <Text span fw={600}>contrôle d&apos;effectif</Text> s&apos;exécute
-                  automatiquement et liste les collaborateurs restés actifs alors
-                  qu&apos;ils ne figurent plus dans le fichier.
+                  L&apos;analyse affiche d&apos;abord{' '}
+                  <Text span fw={600}>tout ce que l&apos;import changerait</Text> — créations,
+                  réactivations, modifications champ par champ — et rien n&apos;est écrit
+                  tant que vous n&apos;avez pas validé. Après l&apos;import, le contrôle
+                  d&apos;effectif liste les collaborateurs restés actifs alors qu&apos;ils
+                  ne figurent plus dans le fichier.
                 </Text>
               </Alert>
 
@@ -605,8 +660,11 @@ export default function ImportPage() {
                 accept=".xlsx,.xls"
                 leftSection={<FileXls size={20} />}
                 value={collaborateursFile}
-                onChange={setCollaborateursFile}
-                disabled={isImporting}
+                onChange={(fichier) => {
+                  setCollaborateursFile(fichier);
+                  setRhPreview(null);
+                }}
+                disabled={isImporting || isPreviewingRh || !!rhPreview}
                 required
               />
 
@@ -631,17 +689,28 @@ export default function ImportPage() {
                 </Alert>
               )}
 
-              <Group justify="flex-end">
-                <Button
-                  leftSection={<Upload size={16} />}
-                  onClick={handleCollaborateursImport}
-                  loading={isImporting}
-                  disabled={!collaborateursFile}
-                  size="md"
-                >
-                  Importer l&apos;effectif RH
-                </Button>
-              </Group>
+              {!rhPreview && (
+                <Group justify="flex-end">
+                  <Button
+                    leftSection={<Eye size={16} />}
+                    onClick={handleRhPreview}
+                    loading={isPreviewingRh}
+                    disabled={!collaborateursFile || isImporting}
+                    size="md"
+                  >
+                    Analyser le fichier
+                  </Button>
+                </Group>
+              )}
+
+              {rhPreview && (
+                <RhImportPreview
+                  preview={rhPreview}
+                  isImporting={isImporting}
+                  onConfirm={handleRhConfirm}
+                  onCancel={handleRhCancel}
+                />
+              )}
 
               {controleEffectif && (
                 <>

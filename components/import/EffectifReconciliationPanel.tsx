@@ -60,18 +60,28 @@ export function EffectifReconciliationPanel() {
           Contrôle d&apos;effectif
         </Text>
         <Text size="sm">
-          Déposez le fichier d&apos;effectif RH : il est lu, comparé aux collaborateurs
-          enregistrés, puis supprimé. <Text span fw={600}>Rien n&apos;est importé ni
-          modifié</Text> — le rapport fait ressortir les personnes encore actives ici
-          alors qu&apos;elles ne font plus partie de l&apos;effectif, celles à réactiver
-          et celles qui manquent. Les désactivations ne partent qu&apos;à votre demande,
-          et les fiches sont conservées avec leur historique de formation.
+          Déposez n&apos;importe quel export d&apos;effectif : il est lu, comparé aux
+          collaborateurs enregistrés, puis supprimé. <Text span fw={600}>Rien n&apos;est
+          importé ni modifié</Text> — le rapport fait ressortir les personnes encore
+          actives ici alors qu&apos;elles ne font plus partie de l&apos;effectif. Les
+          désactivations ne partent qu&apos;à votre demande, et les fiches sont
+          conservées avec leur historique de formation.
+        </Text>
+        <Text size="sm" mt="xs">
+          <Text span fw={600}>Colonnes suffisantes :</Text> un identifiant (
+          <Text span ff="monospace">Matricule du salarié</Text>,{' '}
+          <Text span ff="monospace">ID COLLABORATEUR</Text> ou{' '}
+          <Text span ff="monospace">Email</Text>) et le nom. Un export Workday brut fait
+          l&apos;affaire, sans retouche. Si le fichier contient aussi le département et
+          le manager, les écarts de fiche sont calculés en plus ; s&apos;il porte une
+          colonne <Text span ff="monospace">Statut actif</Text>, les lignes marquées
+          &laquo; Non &raquo; sont traitées comme des sorties.
         </Text>
       </Alert>
 
       <Group align="flex-end" gap="md">
         <FileInput
-          label="Fichier Excel de l'effectif RH"
+          label="Fichier Excel d'effectif (export Workday, extract RH...)"
           placeholder="Cliquez pour sélectionner un fichier"
           accept=".xlsx,.xls"
           leftSection={<FileXls size={20} />}

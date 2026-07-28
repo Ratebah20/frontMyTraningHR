@@ -8,6 +8,7 @@ export enum ActionEffectif {
 export enum MethodeRapprochement {
   ID_EXTERNE = 'ID_EXTERNE',
   MATRICULE = 'MATRICULE',
+  EMAIL = 'EMAIL',
   NOM_PRENOM = 'NOM_PRENOM',
 }
 
@@ -48,10 +49,12 @@ export interface CollaborateurAReactiver {
 }
 
 export interface CollaborateurAbsentBase {
-  matricule: string;
+  matricule?: string;
   idExterne?: string;
   nomComplet: string;
-  departement: string;
+  /** Absent des exports simples (sans colonne Département) */
+  departement?: string;
+  email?: string;
   workerSubType?: string;
 }
 

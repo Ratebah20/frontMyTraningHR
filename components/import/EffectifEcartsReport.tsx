@@ -556,8 +556,8 @@ export function EffectifEcartsReport({
                       <Table.Tr>
                         <Table.Th>Collaborateur</Table.Th>
                         <Table.Th>Matricule</Table.Th>
+                        <Table.Th>Email</Table.Th>
                         <Table.Th>Département</Table.Th>
-                        <Table.Th>Type de contrat</Table.Th>
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
@@ -569,13 +569,15 @@ export function EffectifEcartsReport({
                             </Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm">{collab.matricule}</Text>
+                            <Text size="sm">{collab.matricule || '—'}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm">{collab.departement}</Text>
+                            <Text size="sm">{collab.email || '—'}</Text>
                           </Table.Td>
                           <Table.Td>
-                            <Text size="sm">{collab.workerSubType || '—'}</Text>
+                            <Text size="sm">
+                              {collab.departement || collab.workerSubType || '—'}
+                            </Text>
                           </Table.Td>
                         </Table.Tr>
                       ))}

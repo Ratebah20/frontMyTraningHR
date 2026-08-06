@@ -59,7 +59,7 @@ interface MandatoryTrainingsKPIs {
     totalCollaborateursAFormer: number
     totalFormes: number
     totalNonFormes: number
-    tauxConformiteGlobal: number
+    tauxConformiteGlobal: number | null
   }
   formations: Array<{
     id: number
@@ -124,7 +124,9 @@ function KPICard({
   delay = 0
 }: {
   title: string
-  value: number
+  // null = indicateur non défini (population vide) : on affiche "n/a" plutôt
+  // qu'un trompeur 100 %
+  value: number | null
   suffix?: string
   subtitle?: string
   icon: React.ReactNode
@@ -145,8 +147,10 @@ function KPICard({
           </ThemeIcon>
         </Group>
         <Group align="baseline" gap={4}>
-          <Text size="xl" fw={700}>{value.toLocaleString('fr-FR')}</Text>
-          {suffix && <Text size="md" fw={600} c="dimmed">{suffix}</Text>}
+          <Text size="xl" fw={700}>
+            {value === null ? 'n/a' : value.toLocaleString('fr-FR')}
+          </Text>
+          {suffix && value !== null && <Text size="md" fw={600} c="dimmed">{suffix}</Text>}
         </Group>
         {subtitle && <Text size="xs" c="dimmed" mt={4}>{subtitle}</Text>}
       </Card>
@@ -210,10 +214,35 @@ export default function ConformitePage() {
     checkEmailStatusOnMount()
   }, [])
 
-  // Load data when period or mandatory type changes
+  // Load data when period or mandatory type changes.
+  // Ce chargement est NON filtré : il sert à la fois à afficher les chiffres et
+  // à (re)construire la liste des formations du périmètre.
   useEffect(() => {
-    fetchMandatoryData()
+    fetchMandatoryData({ reinitialiserPerimetre: true })
   }, [periode, date, dateDebut, dateFin, mandatoryType])
+
+  // Recharger quand la SÉLECTION de formations change.
+  // C'est ce câblage qui manquait : la carte "Scope" ne pilotait rien, cocher
+  // ou décocher une formation ne pouvait pas modifier les chiffres.
+  //
+  // La signature évite un double chargement : le fetch non filtré réinitialise
+  // `selectedFormationIds` avec un NOUVEAU tableau, ce qui relancerait cet
+  // effet alors que les données affichées sont déjà les bonnes.
+  const derniereSelectionServie = useRef<string | null>(null)
+
+  // Jeton de requête : une réponse plus ancienne ne doit jamais écraser une
+  // plus récente (typiquement, cocher une formation pendant qu'un rechargement
+  // de périmètre est encore en vol).
+  const requeteEnCours = useRef(0)
+
+  const signatureSelection = (ids: number[]) =>
+    [...ids].sort((a, b) => a - b).join(',')
+
+  useEffect(() => {
+    if (!hasInitialized) return
+    if (derniereSelectionServie.current === signatureSelection(selectedFormationIds)) return
+    fetchMandatoryData({ reinitialiserPerimetre: false })
+  }, [selectedFormationIds, hasInitialized])
 
   // Load manager data when dept filter changes
   useEffect(() => {
@@ -243,38 +272,71 @@ export default function ConformitePage() {
     }
   }
 
-  const fetchMandatoryData = async () => {
+  const fetchMandatoryData = async (
+    options: { reinitialiserPerimetre: boolean } = { reinitialiserPerimetre: true }
+  ) => {
     if (periode === 'plage' && (!dateDebut || !dateFin)) return
 
+    const requeteId = ++requeteEnCours.current
     setMandatoryLoading(true)
     setByManagerLoading(true)
     try {
       const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
       const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
+      // Quand on (re)construit le périmètre, on interroge TOUTES les formations
+      // obligatoires. Sinon on n'interroge que la sélection en cours.
+      const idsDemandes = options.reinitialiserPerimetre ? undefined : selectedFormationIds
+
+      // Sélection vide : rien à calculer, on évite un appel inutile
+      if (!options.reinitialiserPerimetre && selectedFormationIds.length === 0) {
+        setMandatoryData(null)
+        setMandatoryLoading(false)
+        setByManagerLoading(false)
+        return
+      }
+
       // Les deux appels partent réellement en parallèle (avant : séquentiels,
       // ce qui doublait le temps d'affichage à chaque changement de période)
-      const mandatoryPromise = statsService.getMandatoryTrainingsKPIs(periode, date, startDateStr, endDateStr, mandatoryType)
+      const mandatoryPromise = statsService.getMandatoryTrainingsKPIs(
+        periode, date, startDateStr, endDateStr, mandatoryType, idsDemandes
+      )
       const byManagerPromise = statsService.getMandatoryTrainingsByManager(
         periode, date, startDateStr, endDateStr,
         selectedDept ? parseInt(selectedDept) : undefined,
-        mandatoryType
+        mandatoryType,
+        idsDemandes
       ).catch((managerError: unknown) => {
         console.error('Erreur lors du chargement des donnees par manager:', managerError)
         return null
       })
 
       const mandatoryResponse = await mandatoryPromise
-      setMandatoryData(mandatoryResponse)
 
-      // Initialize scope with ALL mandatory formations on first load
-      if (!hasInitialized && mandatoryResponse.formations.length > 0) {
-        const mandatoryFormationsList = mandatoryResponse.formations.map((f: { id: number; nomFormation: string }) => ({
-          id: f.id,
-          nom: f.nomFormation
-        }))
+      // Réponse périmée : une requête plus récente a été lancée entre-temps
+      if (requeteId !== requeteEnCours.current) return
+
+      setMandatoryData(mandatoryResponse)
+      // Marqué "servi" seulement après succès : en cas d'échec, la sélection
+      // pourra être retentée.
+      derniereSelectionServie.current = signatureSelection(
+        idsDemandes ?? selectedFormationIds
+      )
+
+      // (Re)construire le périmètre à chaque changement de période ou de type.
+      // Avant, un verrou `hasInitialized` figeait la liste au tout premier
+      // chargement : changer d'année laissait les puces de l'année précédente,
+      // qui pouvaient contredire le tableau affiché en dessous.
+      if (options.reinitialiserPerimetre) {
+        const mandatoryFormationsList = mandatoryResponse.formations.map(
+          (f: { id: number; nomFormation: string }) => ({ id: f.id, nom: f.nomFormation })
+        )
+        const ids = mandatoryFormationsList.map((f: { id: number }) => f.id)
         setAvailableFormations(mandatoryFormationsList)
-        setSelectedFormationIds(mandatoryFormationsList.map((f: { id: number }) => f.id))
+        setSelectedFormationIds(ids)
+        // Les données affichées correspondent déjà à cette sélection complète :
+        // inutile de relancer un appel quand l'effet de sélection se déclenchera.
+        derniereSelectionServie.current = signatureSelection(ids)
         setHasInitialized(true)
       }
 
@@ -284,8 +346,10 @@ export default function ConformitePage() {
     } catch (error) {
       console.error('Erreur lors du chargement des formations obligatoires:', error)
     } finally {
-      setMandatoryLoading(false)
-      setByManagerLoading(false)
+      if (requeteId === requeteEnCours.current) {
+        setMandatoryLoading(false)
+        setByManagerLoading(false)
+      }
     }
   }
 
@@ -298,7 +362,8 @@ export default function ConformitePage() {
       const response = await statsService.getMandatoryTrainingsByManager(
         periode, date, startDateStr, endDateStr,
         selectedDept ? parseInt(selectedDept) : undefined,
-        mandatoryType
+        mandatoryType,
+        selectedFormationIds.length > 0 ? selectedFormationIds : undefined
       )
       setByManagerData(response)
       setSelectedDepts(new Set())
@@ -433,8 +498,8 @@ export default function ConformitePage() {
           ? parseInt(date.split('-')[0], 10)
           : (dateDebut ?? new Date()).getFullYear()
       const anneeExport = isNaN(annee) ? new Date().getFullYear() : annee
-      const blob = await exportsService.exportFormationsObligatoires(anneeExport)
-      exportsService.downloadBlob(blob, `formations-obligatoires_${anneeExport}.xlsx`)
+      const blob = await exportsService.exportFormationsObligatoires(anneeExport, mandatoryType)
+      exportsService.downloadBlob(blob, `formations-obligatoires_${anneeExport}_${mandatoryType}.xlsx`)
       notifications.show({
         title: 'Export généré',
         message: 'Le fichier Excel de suivi a été téléchargé',
@@ -467,6 +532,10 @@ export default function ConformitePage() {
         date,
         startDate: startDateStr,
         endDate: endDateStr,
+        // Sans ce paramètre, les rappels étaient TOUJOURS calculés sur les
+        // obligatoires annuelles : en onglet Onboarding, le contenu des emails
+        // ne correspondait pas à ce qui est affiché à l'écran.
+        type: mandatoryType,
       })
 
       setShowReminderModal(false)
@@ -767,7 +836,15 @@ export default function ConformitePage() {
                 suffix="%"
                 subtitle={mandatoryType === 'onboarding' ? 'Nouveaux arrivants de la periode' : 'Toutes formations'}
                 icon={<CheckCircle size={22} weight="bold" />}
-                color={mandatoryData.stats.tauxConformiteGlobal >= 80 ? 'green' : mandatoryData.stats.tauxConformiteGlobal >= 50 ? 'cyan' : 'pink'}
+                color={
+                  mandatoryData.stats.tauxConformiteGlobal === null
+                    ? 'gray'
+                    : mandatoryData.stats.tauxConformiteGlobal >= 80
+                      ? 'green'
+                      : mandatoryData.stats.tauxConformiteGlobal >= 50
+                        ? 'cyan'
+                        : 'pink'
+                }
                 delay={0.15}
               />
               <KPICard

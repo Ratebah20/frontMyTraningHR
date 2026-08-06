@@ -489,6 +489,9 @@ export default function CollaborateursKPIsPage() {
                         <Table.Tr>
                           <Table.Th>Catégorie</Table.Th>
                           <Table.Th>Collab.</Table.Th>
+                          <Table.Th>Formés</Table.Th>
+                          <Table.Th>Non formés</Table.Th>
+                          <Table.Th>Taux</Table.Th>
                           <Table.Th>Formations</Table.Th>
                           <Table.Th>Heures</Table.Th>
                           <Table.Th>Moyenne</Table.Th>
@@ -498,6 +501,15 @@ export default function CollaborateursKPIsPage() {
                         <Table.Tr>
                           <Table.Td><Badge color="blue" variant="light">Homme</Badge></Table.Td>
                           <Table.Td>{detailedData.parGenre.homme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.statutFormationParGenre?.homme.formes ?? '-'}</Table.Td>
+                          <Table.Td fw={700} c={(detailedData.statutFormationParGenre?.homme.nonFormes ?? 0) > 0 ? 'orange' : undefined}>
+                            {detailedData.statutFormationParGenre?.homme.nonFormes ?? '-'}
+                          </Table.Td>
+                          <Table.Td>
+                            {detailedData.statutFormationParGenre
+                              ? `${detailedData.statutFormationParGenre.homme.tauxFormation}%`
+                              : '-'}
+                          </Table.Td>
                           <Table.Td>{detailedData.parGenre.homme.formations}</Table.Td>
                           <Table.Td>{detailedData.parGenre.homme.heures}h</Table.Td>
                           <Table.Td fw={700}>{detailedData.parGenre.homme.moyenne}h</Table.Td>
@@ -505,10 +517,39 @@ export default function CollaborateursKPIsPage() {
                         <Table.Tr>
                           <Table.Td><Badge color="pink" variant="light">Femme</Badge></Table.Td>
                           <Table.Td>{detailedData.parGenre.femme.nombre}</Table.Td>
+                          <Table.Td>{detailedData.statutFormationParGenre?.femme.formes ?? '-'}</Table.Td>
+                          <Table.Td fw={700} c={(detailedData.statutFormationParGenre?.femme.nonFormes ?? 0) > 0 ? 'orange' : undefined}>
+                            {detailedData.statutFormationParGenre?.femme.nonFormes ?? '-'}
+                          </Table.Td>
+                          <Table.Td>
+                            {detailedData.statutFormationParGenre
+                              ? `${detailedData.statutFormationParGenre.femme.tauxFormation}%`
+                              : '-'}
+                          </Table.Td>
                           <Table.Td>{detailedData.parGenre.femme.formations}</Table.Td>
                           <Table.Td>{detailedData.parGenre.femme.heures}h</Table.Td>
                           <Table.Td fw={700}>{detailedData.parGenre.femme.moyenne}h</Table.Td>
                         </Table.Tr>
+                        {/* Genre non renseigné : affiché seulement s'il existe, sinon
+                            la somme Homme + Femme ne réconcilie pas avec l'effectif total */}
+                        {detailedData.parGenre.nonDefini && detailedData.parGenre.nonDefini.nombre > 0 && (
+                          <Table.Tr>
+                            <Table.Td><Badge color="gray" variant="light">Non renseigné</Badge></Table.Td>
+                            <Table.Td>{detailedData.parGenre.nonDefini.nombre}</Table.Td>
+                            <Table.Td>{detailedData.statutFormationParGenre?.nonDefini.formes ?? '-'}</Table.Td>
+                            <Table.Td fw={700} c={(detailedData.statutFormationParGenre?.nonDefini.nonFormes ?? 0) > 0 ? 'orange' : undefined}>
+                              {detailedData.statutFormationParGenre?.nonDefini.nonFormes ?? '-'}
+                            </Table.Td>
+                            <Table.Td>
+                              {detailedData.statutFormationParGenre
+                                ? `${detailedData.statutFormationParGenre.nonDefini.tauxFormation}%`
+                                : '-'}
+                            </Table.Td>
+                            <Table.Td>{detailedData.parGenre.nonDefini.formations}</Table.Td>
+                            <Table.Td>{detailedData.parGenre.nonDefini.heures}h</Table.Td>
+                            <Table.Td fw={700}>{detailedData.parGenre.nonDefini.moyenne}h</Table.Td>
+                          </Table.Tr>
+                        )}
                       </Table.Tbody>
                     </Table>
                   </Stack>

@@ -55,9 +55,15 @@ export const exportsService = {
     return response.data;
   },
 
-  async exportFormationsObligatoires(annee?: number): Promise<Blob> {
+  async exportFormationsObligatoires(
+    annee?: number,
+    // Périmètre d'obligation : sans lui, l'export renvoyait toujours les
+    // obligatoires annuelles, même depuis l'onglet Onboarding.
+    type?: 'annuelle' | 'onboarding',
+  ): Promise<Blob> {
     const params = new URLSearchParams();
     if (annee) params.append('annee', String(annee));
+    if (type) params.append('type', type);
 
     const queryString = params.toString();
     const url = `/export/formations-obligatoires.xlsx${queryString ? `?${queryString}` : ''}`;

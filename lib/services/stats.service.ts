@@ -160,7 +160,10 @@ export const statsService = {
     date?: string,
     startDate?: string,
     endDate?: string,
-    type?: 'annuelle' | 'onboarding'
+    type?: 'annuelle' | 'onboarding',
+    // Restreint le calcul à une sélection de formations (carte "Scope" de la
+    // page conformité). Omis => tout le périmètre obligatoire.
+    formationIds?: number[]
   ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -171,6 +174,9 @@ export const statsService = {
       if (date) params.date = date;
     }
     if (type) params.type = type;
+    if (formationIds && formationIds.length > 0) {
+      params.formationIds = formationIds.join(',');
+    }
     const response = await api.get('/stats/mandatory-trainings-kpis', { params });
     return response.data;
   },
@@ -182,7 +188,10 @@ export const statsService = {
     startDate?: string,
     endDate?: string,
     departementId?: number,
-    type?: 'annuelle' | 'onboarding'
+    type?: 'annuelle' | 'onboarding',
+    // Doit rester aligné sur getMandatoryTrainingsKPIs, sinon la liste par
+    // manager contredit les chiffres du haut de page.
+    formationIds?: number[]
   ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -194,6 +203,9 @@ export const statsService = {
     }
     if (departementId) params.departementId = departementId;
     if (type) params.type = type;
+    if (formationIds && formationIds.length > 0) {
+      params.formationIds = formationIds.join(',');
+    }
     const response = await api.get('/stats/mandatory-trainings-by-manager', { params });
     return response.data;
   },

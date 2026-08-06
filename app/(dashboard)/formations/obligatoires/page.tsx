@@ -40,7 +40,8 @@ interface MandatoryKPIs {
     totalCollaborateursAFormer: number;
     totalFormes: number;
     totalNonFormes: number;
-    tauxConformiteGlobal: number;
+    // null = population vide, le taux n'est pas defini
+    tauxConformiteGlobal: number | null;
   };
 }
 
@@ -188,8 +189,20 @@ export default function FormationsObligatoiresPage() {
                 <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                   Taux conformité
                 </Text>
-                <Text size="xl" fw={700} c={conformityData ? getConformiteColor(conformityData.stats.tauxConformiteGlobal) : 'dimmed'}>
-                  {conformityData ? `${conformityData.stats.tauxConformiteGlobal}%` : '-'}
+                <Text
+                  size="xl"
+                  fw={700}
+                  c={
+                    conformityData && conformityData.stats.tauxConformiteGlobal !== null
+                      ? getConformiteColor(conformityData.stats.tauxConformiteGlobal)
+                      : 'dimmed'
+                  }
+                >
+                  {!conformityData
+                    ? '-'
+                    : conformityData.stats.tauxConformiteGlobal === null
+                      ? 'n/a'
+                      : `${conformityData.stats.tauxConformiteGlobal}%`}
                 </Text>
                 {conformityData && (
                   <Text size="xs" c="dimmed">
@@ -197,7 +210,15 @@ export default function FormationsObligatoiresPage() {
                   </Text>
                 )}
               </div>
-              <ThemeIcon color={conformityData ? getConformiteColor(conformityData.stats.tauxConformiteGlobal) : 'gray'} size="lg" radius="md">
+              <ThemeIcon
+                color={
+                  conformityData && conformityData.stats.tauxConformiteGlobal !== null
+                    ? getConformiteColor(conformityData.stats.tauxConformiteGlobal)
+                    : 'gray'
+                }
+                size="lg"
+                radius="md"
+              >
                 <CheckCircle size={24} />
               </ThemeIcon>
             </Group>

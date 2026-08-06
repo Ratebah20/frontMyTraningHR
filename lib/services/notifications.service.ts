@@ -6,6 +6,8 @@ export interface SendReminderDto {
   date?: string;
   startDate?: string;
   endDate?: string;
+  // Périmètre des obligatoires visées par le rappel (défaut backend : annuelle)
+  type?: 'annuelle' | 'onboarding';
 }
 
 export interface ReminderResult {

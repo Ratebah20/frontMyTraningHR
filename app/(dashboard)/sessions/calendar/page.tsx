@@ -373,8 +373,22 @@ export default function SessionsCalendarPage() {
               {days.map(day => {
                 const dateKey = format(day, 'yyyy-MM-dd');
                 const daySessions = sessionsByDay[dateKey] || [];
-                const filteredSessions = departmentFilter 
-                  ? daySessions.filter(s => s.collaborateur?.departement === departmentFilter)
+                // Le filtre porte sur les PARTICIPANTS : c'est de là que viennent
+                // les options du sélecteur. `collaborateur.departement` n'est
+                // jamais renseigné par le mapping unifié, donc l'ancien test
+                // vidait systématiquement tous les jours.
+                //
+                // Les sessions collectives sont conservées telles quelles : le
+                // backend ne renvoie pas le département de leurs participants,
+                // les masquer reviendrait à les faire disparaître en silence.
+                const filteredSessions = departmentFilter
+                  ? daySessions.filter(
+                      s =>
+                        s.type === 'collective' ||
+                        s.participants?.some(
+                          (p: any) => p.departement === departmentFilter
+                        )
+                    )
                   : daySessions;
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 const hasSessions = filteredSessions.length > 0;

@@ -22,6 +22,7 @@ import {
   ThemeIcon,
   Divider,
   Grid,
+  Modal,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -42,7 +43,8 @@ import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
 import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
 import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
-import { sessionsService } from '@/lib/services';
+import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
+import { sessionsService, collaborateursService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { SessionFormationResponse, CollectiveSession } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
@@ -105,7 +107,76 @@ export default function EditSessionPage({ params }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<any | null>(null); // Can be individual or collective
-  
+
+  // Remplacement du collaborateur (sessions individuelles)
+  const [showReplaceModal, setShowReplaceModal] = useState(false);
+  const [replacementId, setReplacementId] = useState<string | null>(null);
+  const [replacementMotif, setReplacementMotif] = useState('');
+  const [replacementSearch, setReplacementSearch] = useState('');
+  const [replacementOptions, setReplacementOptions] = useState<{ value: string; label: string }[]>([]);
+  const [isReplacing, setIsReplacing] = useState(false);
+
+  // Recherche serveur debouncée (même pattern que la page inscriptions).
+  // Indispensable : les noms sont chiffrés en base, un filtrage client sur une
+  // page partielle ne trouverait pas grand-chose.
+  useEffect(() => {
+    const q = replacementSearch.trim();
+    if (q.length < 2) {
+      setReplacementOptions([]);
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const data = await collaborateursService.searchCollaborateurs(q, { limit: 50 });
+        const liste = Array.isArray(data) ? data : [];
+        setReplacementOptions(
+          liste
+            .filter((c: any) => c.id !== session?.collaborateur?.id && c.actif !== false)
+            .map((c: any) => ({
+              value: String(c.id),
+              label: `${c.prenom ?? ''} ${c.nom ?? ''}`.trim() + (c.matricule ? ` (${c.matricule})` : ''),
+            }))
+        );
+      } catch (err) {
+        console.error('Erreur lors de la recherche de collaborateurs:', err);
+        setReplacementOptions([]);
+      }
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [replacementSearch, session?.collaborateur?.id]);
+
+  const handleReplaceCollaborateur = async () => {
+    if (!replacementId) return;
+    setIsReplacing(true);
+    try {
+      await sessionsService.replaceCollaborateur(parseInt(params.id), {
+        nouveauCollaborateurId: parseInt(replacementId),
+        motif: replacementMotif.trim() || undefined,
+      });
+
+      notifications.show({
+        title: 'Collaborateur remplacé',
+        message: 'La session a été réaffectée au nouveau collaborateur',
+        color: 'green',
+        icon: <CheckCircle size={20} />,
+      });
+
+      setShowReplaceModal(false);
+      const sessionData = await SessionsUnifiedService.findOne(parseInt(params.id));
+      setSession(sessionData);
+    } catch (error: any) {
+      notifications.show({
+        title: 'Remplacement impossible',
+        message: error.response?.data?.message || 'Une erreur est survenue',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+    } finally {
+      setIsReplacing(false);
+    }
+  };
+
+
   const form = useForm<FormValues>({
     initialValues: {
       // Communs
@@ -525,6 +596,19 @@ export default function EditSessionPage({ params }: Props) {
                           {session.collaborateur.email}
                         </Text>
                       )}
+                      <Button
+                        variant="light"
+                        size="xs"
+                        mt="sm"
+                        leftSection={<ArrowsLeftRight size={14} />}
+                        onClick={() => {
+                          setReplacementId(null);
+                          setReplacementMotif('');
+                          setShowReplaceModal(true);
+                        }}
+                      >
+                        Remplacer
+                      </Button>
                     </div>
                     <Divider />
                   </>
@@ -909,6 +993,63 @@ export default function EditSessionPage({ params }: Props) {
           </form>
         </Grid.Col>
       </Grid>
+
+      {/* Remplacement du collaborateur : action séparée du formulaire, avec
+          confirmation explicite (elle réaffecte la formation et annule les
+          évaluations non répondues envoyées à l'ancien titulaire). */}
+      <Modal
+        opened={showReplaceModal}
+        onClose={() => setShowReplaceModal(false)}
+        title="Remplacer le collaborateur"
+        centered
+      >
+        <Stack gap="md">
+          <Alert color="orange" icon={<Warning size={16} />}>
+            La session sera réaffectée. Les évaluations déjà envoyées à{' '}
+            <strong>
+              {session?.collaborateur?.prenom} {session?.collaborateur?.nom}
+            </strong>{' '}
+            et non encore répondues seront annulées.
+          </Alert>
+
+          <Select
+            label="Nouveau collaborateur"
+            placeholder="Rechercher par nom, prénom ou matricule"
+            searchable
+            data={replacementOptions}
+            value={replacementId}
+            onChange={setReplacementId}
+            searchValue={replacementSearch}
+            onSearchChange={setReplacementSearch}
+            nothingFoundMessage={
+              replacementSearch.trim().length < 2
+                ? 'Saisissez au moins 2 caractères'
+                : 'Aucun collaborateur trouvé'
+            }
+            required
+          />
+
+          <TextInput
+            label="Motif (optionnel)"
+            placeholder="Ex : absence pour arrêt maladie"
+            value={replacementMotif}
+            onChange={(e) => setReplacementMotif(e.currentTarget.value)}
+          />
+
+          <Group justify="flex-end">
+            <Button variant="subtle" onClick={() => setShowReplaceModal(false)}>
+              Annuler
+            </Button>
+            <Button
+              onClick={handleReplaceCollaborateur}
+              loading={isReplacing}
+              disabled={!replacementId}
+            >
+              Confirmer le remplacement
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
     </Container>
   );
 }

@@ -47,6 +47,17 @@ export const sessionsService = {
     return response.data;
   },
 
+  // Remplacer le collaborateur inscrit à une session individuelle.
+  // Endpoint dédié : ce n'est pas une simple mise à jour de champ, l'opération
+  // traite aussi les évaluations envoyées à l'ancien titulaire.
+  async replaceCollaborateur(
+    id: number,
+    data: { nouveauCollaborateurId: number; motif?: string }
+  ): Promise<SessionFormation> {
+    const response = await api.patch(`/sessions/${id}/collaborateur`, data);
+    return response.data;
+  },
+
   // Annuler une session
   async cancelSession(id: number): Promise<void> {
     await api.delete(`/sessions/${id}`);

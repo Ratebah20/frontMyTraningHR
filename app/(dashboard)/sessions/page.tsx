@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Title,
@@ -241,9 +241,17 @@ export default function SessionsPage() {
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
 
-  // Fonction pour mettre à jour l'URL avec les nouveaux paramètres
+  // Fonction pour mettre à jour l'URL avec les nouveaux paramètres.
+  //
+  // On repart de window.location.search et NON de searchParams : le hook
+  // useSearchParams n'est rafraîchi qu'à la fin de la navigation App Router.
+  // Deux mises à jour rapprochées (typique : la recherche debouncée qui tombe
+  // pendant qu'on choisit un statut) partaient donc toutes deux d'un état
+  // périmé, et la seconde effaçait le filtre posé par la première.
   const updateUrlParams = (updates: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(
+      typeof window !== 'undefined' ? window.location.search : searchParams.toString()
+    );
 
     Object.entries(updates).forEach(([key, value]) => {
       if (value === null || value === '' || (key === 'page' && value === '1')) {
@@ -331,8 +339,15 @@ export default function SessionsPage() {
     }
   };
 
+  // Jeton de requête : chaque appel incrémente le compteur et ne publie son
+  // résultat que s'il est toujours le plus récent. Sans ça, deux changements
+  // de filtre rapprochés lancent deux requêtes et la plus lente écrase la plus
+  // récente : la liste affichée ne correspond plus aux filtres actifs.
+  const requestIdRef = useRef(0);
+
   // Charger les sessions
   const loadSessions = async () => {
+    const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setError(null);
 
@@ -352,19 +367,14 @@ export default function SessionsPage() {
         sortOrder,
       };
 
-      // Use unified service for all types or collective only
-      // Use grouped service for individual only (to preserve grouping)
-      let response;
-      if (typeFilter === 'individuelle') {
-        // Show grouped individual sessions only
-        response = await sessionsService.getGroupedSessions(filters);
-      } else if (typeFilter === 'collective') {
-        // Show collective sessions only
-        response = await SessionsUnifiedService.findAll(filters);
-      } else {
-        // Show all types (both individual and collective)
-        response = await SessionsUnifiedService.findAll(filters);
-      }
+      // Toujours passer par le service unifié, y compris pour les sessions
+      // individuelles seules : l'appel direct à getGroupedSessions renvoyait des
+      // objets NON normalisés (organisme en string, champ `type` absent), ce qui
+      // vidait la colonne Organisme et faisait disparaître le badge de type.
+      const response = await SessionsUnifiedService.findAll(filters);
+
+      // Une réponse plus ancienne ne doit jamais écraser une plus récente
+      if (requestId !== requestIdRef.current) return;
 
       // Le backend retourne toujours un objet avec data et meta
       if (response && response.data) {
@@ -377,13 +387,16 @@ export default function SessionsPage() {
         setTotalPages(0);
       }
     } catch (err: any) {
+      if (requestId !== requestIdRef.current) return;
       console.error('Erreur lors du chargement des sessions:', err);
       setError(err.message || 'Erreur lors du chargement des sessions');
       setSessions([]);
       setTotal(0);
       setTotalPages(0);
     } finally {
-      setIsLoading(false);
+      if (requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -406,7 +419,9 @@ export default function SessionsPage() {
   // Charger les sessions au montage et quand les filtres changent
   useEffect(() => {
     loadSessions();
-    loadGlobalStats(); // Rafraîchir aussi les stats pour avoir des données à jour
+    // La sélection porte sur des lignes qui viennent de disparaître : on la vide
+    // à chaque changement de filtre ou de page.
+    setSelectedIds(new Set());
   }, [search, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
 
   const handleViewDetails = (session: any) => {
@@ -537,6 +552,36 @@ export default function SessionsPage() {
   const formatParticipantCount = (session: any): string => {
     const count = getParticipantCount(session);
     return `${count} participant${count > 1 ? 's' : ''}`;
+  };
+
+  // Aperçu nominatif des participants.
+  // Individuelle : le nom de la personne. Collective : les 2 premiers inscrits
+  // (le backend n'en renvoie que 2 pour limiter le coût de déchiffrement).
+  // Les deux formes de participants sont structurellement différentes :
+  // `p.nom` pour les groupées, `p.collaborateur.nom` pour les collectives.
+  const getParticipantsPreview = (session: any): string[] => {
+    const participants = session.participants ?? [];
+    if (!Array.isArray(participants) || participants.length === 0) return [];
+
+    const source =
+      session.type === 'collective'
+        ? participants.map((p: any) => p.collaborateur)
+        : participants;
+
+    return source
+      .slice(0, 2)
+      .map((p: any) => `${p?.prenom ?? ''} ${p?.nom ?? ''}`.trim())
+      .filter((nom: string) => nom.length > 0);
+  };
+
+  // Rend l'aperçu sous forme de texte : "Marie Dupont, Jean Martin +3"
+  const formatParticipantsPreview = (session: any): string | null => {
+    const noms = getParticipantsPreview(session);
+    if (noms.length === 0) return null;
+
+    const total = getParticipantCount(session);
+    const reste = total - noms.length;
+    return reste > 0 ? `${noms.join(', ')} +${reste}` : noms.join(', ');
   };
 
   return (
@@ -716,7 +761,6 @@ export default function SessionsPage() {
               data={[
                 { value: '', label: 'Tous les statuts' },
                 { value: 'inscrit', label: 'Inscrit' },
-                { value: 'planifie', label: 'Planifié' },
                 { value: 'en_cours', label: 'En cours' },
                 { value: 'complete', label: 'Terminé' },
                 { value: 'annule', label: 'Annulé' },
@@ -910,6 +954,11 @@ export default function SessionsPage() {
                         <Text size="sm" fw={500}>
                           {formatParticipantCount(session)}
                         </Text>
+                        {formatParticipantsPreview(session) && (
+                          <Text size="xs" c="dimmed" lineClamp={1} mt={2}>
+                            {formatParticipantsPreview(session)}
+                          </Text>
+                        )}
                         {session.stats && (
                           <Group gap="xs" mt={2}>
                             {session.stats.inscrit > 0 && (
@@ -1129,6 +1178,11 @@ export default function SessionsPage() {
                                 {getParticipantCount(session)}
                               </Text>
                             </Group>
+                            {formatParticipantsPreview(session) && (
+                              <Text size="xs" c="dimmed" lineClamp={1} ta="center">
+                                {formatParticipantsPreview(session)}
+                              </Text>
+                            )}
                             {session.lieu && (
                               <Group gap={2}>
                                 <MapPin size={12} color="#868E96" />

@@ -272,10 +272,10 @@ export default function ExportsPage() {
                     placeholder="Tous les statuts"
                     clearable
                     data={[
-                      { value: 'Terminé', label: 'Terminé' },
-                      { value: 'En cours', label: 'En cours' },
-                      { value: 'Planifié', label: 'Planifié' },
-                      { value: 'Annulé', label: 'Annulé' },
+                      { value: 'inscrit', label: 'Inscrit' },
+                      { value: 'en_cours', label: 'En cours' },
+                      { value: 'complete', label: 'Terminé' },
+                      { value: 'annule', label: 'Annulé' },
                     ]}
                     value={filterStatut}
                     onChange={setFilterStatut}

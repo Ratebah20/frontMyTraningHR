@@ -327,6 +327,48 @@ export class SessionsUnifiedService {
    * Merger les sessions côté client si le backend ne le supporte pas encore
    * Charge suffisamment de données pour paginer correctement le résultat fusionné
    */
+  /**
+   * Récupère au moins `needed` éléments d'un endpoint paginé, en enchaînant les
+   * pages (le backend plafonne une requête à 100 éléments).
+   *
+   * Garde-fou : au-delà de MAX_PAGES on s'arrête. La fusion côté client n'est
+   * pas faite pour parcourir des milliers de lignes — c'est la raison pour
+   * laquelle un endpoint unifié côté serveur reste la vraie solution.
+   */
+  private static async fetchEnough(
+    fetchPage: (page: number, limit: number) => Promise<any>,
+    needed: number,
+  ): Promise<{ data: any[]; meta: any }> {
+    const PAGE_SIZE = 100;
+    const MAX_PAGES = 10; // 1000 éléments par type au maximum
+
+    const pagesNecessaires = Math.min(
+      Math.ceil(needed / PAGE_SIZE) || 1,
+      MAX_PAGES,
+    );
+
+    const premiere = await fetchPage(1, Math.min(needed, PAGE_SIZE));
+    const data = [...(premiere.data ?? [])];
+    const meta = premiere.meta ?? {};
+
+    const totalDisponible = meta.totalItems ?? data.length;
+    const pagesAcharger = Math.min(
+      pagesNecessaires,
+      Math.ceil(totalDisponible / PAGE_SIZE) || 1,
+    );
+
+    if (pagesAcharger > 1) {
+      const suivantes = await Promise.all(
+        Array.from({ length: pagesAcharger - 1 }, (_, i) =>
+          fetchPage(i + 2, PAGE_SIZE),
+        ),
+      );
+      suivantes.forEach((reponse) => data.push(...(reponse?.data ?? [])));
+    }
+
+    return { data, meta };
+  }
+
   private static async mergeSessionsClientSide(
     filters?: UnifiedSessionFilters,
   ): Promise<UnifiedSessionPaginatedResponse> {
@@ -338,27 +380,34 @@ export class SessionsUnifiedService {
     // Retirer le paramètre 'type' des filtres
     const { type, ...cleanFilters } = filters || {};
 
-    // Calculer combien d'éléments on doit charger pour avoir la bonne page
-    // On doit charger suffisamment pour couvrir offset + limit du résultat fusionné
+    // Calculer combien d'éléments on doit charger pour avoir la bonne page.
+    // On doit charger suffisamment de CHAQUE type pour couvrir offset + limit du
+    // résultat fusionné : dans le pire des cas, la page demandée est composée
+    // uniquement d'éléments d'un seul type.
     const offset = (requestedPage - 1) * requestedLimit;
     const neededItems = offset + requestedLimit;
 
-    // Limiter à 100 éléments max par type (limite backend)
-    const maxItemsPerType = 100;
-    const itemsToFetch = Math.min(neededItems, maxItemsPerType);
-
-    // Charger les données nécessaires de chaque type
+    // La fusion se fait côté client : il faut donc récupérer `neededItems` de
+    // chaque type. L'ancienne version plafonnait à 100 par type SANS le dire,
+    // ce qui produisait des doublons dès la page 6 et des pages vides à partir
+    // de la page 11, alors que la pagination annonçait des dizaines de pages.
+    // Le backend plafonne une requête à 100 éléments : on enchaîne donc les
+    // pages jusqu'à disposer du volume nécessaire.
     const [indivResponse, collecResponse] = await Promise.all([
-      sessionsService.getGroupedSessions({
-        ...cleanFilters,
-        page: 1,
-        limit: itemsToFetch,
-      }),
-      CollectiveSessionsService.findAll({
-        ...cleanFilters,
-        page: 1,
-        limit: itemsToFetch,
-      } as CollectiveSessionFilters),
+      this.fetchEnough(
+        (page, limit) =>
+          sessionsService.getGroupedSessions({ ...cleanFilters, page, limit }),
+        neededItems,
+      ),
+      this.fetchEnough(
+        (page, limit) =>
+          CollectiveSessionsService.findAll({
+            ...cleanFilters,
+            page,
+            limit,
+          } as CollectiveSessionFilters),
+        neededItems,
+      ),
     ]);
 
     const individuelles = this.mapGroupedToUnified(indivResponse.data);
@@ -403,10 +452,17 @@ export class SessionsUnifiedService {
     const paginatedSessions = allSessions.slice(offset, offset + requestedLimit);
 
     // Calculer les totaux réels à partir des métadonnées backend
-    const totalIndividuelles = indivResponse.meta.totalItems;
-    const totalCollectives = collecResponse.meta.totalItems;
+    const totalIndividuelles = indivResponse.meta.totalItems ?? individuelles.length;
+    const totalCollectives = collecResponse.meta.totalItems ?? collectives.length;
     const totalItems = totalIndividuelles + totalCollectives;
-    const totalPages = Math.ceil(totalItems / requestedLimit);
+
+    // Le nombre de pages annoncé ne doit jamais dépasser ce qui est réellement
+    // atteignable par la fusion côté client : afficher "page 47" alors que la
+    // page 11 renvoie déjà du vide est pire que d'annoncer moins de pages.
+    const MAX_ELEMENTS_FUSIONNABLES = 2000; // 1000 par type (cf. fetchEnough)
+    const totalPages = Math.ceil(
+      Math.min(totalItems, MAX_ELEMENTS_FUSIONNABLES) / requestedLimit,
+    );
 
     return {
       data: paginatedSessions,
@@ -464,7 +520,8 @@ export class SessionsUnifiedService {
         collaborateur: group.participants[0]
           ? {
               id: group.participants[0].collaborateurId,
-              nomComplet: `${group.participants[0].nom} ${group.participants[0].prenom}`,
+              // Ordre "prénom nom", cohérent avec l'affichage partout ailleurs
+              nomComplet: `${group.participants[0].prenom} ${group.participants[0].nom}`,
             }
           : undefined,
         tarifHT: group.tarifHT,

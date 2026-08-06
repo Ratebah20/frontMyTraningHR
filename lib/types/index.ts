@@ -498,12 +498,13 @@ export interface SessionFilters {
 
 // Enums pour les statuts
 
+// Doit rester aligné sur src/shared/enums/session-status.enum.ts (backend).
+// 'reporte' a été retiré : jamais écrit ni lu, et rejeté par la validation API.
 export enum SessionStatut {
   INSCRIT = 'inscrit',
   EN_COURS = 'en_cours',
   COMPLETE = 'complete',
   ANNULE = 'annule',
-  REPORTE = 'reporte',
 }
 
 export enum TypeUtilisateur {
@@ -839,6 +840,19 @@ export interface CategorieStatsItem {
   };
 }
 
+export interface StatutFormationGenre {
+  effectif: number;
+  formes: number;
+  nonFormes: number;
+  tauxFormation: number;
+  effectifActifs: number;
+  formesActifs: number;
+  nonFormesActifs: number;
+  effectifInactifs: number;
+  formesInactifs: number;
+  nonFormesInactifs: number;
+}
+
 export interface DetailedKPIsResponse {
   periode: DetailedKPIsPeriode;
   // Nouveaux KPIs
@@ -850,6 +864,14 @@ export interface DetailedKPIsResponse {
     homme: CategoryStats;
     femme: CategoryStats;
     nonDefini?: CategoryStats;
+  };
+  // Formés / non formés par genre sur la période. Optionnel pour rester
+  // compatible pendant le déploiement (backend plus récent que le front).
+  statutFormationParGenre?: {
+    homme: StatutFormationGenre;
+    femme: StatutFormationGenre;
+    nonDefini: StatutFormationGenre;
+    total: StatutFormationGenre;
   };
   parRole: {
     manager: CategoryStats;

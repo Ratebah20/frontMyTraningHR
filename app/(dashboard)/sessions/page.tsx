@@ -352,12 +352,22 @@ export default function SessionsPage() {
     setError(null);
 
     try {
+      // Les deux champs de date decrivent une PERIODE, et le backend filtre par
+      // chevauchement. Avec une seule borne, la periode restait ouverte de
+      // l'autre cote : « date debut = 7 juin » renvoyait TOUTES les sessions non
+      // terminees au 7 juin, et le tri par date decroissante remontait les plus
+      // recentes en tete. La liste semblait ignorer le filtre alors que les
+      // sessions du 7 juin etaient reléguées en derniere page.
+      // Une seule date saisie vaut donc desormais « les sessions de ce jour ».
+      const periodeDebut = dateDebut || dateFin || undefined;
+      const periodeFin = dateFin || dateDebut || undefined;
+
       const filters: any = {
         search: search,
         statut: statusFilter || undefined,
         type: typeFilter || 'all', // 'individuelle', 'collective', or 'all'
-        dateDebut: dateDebut || undefined,
-        dateFin: dateFin || undefined,
+        dateDebut: periodeDebut,
+        dateFin: periodeFin,
         formationId: formationFilter ? parseInt(formationFilter) : undefined,
         departementId: departmentFilter ? parseInt(departmentFilter) : undefined,
         organismeId: organismeFilter ? parseInt(organismeFilter) : undefined,
@@ -786,12 +796,16 @@ export default function SessionsPage() {
             <Group grow>
               <TextInput
                 type="date"
+                title="Début de la période"
+                aria-label="Début de la période"
                 placeholder="Date début"
                 value={dateDebut}
                 onChange={(event) => setDateDebut(event.currentTarget.value)}
               />
               <TextInput
                 type="date"
+                title="Fin de la période"
+                aria-label="Fin de la période"
                 placeholder="Date fin"
                 value={dateFin}
                 onChange={(event) => setDateFin(event.currentTarget.value)}
@@ -799,6 +813,10 @@ export default function SessionsPage() {
             </Group>
           </Grid.Col>
         </Grid>
+
+        <Text size="xs" c="dimmed" mt="xs">
+          Dates : période « du / au ». Une seule date renseignée affiche les sessions de ce jour-là.
+        </Text>
 
         {/* Tri */}
         <Group mt="md" gap="sm">
@@ -829,7 +847,7 @@ export default function SessionsPage() {
           </ActionIcon>
         </Group>
         <Text size="sm" c="dimmed" mt="md">
-          Affichage : {sessions.length} résultats sur cette page • Total : {globalStats.total} sessions
+          Affichage : {sessions.length} résultats sur cette page • {total} session(s) correspondant aux filtres (référence : {globalStats.total} sessions individuelles en base)
         </Text>
       </Paper>
 

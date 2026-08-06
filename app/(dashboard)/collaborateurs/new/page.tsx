@@ -35,6 +35,7 @@ import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { notifications } from '@mantine/notifications';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
+import { formatDateOnly } from '@/lib/utils/date.utils';
 
 export default function CollaborateurNewPage() {
   const router = useRouter();
@@ -60,7 +61,8 @@ export default function CollaborateurNewPage() {
       managerId: '',
       contratId: '',
       actif: true,
-      dateEmbauche: null as Date | null,
+      // Mantine 8 : DateInput emet une chaine 'YYYY-MM-DD', plus un objet Date
+      dateEmbauche: null as Date | string | null,
     },
     validate: {
       nom: (value) => (!value?.trim() ? 'Le nom est requis' : null),
@@ -189,9 +191,7 @@ export default function CollaborateurNewPage() {
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         actif: values.actif,
-        dateEmbauche: values.dateEmbauche
-          ? `${values.dateEmbauche.getFullYear()}-${String(values.dateEmbauche.getMonth() + 1).padStart(2, '0')}-${String(values.dateEmbauche.getDate()).padStart(2, '0')}`
-          : undefined,
+        dateEmbauche: formatDateOnly(values.dateEmbauche),
       };
 
       // Retirer les champs undefined

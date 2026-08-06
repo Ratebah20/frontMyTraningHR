@@ -35,6 +35,7 @@ import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
+import { formatDateOnly } from '@/lib/utils/date.utils';
 import { Collaborateur } from '@/lib/types';
 
 interface Props {
@@ -69,8 +70,9 @@ export default function CollaborateurEditPage({ params }: Props) {
       contratId: '',
       typeUtilisateur: 'Collaborateur',
       actif: true,
-      dateInactivation: null as Date | null,
-      dateEmbauche: null as Date | null,
+      // Mantine 8 : DateInput emet une chaine 'YYYY-MM-DD', plus un objet Date
+      dateInactivation: null as Date | string | null,
+      dateEmbauche: null as Date | string | null,
     },
     validate: {
       nom: (value) => (!value?.trim() ? 'Le nom est requis' : null),
@@ -151,8 +153,9 @@ export default function CollaborateurEditPage({ params }: Props) {
           contratId: collabData.contratId ? collabData.contratId.toString() : '',
           typeUtilisateur: collabData.typeUtilisateur || 'Collaborateur',
           actif: collabData.actif !== false,
-          dateInactivation: collabData.dateInactivation ? new Date(collabData.dateInactivation) : null,
-          dateEmbauche: (collabData as any).dateEmbauche ? new Date((collabData as any).dateEmbauche) : null,
+          // Mantine 8 attend une chaine 'YYYY-MM-DD' en valeur de DateInput
+          dateInactivation: formatDateOnly(collabData.dateInactivation as any) ?? null,
+          dateEmbauche: formatDateOnly((collabData as any).dateEmbauche) ?? null,
         });
         
         // Charger uniquement les vrais managers (qui ont des subordonnés)
@@ -190,14 +193,6 @@ export default function CollaborateurEditPage({ params }: Props) {
     }
   }, [departementType, allDepartements]);
 
-  // Helper pour formater une date en YYYY-MM-DD
-  const formatDateOnly = (date: Date): string => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-
   const handleSubmit = async (values: typeof form.values) => {
     setIsSaving(true);
 
@@ -217,12 +212,8 @@ export default function CollaborateurEditPage({ params }: Props) {
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         typeUtilisateur: values.typeUtilisateur || undefined,
         actif: values.actif,
-        dateInactivation: values.dateInactivation
-          ? formatDateOnly(values.dateInactivation)
-          : null,
-        dateEmbauche: values.dateEmbauche
-          ? formatDateOnly(values.dateEmbauche)
-          : null,
+        dateInactivation: formatDateOnly(values.dateInactivation) ?? null,
+        dateEmbauche: formatDateOnly(values.dateEmbauche) ?? null,
       };
 
       // Retirer les champs undefined

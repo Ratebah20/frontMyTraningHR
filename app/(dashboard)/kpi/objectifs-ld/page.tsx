@@ -31,6 +31,7 @@ import { TrendDown } from '@phosphor-icons/react/dist/ssr/TrendDown';
 import { Lightning } from '@phosphor-icons/react/dist/ssr/Lightning';
 import { Books } from '@phosphor-icons/react/dist/ssr/Books';
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
+import { FirstAidKit } from '@phosphor-icons/react/dist/ssr/FirstAidKit';
 import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { Translate } from '@phosphor-icons/react/dist/ssr/Translate';
 import { Desktop } from '@phosphor-icons/react/dist/ssr/Desktop';
@@ -77,6 +78,11 @@ interface LdObjectivesData {
 // Category icon mapping
 function getCategoryIcon(name: string) {
   const lower = name.toLowerCase();
+  // SST avant le test générique 'sécurité', qui capterait 'Sécurité - SST'
+  // et lui donnerait l'icône Cybersécurité.
+  if (lower.includes('sst') || lower.includes('secours') || lower.includes('santé')) {
+    return <FirstAidKit size={24} weight="bold" />;
+  }
   if (lower.includes('cyber') || lower.includes('sécurité')) return <ShieldCheck size={24} weight="bold" />;
   if (lower.includes('ia') || lower.includes('data') || lower.includes('intelligence')) return <Brain size={24} weight="bold" />;
   if (lower.includes('management') || lower.includes('grh')) return <Briefcase size={24} weight="bold" />;

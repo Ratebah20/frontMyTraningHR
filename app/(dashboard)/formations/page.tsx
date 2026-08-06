@@ -65,13 +65,28 @@ const getCategoryName = (categorie: any): string => {
   return '';
 };
 
-// Couleurs par catégorie
+// Couleurs par catégorie.
+// Les clés doivent correspondre aux noms réels des catégories en base
+// (cf. prisma/seed-categories.ts), sinon le badge tombe sur la couleur par défaut.
 const categoryColors: Record<string, string> = {
+  // Taxonomie cible (12 catégories)
+  'Management - GRH': 'orange',
+  'Technique - Métiers': 'indigo',
+  'Informatique - Bureautique': 'violet',
+  'Qualité - ISO - Sécurité': 'red',
+  'Langues': 'green',
+  'Finances - Comptabilité - Droit': 'yellow',
+  'RSE': 'teal',
+  'Soft Skills': 'cyan',
+  'DEI': 'grape',
+  'DATA - IA': 'blue',
+  'Cybersécurité': 'red',
+  'Sécurité - SST': 'orange',
+  // Libellés historiques conservés pour les données non re-catégorisées
   'Bureautique': 'blue',
   'Informatique': 'violet',
   'Management': 'orange',
   'Sécurité': 'red',
-  'Langues': 'green',
   'Communication': 'cyan',
   'Finance': 'yellow',
   'RH': 'pink',

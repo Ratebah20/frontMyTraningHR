@@ -6,7 +6,12 @@ import {
   DepartementStats,
   ChartData,
   DetailedKPIsResponse,
-  BilanAnnuelResponse
+  BilanAnnuelResponse,
+  DashboardAlertsResponse,
+  LdObjectivesKpisResponse,
+  LdObjectiveTarget,
+  LdObjectiveGlobalTarget,
+  ObjectifCategorieRow
 } from '../types';
 
 export const statsService = {
@@ -62,13 +67,16 @@ export const statsService = {
     return response.data;
   },
 
-  // Récupérer les alertes et notifications
+  // Récupérer les alertes et notifications du dashboard.
+  // Toutes les alertes sont désormais bornées à la période sélectionnée.
+  // `formationsSansSession` a été REMPLACÉ par `conformiteObligatoires`,
+  // et `sessionsNonCloturees` a été ajouté.
   async getDashboardAlerts(
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<any> {
+  ): Promise<DashboardAlertsResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
     if (periode === 'plage') {
@@ -154,7 +162,12 @@ export const statsService = {
     return response.data;
   },
 
-  // Récupérer les KPIs détaillés des formations obligatoires
+  // Récupérer les KPIs détaillés des formations obligatoires.
+  // Le bloc `parDepartement` porte désormais, en plus des compteurs, le
+  // directeur du département et l'indicateur de relance :
+  //   directeur: { id, nomComplet, email } | null
+  //   peutEtreRelance: boolean   (directeur présent ET email non vide)
+  // Type exporté : `ConformiteParDepartement` dans lib/types.
   async getMandatoryTrainingsKPIs(
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
@@ -181,7 +194,9 @@ export const statsService = {
     return response.data;
   },
 
-  // Récupérer les formations obligatoires manquantes groupées par manager
+  // Récupérer les formations obligatoires manquantes groupées par manager.
+  // Les entrées `sansManager[]` portent désormais aussi `departementId`, ce qui
+  // permet de les rattacher au département pour la relance du directeur.
   async getMandatoryTrainingsByManager(
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
@@ -210,13 +225,13 @@ export const statsService = {
     return response.data;
   },
 
-  // Récupérer les KPIs des objectifs L&D
+  // Récupérer les KPIs des objectifs L&D (catégories suivies + bloc certifiantes)
   async getLdObjectivesKpis(
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<any> {
+  ): Promise<LdObjectivesKpisResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
     if (periode === 'plage') {
@@ -229,53 +244,54 @@ export const statsService = {
     return response.data;
   },
 
-  // Récupérer les objectifs cibles par catégorie
-  async getLdObjectiveTargets(): Promise<{ categorieId: number; categorieNom: string; objectifCible: number }[]> {
+  // Récupérer les objectifs cibles par catégorie.
+  // La réponse reste un TABLEAU (forme inchangée) ; seul le champ `suiviLd` a
+  // été ajouté. La liste contient TOUTES les catégories actives, y compris
+  // celles retirées du KPI, pour permettre leur réintégration.
+  async getLdObjectiveTargets(): Promise<LdObjectiveTarget[]> {
     const response = await api.get('/stats/ld-objectives/targets');
     return response.data;
   },
 
-  // Mettre à jour les objectifs cibles par catégorie
+  // Mettre à jour les objectifs cibles par catégorie (objectifCible : entier 0-100)
   async updateLdObjectiveTargets(targets: { categorieId: number; objectifCible: number }[]): Promise<any> {
     const response = await api.put('/stats/ld-objectives/targets', targets);
     return response.data;
   },
 
-  // Envoyer des rappels de formations obligatoires aux managers
-  async sendMandatoryTrainingReminders(
-    managerIds: number[],
-    periode: 'annee' | 'mois' | 'plage',
-    date?: string,
-    startDate?: string,
-    endDate?: string
-  ): Promise<{
-    success: boolean;
-    message: string;
-    periode: string;
-    totalManagers: number;
-    envoyesAvecSucces: number;
-    erreurs: number;
-    details: Array<{
-      managerId: number;
-      managerNom: string;
-      managerEmail: string;
-      success: boolean;
-      messageId?: string;
-      error?: string;
-      collaborateursCount: number;
-      formationsCount: number;
-    }>;
-  }> {
-    const body: any = { managerIds, periode };
-    if (periode === 'plage') {
-      if (startDate) body.startDate = startDate;
-      if (endDate) body.endDate = endDate;
-    } else {
-      if (date) body.date = date;
-    }
-    const response = await api.post('/notifications/send-mandatory-training-reminders', body);
+  // Objectifs L&D globaux (hors catégorie) — actuellement la seule clé est
+  // 'certifiantes'. Endpoint séparé pour ne pas casser la forme ci-dessus.
+  async getLdObjectiveGlobalTargets(): Promise<LdObjectiveGlobalTarget[]> {
+    const response = await api.get('/stats/ld-objectives/targets/globaux');
     return response.data;
   },
+
+  // Mettre à jour un objectif global (upsert par clé, objectifCible : entier 0-100)
+  async updateLdObjectiveGlobalTarget(
+    cle: 'certifiantes',
+    objectifCible: number
+  ): Promise<LdObjectiveGlobalTarget> {
+    const response = await api.put('/stats/ld-objectives/targets/globaux', { cle, objectifCible });
+    return response.data;
+  },
+
+  // Retirer une catégorie du KPI Objectifs L&D.
+  // NE SUPPRIME PAS la catégorie de formation : pose seulement suiviLd = false.
+  async excludeLdObjectiveCategorie(categorieId: number): Promise<ObjectifCategorieRow> {
+    const response = await api.delete(`/stats/ld-objectives/categories/${categorieId}`);
+    return response.data;
+  },
+
+  // Réintégrer une catégorie précédemment retirée du KPI Objectifs L&D
+  async restoreLdObjectiveCategorie(categorieId: number): Promise<ObjectifCategorieRow> {
+    const response = await api.post(`/stats/ld-objectives/categories/${categorieId}/restore`);
+    return response.data;
+  },
+
+  // NB : l'envoi des rappels de formations obligatoires (managers ET directeurs)
+  // passe par `notificationsService.sendMandatoryTrainingReminders(dto)`, dans
+  // `lib/services/notifications.service.ts`. Il n'y a volontairement pas de
+  // second point d'entrée ici, pour éviter deux implémentations divergentes.
 
   // Vérifier le statut du service email
   async checkEmailStatus(): Promise<{

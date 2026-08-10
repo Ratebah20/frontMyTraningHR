@@ -19,6 +19,7 @@ const rhRoutes = [
   '/managers',
   '/budget',
   '/templates',
+  '/questionnaires',
   '/ai-assistant',
   '/comptes-managers',
 ];

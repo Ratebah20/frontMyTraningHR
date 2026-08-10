@@ -51,6 +51,7 @@ import { User as UserIcon } from '@phosphor-icons/react/dist/ssr/User';
 import { SignOut as SignOutIcon } from '@phosphor-icons/react/dist/ssr/SignOut';
 import { Wallet } from '@phosphor-icons/react/dist/ssr/Wallet';
 import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
 import { Building } from '@phosphor-icons/react/dist/ssr/Building';
 import { Robot } from '@phosphor-icons/react/dist/ssr/Robot';
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
@@ -129,6 +130,12 @@ const navigationItems: NavigationItem[] = [
     label: 'Templates Tâches',
     href: '/templates',
     color: 'indigo'
+  },
+  {
+    icon: ClipboardText,
+    label: 'Questionnaires',
+    href: '/questionnaires',
+    color: 'cyan'
   },
   {
     icon: Wallet,

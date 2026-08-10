@@ -1,4 +1,5 @@
 import api from '../api';
+import type { QuestionnaireLight } from '../types';
 
 export type EvaluationType = 'chaud' | 'froid';
 export type SessionType = 'individuelle' | 'collective';
@@ -21,6 +22,12 @@ export interface EvaluationContext {
   type: EvaluationType;
   statut: string;
   dateEnvoi: string;
+  /**
+   * Questionnaire personnalisé rattaché à l'évaluation.
+   * null = évaluation antérieure à cette évolution : on retombe sur le
+   * formulaire historique câblé en dur.
+   */
+  questionnaire?: QuestionnaireLight | null;
 }
 
 export interface SubmitEvaluationResponse {
@@ -38,6 +45,8 @@ export interface SessionEvaluation {
   dateEnvoi: string;
   dateReponse: string | null;
   reponses: Record<string, any> | null;
+  /** null pour les évaluations envoyées sans questionnaire personnalisé */
+  questionnaire?: QuestionnaireLight | null;
 }
 
 export interface FroidEnAttenteItem {
@@ -54,8 +63,14 @@ export const evaluationsService = {
     sessionId: number,
     type: SessionType,
     evaluationType: EvaluationType,
+    questionnaireTemplateId?: number,
   ): Promise<SendEvaluationsResponse> {
-    const response = await api.post('/evaluations/send', { sessionId, type, evaluationType });
+    const response = await api.post('/evaluations/send', {
+      sessionId,
+      type,
+      evaluationType,
+      ...(questionnaireTemplateId !== undefined ? { questionnaireTemplateId } : {}),
+    });
     return response.data;
   },
 

@@ -69,6 +69,7 @@ import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
 import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
 import { sessionsService, notificationsService } from '@/lib/services';
 import { evaluationsService } from '@/lib/services/evaluations.service';
+import { getQuestionnaire } from '@/lib/services/questionnaires.service';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { CollectiveSessionsService } from '@/lib/services/collective-sessions.service';
 import { SessionFormationResponse, UnifiedSession, CollectiveSession } from '@/lib/types';
@@ -122,6 +123,51 @@ export default function SessionDetailPage({ params }: Props) {
   // États pour l'envoi des évaluations (chaud/froid)
   const [evalModalType, setEvalModalType] = useState<'chaud' | 'froid' | null>(null);
   const [isSendingEval, setIsSendingEval] = useState(false);
+
+  // Questionnaire d'évaluation à chaud rattaché à la session.
+  // La session peut renvoyer soit l'objet complet, soit seulement l'identifiant :
+  // dans ce dernier cas on le résout pour afficher son nom.
+  const [sessionQuestionnaire, setSessionQuestionnaire] = useState<
+    { id: number; nom: string } | null
+  >(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveQuestionnaire = async () => {
+      if (!session) {
+        setSessionQuestionnaire(null);
+        return;
+      }
+
+      const embedded = session.questionnaireTemplate || session.questionnaire;
+      if (embedded?.nom) {
+        setSessionQuestionnaire({ id: embedded.id, nom: embedded.nom });
+        return;
+      }
+
+      const questionnaireId = session.questionnaireTemplateId;
+      if (!questionnaireId) {
+        setSessionQuestionnaire(null);
+        return;
+      }
+
+      try {
+        const questionnaire = await getQuestionnaire(questionnaireId);
+        if (!cancelled) {
+          setSessionQuestionnaire({ id: questionnaire.id, nom: questionnaire.nom });
+        }
+      } catch (err) {
+        // Questionnaire introuvable (supprimé) : on n'affiche simplement rien
+        if (!cancelled) setSessionQuestionnaire(null);
+      }
+    };
+
+    resolveQuestionnaire();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
 
   // Handler pour envoyer la convocation par email
   const handleSendConvocation = async () => {
@@ -907,6 +953,33 @@ export default function SessionDetailPage({ params }: Props) {
                       onRemoveParticipant={handleRemoveParticipant}
                       onMarkPresence={handleMarkPresence}
                     />
+                  </Box>
+                </>
+              )}
+
+              {/* Questionnaire d'évaluation à chaud rattaché à la session */}
+              {sessionQuestionnaire && (
+                <>
+                  <Divider />
+                  <Box>
+                    <Group mb="md">
+                      <ThemeIcon size="lg" radius="md" variant="light" color="orange">
+                        <ClipboardText size={20} />
+                      </ThemeIcon>
+                      <Text fw={600} size="lg">Questionnaire d'évaluation</Text>
+                    </Group>
+
+                    <Group gap="sm" align="center">
+                      <Text size="sm" fw={500}>{sessionQuestionnaire.nom}</Text>
+                      <Badge size="sm" variant="light" color="orange">
+                        Envoi automatique à la clôture
+                      </Badge>
+                    </Group>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      Ce questionnaire sera envoyé aux participants dès que la session
+                      passera au statut terminé. Il a été défini à la création de la
+                      session.
+                    </Text>
                   </Box>
                 </>
               )}

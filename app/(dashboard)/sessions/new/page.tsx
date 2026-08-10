@@ -25,6 +25,8 @@ import {
   Switch,
   Tooltip,
   Checkbox,
+  Box,
+  Anchor,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -44,6 +46,7 @@ import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
 import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
 import { Paperclip } from '@phosphor-icons/react/dist/ssr/Paperclip';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
 import { formatDateOnly } from '@/lib/utils/date.utils';
 import {
   sessionsService,
@@ -52,12 +55,14 @@ import {
   commonService
 } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import { getQuestionnaires } from '@/lib/services/questionnaires.service';
 import {
   CreateSessionDto,
   Formation,
   Collaborateur,
   OrganismeFormation,
-  CreateCollectiveSessionDto
+  CreateCollectiveSessionDto,
+  Questionnaire
 } from '@/lib/types';
 import { notificationsService } from '@/lib/services/notifications.service';
 import { FormationFormModal } from '@/components/formations/FormationFormModal';
@@ -76,6 +81,11 @@ export default function NewSessionPage() {
   const [sendEmail, setSendEmail] = useState(false);
   const [addDocuments, setAddDocuments] = useState(false);
   const [addTemplate, setAddTemplate] = useState(false);
+  // Questionnaire d'évaluation à chaud : envoyé automatiquement par le backend
+  // dès que la session passe au statut terminé.
+  const [sendQuestionnaire, setSendQuestionnaire] = useState(false);
+  const [questionnaireId, setQuestionnaireId] = useState<string | null>(null);
+  const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
   const [createdSession, setCreatedSession] = useState<{
     id: number;
     type: 'individuelle' | 'collective';
@@ -284,6 +294,16 @@ export default function NewSessionPage() {
         const organismesResponse = await commonService.getOrganismesFormation();
         setOrganismes(organismesResponse || []);
 
+        // Charger les questionnaires d'évaluation à chaud actifs.
+        // try/catch dédié : un échec ici ne doit pas empêcher la création d'une session.
+        try {
+          const questionnairesResponse = await getQuestionnaires({ type: 'chaud' });
+          setQuestionnaires((questionnairesResponse || []).filter(q => q.actif));
+        } catch (error) {
+          console.error('Erreur lors du chargement des questionnaires:', error);
+          setQuestionnaires([]);
+        }
+
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
         notifications.show({
@@ -362,6 +382,26 @@ export default function NewSessionPage() {
       }
     }
 
+    // Le questionnaire n'est pas géré par le formulaire Mantine : validation manuelle.
+    if (sendQuestionnaire && !questionnaireId) {
+      notifications.show({
+        title: 'Erreur',
+        message: questionnaires.length === 0
+          ? 'Aucun questionnaire à chaud actif n\'est disponible. Créez-en un ou décochez l\'option.'
+          : 'Veuillez sélectionner le questionnaire d\'évaluation à chaud à envoyer',
+        color: 'red',
+        icon: <Warning size={20} />,
+      });
+      return;
+    }
+
+    // Inclus dans le payload de CRÉATION (et non en post-création) :
+    // omis si l'option n'est pas cochée, jamais envoyé à null à la création.
+    const questionnaireFields: { questionnaireTemplateId?: number } =
+      sendQuestionnaire && questionnaireId
+        ? { questionnaireTemplateId: parseInt(questionnaireId, 10) }
+        : {};
+
     setIsSubmitting(true);
 
     try {
@@ -386,6 +426,8 @@ export default function NewSessionPage() {
           tarifHT: values.tarifHT || undefined,
           anneeBudgetaire: values.anneeBudgetaire || undefined,
           commentaire: values.commentaire || '',
+          // Propagé au mode simple ET à toutes les sessions du lot via le spread
+          ...questionnaireFields,
         };
 
         if (batchMode) {
@@ -470,6 +512,7 @@ export default function NewSessionPage() {
           formateurContact: values.formateurContact || undefined,
           lienVisio: values.lienVisio || undefined,
           participantIds: participantIds,
+          ...questionnaireFields,
         };
 
         const result = await SessionsUnifiedService.create(collectiveData, 'collective');
@@ -1009,6 +1052,58 @@ export default function NewSessionPage() {
                 checked={sendEmail}
                 onChange={(event) => setSendEmail(event.currentTarget.checked)}
               />
+
+              {/* Questionnaire d'évaluation à chaud : rattaché à la session dès sa création */}
+              <Checkbox
+                label="Envoyer un questionnaire d'évaluation à chaud"
+                description="Le questionnaire sera envoyé automatiquement aux participants dès que la session passera au statut terminé"
+                checked={sendQuestionnaire}
+                onChange={(event) => {
+                  const checked = event.currentTarget.checked;
+                  setSendQuestionnaire(checked);
+                  if (!checked) setQuestionnaireId(null);
+                }}
+              />
+
+              {sendQuestionnaire && (
+                <Box pl={34}>
+                  {questionnaires.length === 0 ? (
+                    <Alert
+                      color="orange"
+                      variant="light"
+                      icon={<Warning size={16} />}
+                      title="Aucun questionnaire à chaud disponible"
+                    >
+                      <Text size="sm">
+                        Créez d'abord un questionnaire actif de type « à chaud » depuis la page{' '}
+                        <Anchor href="/questionnaires" fw={600}>
+                          Questionnaires
+                        </Anchor>
+                        , ou décochez cette option pour créer la session.
+                      </Text>
+                    </Alert>
+                  ) : (
+                    <Select
+                      label="Questionnaire à envoyer"
+                      placeholder="Sélectionner un questionnaire"
+                      required
+                      searchable
+                      data={questionnaires.map(q => ({
+                        value: q.id.toString(),
+                        label: q.nom,
+                      }))}
+                      value={questionnaireId}
+                      onChange={setQuestionnaireId}
+                      leftSection={<ClipboardText size={16} />}
+                      description={
+                        questionnaireId
+                          ? `${questionnaires.find(q => q.id.toString() === questionnaireId)?.nombreQuestions ?? 0} question(s)`
+                          : 'Questionnaires actifs de type « à chaud »'
+                      }
+                    />
+                  )}
+                </Box>
+              )}
             </Stack>
           </Paper>
 

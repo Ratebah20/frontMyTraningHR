@@ -1,7 +1,10 @@
 import api from '../api';
 
 export interface SendReminderDto {
-  managerIds: number[];
+  // Vue par ÉQUIPE : destinataires = managers sélectionnés.
+  managerIds?: number[];
+  // Vue par DÉPARTEMENT : destinataires = directeurs des départements sélectionnés.
+  departementIds?: number[];
   periode: 'annee' | 'mois' | 'plage';
   date?: string;
   startDate?: string;
@@ -11,6 +14,10 @@ export interface SendReminderDto {
 }
 
 export interface ReminderResult {
+  /**
+   * Id du manager, ou id du DIRECTEUR pour une relance par département.
+   * Vaut 0 quand aucun destinataire n'a pu être identifié (échec tracé).
+   */
   managerId: number;
   managerNom: string;
   managerEmail: string;
@@ -19,13 +26,22 @@ export interface ReminderResult {
   error?: string;
   collaborateursCount: number;
   formationsCount: number;
+  /** Absent = 'manager' (réponses des versions antérieures) */
+  type?: 'manager' | 'departement';
+  departementId?: number;
+  departementNom?: string;
 }
 
 export interface SendRemindersResponse {
   success: boolean;
   message: string;
   periode: string;
+  /** Managers notifiés (sémantique historique) */
   totalManagers: number;
+  /** Directeurs de département notifiés */
+  totalDirecteurs: number;
+  /** Managers + directeurs */
+  totalDestinataires: number;
   envoyesAvecSucces: number;
   erreurs: number;
   details: ReminderResult[];
@@ -47,6 +63,11 @@ export interface SendConvocationResponse {
 }
 
 export const notificationsService = {
+  /**
+   * Envoie les rappels aux managers (managerIds) et/ou aux directeurs des
+   * départements (departementIds). Au moins une des deux listes doit être
+   * non vide, sinon le backend renvoie un 400.
+   */
   async sendMandatoryTrainingReminders(dto: SendReminderDto): Promise<SendRemindersResponse> {
     const response = await api.post('/notifications/send-mandatory-training-reminders', dto);
     return response.data;

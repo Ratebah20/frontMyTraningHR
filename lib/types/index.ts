@@ -310,6 +310,12 @@ export interface CreateSessionDto {
   tarifHT?: number;
   anneeBudgetaire?: number;
   commentaire?: string;
+  /**
+   * Questionnaire d'évaluation à chaud envoyé automatiquement aux participants
+   * dès que la session passe au statut terminé.
+   * Champ absent = inchangé, null = retire le questionnaire.
+   */
+  questionnaireTemplateId?: number | null;
 }
 
 export interface UpdateSessionDto {
@@ -319,6 +325,8 @@ export interface UpdateSessionDto {
   statut?: string;
   tarifHT?: number;
   commentaires?: string;
+  /** Champ absent = inchangé, null = retire le questionnaire */
+  questionnaireTemplateId?: number | null;
 }
 
 export interface UpdateCollaborateurDto {
@@ -749,6 +757,72 @@ export interface TodoTemplate {
   dateModification: string;
 }
 
+// ==================== QUESTIONNAIRES D'ÉVALUATION ====================
+// Même esprit que TodoTemplate : des modèles réutilisables créés par la RH.
+
+export type QuestionType = 'note' | 'texte' | 'choix' | 'oui_non';
+export type QuestionnaireType = 'chaud' | 'froid';
+
+export interface Question {
+  /** Clé de stockage des réponses : immuable une fois la question créée */
+  id: string;
+  libelle: string;
+  type: QuestionType;
+  obligatoire: boolean;
+  /** Présent uniquement si type === 'choix' */
+  options?: string[];
+  ordre: number;
+}
+
+export interface Questionnaire {
+  id: number;
+  nom: string;
+  description: string | null;
+  type: QuestionnaireType;
+  /** Déjà trié par ordre croissant côté serveur */
+  questions: Question[];
+  actif: boolean;
+  nombreQuestions: number;
+  nombreSessionsLiees: number;
+  nombreEvaluations: number;
+  dateCreation: string;
+  dateModification: string;
+}
+
+/** Questionnaire allégé renvoyé avec une évaluation (public) */
+export interface QuestionnaireLight {
+  id: number;
+  nom: string;
+  description: string | null;
+  questions: Question[];
+}
+
+export interface CreateQuestionnaireDto {
+  nom: string;
+  description?: string | null;
+  type?: QuestionnaireType;
+  questions: Question[];
+  actif?: boolean;
+}
+
+export interface UpdateQuestionnaireDto {
+  nom?: string;
+  description?: string | null;
+  type?: QuestionnaireType;
+  /** Champ absent = questions inchangées côté backend */
+  questions?: Question[];
+  actif?: boolean;
+}
+
+export interface DeleteQuestionnaireResponse {
+  success: boolean;
+  /** 'desactive' = soft delete car référencé par des sessions/évaluations */
+  action: 'desactive' | 'supprime';
+  id: number;
+  nom: string;
+  message: string;
+}
+
 export interface TodoStats {
   total: number;
   completed: number;
@@ -984,6 +1058,12 @@ export interface CreateCollectiveSessionDto {
   lienVisio?: string;
   // Participants initiaux (optionnel)
   participantIds?: number[];
+  /**
+   * Questionnaire d'évaluation à chaud envoyé automatiquement aux participants
+   * dès que la session passe au statut terminé.
+   * Champ absent = inchangé, null = retire le questionnaire.
+   */
+  questionnaireTemplateId?: number | null;
 }
 
 export interface UpdateCollectiveSessionDto {
@@ -1003,6 +1083,8 @@ export interface UpdateCollectiveSessionDto {
   formateurNom?: string;
   formateurContact?: string;
   lienVisio?: string;
+  /** Champ absent = inchangé, null = retire le questionnaire */
+  questionnaireTemplateId?: number | null;
 }
 
 export interface UpdateSessionStatusDto {
@@ -1198,4 +1280,150 @@ export interface BilanAnnuelResponse {
     formateursDistincts: number;
     organismesDistincts: number;
   };
+}
+
+// ==================== DASHBOARD : NOTIFICATIONS ET ALERTES ====================
+// GET /stats/dashboard-alerts
+// Toutes les alertes sont bornées à la période sélectionnée.
+
+export interface ConformiteObligatoiresAlerte {
+  /** null quand il n'y a aucune population cible ou aucune formation obligatoire */
+  taux: number | null;
+  collaborateursConformes: number;
+  collaborateursCibles: number;
+  nonConformes: number;
+  nombreFormationsObligatoires: number;
+}
+
+export interface SessionsNonClotureesAlerte {
+  total: number;
+  individuelles: number;
+  collectives: number;
+}
+
+export interface DashboardAlertesBloc {
+  collaborateursSansFormation: number;
+  /** Sessions démarrées depuis plus de 30 jours et toujours en cours */
+  sessionsLongues: number;
+  /** Sessions individuelles + collectives au statut "inscrit" créées sur la période */
+  nouvellesInscriptions: number;
+  nouvellesInscriptionsIndividuelles: number;
+  nouvellesInscriptionsCollectives: number;
+  /** Sessions dont la date de fin est passée mais qui ne sont ni terminées ni annulées */
+  sessionsNonCloturees: SessionsNonClotureesAlerte;
+  conformiteObligatoires: ConformiteObligatoiresAlerte;
+}
+
+export interface DashboardAlertsResponse {
+  periode: {
+    dateDebut: string;
+    dateFin: string;
+    /** false => sessionsAVenir contient les prochaines sessions DE LA PÉRIODE */
+    contientAujourdhui: boolean;
+  };
+  sessionsAVenir: Array<{
+    id: number;
+    dateDebut: string | null;
+    formation?: string;
+    collaborateur: string;
+    departement?: string;
+  }>;
+  alertes: DashboardAlertesBloc;
+  derniereMAJ: { date: string; type: string } | null;
+}
+
+// ==================== CONFORMITÉ FORMATIONS OBLIGATOIRES ====================
+// GET /stats/mandatory-trainings-kpis -> bloc parDepartement
+
+export interface DirecteurDepartement {
+  id: number;
+  nomComplet: string;
+  email: string | null;
+}
+
+export interface ConformiteParDepartement {
+  departementId: number;
+  departement: string;
+  totalCollaborateurs: number;
+  formes: number;
+  nonFormes: number;
+  tauxConformite: number;
+  /** null pour le pseudo-département "Non défini" (departementId = 0) */
+  directeur: DirecteurDepartement | null;
+  /** true si un directeur est rattaché ET dispose d'une adresse email */
+  peutEtreRelance: boolean;
+}
+
+// ==================== OBJECTIFS L&D ====================
+
+export interface LdObjectiveTarget {
+  categorieId: number;
+  categorieNom: string;
+  objectifCible: number;
+  /** false = catégorie retirée du KPI Objectifs L&D (réintégrable) */
+  suiviLd: boolean;
+}
+
+export interface LdObjectiveGlobalTarget {
+  cle: 'certifiantes';
+  objectifCible: number;
+  dateModification: string | null;
+}
+
+export interface LdObjectiveCategorieKpi {
+  categorieId: number;
+  categorieNom: string;
+  formations: number;
+  totalSessions: number;
+  sessionsCompleted: number;
+  tauxCompletion: number;
+  collaborateursFormes: number;
+  heuresTotales: number;
+  objectifCible: number;
+  tauxAtteinte: number;
+  evolution: number;
+}
+
+export interface LdObjectiveCertifiantesKpi {
+  totalFormationsCertifiantes: number;
+  totalSessions: number;
+  sessionsCompleted: number;
+  tauxCompletion: number;
+  /** Collaborateurs distincts ayant COMPLÉTÉ au moins un contenu certifiant */
+  collaborateursCertifies: number;
+  totalCollaborateurs: number;
+  tauxCertification: number;
+  heuresTotales: number;
+  objectifCible: number;
+  tauxAtteinte: number;
+  evolution: number;
+  topFormations: Array<{
+    id: number;
+    nomFormation: string;
+    sessionsCompleted: number;
+    collaborateurs: number;
+  }>;
+}
+
+export interface LdObjectivesKpisResponse {
+  global: {
+    totalFormations: number;
+    totalSessions: number;
+    sessionsCompleted: number;
+    tauxCompletionGlobal: number;
+    collaborateursFormes: number;
+    totalCollaborateurs: number;
+    heuresTotales: number;
+    budgetTotal: number;
+  };
+  categories: LdObjectiveCategorieKpi[];
+  certifiantes: LdObjectiveCertifiantesKpi;
+}
+
+export interface ObjectifCategorieRow {
+  id: number;
+  categorieId: number;
+  objectifCible: number;
+  suiviLd: boolean;
+  dateModification: string;
 }

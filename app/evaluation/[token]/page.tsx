@@ -19,6 +19,8 @@ import {
   Divider,
   Badge,
   Box,
+  Radio,
+  SegmentedControl,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
@@ -29,6 +31,7 @@ import {
   evaluationsService,
   EvaluationContext,
 } from '@/lib/services/evaluations.service';
+import type { Question } from '@/lib/types';
 
 interface Props {
   params: {
@@ -56,6 +59,41 @@ export default function EvaluationPage({ params }: Props) {
   const [impactObserve, setImpactObserve] = useState('');
   const [noteUtilite, setNoteUtilite] = useState(0);
 
+  // Réponses au questionnaire dynamique (quand la session en porte un)
+  const [answers, setAnswers] = useState<Record<string, any>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const questionnaire = context?.questionnaire || null;
+
+  const setAnswer = (questionId: string, value: any) => {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
+    setFieldErrors((prev) => {
+      if (!prev[questionId]) return prev;
+      const next = { ...prev };
+      delete next[questionId];
+      return next;
+    });
+  };
+
+  /**
+   * Une réponse est considérée absente uniquement si elle est undefined, null
+   * ou une chaîne vide. `false` et `0` sont des réponses VALIDES (sauf pour le
+   * type `note`, où 0 signifie « aucune étoile sélectionnée »).
+   */
+  const isAnswerEmpty = (question: Question, value: any): boolean => {
+    if (value === undefined || value === null) return true;
+    if (typeof value === 'string' && value.trim() === '') return true;
+    if (question.type === 'note' && value === 0) return true;
+    return false;
+  };
+
+  /** Convertit la valeur d'affichage en valeur envoyée au backend */
+  const toPayloadValue = (question: Question, value: any) => {
+    if (question.type === 'oui_non') return value === 'oui';
+    if (question.type === 'texte') return typeof value === 'string' ? value.trim() : value;
+    return value;
+  };
+
   useEffect(() => {
     const loadContext = async () => {
       setIsLoading(true);
@@ -80,7 +118,34 @@ export default function EvaluationPage({ params }: Props) {
 
     let reponses: Record<string, any>;
 
-    if (context.type === 'chaud') {
+    if (questionnaire) {
+      // Formulaire dynamique piloté par le questionnaire rattaché
+      const errors: Record<string, string> = {};
+      const payload: Record<string, any> = {};
+
+      questionnaire.questions.forEach((question) => {
+        const value = answers[question.id];
+        const empty = isAnswerEmpty(question, value);
+
+        if (empty) {
+          if (question.obligatoire) {
+            errors[question.id] = 'Cette réponse est obligatoire.';
+          }
+          // Question facultative sans réponse : la clé est omise du payload
+          return;
+        }
+
+        payload[question.id] = toPayloadValue(question, value);
+      });
+
+      setFieldErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        setFormError('Merci de répondre à toutes les questions obligatoires (marquées d\'un *).');
+        return;
+      }
+
+      reponses = payload;
+    } else if (context.type === 'chaud') {
       if (noteGlobale < 1 || noteContenu < 1 || noteFormateur < 1) {
         setFormError('Merci de renseigner les trois notes (de 1 à 5 étoiles).');
         return;
@@ -112,10 +177,17 @@ export default function EvaluationPage({ params }: Props) {
         setAlreadyCompleted(true);
         return;
       }
-      const message =
+      const rawMessage =
         error.response?.data?.message ||
         error.message ||
         'Une erreur est survenue lors de l\'envoi de votre évaluation.';
+      // Le backend renvoie un 400 détaillant les problèmes de validation
+      const message = Array.isArray(rawMessage) ? rawMessage.join(' — ') : rawMessage;
+
+      if (error.response?.status === 400) {
+        setFormError(message);
+      }
+
       notifications.show({
         title: 'Erreur',
         message,
@@ -196,6 +268,107 @@ export default function EvaluationPage({ params }: Props) {
 
   const isChaud = context.type === 'chaud';
 
+  /** Rendu d'une question du questionnaire dynamique */
+  const renderQuestion = (question: Question) => {
+    const value = answers[question.id];
+    const error = fieldErrors[question.id];
+
+    const label = (
+      <Text size="sm" fw={500} mb={4}>
+        {question.libelle}
+        {question.obligatoire && <Text span c="red"> *</Text>}
+      </Text>
+    );
+
+    const errorText = error ? (
+      <Text size="xs" c="red" mt={4}>{error}</Text>
+    ) : null;
+
+    switch (question.type) {
+      case 'note':
+        return (
+          <div key={question.id}>
+            {label}
+            <Rating
+              size="lg"
+              value={typeof value === 'number' ? value : 0}
+              onChange={(v) => setAnswer(question.id, v)}
+            />
+            {errorText}
+          </div>
+        );
+
+      case 'texte':
+        return (
+          <Textarea
+            key={question.id}
+            label={question.libelle}
+            withAsterisk={question.obligatoire}
+            placeholder="Votre réponse..."
+            minRows={3}
+            autosize
+            value={typeof value === 'string' ? value : ''}
+            onChange={(e) => setAnswer(question.id, e.currentTarget.value)}
+            error={error}
+          />
+        );
+
+      case 'choix': {
+        const options = question.options || [];
+        // Radio.Group jusqu'à 4 options, Select au-delà
+        if (options.length <= 4) {
+          return (
+            <Radio.Group
+              key={question.id}
+              label={question.libelle}
+              withAsterisk={question.obligatoire}
+              value={typeof value === 'string' ? value : ''}
+              onChange={(v) => setAnswer(question.id, v)}
+              error={error}
+            >
+              <Stack gap="xs" mt="xs">
+                {options.map((option) => (
+                  <Radio key={option} value={option} label={option} />
+                ))}
+              </Stack>
+            </Radio.Group>
+          );
+        }
+        return (
+          <Select
+            key={question.id}
+            label={question.libelle}
+            withAsterisk={question.obligatoire}
+            placeholder="Sélectionnez une réponse"
+            data={options.map((option) => ({ value: option, label: option }))}
+            value={typeof value === 'string' ? value : null}
+            onChange={(v) => setAnswer(question.id, v)}
+            error={error}
+          />
+        );
+      }
+
+      case 'oui_non':
+        return (
+          <div key={question.id}>
+            {label}
+            <SegmentedControl
+              value={value === 'oui' || value === 'non' ? value : ''}
+              onChange={(v) => setAnswer(question.id, v)}
+              data={[
+                { value: 'oui', label: 'Oui' },
+                { value: 'non', label: 'Non' },
+              ]}
+            />
+            {errorText}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
   return renderShell(
     <Stack gap="lg">
       <Stack align="center" gap="xs">
@@ -215,7 +388,28 @@ export default function EvaluationPage({ params }: Props) {
 
       <Divider />
 
-      {isChaud ? (
+      {questionnaire ? (
+        // Questionnaire personnalisé rattaché à la session
+        <Stack gap="md">
+          <div>
+            <Title order={4}>{questionnaire.nom}</Title>
+            {questionnaire.description && (
+              <Text size="sm" c="dimmed" mt={4}>
+                {questionnaire.description}
+              </Text>
+            )}
+          </div>
+
+          {questionnaire.questions.length === 0 ? (
+            <Alert icon={<WarningCircle size={16} />} color="orange" variant="light">
+              Ce questionnaire ne contient aucune question. Contactez votre service RH.
+            </Alert>
+          ) : (
+            questionnaire.questions.map(renderQuestion)
+          )}
+        </Stack>
+      ) : isChaud ? (
+        // Repli : formulaire historique (évaluations envoyées sans questionnaire)
         <Stack gap="md">
           <div>
             <Text size="sm" fw={500} mb={4}>

@@ -20,6 +20,11 @@ const rhRoutes = [
   '/budget',
   '/templates',
   '/questionnaires',
+  // Synthèse des retours d'évaluation (RH uniquement).
+  // NE PAS confondre avec la route PUBLIQUE '/evaluation/[token]' (au
+  // singulier) : '/evaluation/xxx' ne correspond ni à '/evaluations' ni à
+  // '/evaluations/', elle reste donc accessible sans authentification.
+  '/evaluations',
   '/ai-assistant',
   '/comptes-managers',
 ];

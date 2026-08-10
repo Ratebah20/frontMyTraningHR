@@ -138,6 +138,12 @@ const navigationItems: NavigationItem[] = [
     color: 'cyan'
   },
   {
+    icon: ChartLineUp,
+    label: 'Évaluations',
+    href: '/evaluations',
+    color: 'orange'
+  },
+  {
     icon: Wallet,
     label: 'Budget',
     href: '/budget',

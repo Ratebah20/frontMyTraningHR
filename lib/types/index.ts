@@ -1427,3 +1427,150 @@ export interface ObjectifCategorieRow {
   suiviLd: boolean;
   dateModification: string;
 }
+
+// ==================== RETOURS D'ÉVALUATION ====================
+// Types partagés entre l'onglet « Retours d'évaluation » du détail de session
+// (agrégation côté client) et la page de synthèse par formation (agrégation
+// côté serveur). Source unique : aucune interface n'est redéclarée ailleurs.
+
+/** Moment de l'évaluation : 'chaud' = fin de session, 'froid' = à distance */
+export type EvaluationMoment = QuestionnaireType;
+
+/** Type de session porteuse de l'évaluation */
+export type EvaluationSessionType = 'individuelle' | 'collective';
+
+/** Statut d'une invitation : 'complete' = le destinataire a répondu */
+export type EvaluationStatut = 'envoye' | 'complete';
+
+/**
+ * Une invitation d'évaluation, telle que renvoyée par
+ * `GET /evaluations/session/:type/:sessionId`.
+ */
+export interface SessionEvaluation {
+  id: number;
+  type: EvaluationMoment;
+  /** Le backend n'est pas strictement typé : on reste tolérant */
+  statut: EvaluationStatut | string;
+  destinataireEmail: string;
+  collaborateurId?: number;
+  collaborateurNom: string;
+  dateEnvoi: string;
+  dateReponse: string | null;
+  /** Clés = `Question.id` du questionnaire, ou clés techniques si questionnaire null */
+  reponses: Record<string, any> | null;
+  /**
+   * null = évaluation antérieure aux questionnaires personnalisés : le
+   * formulaire était câblé en dur, on retombe sur LEGACY_QUESTIONS.
+   */
+  questionnaire?: QuestionnaireLight | null;
+}
+
+// ---------- Agrégation côté client (écran détail de session) ----------
+
+/** Répartition d'une valeur de réponse pour une question fermée */
+export interface EvaluationRepartitionItem {
+  valeur: string;
+  nombre: number;
+  pourcentage: number;
+}
+
+/** Une réponse libre, avec son auteur */
+export interface EvaluationReponseTexte {
+  collaborateurNom: string;
+  valeur: string;
+  date: string | null;
+}
+
+/** Résultat agrégé pour une question, tous destinataires confondus */
+export interface EvaluationQuestionAggregate {
+  id: string;
+  libelle: string;
+  type: QuestionType;
+  ordre: number;
+  nombreReponses: number;
+  /** Uniquement pour les questions de type 'note' */
+  moyenne: number | null;
+  /** Uniquement pour 'choix' / 'oui_non' / 'note' */
+  repartition: EvaluationRepartitionItem[];
+  /** Uniquement pour 'texte' */
+  reponsesTexte: EvaluationReponseTexte[];
+}
+
+/** Synthèse d'un lot d'évaluations (un moment : chaud OU froid) d'une session */
+export interface SessionEvaluationsAggregate {
+  moment: EvaluationMoment;
+  envoyees: number;
+  repondues: number;
+  tauxReponse: number;
+  /** Moyenne de toutes les questions notées, sur 5 — null si aucune note */
+  moyenneGlobale: number | null;
+  /** Colonnes normalisées, dans l'ordre : questionnaire puis clés inconnues */
+  questions: EvaluationQuestionAggregate[];
+  /** Une entrée par destinataire, dans l'ordre de réception */
+  destinataires: SessionEvaluation[];
+  /** Noms des questionnaires rencontrés (peut en contenir plusieurs) */
+  questionnaireNoms: string[];
+}
+
+// ---------- Synthèse par formation (écran /evaluations) ----------
+
+export interface EvaluationSyntheseFormation {
+  id: number;
+  nomFormation: string;
+  codeFormation: string;
+}
+
+export interface EvaluationSyntheseQuestionnaireRef {
+  id: number;
+  nom: string;
+  nombreEvaluations: number;
+}
+
+export interface EvaluationSyntheseStats {
+  nombreSessions: number;
+  totalEnvoyees: number;
+  totalRepondues: number;
+  tauxReponse: number;
+  moyenneGlobale: number | null;
+}
+
+export interface EvaluationSyntheseQuestion {
+  id: string;
+  libelle: string;
+  type: QuestionType;
+  nombreReponses: number;
+  moyenne: number | null;
+  repartition: Array<{ valeur: string; nombre: number }> | null;
+  reponsesTexte: Array<{ collaborateurNom: string; valeur: string; date: string }> | null;
+}
+
+export interface EvaluationSyntheseSession {
+  sessionId: number;
+  type: EvaluationSessionType;
+  titre: string;
+  dateDebut: string | null;
+  envoyees: number;
+  repondues: number;
+  tauxReponse: number;
+  moyenneGlobale: number | null;
+}
+
+/** Réponse de `GET /evaluations/formation/:formationId/synthese` */
+export interface FormationEvaluationSynthese {
+  formation: EvaluationSyntheseFormation;
+  periode: { dateDebut: string | null; dateFin: string | null };
+  questionnaires: EvaluationSyntheseQuestionnaireRef[];
+  stats: EvaluationSyntheseStats;
+  questions: EvaluationSyntheseQuestion[];
+  sessions: EvaluationSyntheseSession[];
+}
+
+/** Filtres acceptés par l'endpoint de synthèse */
+export interface FormationEvaluationSyntheseFilters {
+  /** Défaut backend : 'chaud' */
+  evaluationType?: EvaluationMoment;
+  /** Format YYYY-MM-DD */
+  dateDebut?: string;
+  /** Format YYYY-MM-DD */
+  dateFin?: string;
+}

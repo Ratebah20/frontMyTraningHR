@@ -1,5 +1,13 @@
 import api from '../api';
-import type { QuestionnaireLight } from '../types';
+import type {
+  QuestionnaireLight,
+  SessionEvaluation,
+  FormationEvaluationSynthese,
+  FormationEvaluationSyntheseFilters,
+} from '../types';
+
+// Types canoniques : définis dans lib/types, ré-exportés ici par commodité
+export type { SessionEvaluation, FormationEvaluationSynthese, FormationEvaluationSyntheseFilters };
 
 export type EvaluationType = 'chaud' | 'froid';
 export type SessionType = 'individuelle' | 'collective';
@@ -33,20 +41,6 @@ export interface EvaluationContext {
 export interface SubmitEvaluationResponse {
   success: boolean;
   message: string;
-}
-
-export interface SessionEvaluation {
-  id: number;
-  type: EvaluationType;
-  statut: string;
-  destinataireEmail: string;
-  collaborateurId?: number;
-  collaborateurNom: string;
-  dateEnvoi: string;
-  dateReponse: string | null;
-  reponses: Record<string, any> | null;
-  /** null pour les évaluations envoyées sans questionnaire personnalisé */
-  questionnaire?: QuestionnaireLight | null;
 }
 
 export interface FroidEnAttenteItem {
@@ -97,6 +91,26 @@ export const evaluationsService = {
 
   async getFroidEnAttente(): Promise<FroidEnAttenteItem[]> {
     const response = await api.get('/evaluations/a-froid-en-attente');
+    return response.data;
+  },
+
+  /**
+   * Synthèse des retours d'évaluation de TOUTES les sessions d'une formation.
+   * L'agrégation (moyennes, répartitions, taux) est faite côté serveur.
+   */
+  async getFormationSynthese(
+    formationId: number,
+    filters: FormationEvaluationSyntheseFilters = {},
+  ): Promise<FormationEvaluationSynthese> {
+    const params: Record<string, string> = {};
+    if (filters.evaluationType) params.evaluationType = filters.evaluationType;
+    if (filters.dateDebut) params.dateDebut = filters.dateDebut;
+    if (filters.dateFin) params.dateFin = filters.dateFin;
+
+    const response = await api.get(
+      `/evaluations/formation/${formationId}/synthese`,
+      { params },
+    );
     return response.data;
   },
 };

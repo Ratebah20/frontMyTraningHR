@@ -84,6 +84,7 @@ const DocumentGenerator = dynamic(
   { ssr: false, loading: () => null }
 );
 import AttachmentManager from '@/components/attachments/AttachmentManager';
+import { SessionEvaluationsPanel } from '@/components/evaluations/SessionEvaluationsPanel';
 
 interface Props {
   params: {
@@ -1283,6 +1284,20 @@ export default function SessionDetailPage({ params }: Props) {
               targetId={session.id}
             />
           </Paper>
+        </Grid.Col>
+
+        {/* Retours d'évaluation (chaud / froid) — chargés à l'affichage */}
+        <Grid.Col span={12}>
+          <SessionEvaluationsPanel
+            sessionId={session.id}
+            sessionType={session.type === 'collective' ? 'collective' : 'individuelle'}
+            formationNom={
+              session.formation?.nom
+              || session.formation?.nomFormation
+              || session.formationNom
+              || session.titre
+            }
+          />
         </Grid.Col>
       </Grid>
     </Container>

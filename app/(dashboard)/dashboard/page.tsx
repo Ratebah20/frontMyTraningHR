@@ -48,6 +48,14 @@ import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
 import { PeriodSelector } from '@/components/PeriodSelector';
 
+// Formatage court français (jj/mm/aaaa) tolérant aux valeurs absentes/invalides.
+const formatShortDate = (value?: string | null) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -239,6 +247,50 @@ export default function DashboardPage() {
       color: "pink",
     },
   ] : [];
+
+  // ----- Alertes & Notifications : source unique de vérité -----
+  // Les mêmes booléens pilotent l'affichage de chaque Alert ET le message
+  // « Aucune alerte », pour éviter toute divergence entre les deux.
+  const alertesBloc = alerts?.alertes;
+  const conformite = alertesBloc?.conformiteObligatoires;
+  const sessionsNonCloturees = alertesBloc?.sessionsNonCloturees;
+
+  const collaborateursSansFormation = alertesBloc?.collaborateursSansFormation ?? 0;
+  const sessionsLongues = alertesBloc?.sessionsLongues ?? 0;
+  const nouvellesInscriptions = alertesBloc?.nouvellesInscriptions ?? 0;
+  const nouvellesInscriptionsIndividuelles = alertesBloc?.nouvellesInscriptionsIndividuelles ?? 0;
+  const nouvellesInscriptionsCollectives = alertesBloc?.nouvellesInscriptionsCollectives ?? 0;
+  const sessionsACloturer = sessionsNonCloturees?.total ?? 0;
+
+  // taux === null => aucune population cible / aucune formation obligatoire :
+  // on n'affiche rien plutôt qu'un « n/a » trompeur.
+  const tauxConformite = conformite?.taux;
+  const nonConformes = conformite?.nonConformes ?? 0;
+  const showConformite =
+    tauxConformite !== null && tauxConformite !== undefined && nonConformes > 0;
+  const conformiteColor =
+    (tauxConformite ?? 0) < 70 ? 'red' : (tauxConformite ?? 0) < 90 ? 'orange' : 'green';
+
+  const showCollaborateursSansFormation = collaborateursSansFormation > 0;
+  const showSessionsLongues = sessionsLongues > 0;
+  const showNouvellesInscriptions = nouvellesInscriptions > 0;
+  const showSessionsACloturer = sessionsACloturer > 0;
+
+  const aucuneAlerte =
+    !showCollaborateursSansFormation &&
+    !showSessionsLongues &&
+    !showConformite &&
+    !showSessionsACloturer &&
+    !showNouvellesInscriptions;
+
+  // Période couverte par le bloc d'alertes (rend le filtre explicite)
+  const periodeDebutLabel = formatShortDate(alerts?.periode?.dateDebut);
+  const periodeFinLabel = formatShortDate(alerts?.periode?.dateFin);
+  const periodeLabel =
+    periodeDebutLabel && periodeFinLabel
+      ? `Points d'attention — ${periodeDebutLabel} au ${periodeFinLabel}`
+      : "Points d'attention";
+  const horsPeriodeCourante = alerts?.periode?.contientAujourdhui === false;
 
   if (loading) {
     return (
@@ -491,14 +543,19 @@ export default function DashboardPage() {
                 </ThemeIcon>
                 <div>
                   <Title order={3}>Alertes & Notifications</Title>
-                  <Text size="sm" c="dimmed">Points d'attention</Text>
+                  <Text size="sm" c="dimmed">{periodeLabel}</Text>
                 </div>
               </Group>
+              {horsPeriodeCourante && (
+                <Badge size="sm" variant="light" color="gray">
+                  Hors période courante
+                </Badge>
+              )}
             </Group>
             <Stack gap="md">
               {alerts?.alertes && (
                 <>
-                  {alerts.alertes.collaborateursSansFormation > 0 && (
+                  {showCollaborateursSansFormation && (
                     <Alert
                       icon={<WarningCircle size={16} />}
                       color="orange"
@@ -508,17 +565,17 @@ export default function DashboardPage() {
                     >
                       <Group justify="space-between">
                         <div>
-                          <Text fw={500} size="sm">{alerts.alertes.collaborateursSansFormation} collaborateurs sans formation</Text>
+                          <Text fw={500} size="sm">{collaborateursSansFormation} collaborateurs sans formation</Text>
                           <Text size="xs" c="dimmed">Cliquez pour voir la liste</Text>
                         </div>
                         <Badge size="lg" color="orange" variant="filled">
-                          {alerts.alertes.collaborateursSansFormation}
+                          {collaborateursSansFormation}
                         </Badge>
                       </Group>
                     </Alert>
                   )}
 
-                  {alerts.alertes.sessionsLongues > 0 && (
+                  {showSessionsLongues && (
                     <Alert
                       icon={<Clock size={16} />}
                       color="yellow"
@@ -528,37 +585,61 @@ export default function DashboardPage() {
                     >
                       <Group justify="space-between">
                         <div>
-                          <Text fw={500} size="sm">{alerts.alertes.sessionsLongues} sessions en cours depuis +30 jours</Text>
+                          <Text fw={500} size="sm">{sessionsLongues} sessions en cours depuis +30 jours</Text>
                           <Text size="xs" c="dimmed">Cliquez pour voir les sessions en retard</Text>
                         </div>
                         <Badge size="lg" color="yellow" variant="filled">
-                          {alerts.alertes.sessionsLongues}
+                          {sessionsLongues}
                         </Badge>
                       </Group>
                     </Alert>
                   )}
 
-                  {alerts.alertes.formationsSansSession > 0 && (
+                  {showConformite && (
                     <Alert
-                      icon={<Info size={16} />}
-                      color="blue"
+                      icon={<WarningCircle size={16} />}
+                      color={conformiteColor}
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/formations?filter=sansSession')}
+                      onClick={() => router.push('/kpi/conformite')}
                     >
                       <Group justify="space-between">
                         <div>
-                          <Text fw={500} size="sm">{alerts.alertes.formationsSansSession} formations sans sessions</Text>
-                          <Text size="xs" c="dimmed">Cliquez pour voir les formations inactives</Text>
+                          <Text fw={500} size="sm">{nonConformes} collaborateurs non conformes aux formations obligatoires</Text>
+                          <Text size="xs" c="dimmed">
+                            Taux de conformité : {tauxConformite} % ({conformite?.collaborateursConformes ?? 0}/{conformite?.collaborateursCibles ?? 0}) — cliquez pour voir le détail
+                          </Text>
                         </div>
-                        <Badge size="lg" color="blue" variant="filled">
-                          {alerts.alertes.formationsSansSession}
+                        <Badge size="lg" color={conformiteColor} variant="filled">
+                          {nonConformes}
                         </Badge>
                       </Group>
                     </Alert>
                   )}
 
-                  {alerts.alertes.nouvellesInscriptions > 0 && (
+                  {showSessionsACloturer && (
+                    <Alert
+                      icon={<WarningCircle size={16} />}
+                      color="red"
+                      variant="light"
+                      styles={{ root: { cursor: 'pointer' } }}
+                      onClick={() => router.push('/sessions')}
+                    >
+                      <Group justify="space-between">
+                        <div>
+                          <Text fw={500} size="sm">{sessionsACloturer} sessions à clôturer</Text>
+                          <Text size="xs" c="dimmed">
+                            Date de fin passée mais statut non terminé — {sessionsNonCloturees?.individuelles ?? 0} individuelle(s), {sessionsNonCloturees?.collectives ?? 0} collective(s)
+                          </Text>
+                        </div>
+                        <Badge size="lg" color="red" variant="filled">
+                          {sessionsACloturer}
+                        </Badge>
+                      </Group>
+                    </Alert>
+                  )}
+
+                  {showNouvellesInscriptions && (
                     <Alert
                       icon={<CheckCircle size={16} />}
                       color="green"
@@ -568,20 +649,19 @@ export default function DashboardPage() {
                     >
                       <Group justify="space-between">
                         <div>
-                          <Text fw={500} size="sm">{alerts.alertes.nouvellesInscriptions} nouvelles inscriptions</Text>
-                          <Text size="xs" c="dimmed">Cliquez pour voir les inscriptions récentes</Text>
+                          <Text fw={500} size="sm">{nouvellesInscriptions} nouvelles inscriptions</Text>
+                          <Text size="xs" c="dimmed">
+                            {nouvellesInscriptionsIndividuelles} individuelle(s), {nouvellesInscriptionsCollectives} collective(s) sur la période
+                          </Text>
                         </div>
                         <Badge size="lg" color="green" variant="filled">
-                          {alerts.alertes.nouvellesInscriptions}
+                          {nouvellesInscriptions}
                         </Badge>
                       </Group>
                     </Alert>
                   )}
 
-                  {!alerts.alertes.collaborateursSansFormation &&
-                   !alerts.alertes.sessionsLongues &&
-                   !alerts.alertes.formationsSansSession &&
-                   !alerts.alertes.nouvellesInscriptions && (
+                  {aucuneAlerte && (
                     <Center h={200}>
                       <Stack align="center" gap="xs">
                         <ThemeIcon size={60} radius="xl" variant="light" color="green">
@@ -769,8 +849,14 @@ export default function DashboardPage() {
                 <Calendar size={20} weight="duotone" />
               </ThemeIcon>
               <div>
-                <Title order={3}>Sessions à venir</Title>
-                <Text size="sm" c="dimmed">Prochains 7 jours</Text>
+                <Title order={3}>Prochaines sessions</Title>
+                <Text size="sm" c="dimmed">
+                  {horsPeriodeCourante
+                    ? (periodeDebutLabel && periodeFinLabel
+                        ? `Sur la période sélectionnée — ${periodeDebutLabel} au ${periodeFinLabel}`
+                        : 'Sur la période sélectionnée')
+                    : 'Prochains 7 jours'}
+                </Text>
               </div>
             </Group>
             <Button
@@ -794,8 +880,8 @@ export default function DashboardPage() {
                       {session.collaborateur}
                     </Text>
                     <Group gap="xs" mt={4}>
-                      <Badge size="xs" variant="light" color="blue">
-                        {new Date(session.dateDebut).toLocaleDateString('fr-FR')}
+                      <Badge size="xs" variant="light" color={session.dateDebut ? 'blue' : 'gray'}>
+                        {formatShortDate(session.dateDebut) ?? 'Date à définir'}
                       </Badge>
                       {session.departement && (
                         <Badge size="xs" variant="light" color="gray">

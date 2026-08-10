@@ -79,8 +79,34 @@ interface MandatoryTrainingsKPIs {
     formes: number
     nonFormes: number
     tauxConformite: number
+    // Enrichissements backend (optionnels : tolère une réponse d'une version
+    // antérieure de l'API, auquel cas la relance directeur est simplement
+    // désactivée pour la ligne)
+    directeur?: { id: number; nomComplet: string; email: string | null } | null
+    peutEtreRelance?: boolean
   }>
 }
+
+/** Ligne aplatie de la vue « Par équipe » (tous départements confondus) */
+interface OrgManagerRow {
+  id: number
+  nomComplet: string
+  departementId: number
+  departement: string
+  collaborateursNonFormes: Array<{
+    id: number
+    nomComplet: string
+    formationsManquantes: Array<{ id: number; nomFormation: string }>
+  }>
+}
+
+/**
+ * Cible de la modale de rappels :
+ * - 'equipes'    : sélection issue de la matrice (départements → managers)
+ * - 'directeurs' : vue par organisation / onglet département → directeurs
+ * - 'managers'   : vue par organisation / onglet équipe → managers
+ */
+type ReminderTarget = 'equipes' | 'directeurs' | 'managers'
 
 interface MandatoryByManagerResponse {
   periode: { annee: number; mois?: number; libelle: string }
@@ -96,6 +122,8 @@ interface MandatoryByManagerResponse {
     managers: Array<{
       id: number
       nomComplet: string
+      /** Certaines réponses exposent `nom` au lieu de `nomComplet` */
+      nom?: string
       totalSubordonnes: number
       collaborateursNonFormes: Array<{
         id: number
@@ -108,6 +136,8 @@ interface MandatoryByManagerResponse {
     id: number
     nomComplet: string
     departement: string
+    /** null = collaborateur sans département : non relançable */
+    departementId?: number | null
     formationsManquantes: Array<{ id: number; nomFormation: string }>
   }>
 }
@@ -198,7 +228,15 @@ export default function ConformitePage() {
   const [selectedDept, setSelectedDept] = useState<string | null>(null)
   const [selectedManagers, setSelectedManagers] = useState<number[]>([])
 
+  // Vue par organisation (département / équipe)
+  const [orgView, setOrgView] = useState<'departement' | 'equipe'>('departement')
+  // Départements sélectionnés pour une relance de leur DIRECTEUR
+  const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>([])
+  // Détail nominatif des non formés d'un manager
+  const [managerDetail, setManagerDetail] = useState<OrgManagerRow | null>(null)
+
   // Reminder modal
+  const [reminderTarget, setReminderTarget] = useState<ReminderTarget>('equipes')
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [sendingReminders, setSendingReminders] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -291,6 +329,9 @@ export default function ConformitePage() {
       // Sélection vide : rien à calculer, on évite un appel inutile
       if (!options.reinitialiserPerimetre && selectedFormationIds.length === 0) {
         setMandatoryData(null)
+        // Sinon la vue « Par équipe » continuerait d'afficher les managers du
+        // scope précédent alors que plus aucune formation n'est sélectionnée.
+        setByManagerData(null)
         setMandatoryLoading(false)
         setByManagerLoading(false)
         return
@@ -465,6 +506,126 @@ export default function ConformitePage() {
     return result
   }
 
+  // ===== Vue par organisation : données dérivées =====
+
+  // Réutilise le statut email déjà chargé au montage (pas d'appel supplémentaire)
+  const emailConfigured = !!emailStatus?.configured
+
+  // Départements triés du moins conforme au plus conforme (les pires en haut).
+  // Dérivé de `mandatoryData` : se met à jour tout seul avec la période, le
+  // type d'obligation et le scope des formations.
+  const departementRows = [...(mandatoryData?.parDepartement ?? [])].sort(
+    (a, b) => a.tauxConformite - b.tauxConformite
+  )
+
+  // Le pseudo-département « Non défini » (id 0) et les départements sans
+  // directeur joignable ne sont pas relançables.
+  const isDeptRelancable = (row: MandatoryTrainingsKPIs['parDepartement'][0]) =>
+    row.departementId !== 0 && row.peutEtreRelance === true && !!row.directeur
+
+  const relancableDeptRows = departementRows.filter(isDeptRelancable)
+
+  // Managers de tous les départements, dédoublonnés, triés par nombre de
+  // collaborateurs non formés décroissant.
+  const managerRows: OrgManagerRow[] = (() => {
+    const seen = new Set<number>()
+    const rows: OrgManagerRow[] = []
+    ;(byManagerData?.departements ?? []).forEach((d) => {
+      ;(d.managers ?? []).forEach((m) => {
+        if (seen.has(m.id)) return
+        seen.add(m.id)
+        rows.push({
+          id: m.id,
+          nomComplet: m.nomComplet || m.nom || `Manager #${m.id}`,
+          departementId: d.id,
+          departement: d.nom,
+          collaborateursNonFormes: m.collaborateursNonFormes ?? [],
+        })
+      })
+    })
+    return rows.sort(
+      (a, b) => b.collaborateursNonFormes.length - a.collaborateursNonFormes.length
+    )
+  })()
+
+  const sansManagerRows = byManagerData?.sansManager ?? []
+
+  // Les sélections ne sont jamais purgées lors d'un rechargement : on les
+  // intersecte systématiquement avec les données courantes, ce qui neutralise
+  // tout id devenu obsolète (changement de période / type / scope).
+  const effectiveDeptIds = relancableDeptRows
+    .filter((d) => selectedDeptIds.includes(d.departementId))
+    .map((d) => d.departementId)
+
+  const effectiveManagerIds = managerRows
+    .filter((m) => selectedManagers.includes(m.id))
+    .map((m) => m.id)
+
+  const toggleDeptId = (departementId: number) => {
+    setSelectedDeptIds((prev) =>
+      prev.includes(departementId)
+        ? prev.filter((id) => id !== departementId)
+        : [...prev, departementId]
+    )
+  }
+
+  const toggleSelectAllDeptIds = () => {
+    if (effectiveDeptIds.length === relancableDeptRows.length) {
+      setSelectedDeptIds([])
+    } else {
+      setSelectedDeptIds(relancableDeptRows.map((d) => d.departementId))
+    }
+  }
+
+  const toggleSelectAllManagerRows = () => {
+    if (effectiveManagerIds.length === managerRows.length) {
+      setSelectedManagers([])
+    } else {
+      setSelectedManagers(managerRows.map((m) => m.id))
+    }
+  }
+
+  const openReminderModal = (target: ReminderTarget) => {
+    setReminderTarget(target)
+    setShowReminderModal(true)
+  }
+
+  // Destinataires affichés dans la modale de confirmation, selon la cible
+  const reminderRecipients: Array<{
+    key: string
+    nom: string
+    sousTitre?: string
+    count: number
+  }> = (() => {
+    if (reminderTarget === 'directeurs') {
+      return relancableDeptRows
+        .filter((d) => effectiveDeptIds.includes(d.departementId))
+        .map((d) => ({
+          key: `dept-${d.departementId}`,
+          nom: d.directeur?.nomComplet ?? 'Directeur',
+          sousTitre: d.departement,
+          count: d.nonFormes,
+        }))
+    }
+    if (reminderTarget === 'managers') {
+      return managerRows
+        .filter((m) => effectiveManagerIds.includes(m.id))
+        .map((m) => ({
+          key: `mgr-${m.id}`,
+          nom: m.nomComplet,
+          sousTitre: m.departement,
+          count: m.collaborateursNonFormes.length,
+        }))
+    }
+    return getSelectedManagersList().map((m: any) => ({
+      key: `eq-${m.id}`,
+      nom: m.nomComplet,
+      count: (m.collaborateursNonFormes ?? []).length,
+    }))
+  })()
+
+  const reminderRoleLabel = reminderTarget === 'directeurs' ? 'directeur' : 'manager'
+
   // ===== SMTP & Reminders =====
 
   const handleCheckSmtp = async () => {
@@ -520,14 +681,34 @@ export default function ConformitePage() {
   }
 
   const handleSendReminders = async () => {
+    // Destinataires selon la cible ouverte. Le backend renvoie un 400 si les
+    // deux listes sont vides : on garde-fou côté client.
+    const managerIds =
+      reminderTarget === 'managers'
+        ? effectiveManagerIds
+        : reminderTarget === 'equipes'
+          ? getSelectedManagerIds()
+          : undefined
+    const departementIds = reminderTarget === 'directeurs' ? effectiveDeptIds : undefined
+
+    if ((managerIds?.length ?? 0) === 0 && (departementIds?.length ?? 0) === 0) {
+      notifications.show({
+        title: 'Aucun destinataire',
+        message: 'Selectionnez au moins un destinataire avant d\'envoyer les rappels.',
+        color: 'orange',
+        icon: <WarningCircle size={20} weight="fill" />,
+      })
+      return
+    }
+
     setSendingReminders(true)
     try {
       const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
       const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
 
-      const managerIds = getSelectedManagerIds()
       const result = await notificationsService.sendMandatoryTrainingReminders({
         managerIds,
+        departementIds,
         periode,
         date,
         startDate: startDateStr,
@@ -540,23 +721,61 @@ export default function ConformitePage() {
 
       setShowReminderModal(false)
 
+      const totalCible =
+        result.totalDestinataires ??
+        (managerIds?.length ?? 0) + (departementIds?.length ?? 0)
+      const echecs = (result.details ?? []).filter((d) => !d.success)
+
+      // Detail des echecs, reutilise pour le succes partiel comme pour l'echec global
+      const detailEchecs = (
+        <>
+          {echecs.slice(0, 5).map((d, i) => (
+            <Text key={`${d.managerId}-${i}`} size="xs" c="red">
+              {d.departementNom ? `${d.departementNom} — ` : ''}
+              {d.managerNom || 'Destinataire inconnu'} : {d.error || 'echec inconnu'}
+            </Text>
+          ))}
+          {echecs.length > 5 && (
+            <Text size="xs" c="dimmed">et {echecs.length - 5} autre(s) echec(s)...</Text>
+          )}
+        </>
+      )
+
       if (result.success) {
         notifications.show({
-          title: 'Rappels envoyes',
-          message: `${result.envoyesAvecSucces}/${result.totalManagers} rappels envoyes avec succes.${result.erreurs > 0 ? ` ${result.erreurs} erreur(s).` : ''}`,
+          title: result.erreurs > 0 ? 'Rappels partiellement envoyes' : 'Rappels envoyes',
+          message: (
+            <Stack gap={4}>
+              <Text size="sm">
+                {result.envoyesAvecSucces}/{totalCible} rappel(s) envoye(s) avec succes.
+                {result.erreurs > 0 ? ` ${result.erreurs} erreur(s).` : ''}
+              </Text>
+              {detailEchecs}
+            </Stack>
+          ),
           color: result.erreurs > 0 ? 'orange' : 'green',
-          icon: <CheckCircle size={20} weight="fill" />
+          icon: <CheckCircle size={20} weight="fill" />,
+          autoClose: result.erreurs > 0 ? false : 5000,
         })
+
+        // Envoi réussi : on vide la sélection concernée
+        if (reminderTarget === 'directeurs') setSelectedDeptIds([])
+        else if (reminderTarget === 'managers') setSelectedManagers([])
+        else setSelectedDepts(new Set())
       } else {
         notifications.show({
           title: 'Erreur',
-          message: result.message,
+          message: (
+            <Stack gap={4}>
+              <Text size="sm">{result.message}</Text>
+              {detailEchecs}
+            </Stack>
+          ),
           color: 'red',
-          icon: <WarningCircle size={20} weight="fill" />
+          icon: <WarningCircle size={20} weight="fill" />,
+          autoClose: false,
         })
       }
-
-      setSelectedDepts(new Set())
     } catch (error: any) {
       notifications.show({
         title: "Erreur d'envoi",
@@ -940,7 +1159,454 @@ export default function ConformitePage() {
           </motion.div>
         )}
 
-        {/* SECTION 4: PAR DEPARTEMENT - Supprimée */}
+        {/* ===== SECTION 4: VUE PAR ORGANISATION (DEPARTEMENT / EQUIPE) ===== */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Card shadow="sm" withBorder radius="md" padding="lg">
+            <Stack gap="md">
+              <Group justify="space-between" align="flex-start">
+                <Group gap="xs" align="flex-start">
+                  <ThemeIcon variant="light" color="grape" size="md" radius="md">
+                    <UserList size={18} weight="bold" />
+                  </ThemeIcon>
+                  <Stack gap={2}>
+                    <Title order={3}>Vue par organisation</Title>
+                    <Text size="sm" c="dimmed">
+                      Relancez le directeur d&apos;un departement ou le manager d&apos;une equipe
+                    </Text>
+                  </Stack>
+                </Group>
+                <SegmentedControl
+                  value={orgView}
+                  onChange={(value) => setOrgView(value as 'departement' | 'equipe')}
+                  data={[
+                    { label: 'Par departement', value: 'departement' },
+                    { label: 'Par equipe', value: 'equipe' },
+                  ]}
+                />
+              </Group>
+
+              {emailStatus && !emailStatus.configured && (
+                <Alert color="orange" variant="light" icon={<Warning size={18} weight="bold" />}>
+                  L&apos;envoi d&apos;emails n&apos;est pas configure : les relances sont
+                  desactivees. {emailStatus?.message}
+                </Alert>
+              )}
+
+              <AnimatePresence mode="wait">
+                {/* ---------- ONGLET PAR DEPARTEMENT ---------- */}
+                {orgView === 'departement' && (
+                  <motion.div
+                    key="org-departement"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Stack gap="md">
+                      {mandatoryLoading ? (
+                        <Center py="xl"><Loader size="sm" /></Center>
+                      ) : departementRows.length === 0 ? (
+                        <Text size="sm" c="dimmed" ta="center" py="md">
+                          Aucun departement a afficher pour cette periode.
+                        </Text>
+                      ) : (
+                        <>
+                          <Group justify="space-between">
+                            <Checkbox
+                              size="xs"
+                              label="Tout selectionner"
+                              disabled={relancableDeptRows.length === 0}
+                              checked={
+                                relancableDeptRows.length > 0 &&
+                                effectiveDeptIds.length === relancableDeptRows.length
+                              }
+                              indeterminate={
+                                effectiveDeptIds.length > 0 &&
+                                effectiveDeptIds.length < relancableDeptRows.length
+                              }
+                              onChange={toggleSelectAllDeptIds}
+                            />
+                            <Button
+                              size="sm"
+                              leftSection={<EnvelopeSimple size={18} weight="bold" />}
+                              disabled={effectiveDeptIds.length === 0 || !emailConfigured}
+                              onClick={() => openReminderModal('directeurs')}
+                            >
+                              Relancer les directeurs selectionnes ({effectiveDeptIds.length})
+                            </Button>
+                          </Group>
+
+                          <Table.ScrollContainer minWidth={800}>
+                            <Table striped highlightOnHover withTableBorder>
+                              <Table.Thead>
+                                <Table.Tr>
+                                  <Table.Th style={{ width: 40 }}></Table.Th>
+                                  <Table.Th style={{ minWidth: 160 }}>Departement</Table.Th>
+                                  <Table.Th style={{ minWidth: 160 }}>Directeur</Table.Th>
+                                  <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
+                                  <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
+                                  <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
+                                  <Table.Th style={{ minWidth: 160 }}>Taux de conformite</Table.Th>
+                                  <Table.Th style={{ minWidth: 170 }}>Actions</Table.Th>
+                                </Table.Tr>
+                              </Table.Thead>
+                              <Table.Tbody>
+                                {departementRows.map((row) => {
+                                  const relancable = isDeptRelancable(row)
+                                  const raisonBlocage =
+                                    row.departementId === 0
+                                      ? 'Collaborateurs sans departement : aucun directeur a relancer'
+                                      : !row.directeur
+                                        ? 'Aucun directeur identifie pour ce departement'
+                                        : "Le directeur n'a pas d'adresse email renseignee"
+                                  const couleurTaux = getCoverageColor(row.tauxConformite)
+                                  return (
+                                    <Table.Tr key={row.departementId || `dept-${row.departement}`}>
+                                      <Table.Td>
+                                        {relancable ? (
+                                          <Checkbox
+                                            size="xs"
+                                            checked={effectiveDeptIds.includes(row.departementId)}
+                                            onChange={() => toggleDeptId(row.departementId)}
+                                          />
+                                        ) : (
+                                          <Tooltip label={raisonBlocage} multiline w={240}>
+                                            <Box>
+                                              <Checkbox size="xs" checked={false} disabled readOnly />
+                                            </Box>
+                                          </Tooltip>
+                                        )}
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Text size="sm" fw={600}>{row.departement}</Text>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        {!row.directeur ? (
+                                          <Badge color="gray" variant="light" size="sm">
+                                            Aucun directeur
+                                          </Badge>
+                                        ) : (
+                                          <Stack gap={2}>
+                                            <Text size="sm">{row.directeur.nomComplet}</Text>
+                                            {!row.directeur.email && (
+                                              <Badge color="orange" variant="light" size="sm">
+                                                Email manquant
+                                              </Badge>
+                                            )}
+                                          </Stack>
+                                        )}
+                                      </Table.Td>
+                                      <Table.Td style={{ textAlign: 'center' }}>
+                                        <Text size="sm">{row.totalCollaborateurs}</Text>
+                                      </Table.Td>
+                                      <Table.Td style={{ textAlign: 'center' }}>
+                                        <Text size="sm" c="green" fw={600}>{row.formes}</Text>
+                                      </Table.Td>
+                                      <Table.Td style={{ textAlign: 'center' }}>
+                                        <Text size="sm" c="red" fw={600}>{row.nonFormes}</Text>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Group gap="xs" wrap="nowrap">
+                                          <Progress
+                                            value={row.tauxConformite}
+                                            color={couleurTaux}
+                                            size="sm"
+                                            radius="md"
+                                            style={{ flex: 1, minWidth: 70 }}
+                                          />
+                                          <Text size="sm" fw={700} c={couleurTaux === 'yellow' ? 'yellow.7' : couleurTaux}>
+                                            {row.tauxConformite}%
+                                          </Text>
+                                        </Group>
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Tooltip
+                                          label={
+                                            !relancable
+                                              ? raisonBlocage
+                                              : !emailConfigured
+                                                ? "L'envoi d'emails n'est pas configure"
+                                                : `Relancer ${row.directeur?.nomComplet}`
+                                          }
+                                          multiline
+                                          w={240}
+                                        >
+                                          <Box>
+                                            <Button
+                                              variant="light"
+                                              size="xs"
+                                              leftSection={<EnvelopeSimple size={14} weight="bold" />}
+                                              disabled={!relancable || !emailConfigured}
+                                              onClick={() => {
+                                                setSelectedDeptIds([row.departementId])
+                                                openReminderModal('directeurs')
+                                              }}
+                                            >
+                                              Relancer le directeur
+                                            </Button>
+                                          </Box>
+                                        </Tooltip>
+                                      </Table.Td>
+                                    </Table.Tr>
+                                  )
+                                })}
+                              </Table.Tbody>
+                            </Table>
+                          </Table.ScrollContainer>
+                        </>
+                      )}
+                    </Stack>
+                  </motion.div>
+                )}
+
+                {/* ---------- ONGLET PAR EQUIPE ---------- */}
+                {orgView === 'equipe' && (
+                  <motion.div
+                    key="org-equipe"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Stack gap="md">
+                      {byManagerLoading ? (
+                        <Center py="xl"><Loader size="sm" /></Center>
+                      ) : !byManagerData ? (
+                        selectedFormationIds.length === 0 ? (
+                          <Text size="sm" c="dimmed" ta="center" py="md">
+                            Aucune formation selectionnee dans le scope ci-dessus.
+                          </Text>
+                        ) : (
+                          <Alert color="red" variant="light" icon={<WarningCircle size={18} weight="bold" />}>
+                            Impossible de charger la repartition par equipe. Reessayez en changeant
+                            de periode ou rechargez la page.
+                          </Alert>
+                        )
+                      ) : (
+                        <>
+                          {managerRows.length === 0 ? (
+                            <Text size="sm" c="dimmed" ta="center" py="md">
+                              Aucun manager avec des collaborateurs non formes sur cette periode.
+                            </Text>
+                          ) : (
+                            <>
+                              <Group justify="space-between">
+                                <Checkbox
+                                  size="xs"
+                                  label="Tout selectionner"
+                                  checked={
+                                    managerRows.length > 0 &&
+                                    effectiveManagerIds.length === managerRows.length
+                                  }
+                                  indeterminate={
+                                    effectiveManagerIds.length > 0 &&
+                                    effectiveManagerIds.length < managerRows.length
+                                  }
+                                  onChange={toggleSelectAllManagerRows}
+                                />
+                                <Button
+                                  size="sm"
+                                  leftSection={<EnvelopeSimple size={18} weight="bold" />}
+                                  disabled={effectiveManagerIds.length === 0 || !emailConfigured}
+                                  onClick={() => openReminderModal('managers')}
+                                >
+                                  Relancer les managers selectionnes ({effectiveManagerIds.length})
+                                </Button>
+                              </Group>
+
+                              <Table.ScrollContainer minWidth={700}>
+                                <Table striped highlightOnHover withTableBorder>
+                                  <Table.Thead>
+                                    <Table.Tr>
+                                      <Table.Th style={{ width: 40 }}></Table.Th>
+                                      <Table.Th style={{ minWidth: 180 }}>Manager</Table.Th>
+                                      <Table.Th style={{ minWidth: 160 }}>Departement</Table.Th>
+                                      <Table.Th style={{ textAlign: 'center' }}>Non formes</Table.Th>
+                                      <Table.Th style={{ minWidth: 220 }}>Actions</Table.Th>
+                                    </Table.Tr>
+                                  </Table.Thead>
+                                  <Table.Tbody>
+                                    {managerRows.map((row) => (
+                                      <Table.Tr key={row.id}>
+                                        <Table.Td>
+                                          <Checkbox
+                                            size="xs"
+                                            checked={effectiveManagerIds.includes(row.id)}
+                                            onChange={() => toggleManager(row.id)}
+                                          />
+                                        </Table.Td>
+                                        <Table.Td>
+                                          <Text size="sm" fw={600}>{row.nomComplet}</Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                          <Text size="sm" c="dimmed">{row.departement}</Text>
+                                        </Table.Td>
+                                        <Table.Td style={{ textAlign: 'center' }}>
+                                          <Badge
+                                            variant="light"
+                                            color={row.collaborateursNonFormes.length > 0 ? 'red' : 'green'}
+                                            size="sm"
+                                          >
+                                            {row.collaborateursNonFormes.length}
+                                          </Badge>
+                                        </Table.Td>
+                                        <Table.Td>
+                                          <Group gap="xs" wrap="nowrap">
+                                            <Button
+                                              variant="subtle"
+                                              size="xs"
+                                              leftSection={<Eye size={14} weight="bold" />}
+                                              disabled={row.collaborateursNonFormes.length === 0}
+                                              onClick={() => setManagerDetail(row)}
+                                            >
+                                              Details
+                                            </Button>
+                                            <Tooltip
+                                              label={
+                                                emailConfigured
+                                                  ? `Relancer ${row.nomComplet}`
+                                                  : "L'envoi d'emails n'est pas configure"
+                                              }
+                                            >
+                                              <Box>
+                                                <Button
+                                                  variant="light"
+                                                  size="xs"
+                                                  leftSection={<EnvelopeSimple size={14} weight="bold" />}
+                                                  disabled={!emailConfigured}
+                                                  onClick={() => {
+                                                    setSelectedManagers([row.id])
+                                                    openReminderModal('managers')
+                                                  }}
+                                                >
+                                                  Relancer le manager
+                                                </Button>
+                                              </Box>
+                                            </Tooltip>
+                                          </Group>
+                                        </Table.Td>
+                                      </Table.Tr>
+                                    ))}
+                                  </Table.Tbody>
+                                </Table>
+                              </Table.ScrollContainer>
+                            </>
+                          )}
+
+                          {/* Collaborateurs non formés sans manager identifié */}
+                          {sansManagerRows.length > 0 && (
+                            <Alert
+                              color="orange"
+                              variant="light"
+                              icon={<Warning size={18} weight="bold" />}
+                              title={`${sansManagerRows.length} collaborateur(s) non forme(s) sans manager identifie`}
+                            >
+                              <Stack gap="xs">
+                                <Text size="sm">
+                                  Ces collaborateurs ne sont pas rattaches a un manager : ils ne
+                                  peuvent etre relances que via le <strong>directeur de leur
+                                  departement</strong> (onglet « Par departement »).
+                                </Text>
+                                <Accordion variant="contained">
+                                  <Accordion.Item value="sans-manager">
+                                    <Accordion.Control>
+                                      <Text size="sm">Voir le detail</Text>
+                                    </Accordion.Control>
+                                    <Accordion.Panel>
+                                      <Box style={{ maxHeight: 260, overflowY: 'auto' }}>
+                                        <Stack gap="xs">
+                                          {sansManagerRows.map((collab) => (
+                                            <Paper key={collab.id} withBorder p="sm" radius="md">
+                                              <Group justify="space-between" align="flex-start">
+                                                <Stack gap={2}>
+                                                  <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                                                  <Text size="xs" c="dimmed">
+                                                    {collab.departement || 'Departement non defini'}
+                                                  </Text>
+                                                </Stack>
+                                                <Group gap={4} justify="flex-end" style={{ maxWidth: '60%' }}>
+                                                  {(collab.formationsManquantes ?? []).map((f) => (
+                                                    <Badge key={f.id} size="xs" variant="light" color="red">
+                                                      {f.nomFormation}
+                                                    </Badge>
+                                                  ))}
+                                                </Group>
+                                              </Group>
+                                            </Paper>
+                                          ))}
+                                        </Stack>
+                                      </Box>
+                                    </Accordion.Panel>
+                                  </Accordion.Item>
+                                </Accordion>
+                              </Stack>
+                            </Alert>
+                          )}
+                        </>
+                      )}
+                    </Stack>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Stack>
+          </Card>
+        </motion.div>
+
+        {/* ===== MANAGER DETAIL MODAL (vue par equipe) ===== */}
+        <Modal
+          opened={!!managerDetail}
+          onClose={() => setManagerDetail(null)}
+          title={
+            managerDetail && (
+              <Stack gap={2}>
+                <Title order={4}>{managerDetail.nomComplet}</Title>
+                <Text size="xs" c="dimmed">
+                  {managerDetail.departement} — {managerDetail.collaborateursNonFormes.length} collaborateur(s) non forme(s)
+                </Text>
+              </Stack>
+            )
+          }
+          size="lg"
+          centered
+        >
+          {managerDetail && (
+            managerDetail.collaborateursNonFormes.length === 0 ? (
+              <Center py="xl">
+                <Stack align="center" gap="sm">
+                  <ThemeIcon variant="light" color="green" size={56} radius="xl">
+                    <CheckCircle size={32} weight="duotone" />
+                  </ThemeIcon>
+                  <Text fw={600}>Toute l&apos;equipe est formee !</Text>
+                </Stack>
+              </Center>
+            ) : (
+              <Stack gap="xs" style={{ maxHeight: 420, overflowY: 'auto' }}>
+                {managerDetail.collaborateursNonFormes.map((collab) => (
+                  <Paper key={collab.id} withBorder p="sm" radius="md">
+                    <Stack gap={6}>
+                      <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                      <Group gap={4}>
+                        {(collab.formationsManquantes ?? []).length === 0 ? (
+                          <Text size="xs" c="dimmed">Aucune formation manquante detaillee</Text>
+                        ) : (
+                          collab.formationsManquantes.map((f) => (
+                            <Badge key={f.id} size="xs" variant="light" color="red">
+                              {f.nomFormation}
+                            </Badge>
+                          ))
+                        )}
+                      </Group>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
+            )
+          )}
+        </Modal>
 
         {/* ===== SECTION 5: MATRICE DEPARTEMENT × FORMATION ===== */}
         {mandatoryData && mandatoryData.formations.length > 0 && (() => {
@@ -998,7 +1664,7 @@ export default function ConformitePage() {
                     <Button
                       leftSection={<EnvelopeSimple size={18} weight="bold" />}
                       disabled={selectedDepts.size === 0}
-                      onClick={() => setShowReminderModal(true)}
+                      onClick={() => openReminderModal('equipes')}
                       variant="filled"
                       size="sm"
                     >
@@ -1202,7 +1868,11 @@ export default function ConformitePage() {
         <Modal
           opened={showReminderModal}
           onClose={() => !sendingReminders && setShowReminderModal(false)}
-          title="Envoyer des rappels aux managers"
+          title={
+            reminderTarget === 'directeurs'
+              ? 'Envoyer des rappels aux directeurs'
+              : 'Envoyer des rappels aux managers'
+          }
           size="lg"
           centered
           closeOnClickOutside={!sendingReminders}
@@ -1210,42 +1880,65 @@ export default function ConformitePage() {
         >
           <Stack>
             <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
-              Les rappels seront envoyes par email aux managers selectionnes.
+              Les rappels seront envoyes par email aux {reminderRoleLabel}s selectionnes.
               Assurez-vous que la configuration SMTP est en place.
             </Alert>
 
-            <Text fw={500}>Equipes selectionnees : {selectedDepts.size} — {getSelectedManagerIds().length} manager(s)</Text>
+            <Text fw={500}>
+              Vous allez envoyer un rappel a {reminderRecipients.length} {reminderRoleLabel}(s)
+              {reminderTarget === 'equipes' && ` — ${selectedDepts.size} equipe(s) selectionnee(s)`}
+            </Text>
 
             {/* Message preview */}
             <Paper withBorder p="md">
               <Text size="sm" fw={600} c="dimmed" mb="xs">Apercu du message :</Text>
               <Divider my="xs" />
-              <Text size="sm" style={{ lineHeight: 1.6 }}>
-                Bonjour [Nom du manager],<br /><br />
-                Certains membres de votre equipe n'ont pas encore complete
-                les formations obligatoires suivantes :<br />
-                - [Liste des formations par collaborateur]<br /><br />
-                Merci de vous assurer qu'ils completent ces formations
-                dans les meilleurs delais.<br /><br />
-                Cordialement,<br />
-                L'equipe Formation
-              </Text>
+              {reminderTarget === 'directeurs' ? (
+                <Text size="sm" style={{ lineHeight: 1.6 }}>
+                  Bonjour [Nom du directeur],<br /><br />
+                  Certains collaborateurs de votre departement n'ont pas encore complete
+                  les formations obligatoires suivantes :<br />
+                  - [Liste des formations par collaborateur]<br /><br />
+                  Merci de vous assurer, avec les managers concernes, qu'ils completent
+                  ces formations dans les meilleurs delais.<br /><br />
+                  Cordialement,<br />
+                  L'equipe Formation
+                </Text>
+              ) : (
+                <Text size="sm" style={{ lineHeight: 1.6 }}>
+                  Bonjour [Nom du manager],<br /><br />
+                  Certains membres de votre equipe n'ont pas encore complete
+                  les formations obligatoires suivantes :<br />
+                  - [Liste des formations par collaborateur]<br /><br />
+                  Merci de vous assurer qu'ils completent ces formations
+                  dans les meilleurs delais.<br /><br />
+                  Cordialement,<br />
+                  L'equipe Formation
+                </Text>
+              )}
             </Paper>
 
             {/* Recipients list */}
             <Accordion>
               <Accordion.Item value="recipients">
                 <Accordion.Control>
-                  <Text size="sm">Voir les {getSelectedManagerIds().length} destinataires</Text>
+                  <Text size="sm">Voir les {reminderRecipients.length} destinataires</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
                   <Box style={{ maxHeight: 200, overflowY: 'auto' }}>
-                    {getSelectedManagersList().map(m => (
-                      <Group key={m.id} justify="space-between" py="xs">
-                        <Text size="sm">{m.nomComplet}</Text>
-                        <Badge size="sm">{m.collaborateursNonFormes.length} a former</Badge>
-                      </Group>
-                    ))}
+                    {reminderRecipients.length === 0 ? (
+                      <Text size="sm" c="dimmed" py="xs">Aucun destinataire selectionne</Text>
+                    ) : (
+                      reminderRecipients.map(r => (
+                        <Group key={r.key} justify="space-between" py="xs">
+                          <Stack gap={0}>
+                            <Text size="sm">{r.nom}</Text>
+                            {r.sousTitre && <Text size="xs" c="dimmed">{r.sousTitre}</Text>}
+                          </Stack>
+                          <Badge size="sm">{r.count} a former</Badge>
+                        </Group>
+                      ))
+                    )}
                   </Box>
                 </Accordion.Panel>
               </Accordion.Item>
@@ -1269,6 +1962,7 @@ export default function ConformitePage() {
                   leftSection={<EnvelopeSimple size={18} weight="bold" />}
                   onClick={handleSendReminders}
                   loading={sendingReminders}
+                  disabled={reminderRecipients.length === 0}
                 >
                   Envoyer les rappels
                 </Button>

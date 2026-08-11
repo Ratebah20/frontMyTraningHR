@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import {
   Text,
   Badge,
@@ -37,8 +37,9 @@ import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle'
 import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle'
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning'
 import { Users } from '@phosphor-icons/react/dist/ssr/Users'
-import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings'
 import { Eye } from '@phosphor-icons/react/dist/ssr/Eye'
+import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight'
+import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown'
 import { X } from '@phosphor-icons/react/dist/ssr/X'
 import { Plus } from '@phosphor-icons/react/dist/ssr/Plus'
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass'
@@ -46,11 +47,27 @@ import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple'
 import { Info } from '@phosphor-icons/react/dist/ssr/Info'
 import { UserList } from '@phosphor-icons/react/dist/ssr/UserList'
 import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple'
+import { useSearchParams } from 'next/navigation'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
-import { statsService, formationsService, notificationsService, exportsService } from '@/lib/services'
+import {
+  statsService,
+  formationsService,
+  notificationsService,
+  exportsService,
+  departementsService,
+} from '@/lib/services'
 
 // ===== Interfaces =====
+
+/**
+ * Périmètre d'obligation suivi par la page.
+ * - 'annuelle'  : obligatoires à repasser (tout l'effectif)
+ * - 'onboarding': parcours des nouveaux arrivants de la période
+ * - 'securite'  : formations de sécurité au travail (SST), périmètre distinct
+ *   piloté par `Formation.estSecurite`
+ */
+type MandatoryType = 'annuelle' | 'onboarding' | 'securite'
 
 interface MandatoryTrainingsKPIs {
   periode: { annee: number; mois?: number; libelle: string }
@@ -59,6 +76,12 @@ interface MandatoryTrainingsKPIs {
     totalCollaborateursAFormer: number
     totalFormes: number
     totalNonFormes: number
+    /**
+     * Collaborateurs en congé longue durée, EXCLUS de
+     * `totalCollaborateursAFormer`. Optionnel : une API antérieure ne le
+     * renvoie pas, on traite alors l'absence comme 0.
+     */
+    collaborateursEnConge?: number
     tauxConformiteGlobal: number | null
   }
   formations: Array<{
@@ -101,12 +124,29 @@ interface OrgManagerRow {
 }
 
 /**
- * Cible de la modale de rappels :
- * - 'equipes'    : sélection issue de la matrice (départements → managers)
+ * Cible de la modale de rappels. UNE SEULE voie de relance par cible :
  * - 'directeurs' : vue par organisation / onglet département → directeurs
  * - 'managers'   : vue par organisation / onglet équipe → managers
+ *
+ * L'ancienne cible 'equipes' (relance des managers depuis la matrice de
+ * conformité) a été supprimée avec la matrice : elle faisait doublon avec
+ * 'managers' et partait d'une sélection par NOM de département.
  */
-type ReminderTarget = 'equipes' | 'directeurs' | 'managers'
+type ReminderTarget = 'directeurs' | 'managers'
+
+/**
+ * Ligne du détail par formation affiché au dépliage d'un département.
+ * Le taux porté ici est un taux PAR FORMATION (« a suivi cette formation »),
+ * à ne pas confondre avec le taux de conformité du département, qui exige
+ * TOUTES les formations du périmètre.
+ */
+interface DetailFormationDepartement {
+  formation: MandatoryTrainingsKPIs['formations'][0]
+  formes: number
+  nonFormes: number
+  total: number
+  taux: number
+}
 
 interface MandatoryByManagerResponse {
   periode: { annee: number; mois?: number; libelle: string }
@@ -149,6 +189,7 @@ function KPICard({
   value,
   suffix = '',
   subtitle,
+  footer,
   icon,
   color = 'cyan',
   delay = 0
@@ -159,6 +200,8 @@ function KPICard({
   value: number | null
   suffix?: string
   subtitle?: string
+  // Mention complémentaire libre (ex. exclusions du dénominateur)
+  footer?: React.ReactNode
   icon: React.ReactNode
   color?: string
   delay?: number
@@ -183,22 +226,99 @@ function KPICard({
           {suffix && value !== null && <Text size="md" fw={600} c="dimmed">{suffix}</Text>}
         </Group>
         {subtitle && <Text size="xs" c="dimmed" mt={4}>{subtitle}</Text>}
+        {footer && <Box mt={6}>{footer}</Box>}
       </Card>
     </motion.div>
   )
 }
 
+// ===== Période transmise par l'URL =====
+//
+// Le tableau de bord peut renvoyer ici en conservant la période affichée. Les
+// noms et formats sont EXACTEMENT ceux envoyés à l'API par cette page :
+//   ?periode=annee&date=2026
+//   ?periode=mois&date=2026-03
+//   ?periode=plage&startDate=2026-01-01&endDate=2026-03-31
+// Toute valeur absente ou aberrante est ignorée silencieusement : on retombe
+// alors sur le comportement historique (année en cours).
+
+type PeriodeEtat = {
+  periode: 'annee' | 'mois' | 'plage'
+  date: string
+  dateDebut: Date | null
+  dateFin: Date | null
+}
+
+const FORMAT_ANNEE = /^\d{4}$/
+const FORMAT_MOIS = /^\d{4}-(0[1-9]|1[0-2])$/
+const FORMAT_JOUR = /^\d{4}-\d{2}-\d{2}$/
+
+const periodeParDefaut = (): PeriodeEtat => ({
+  periode: 'annee',
+  date: new Date().getFullYear().toString(),
+  dateDebut: null,
+  dateFin: null,
+})
+
+/**
+ * `YYYY-MM-DD` -> Date en UTC minuit. L'heure UTC est indispensable : la page
+ * resérialise ces dates avec `toISOString().split('T')[0]`, et un minuit LOCAL
+ * (UTC+1/+2) reviendrait la veille — la période reçue ne serait pas celle
+ * renvoyée au backend.
+ */
+const parseJourUtc = (valeur: string | null): Date | null => {
+  if (!valeur || !FORMAT_JOUR.test(valeur)) return null
+  const date = new Date(`${valeur}T00:00:00Z`)
+  return isNaN(date.getTime()) ? null : date
+}
+
+const lirePeriodeDepuisUrl = (params: { get: (cle: string) => string | null }): PeriodeEtat => {
+  const defaut = periodeParDefaut()
+  const periode = params.get('periode')
+
+  if (periode === 'annee') {
+    const date = params.get('date')
+    return date && FORMAT_ANNEE.test(date) ? { ...defaut, date } : defaut
+  }
+
+  if (periode === 'mois') {
+    const date = params.get('date')
+    return date && FORMAT_MOIS.test(date)
+      ? { periode: 'mois', date, dateDebut: null, dateFin: null }
+      : defaut
+  }
+
+  if (periode === 'plage') {
+    const debut = parseJourUtc(params.get('startDate'))
+    const fin = parseJourUtc(params.get('endDate'))
+    // Les DEUX bornes sont exigées : le chargement ignore une plage incomplète,
+    // la page resterait désespérément vide.
+    if (!debut || !fin || debut.getTime() > fin.getTime()) return defaut
+    return { periode: 'plage', date: defaut.date, dateDebut: debut, dateFin: fin }
+  }
+
+  return defaut
+}
+
 // ===== Main Page Component =====
 
 export default function ConformitePage() {
+  const searchParams = useSearchParams()
+
+  // Initialisation AU MONTAGE uniquement (initialiseurs paresseux) : la page
+  // n'est pas pilotée par l'URL, l'utilisateur reprend la main avec le
+  // PeriodSelector et rien ne réécrit la barre d'adresse (aucune boucle de
+  // navigation possible).
+  const [periodeInitiale] = useState<PeriodeEtat>(() => lirePeriodeDepuisUrl(searchParams))
+
   // Period selector state
-  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee')
-  const [date, setDate] = useState<string>(new Date().getFullYear().toString())
-  const [dateDebut, setDateDebut] = useState<Date | null>(null)
-  const [dateFin, setDateFin] = useState<Date | null>(null)
+  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>(periodeInitiale.periode)
+  const [date, setDate] = useState<string>(periodeInitiale.date)
+  const [dateDebut, setDateDebut] = useState<Date | null>(periodeInitiale.dateDebut)
+  const [dateFin, setDateFin] = useState<Date | null>(periodeInitiale.dateFin)
 
   // Type d'obligation affiché (annuelle par défaut)
-  const [mandatoryType, setMandatoryType] = useState<'annuelle' | 'onboarding'>('annuelle')
+  const [mandatoryType, setMandatoryType] = useState<MandatoryType>('annuelle')
 
   // Mandatory trainings data
   const [mandatoryData, setMandatoryData] = useState<MandatoryTrainingsKPIs | null>(null)
@@ -215,12 +335,14 @@ export default function ConformitePage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [hasInitialized, setHasInitialized] = useState(false)
 
-  // Formation detail modal
+  // Formation detail modal.
+  // La même modale sert au tableau « Détail par formation » (vue globale) et au
+  // dépliage d'un département (`selectedFormationDept` renseigné) : c'est la
+  // liste nominative unique de la page, l'ancienne modale de la matrice ayant
+  // été supprimée.
   const [selectedFormation, setSelectedFormation] = useState<MandatoryTrainingsKPIs['formations'][0] | null>(null)
+  const [selectedFormationDept, setSelectedFormationDept] = useState<string | null>(null)
   const [modalTab, setModalTab] = useState<'formes' | 'nonFormes'>('nonFormes')
-
-  // Matrix detail modal
-  const [matrixDetail, setMatrixDetail] = useState<{ dept: string; formation: MandatoryTrainingsKPIs['formations'][0] } | null>(null)
 
   // Manager view
   const [byManagerData, setByManagerData] = useState<MandatoryByManagerResponse | null>(null)
@@ -232,11 +354,21 @@ export default function ConformitePage() {
   const [orgView, setOrgView] = useState<'departement' | 'equipe'>('departement')
   // Départements sélectionnés pour une relance de leur DIRECTEUR
   const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>([])
+  // Départements dépliés : révèlent le détail par formation de la ligne
+  const [expandedDeptIds, setExpandedDeptIds] = useState<number[]>([])
   // Détail nominatif des non formés d'un manager
   const [managerDetail, setManagerDetail] = useState<OrgManagerRow | null>(null)
 
+  // Rattachement de chaque libellé d'organisation à son DÉPARTEMENT parent.
+  // Indispensable : `parDepartement` est agrégé au niveau département (rollup
+  // des équipes côté backend) alors que `formations[].formes/nonFormes`
+  // portent le libellé BRUT du rattachement du collaborateur (souvent une
+  // équipe). Sans ce rollup, le détail dépliable d'un département afficherait
+  // 0 collaborateur dès que l'effectif est rattaché à des équipes.
+  const [rollupDepartements, setRollupDepartements] = useState<Map<string, string>>(new Map())
+
   // Reminder modal
-  const [reminderTarget, setReminderTarget] = useState<ReminderTarget>('equipes')
+  const [reminderTarget, setReminderTarget] = useState<ReminderTarget>('directeurs')
   const [showReminderModal, setShowReminderModal] = useState(false)
   const [sendingReminders, setSendingReminders] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -250,6 +382,7 @@ export default function ConformitePage() {
   useEffect(() => {
     fetchAllFormations()
     checkEmailStatusOnMount()
+    fetchRollupDepartements()
   }, [])
 
   // Load data when period or mandatory type changes.
@@ -297,6 +430,52 @@ export default function ConformitePage() {
       setAllFormations(response.data.map(f => ({ id: f.id, nom: f.nomFormation })))
     } catch (error) {
       console.error('Erreur lors du chargement des formations:', error)
+    }
+  }
+
+  /**
+   * Reconstruit côté client le rattachement « équipe → département parent »
+   * appliqué par le backend sur `parDepartement`. Les départements INACTIFS
+   * sont inclus : un collaborateur peut rester rattaché à une équipe
+   * désactivée, et l'omettre casserait son rattachement.
+   * En cas d'échec, on reste sur une identité (libellé = lui-même) : le détail
+   * dépliable reste juste pour les organisations sans équipe, et la page ne
+   * doit pas être bloquée par cet appel accessoire.
+   */
+  const fetchRollupDepartements = async () => {
+    try {
+      const departements = await departementsService.getAll({ includeInactive: true })
+      // `as const` : sans lui, TypeScript infère `(number | Departement)[]`
+      // pour l'entrée du Map au lieu d'un tuple [clé, valeur].
+      const parId = new Map(departements.map((d) => [d.id, d] as const))
+      const estDepartement = (d: { type?: string | null }) =>
+        (d.type || 'DEPARTEMENT').toUpperCase() === 'DEPARTEMENT'
+
+      const rollup = new Map<string, string>()
+      for (const depart of departements) {
+        let rattachement = depart
+        if (!estDepartement(depart)) {
+          let courant = depart
+          let profondeur = 0
+          const visites = new Set<number>([depart.id])
+          // Garde-fou identique au backend : hiérarchie profonde ou circulaire
+          while (courant.parentId != null && profondeur < 10) {
+            const parent = parId.get(courant.parentId)
+            if (!parent || visites.has(parent.id)) break
+            visites.add(parent.id)
+            courant = parent
+            profondeur++
+            if (estDepartement(courant)) {
+              rattachement = courant
+              break
+            }
+          }
+        }
+        rollup.set(depart.nomDepartement, rattachement.nomDepartement)
+      }
+      setRollupDepartements(rollup)
+    } catch (error) {
+      console.error('Erreur lors du chargement de la hierarchie des departements:', error)
     }
   }
 
@@ -407,7 +586,6 @@ export default function ConformitePage() {
         selectedFormationIds.length > 0 ? selectedFormationIds : undefined
       )
       setByManagerData(response)
-      setSelectedDepts(new Set())
     } catch (error) {
       console.error('Erreur lors du chargement des donnees par manager:', error)
     } finally {
@@ -446,66 +624,6 @@ export default function ConformitePage() {
     )
   }
 
-  // Sélection par département (pas par manager, pour éviter les sélections croisées)
-  const [selectedDepts, setSelectedDepts] = useState<Set<string>>(new Set())
-
-  const hasDeptManagers = (deptName: string): boolean => {
-    if (!byManagerData) return false
-    return byManagerData.departements.some((d: any) => d.nom === deptName && d.managers.length > 0)
-  }
-
-  const isDeptSelected = (deptName: string): boolean => selectedDepts.has(deptName)
-
-  const toggleDept = (deptName: string) => {
-    setSelectedDepts(prev => {
-      const next = new Set(prev)
-      if (next.has(deptName)) {
-        next.delete(deptName)
-      } else {
-        next.add(deptName)
-      }
-      return next
-    })
-  }
-
-  const toggleSelectAllManagers = () => {
-    if (!byManagerData) return
-    const allDeptNames = byManagerData.departements.map((d: any) => d.nom)
-    if (selectedDepts.size === allDeptNames.length) {
-      setSelectedDepts(new Set())
-    } else {
-      setSelectedDepts(new Set(allDeptNames))
-    }
-  }
-
-  // Dériver les manager IDs uniquement des départements sélectionnés (dédoublonnés)
-  const getSelectedManagerIds = (): number[] => {
-    if (!byManagerData) return []
-    const ids = new Set<number>()
-    byManagerData.departements
-      .filter((d: any) => selectedDepts.has(d.nom))
-      .forEach((d: any) => d.managers.forEach((m: any) => ids.add(m.id)))
-    return Array.from(ids)
-  }
-
-  const getSelectedManagersList = () => {
-    if (!byManagerData) return []
-    const ids = getSelectedManagerIds()
-    const seen = new Set<number>()
-    const result: any[] = []
-    byManagerData.departements
-      .filter((d: any) => selectedDepts.has(d.nom))
-      .forEach((d: any) => {
-        d.managers.forEach((m: any) => {
-          if (ids.includes(m.id) && !seen.has(m.id)) {
-            seen.add(m.id)
-            result.push(m)
-          }
-        })
-      })
-    return result
-  }
-
   // ===== Vue par organisation : données dérivées =====
 
   // Réutilise le statut email déjà chargé au montage (pas d'appel supplémentaire)
@@ -524,6 +642,87 @@ export default function ConformitePage() {
     row.departementId !== 0 && row.peutEtreRelance === true && !!row.directeur
 
   const relancableDeptRows = departementRows.filter(isDeptRelancable)
+
+  // ===== Rattachement des collaborateurs à leur département =====
+
+  /**
+   * Libellé du département de rattachement d'un collaborateur.
+   * `formations[].formes/nonFormes[].departement` porte le libellé BRUT (une
+   * équipe le cas échéant) : on le remonte au département parent pour rester
+   * aligné sur les lignes de `parDepartement`.
+   */
+  const departementDeRattachement = (libelle?: string | null): string => {
+    if (!libelle) return 'Non défini'
+    return rollupDepartements.get(libelle) ?? libelle
+  }
+
+  /**
+   * Détail par formation pour UN département : combien de ses collaborateurs
+   * ont suivi chaque formation du périmètre. C'est la valeur qu'apportait
+   * l'ancienne matrice, désormais rattachée à la ligne sur laquelle la RH
+   * travaille déjà. Calculé seulement pour les lignes dépliées.
+   */
+  const detailParFormationDuDepartement = (
+    departement: string
+  ): DetailFormationDepartement[] =>
+    (mandatoryData?.formations ?? []).map((formation) => {
+      const formes = formation.formes.filter(
+        (c) => departementDeRattachement(c.departement) === departement
+      ).length
+      const nonFormes = formation.nonFormes.filter(
+        (c) => departementDeRattachement(c.departement) === departement
+      ).length
+      const total = formes + nonFormes
+      return {
+        formation,
+        formes,
+        nonFormes,
+        total,
+        taux: total > 0 ? Math.round((formes / total) * 1000) / 10 : 0,
+      }
+    })
+
+  const toggleExpandedDept = (departementId: number) => {
+    setExpandedDeptIds((prev) =>
+      prev.includes(departementId)
+        ? prev.filter((id) => id !== departementId)
+        : [...prev, departementId]
+    )
+  }
+
+  // Ouvre la liste nominative d'une formation, éventuellement restreinte à un
+  // département (dépliage d'une ligne). `null` = toute la population cible.
+  const openFormationDetail = (
+    formation: MandatoryTrainingsKPIs['formations'][0],
+    departement: string | null = null
+  ) => {
+    setSelectedFormation(formation)
+    setSelectedFormationDept(departement)
+    setModalTab('nonFormes')
+  }
+
+  const closeFormationDetail = () => {
+    setSelectedFormation(null)
+    setSelectedFormationDept(null)
+  }
+
+  // Listes nominatives affichées dans la modale, filtrées sur le département
+  // quand la modale a été ouverte depuis le dépliage d'une ligne.
+  const formationModalFormes = selectedFormation
+    ? selectedFormationDept
+      ? selectedFormation.formes.filter(
+          (c) => departementDeRattachement(c.departement) === selectedFormationDept
+        )
+      : selectedFormation.formes
+    : []
+
+  const formationModalNonFormes = selectedFormation
+    ? selectedFormationDept
+      ? selectedFormation.nonFormes.filter(
+          (c) => departementDeRattachement(c.departement) === selectedFormationDept
+        )
+      : selectedFormation.nonFormes
+    : []
 
   // Managers de tous les départements, dédoublonnés, triés par nombre de
   // collaborateurs non formés décroissant.
@@ -607,21 +806,14 @@ export default function ConformitePage() {
           count: d.nonFormes,
         }))
     }
-    if (reminderTarget === 'managers') {
-      return managerRows
-        .filter((m) => effectiveManagerIds.includes(m.id))
-        .map((m) => ({
-          key: `mgr-${m.id}`,
-          nom: m.nomComplet,
-          sousTitre: m.departement,
-          count: m.collaborateursNonFormes.length,
-        }))
-    }
-    return getSelectedManagersList().map((m: any) => ({
-      key: `eq-${m.id}`,
-      nom: m.nomComplet,
-      count: (m.collaborateursNonFormes ?? []).length,
-    }))
+    return managerRows
+      .filter((m) => effectiveManagerIds.includes(m.id))
+      .map((m) => ({
+        key: `mgr-${m.id}`,
+        nom: m.nomComplet,
+        sousTitre: m.departement,
+        count: m.collaborateursNonFormes.length,
+      }))
   })()
 
   const reminderRoleLabel = reminderTarget === 'directeurs' ? 'directeur' : 'manager'
@@ -659,7 +851,12 @@ export default function ConformitePage() {
           ? parseInt(date.split('-')[0], 10)
           : (dateDebut ?? new Date()).getFullYear()
       const anneeExport = isNaN(annee) ? new Date().getFullYear() : annee
-      const blob = await exportsService.exportFormationsObligatoires(anneeExport, mandatoryType)
+      // Le backend accepte 'securite' sur cet export ; la signature du service
+      // reste à élargir (fichier hors périmètre de cette refonte).
+      const blob = await exportsService.exportFormationsObligatoires(
+        anneeExport,
+        mandatoryType as 'annuelle' | 'onboarding'
+      )
       exportsService.downloadBlob(blob, `formations-obligatoires_${anneeExport}_${mandatoryType}.xlsx`)
       notifications.show({
         title: 'Export généré',
@@ -683,12 +880,7 @@ export default function ConformitePage() {
   const handleSendReminders = async () => {
     // Destinataires selon la cible ouverte. Le backend renvoie un 400 si les
     // deux listes sont vides : on garde-fou côté client.
-    const managerIds =
-      reminderTarget === 'managers'
-        ? effectiveManagerIds
-        : reminderTarget === 'equipes'
-          ? getSelectedManagerIds()
-          : undefined
+    const managerIds = reminderTarget === 'managers' ? effectiveManagerIds : undefined
     const departementIds = reminderTarget === 'directeurs' ? effectiveDeptIds : undefined
 
     if ((managerIds?.length ?? 0) === 0 && (departementIds?.length ?? 0) === 0) {
@@ -716,7 +908,9 @@ export default function ConformitePage() {
         // Sans ce paramètre, les rappels étaient TOUJOURS calculés sur les
         // obligatoires annuelles : en onglet Onboarding, le contenu des emails
         // ne correspondait pas à ce qui est affiché à l'écran.
-        type: mandatoryType,
+        // Le backend accepte aussi 'securite' ; la signature du service reste
+        // à élargir (fichier hors périmètre de cette refonte).
+        type: mandatoryType as 'annuelle' | 'onboarding',
       })
 
       setShowReminderModal(false)
@@ -760,8 +954,7 @@ export default function ConformitePage() {
 
         // Envoi réussi : on vide la sélection concernée
         if (reminderTarget === 'directeurs') setSelectedDeptIds([])
-        else if (reminderTarget === 'managers') setSelectedManagers([])
-        else setSelectedDepts(new Set())
+        else setSelectedManagers([])
       } else {
         notifications.show({
           title: 'Erreur',
@@ -805,6 +998,35 @@ export default function ConformitePage() {
     return 'teal'
   }
 
+  // ===== Libellés dépendant du périmètre suivi =====
+  // Un seul endroit pour les trois modes : annuelle / onboarding / sécurité.
+
+  const estOnboarding = mandatoryType === 'onboarding'
+  const estSecurite = mandatoryType === 'securite'
+
+  // « Formations obligatoires » / « Formations onboarding » / « Formations de securite (SST) »
+  const titrePerimetre = estOnboarding
+    ? 'Formations onboarding'
+    : estSecurite
+      ? 'Formations de securite (SST)'
+      : 'Formations obligatoires'
+
+  // Même chose en minuscules, pour les phrases
+  const libellePerimetre = estOnboarding
+    ? 'formations onboarding'
+    : estSecurite
+      ? 'formations de securite au travail (SST)'
+      : 'formations obligatoires'
+
+  // Population concernée par le suivi
+  const libellePopulation = estOnboarding
+    ? 'Nouveaux arrivants de la periode'
+    : 'Tout l\'effectif actif'
+
+  // Nombre de collaborateurs sortis du dénominateur (congé longue durée).
+  // Absent des réponses d'une API antérieure : traité comme 0.
+  const collaborateursEnConge = mandatoryData?.stats?.collaborateursEnConge ?? 0
+
   // ===== Loading State =====
 
   if (mandatoryLoading && !mandatoryData) {
@@ -835,9 +1057,9 @@ export default function ConformitePage() {
           <Stack gap="md">
             <Group justify="space-between" align="flex-start">
               <Stack gap={4}>
-                <Title order={1}>Formations Obligatoires</Title>
+                <Title order={1}>Conformite des formations</Title>
                 <Text c="dimmed">
-                  Suivi des formations obligatoires
+                  Suivi des {libellePerimetre}
                 </Text>
               </Stack>
               <Group gap="sm">
@@ -864,20 +1086,23 @@ export default function ConformitePage() {
               <SegmentedControl
                 value={mandatoryType}
                 onChange={(value) => {
-                  setMandatoryType(value as 'annuelle' | 'onboarding')
-                  // Réinitialiser le scope : les formations annuelles et onboarding
-                  // sont des listes distinctes
+                  setMandatoryType(value as MandatoryType)
+                  // Réinitialiser le scope : les trois périmètres (annuelles,
+                  // onboarding, sécurité) sont des listes de formations distinctes
                   setHasInitialized(false)
                   setAvailableFormations([])
                   setSelectedFormationIds([])
+                  // Les lignes dépliées portaient sur l'ancien périmètre
+                  setExpandedDeptIds([])
                 }}
                 data={[
                   { label: 'Obligatoires annuelles (tout l\'effectif)', value: 'annuelle' },
                   { label: 'Onboarding (nouveaux arrivants)', value: 'onboarding' },
+                  { label: 'Securite au travail (SST)', value: 'securite' },
                 ]}
               />
             </Group>
-            {mandatoryType === 'onboarding' && (
+            {estOnboarding && (
               <Alert color="blue" variant="light" icon={<Info size={18} />}>
                 <Text size="sm">
                   Le suivi <strong>Onboarding</strong> est distinct des obligatoires annuelles :
@@ -891,6 +1116,24 @@ export default function ConformitePage() {
                     Pour en ajouter : Formations → ouvrir la formation → Modifier →
                     cocher « Formation obligatoire » puis Type d&apos;obligation = <strong>Onboarding</strong>.
                     La date d&apos;embauche se renseigne sur la fiche du collaborateur (Modifier).
+                  </Text>
+                )}
+              </Alert>
+            )}
+            {estSecurite && (
+              <Alert color="blue" variant="light" icon={<Info size={18} />}>
+                <Text size="sm">
+                  Le suivi <strong>Sécurité au travail (SST)</strong> est un périmètre
+                  distinct des obligatoires annuelles : il porte sur les formations
+                  marquées « Formation sécurité (SST) » (premiers secours, travail en
+                  hauteur, EPI, incendie) et concerne <strong>tout l&apos;effectif actif</strong>.
+                </Text>
+                {mandatoryData?.stats?.totalFormations === 0 && (
+                  <Text size="sm" mt="xs">
+                    <strong>Aucune formation n&apos;est marquée « Sécurité (SST) » pour l&apos;instant.</strong>{' '}
+                    Pour en ajouter : Formations → ouvrir la formation → Modifier →
+                    activer <strong>« Formation sécurité (SST) »</strong>. Ce réglage est
+                    indépendant de « Formation obligatoire ».
                   </Text>
                 )}
               </Alert>
@@ -911,7 +1154,7 @@ export default function ConformitePage() {
                   <ShieldCheck size={18} weight="bold" />
                 </ThemeIcon>
                 <Title order={4}>
-                  Formations obligatoires ({selectedFormationIds.length}/{availableFormations.length} selectionnees)
+                  {titrePerimetre} ({selectedFormationIds.length}/{availableFormations.length} selectionnees)
                 </Title>
               </Group>
 
@@ -1026,7 +1269,8 @@ export default function ConformitePage() {
 
               {selectedFormationIds.length === 0 && availableFormations.length === 0 && (
                 <Alert color="orange" icon={<Warning size={16} />}>
-                  Aucune formation obligatoire trouvee - Utilisez "Ajouter une formation" pour en ajouter
+                  Aucune formation dans le perimetre « {titrePerimetre} » - Utilisez
+                  "Ajouter une formation" pour en ajouter
                 </Alert>
               )}
             </Stack>
@@ -1042,9 +1286,15 @@ export default function ConformitePage() {
           >
             <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
               <KPICard
-                title={mandatoryType === 'onboarding' ? 'Formations onboarding' : 'Formations obligatoires'}
+                title={titrePerimetre}
                 value={mandatoryData.stats.totalFormations}
-                subtitle={mandatoryType === 'onboarding' ? 'Parcours nouveaux arrivants' : 'A suivre par tous'}
+                subtitle={
+                  estOnboarding
+                    ? 'Parcours nouveaux arrivants'
+                    : estSecurite
+                      ? 'Securite au travail, a suivre par tous'
+                      : 'A suivre par tous'
+                }
                 icon={<ShieldCheck size={22} weight="bold" />}
                 color="violet"
                 delay={0.1}
@@ -1053,7 +1303,21 @@ export default function ConformitePage() {
                 title="Taux de conformite"
                 value={mandatoryData.stats.tauxConformiteGlobal}
                 suffix="%"
-                subtitle={mandatoryType === 'onboarding' ? 'Nouveaux arrivants de la periode' : 'Toutes formations'}
+                subtitle={`${libellePopulation} ayant complete TOUTES les formations du perimetre`}
+                footer={
+                  collaborateursEnConge > 0 ? (
+                    <Tooltip
+                      multiline
+                      w={280}
+                      label="Les collaborateurs en conge longue duree ne peuvent pas suivre les formations sur la periode : ils sont exclus du perimetre suivi, donc du denominateur de ce taux, et ne sont pas relances."
+                    >
+                      <Text size="xs" c="dimmed" style={{ cursor: 'help' }}>
+                        <Info size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
+                        {collaborateursEnConge} collaborateur(s) en conge longue duree exclu(s)
+                      </Text>
+                    </Tooltip>
+                  ) : undefined
+                }
                 icon={<CheckCircle size={22} weight="bold" />}
                 color={
                   mandatoryData.stats.tauxConformiteGlobal === null
@@ -1067,15 +1331,15 @@ export default function ConformitePage() {
                 delay={0.15}
               />
               <KPICard
-                title={mandatoryType === 'onboarding' ? 'Arrivants conformes' : 'Collaborateurs conformes'}
+                title={estOnboarding ? 'Arrivants conformes' : 'Collaborateurs conformes'}
                 value={mandatoryData.stats.totalFormes}
-                subtitle={`sur ${mandatoryData.stats.totalCollaborateursAFormer}${mandatoryType === 'onboarding' ? ' arrivants' : ''}`}
+                subtitle={`sur ${mandatoryData.stats.totalCollaborateursAFormer}${estOnboarding ? ' arrivants' : ''}`}
                 icon={<Users size={22} weight="bold" />}
                 color="green"
                 delay={0.2}
               />
               <KPICard
-                title={mandatoryType === 'onboarding' ? 'Arrivants non conformes' : 'Collaborateurs non conformes'}
+                title={estOnboarding ? 'Arrivants non conformes' : 'Collaborateurs non conformes'}
                 value={mandatoryData.stats.totalNonFormes}
                 subtitle="A former"
                 icon={<WarningCircle size={22} weight="bold" />}
@@ -1097,7 +1361,11 @@ export default function ConformitePage() {
               <Stack gap="md">
                 <Stack gap={4}>
                   <Title order={3}>Detail par formation</Title>
-                  <Text size="sm" c="dimmed">Taux de conformite pour chaque formation obligatoire</Text>
+                  <Text size="sm" c="dimmed">
+                    Part de la population suivie ayant complete <strong>chaque</strong> formation
+                    prise separement. A ne pas confondre avec le taux de conformite, qui exige
+                    d&apos;avoir complete TOUTES les formations du perimetre.
+                  </Text>
                 </Stack>
 
                 <Table striped withTableBorder highlightOnHover>
@@ -1107,7 +1375,17 @@ export default function ConformitePage() {
                       <Table.Th>Categorie</Table.Th>
                       <Table.Th>Formes</Table.Th>
                       <Table.Th>Non formes</Table.Th>
-                      <Table.Th>Taux</Table.Th>
+                      <Table.Th>
+                        <Tooltip
+                          label="Part de la population suivie ayant complete CETTE formation"
+                          multiline
+                          w={240}
+                        >
+                          <Text size="sm" fw={700} style={{ cursor: 'help' }}>
+                            Taux par formation
+                          </Text>
+                        </Tooltip>
+                      </Table.Th>
                       <Table.Th>Actions</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
@@ -1142,10 +1420,7 @@ export default function ConformitePage() {
                             variant="light"
                             size="xs"
                             leftSection={<Eye size={14} weight="bold" />}
-                            onClick={() => {
-                              setSelectedFormation(formation)
-                              setModalTab('nonFormes')
-                            }}
+                            onClick={() => openFormationDetail(formation)}
                           >
                             Details
                           </Button>
@@ -1175,7 +1450,8 @@ export default function ConformitePage() {
                   <Stack gap={2}>
                     <Title order={3}>Vue par organisation</Title>
                     <Text size="sm" c="dimmed">
-                      Relancez le directeur d&apos;un departement ou le manager d&apos;une equipe
+                      Relancez le directeur d&apos;un departement ou le manager d&apos;une equipe.
+                      Depliez une ligne pour voir le detail formation par formation.
                     </Text>
                   </Stack>
                 </Group>
@@ -1245,12 +1521,23 @@ export default function ConformitePage() {
                               <Table.Thead>
                                 <Table.Tr>
                                   <Table.Th style={{ width: 40 }}></Table.Th>
+                                  <Table.Th style={{ width: 40 }}></Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Departement</Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Directeur</Table.Th>
                                   <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
                                   <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
                                   <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
-                                  <Table.Th style={{ minWidth: 160 }}>Taux de conformite</Table.Th>
+                                  <Table.Th style={{ minWidth: 160 }}>
+                                    <Tooltip
+                                      label="Part des collaborateurs du departement ayant complete TOUTES les formations du perimetre"
+                                      multiline
+                                      w={260}
+                                    >
+                                      <Text size="sm" fw={700} style={{ cursor: 'help' }}>
+                                        Taux de conformite
+                                      </Text>
+                                    </Tooltip>
+                                  </Table.Th>
                                   <Table.Th style={{ minWidth: 170 }}>Actions</Table.Th>
                                 </Table.Tr>
                               </Table.Thead>
@@ -1264,8 +1551,10 @@ export default function ConformitePage() {
                                         ? 'Aucun directeur identifie pour ce departement'
                                         : "Le directeur n'a pas d'adresse email renseignee"
                                   const couleurTaux = getCoverageColor(row.tauxConformite)
+                                  const deplie = expandedDeptIds.includes(row.departementId)
                                   return (
-                                    <Table.Tr key={row.departementId || `dept-${row.departement}`}>
+                                    <Fragment key={row.departementId || `dept-${row.departement}`}>
+                                    <Table.Tr>
                                       <Table.Td>
                                         {relancable ? (
                                           <Checkbox
@@ -1280,6 +1569,29 @@ export default function ConformitePage() {
                                             </Box>
                                           </Tooltip>
                                         )}
+                                      </Table.Td>
+                                      <Table.Td>
+                                        <Tooltip
+                                          label={
+                                            deplie
+                                              ? 'Masquer le detail par formation'
+                                              : 'Voir le detail par formation'
+                                          }
+                                        >
+                                          <ActionIcon
+                                            variant="subtle"
+                                            color="gray"
+                                            size="sm"
+                                            aria-label={
+                                              deplie
+                                                ? `Masquer le detail de ${row.departement}`
+                                                : `Voir le detail de ${row.departement}`
+                                            }
+                                            onClick={() => toggleExpandedDept(row.departementId)}
+                                          >
+                                            {deplie ? <CaretDown size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />}
+                                          </ActionIcon>
+                                        </Tooltip>
                                       </Table.Td>
                                       <Table.Td>
                                         <Text size="sm" fw={600}>{row.departement}</Text>
@@ -1352,6 +1664,141 @@ export default function ConformitePage() {
                                         </Tooltip>
                                       </Table.Td>
                                     </Table.Tr>
+
+                                    {/* Detail par formation du departement : remplace
+                                        l'ancienne « Matrice de conformite », rattache a
+                                        la ligne sur laquelle la RH travaille deja. */}
+                                    {deplie && (
+                                      <Table.Tr>
+                                        <Table.Td colSpan={9} style={{ padding: 0 }}>
+                                          <Box p="md" bg="var(--mantine-color-gray-light)">
+                                            {(() => {
+                                              const detail = detailParFormationDuDepartement(row.departement)
+                                              if (detail.length === 0) {
+                                                return (
+                                                  <Text size="sm" c="dimmed" ta="center" py="sm">
+                                                    Aucune formation dans le perimetre selectionne.
+                                                  </Text>
+                                                )
+                                              }
+                                              // Chaque formation couvre TOUTE la population
+                                              // cible (formes + non formes) : l'effectif
+                                              // rattache doit donc etre identique d'une ligne
+                                              // a l'autre et egal au total du departement.
+                                              // Un ecart signale un rattachement incomplet
+                                              // (hierarchie des departements non chargee).
+                                              const effectifRattache = detail[0].total
+                                              return (
+                                                <Stack gap="xs">
+                                                  <Text size="xs" c="dimmed">
+                                                    Detail de <strong>{row.departement}</strong> formation par
+                                                    formation. Le taux ci-dessous est un{' '}
+                                                    <strong>taux par formation</strong> (a suivi CETTE formation) :
+                                                    il differe du taux de conformite de la ligne, qui exige
+                                                    TOUTES les formations du perimetre.
+                                                  </Text>
+                                                  {effectifRattache !== row.totalCollaborateurs && (
+                                                    <Alert
+                                                      color="orange"
+                                                      variant="light"
+                                                      icon={<Warning size={16} weight="bold" />}
+                                                    >
+                                                      <Text size="xs">
+                                                        Rattachement partiel : {effectifRattache} collaborateur(s)
+                                                        identifie(s) ici sur {row.totalCollaborateurs} comptes dans
+                                                        la ligne. Le detail ci-dessous peut etre incomplet
+                                                        (hierarchie des departements non chargee) ; les compteurs
+                                                        de la ligne restent la reference.
+                                                      </Text>
+                                                    </Alert>
+                                                  )}
+                                                  <Table withTableBorder highlightOnHover>
+                                                    <Table.Thead>
+                                                      <Table.Tr>
+                                                        <Table.Th style={{ minWidth: 200 }}>Formation</Table.Th>
+                                                        <Table.Th style={{ textAlign: 'center' }}>Formes</Table.Th>
+                                                        <Table.Th style={{ textAlign: 'center' }}>A former</Table.Th>
+                                                        <Table.Th style={{ minWidth: 150 }}>
+                                                          Taux par formation
+                                                        </Table.Th>
+                                                        <Table.Th style={{ minWidth: 170 }}>Actions</Table.Th>
+                                                      </Table.Tr>
+                                                    </Table.Thead>
+                                                    <Table.Tbody>
+                                                      {detail.map((ligne) => {
+                                                        const couleurLigne = getCoverageColor(ligne.taux)
+                                                        return (
+                                                          <Table.Tr key={ligne.formation.id}>
+                                                            <Table.Td>
+                                                              <Stack gap={2}>
+                                                                <Text size="sm" fw={500}>
+                                                                  {ligne.formation.nomFormation}
+                                                                </Text>
+                                                                <Text size="xs" c="dimmed">
+                                                                  {ligne.formation.codeFormation}
+                                                                </Text>
+                                                              </Stack>
+                                                            </Table.Td>
+                                                            <Table.Td style={{ textAlign: 'center' }}>
+                                                              <Text size="sm" c="green" fw={600}>
+                                                                {ligne.formes}
+                                                              </Text>
+                                                            </Table.Td>
+                                                            <Table.Td style={{ textAlign: 'center' }}>
+                                                              <Text size="sm" c="red" fw={600}>
+                                                                {ligne.nonFormes}
+                                                              </Text>
+                                                            </Table.Td>
+                                                            <Table.Td>
+                                                              {ligne.total === 0 ? (
+                                                                <Text size="xs" c="dimmed">
+                                                                  Aucun collaborateur
+                                                                </Text>
+                                                              ) : (
+                                                                <Group gap="xs" wrap="nowrap">
+                                                                  <Progress
+                                                                    value={ligne.taux}
+                                                                    color={couleurLigne}
+                                                                    size="sm"
+                                                                    radius="md"
+                                                                    style={{ flex: 1, minWidth: 60 }}
+                                                                  />
+                                                                  <Text
+                                                                    size="sm"
+                                                                    fw={700}
+                                                                    c={couleurLigne === 'yellow' ? 'yellow.7' : couleurLigne}
+                                                                  >
+                                                                    {ligne.taux}%
+                                                                  </Text>
+                                                                </Group>
+                                                              )}
+                                                            </Table.Td>
+                                                            <Table.Td>
+                                                              <Button
+                                                                variant="subtle"
+                                                                size="xs"
+                                                                leftSection={<Eye size={14} weight="bold" />}
+                                                                disabled={ligne.total === 0}
+                                                                onClick={() =>
+                                                                  openFormationDetail(ligne.formation, row.departement)
+                                                                }
+                                                              >
+                                                                Voir les non formes
+                                                              </Button>
+                                                            </Table.Td>
+                                                          </Table.Tr>
+                                                        )
+                                                      })}
+                                                    </Table.Tbody>
+                                                  </Table>
+                                                </Stack>
+                                              )
+                                            })()}
+                                          </Box>
+                                        </Table.Td>
+                                      </Table.Tr>
+                                    )}
+                                    </Fragment>
                                   )
                                 })}
                               </Table.Tbody>
@@ -1608,262 +2055,6 @@ export default function ConformitePage() {
           )}
         </Modal>
 
-        {/* ===== SECTION 5: MATRICE DEPARTEMENT × FORMATION ===== */}
-        {mandatoryData && mandatoryData.formations.length > 0 && (() => {
-          // Construire la matrice départements × formations
-          const deptSet = new Set<string>();
-          mandatoryData.formations.forEach((f: any) => {
-            f.formes.forEach((c: any) => { if (c.departement) deptSet.add(c.departement); });
-            f.nonFormes.forEach((c: any) => { if (c.departement) deptSet.add(c.departement); });
-          });
-          const departments = Array.from(deptSet).sort();
-
-          // Calculer les données par cellule
-          const getCellData = (dept: string, formation: any) => {
-            const formes = formation.formes.filter((c: any) => c.departement === dept);
-            const nonFormes = formation.nonFormes.filter((c: any) => c.departement === dept);
-            const total = formes.length + nonFormes.length;
-            const taux = total > 0 ? Math.round((formes.length / total) * 100) : 0;
-            return { formes: formes.length, nonFormes: nonFormes.length, nonFormesDetails: nonFormes, formesDetails: formes, total, taux };
-          };
-
-          // Calculer le total par département
-          const getDeptTotal = (dept: string) => {
-            let totalFormes = 0, totalAll = 0;
-            mandatoryData.formations.forEach((f: any) => {
-              const cell = getCellData(dept, f);
-              totalFormes += cell.formes;
-              totalAll += cell.total;
-            });
-            return totalAll > 0 ? Math.round((totalFormes / totalAll) * 100) : 0;
-          };
-
-          // Trier les départements par taux de conformité (les moins conformes en premier)
-          const sortedDepts = [...departments].sort((a, b) => getDeptTotal(a) - getDeptTotal(b));
-
-          return (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <Card withBorder radius="md" padding="lg">
-                <Stack gap="md">
-                  <Group justify="space-between" align="flex-start">
-                    <Group gap="xs">
-                      <ThemeIcon variant="light" color="blue" size="md" radius="md">
-                        <Buildings size={18} weight="bold" />
-                      </ThemeIcon>
-                      <Stack gap={2}>
-                        <Title order={3}>Matrice de conformite</Title>
-                        <Text size="sm" c="dimmed">
-                          Cliquez sur une cellule pour voir le detail des collaborateurs
-                        </Text>
-                      </Stack>
-                    </Group>
-                    <Button
-                      leftSection={<EnvelopeSimple size={18} weight="bold" />}
-                      disabled={selectedDepts.size === 0}
-                      onClick={() => openReminderModal('equipes')}
-                      variant="filled"
-                      size="sm"
-                    >
-                      Envoyer rappels ({selectedDepts.size} equipe{selectedDepts.size > 1 ? 's' : ''})
-                    </Button>
-                  </Group>
-
-                  <Table.ScrollContainer minWidth={500}>
-                    <Table striped highlightOnHover withTableBorder withColumnBorders>
-                      <Table.Thead>
-                        <Table.Tr>
-                          <Table.Th style={{ width: 40 }}></Table.Th>
-                          <Table.Th style={{ minWidth: 180 }}>Departement</Table.Th>
-                          {mandatoryData.formations.map((f: any) => (
-                            <Table.Th key={f.id} style={{ textAlign: 'center', minWidth: 120 }}>
-                              <Tooltip label={f.nomFormation} multiline w={250}>
-                                <Text size="xs" fw={600} lineClamp={2} ta="center">
-                                  {f.nomFormation.length > 30 ? f.nomFormation.substring(0, 28) + '...' : f.nomFormation}
-                                </Text>
-                              </Tooltip>
-                            </Table.Th>
-                          ))}
-                          <Table.Th style={{ textAlign: 'center', minWidth: 80 }}>Total</Table.Th>
-                        </Table.Tr>
-                      </Table.Thead>
-                      <Table.Tbody>
-                        {sortedDepts.map((dept) => {
-                          const deptTaux = getDeptTotal(dept);
-                          return (
-                            <Table.Tr key={dept}>
-                              <Table.Td>
-                                {hasDeptManagers(dept) ? (
-                                  <Tooltip label={isDeptSelected(dept) ? 'Desélectionner' : 'Sélectionner pour rappel'}>
-                                    <Checkbox
-                                      size="xs"
-                                      checked={isDeptSelected(dept)}
-                                      onChange={() => toggleDept(dept)}
-                                    />
-                                  </Tooltip>
-                                ) : (
-                                  <Tooltip label="Aucun manager identifié">
-                                    <Text size="xs" c="dimmed">-</Text>
-                                  </Tooltip>
-                                )}
-                              </Table.Td>
-                              <Table.Td>
-                                <Text size="sm" fw={500}>{dept}</Text>
-                              </Table.Td>
-                              {mandatoryData.formations.map((f: any) => {
-                                const cell = getCellData(dept, f);
-                                if (cell.total === 0) {
-                                  return (
-                                    <Table.Td key={f.id} style={{ textAlign: 'center' }}>
-                                      <Text size="xs" c="dimmed">-</Text>
-                                    </Table.Td>
-                                  );
-                                }
-                                return (
-                                  <Table.Td
-                                    key={f.id}
-                                    style={{ textAlign: 'center', cursor: 'pointer' }}
-                                    onClick={() => setMatrixDetail({ dept, formation: f })}
-                                  >
-                                    <Stack gap={4} align="center">
-                                      <Badge
-                                        size="sm"
-                                        variant="light"
-                                        color={cell.taux >= 100 ? 'green' : cell.taux >= 50 ? 'yellow' : 'red'}
-                                      >
-                                        {cell.formes}/{cell.total}
-                                      </Badge>
-                                      <Progress
-                                        value={cell.taux}
-                                        color={cell.taux >= 100 ? 'green' : cell.taux >= 50 ? 'yellow' : 'red'}
-                                        size="xs"
-                                        radius="md"
-                                        w="100%"
-                                      />
-                                    </Stack>
-                                  </Table.Td>
-                                );
-                              })}
-                              <Table.Td style={{ textAlign: 'center' }}>
-                                <Text size="sm" fw={700} c={deptTaux >= 100 ? 'green' : deptTaux >= 50 ? 'yellow.7' : 'red'}>
-                                  {deptTaux}%
-                                </Text>
-                              </Table.Td>
-                            </Table.Tr>
-                          );
-                        })}
-                      </Table.Tbody>
-                    </Table>
-                  </Table.ScrollContainer>
-
-                  {/* Info sélection */}
-                  {byManagerData && byManagerData.departements.length > 0 && (
-                    <Group justify="space-between" mt="xs">
-                      <Group gap="sm">
-                        <Checkbox
-                          label="Tout selectionner"
-                          checked={!!(selectedDepts.size === byManagerData.departements.length && selectedDepts.size > 0)}
-                          indeterminate={!!(selectedDepts.size > 0 && selectedDepts.size < byManagerData.departements.length)}
-                          onChange={toggleSelectAllManagers}
-                          size="xs"
-                        />
-                        {selectedDepts.size > 0 && (
-                          <Badge variant="light" color="blue" size="sm">
-                            {selectedDepts.size} equipe{selectedDepts.size > 1 ? 's' : ''} — {getSelectedManagerIds().length} manager{getSelectedManagerIds().length > 1 ? 's' : ''}
-                          </Badge>
-                        )}
-                      </Group>
-                    </Group>
-                  )}
-                </Stack>
-              </Card>
-            </motion.div>
-          );
-        })()}
-
-        {/* ===== MATRIX DETAIL MODAL ===== */}
-        <Modal
-          opened={!!matrixDetail}
-          onClose={() => setMatrixDetail(null)}
-          title={
-            matrixDetail && (
-              <Stack gap={2}>
-                <Title order={4}>{matrixDetail.dept}</Title>
-                <Text size="xs" c="dimmed">{matrixDetail.formation.nomFormation}</Text>
-              </Stack>
-            )
-          }
-          size="lg"
-          centered
-        >
-          {matrixDetail && (() => {
-            const formes = matrixDetail.formation.formes.filter((c: any) => c.departement === matrixDetail.dept);
-            const nonFormes = matrixDetail.formation.nonFormes.filter((c: any) => c.departement === matrixDetail.dept);
-            return (
-              <Tabs defaultValue="nonFormes">
-                <Tabs.List>
-                  <Tabs.Tab value="nonFormes" leftSection={<WarningCircle size={16} weight="bold" />}>
-                    Non formes ({nonFormes.length})
-                  </Tabs.Tab>
-                  <Tabs.Tab value="formes" leftSection={<CheckCircle size={16} weight="bold" />}>
-                    Formes ({formes.length})
-                  </Tabs.Tab>
-                </Tabs.List>
-
-                <Tabs.Panel value="nonFormes" pt="md">
-                  {nonFormes.length === 0 ? (
-                    <Center py="xl">
-                      <Stack align="center" gap="sm">
-                        <ThemeIcon variant="light" color="green" size={56} radius="xl">
-                          <CheckCircle size={32} weight="duotone" />
-                        </ThemeIcon>
-                        <Text fw={600}>Tous formes !</Text>
-                      </Stack>
-                    </Center>
-                  ) : (
-                    <Stack gap="xs" style={{ maxHeight: 400, overflowY: 'auto' }}>
-                      {nonFormes.map((collab: any) => (
-                        <Paper key={collab.id} withBorder p="sm" radius="md">
-                          <Text size="sm" fw={500}>{collab.nomComplet}</Text>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  )}
-                </Tabs.Panel>
-
-                <Tabs.Panel value="formes" pt="md">
-                  {formes.length === 0 ? (
-                    <Center py="xl">
-                      <Stack align="center" gap="sm">
-                        <ThemeIcon variant="light" color="red" size={56} radius="xl">
-                          <WarningCircle size={32} weight="duotone" />
-                        </ThemeIcon>
-                        <Text fw={600}>Aucun collaborateur forme</Text>
-                      </Stack>
-                    </Center>
-                  ) : (
-                    <Stack gap="xs" style={{ maxHeight: 400, overflowY: 'auto' }}>
-                      {formes.map((collab: any) => (
-                        <Paper key={collab.id} withBorder p="sm" radius="md">
-                          <Group justify="space-between">
-                            <Text size="sm" fw={500}>{collab.nomComplet}</Text>
-                            <Badge variant="light" color="green" size="sm">
-                              {new Date(collab.dateFormation).toLocaleDateString('fr-FR')}
-                            </Badge>
-                          </Group>
-                        </Paper>
-                      ))}
-                    </Stack>
-                  )}
-                </Tabs.Panel>
-              </Tabs>
-            );
-          })()}
-        </Modal>
-
         {/* ===== REMINDER MODAL ===== */}
         <Modal
           opened={showReminderModal}
@@ -1886,7 +2077,6 @@ export default function ConformitePage() {
 
             <Text fw={500}>
               Vous allez envoyer un rappel a {reminderRecipients.length} {reminderRoleLabel}(s)
-              {reminderTarget === 'equipes' && ` — ${selectedDepts.size} equipe(s) selectionnee(s)`}
             </Text>
 
             {/* Message preview */}
@@ -1897,7 +2087,7 @@ export default function ConformitePage() {
                 <Text size="sm" style={{ lineHeight: 1.6 }}>
                   Bonjour [Nom du directeur],<br /><br />
                   Certains collaborateurs de votre departement n'ont pas encore complete
-                  les formations obligatoires suivantes :<br />
+                  les {libellePerimetre} suivantes :<br />
                   - [Liste des formations par collaborateur]<br /><br />
                   Merci de vous assurer, avec les managers concernes, qu'ils completent
                   ces formations dans les meilleurs delais.<br /><br />
@@ -1908,7 +2098,7 @@ export default function ConformitePage() {
                 <Text size="sm" style={{ lineHeight: 1.6 }}>
                   Bonjour [Nom du manager],<br /><br />
                   Certains membres de votre equipe n'ont pas encore complete
-                  les formations obligatoires suivantes :<br />
+                  les {libellePerimetre} suivantes :<br />
                   - [Liste des formations par collaborateur]<br /><br />
                   Merci de vous assurer qu'ils completent ces formations
                   dans les meilleurs delais.<br /><br />
@@ -1971,10 +2161,13 @@ export default function ConformitePage() {
           </Stack>
         </Modal>
 
-        {/* ===== FORMATION DETAIL MODAL ===== */}
+        {/* ===== FORMATION DETAIL MODAL =====
+            Modale nominative UNIQUE de la page : elle sert au tableau « Detail
+            par formation » (toute la population) comme au depliage d'un
+            departement (`selectedFormationDept` renseigne). */}
         <Modal
           opened={!!selectedFormation}
-          onClose={() => setSelectedFormation(null)}
+          onClose={closeFormationDetail}
           title={
             selectedFormation && (
               <Stack gap={2}>
@@ -1982,6 +2175,11 @@ export default function ConformitePage() {
                 <Text size="xs" c="dimmed">
                   {selectedFormation.codeFormation} - {selectedFormation.categorie}
                 </Text>
+                {selectedFormationDept && (
+                  <Badge variant="light" color="grape" size="sm">
+                    {selectedFormationDept}
+                  </Badge>
+                )}
               </Stack>
             )
           }
@@ -1995,30 +2193,33 @@ export default function ConformitePage() {
                   value="nonFormes"
                   leftSection={<WarningCircle size={16} weight="bold" />}
                 >
-                  Non formes ({selectedFormation.collaborateursNonFormes})
+                  Non formes ({formationModalNonFormes.length})
                 </Tabs.Tab>
                 <Tabs.Tab
                   value="formes"
                   leftSection={<CheckCircle size={16} weight="bold" />}
                 >
-                  Formes ({selectedFormation.collaborateursFormes})
+                  Formes ({formationModalFormes.length})
                 </Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="nonFormes" pt="md">
-                {selectedFormation.nonFormes.length === 0 ? (
+                {formationModalNonFormes.length === 0 ? (
                   <Center py="xl">
                     <Stack align="center" gap="sm">
                       <ThemeIcon variant="light" color="green" size={56} radius="xl">
                         <CheckCircle size={32} weight="duotone" />
                       </ThemeIcon>
                       <Text size="lg" fw={600}>Tous les collaborateurs sont formes !</Text>
-                      <Text size="sm" c="dimmed">Aucun collaborateur n'est en attente de cette formation.</Text>
+                      <Text size="sm" c="dimmed">
+                        Aucun collaborateur {selectedFormationDept ? 'de ce departement ' : ''}
+                        n'est en attente de cette formation.
+                      </Text>
                     </Stack>
                   </Center>
                 ) : (
-                  <Stack gap="xs">
-                    {selectedFormation.nonFormes.map((collab) => (
+                  <Stack gap="xs" style={{ maxHeight: 420, overflowY: 'auto' }}>
+                    {formationModalNonFormes.map((collab) => (
                       <Paper key={collab.id} withBorder p="sm" radius="md">
                         <Group justify="space-between">
                           <Text size="sm" fw={500}>{collab.nomComplet}</Text>
@@ -2031,19 +2232,22 @@ export default function ConformitePage() {
               </Tabs.Panel>
 
               <Tabs.Panel value="formes" pt="md">
-                {selectedFormation.formes.length === 0 ? (
+                {formationModalFormes.length === 0 ? (
                   <Center py="xl">
                     <Stack align="center" gap="sm">
                       <ThemeIcon variant="light" color="red" size={56} radius="xl">
                         <WarningCircle size={32} weight="duotone" />
                       </ThemeIcon>
                       <Text size="lg" fw={600}>Aucun collaborateur forme</Text>
-                      <Text size="sm" c="dimmed">Personne n'a encore suivi cette formation sur la periode.</Text>
+                      <Text size="sm" c="dimmed">
+                        Personne {selectedFormationDept ? 'de ce departement ' : ''}
+                        n'a encore suivi cette formation sur la periode.
+                      </Text>
                     </Stack>
                   </Center>
                 ) : (
-                  <Stack gap="xs">
-                    {selectedFormation.formes.map((collab) => (
+                  <Stack gap="xs" style={{ maxHeight: 420, overflowY: 'auto' }}>
+                    {formationModalFormes.map((collab) => (
                       <Paper key={collab.id} withBorder p="sm" radius="md">
                         <Group justify="space-between">
                           <Stack gap={2}>

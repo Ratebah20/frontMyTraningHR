@@ -19,6 +19,7 @@ import {
   Divider,
   Text,
   SegmentedControl,
+  Tooltip,
 } from '@mantine/core';
 import { DateInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -61,6 +62,9 @@ export default function CollaborateurNewPage() {
       managerId: '',
       contratId: '',
       actif: true,
+      // Congé longue durée : le collaborateur reste dans l'effectif mais sort
+      // du suivi des formations obligatoires (champ séparé de `actif`)
+      enCongeLongueDuree: false,
       // Mantine 8 : DateInput emet une chaine 'YYYY-MM-DD', plus un objet Date
       dateEmbauche: null as Date | string | null,
     },
@@ -191,6 +195,8 @@ export default function CollaborateurNewPage() {
         managerId: values.managerId ? parseInt(values.managerId) : undefined,
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         actif: values.actif,
+        // Un collaborateur inactif ne peut pas être en congé longue durée
+        enCongeLongueDuree: values.actif ? values.enCongeLongueDuree : false,
         dateEmbauche: formatDateOnly(values.dateEmbauche),
       };
 
@@ -454,13 +460,42 @@ export default function CollaborateurNewPage() {
                 <IdentificationCard size={20} />
                 <Text fw={600}>Statut</Text>
               </Group>
-              <Switch
-                label={form.values.actif ? 'Collaborateur actif' : 'Collaborateur inactif'}
-                checked={form.values.actif}
-                {...form.getInputProps('actif')}
-                size="md"
-                description="Les nouveaux collaborateurs sont généralement créés comme actifs"
-              />
+              <Stack gap="md">
+                <Switch
+                  label={form.values.actif ? 'Collaborateur actif' : 'Collaborateur inactif'}
+                  checked={form.values.actif}
+                  {...form.getInputProps('actif')}
+                  onChange={(event) => {
+                    const actif = event.currentTarget.checked;
+                    form.setFieldValue('actif', actif);
+                    // Le backend remet enCongeLongueDuree à false quand actif passe à false
+                    if (!actif) {
+                      form.setFieldValue('enCongeLongueDuree', false);
+                    }
+                  }}
+                  size="md"
+                  description="Les nouveaux collaborateurs sont généralement créés comme actifs"
+                />
+
+                <Tooltip
+                  label="Indisponible : un collaborateur inactif ne peut pas être en congé longue durée."
+                  multiline
+                  w={260}
+                  withArrow
+                  disabled={form.values.actif}
+                >
+                  <div style={{ display: 'inline-block' }}>
+                    <Switch
+                      label="En congé longue durée"
+                      checked={form.values.enCongeLongueDuree}
+                      {...form.getInputProps('enCongeLongueDuree')}
+                      size="md"
+                      disabled={!form.values.actif}
+                      description="Congé parental, maternité, maladie longue… Le collaborateur reste dans l'effectif mais sort du suivi des formations obligatoires."
+                    />
+                  </div>
+                </Tooltip>
+              </Stack>
             </div>
 
             {/* Boutons d'action */}

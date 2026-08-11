@@ -56,6 +56,14 @@ const formatShortDate = (value?: string | null) => {
   return parsed.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
+// Pourcentage à une décimale, notation française. `null`/`undefined` (population
+// cible vide côté backend) => aucune valeur : l'appelant doit afficher « n/a »
+// et surtout jamais 0 % ni 100 %, qui seraient tous deux mensongers.
+const formatPercent = (value?: number | null) => {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+  return `${Number(value).toFixed(1).replace('.', ',')} %`;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -172,6 +180,32 @@ export default function DashboardPage() {
     };
   }, [charts?.evolutionMensuelle]);
 
+  // ----- Carte « Conformité obligatoires » -----
+  // `tauxObligatoires` vaut désormais `null` quand il n'y a aucune population
+  // cible (ou aucune formation obligatoire). Auparavant le backend renvoyait
+  // 100 dans ce cas : la carte affichait un score parfait alors que rien
+  // n'était mesuré. On affiche « n/a » + couleur neutre, jamais 0 % ni 100 %.
+  const tauxObligatoires: number | null = summary?.tauxObligatoires ?? null;
+  const aDesFormationsObligatoires = (summary?.nombreFormationsObligatoires ?? 0) > 0;
+  const enCongeObligatoires = summary?.collaborateursEnCongeObligatoires ?? 0;
+  const enCongeSuffixe =
+    enCongeObligatoires > 0 ? ` · ${enCongeObligatoires} en congé longue durée exclu(s)` : '';
+
+  const conformiteCardValue = formatPercent(tauxObligatoires) ?? 'n/a';
+  // Ordre des tests important : `null < 100` vaut `true` en JS, un test de
+  // comparaison placé en premier repeindrait la carte en orange à tort.
+  const conformiteCardColor =
+    tauxObligatoires === null || !aDesFormationsObligatoires
+      ? 'gray'
+      : tauxObligatoires < 100
+        ? 'orange'
+        : 'green';
+  const conformiteCardSubtitle = !aDesFormationsObligatoires
+    ? 'Aucune formation obligatoire'
+    : tauxObligatoires === null
+      ? `Taux non calculable : aucun collaborateur ciblé${enCongeSuffixe}`
+      : `${summary?.collaborateursConformesObligatoires ?? 0}/${summary?.collaborateursCiblesObligatoires ?? 0} collaborateurs à jour (report multi-année)${enCongeSuffixe}`;
+
   // Définition des 8 KPIs optimisés
   const kpiCards = summary ? [
     // Ligne 1 : Vue d'ensemble (2 KPIs)
@@ -218,14 +252,10 @@ export default function DashboardPage() {
     // Ligne 3 : Performance & Qualité (1 KPI)
     {
       title: "Conformité obligatoires",
-      value: `${summary.tauxObligatoires ?? 0}%`,
-      subtitle: summary.nombreFormationsObligatoires > 0
-        ? `${summary.collaborateursConformesObligatoires || 0}/${summary.collaborateursCiblesObligatoires || 0} collaborateurs à jour (report multi-année)`
-        : "Aucune formation obligatoire",
+      value: conformiteCardValue,
+      subtitle: conformiteCardSubtitle,
       icon: WarningCircle,
-      color: summary.nombreFormationsObligatoires > 0
-        ? (summary.tauxObligatoires < 100 ? "orange" : "green")
-        : "gray",
+      color: conformiteCardColor,
       link: "/kpi/conformite",
     },
 
@@ -291,6 +321,77 @@ export default function DashboardPage() {
       ? `Points d'attention — ${periodeDebutLabel} au ${periodeFinLabel}`
       : "Points d'attention";
   const horsPeriodeCourante = alerts?.periode?.contientAujourdhui === false;
+
+  // Texte de période réutilisé dans les sous-titres, pour que chaque alerte
+  // annonce noir sur blanc le périmètre exact de son compteur.
+  const periodeTexte =
+    periodeDebutLabel && periodeFinLabel
+      ? `du ${periodeDebutLabel} au ${periodeFinLabel}`
+      : 'sur la période sélectionnée';
+
+  // ----- Liens des alertes -----
+  // Les bornes viennent de la réponse `/stats/dashboard-alerts` (et NON de
+  // l'état local du sélecteur) : c'est la seule garantie que le lien porte
+  // exactement la période sur laquelle le badge a été calculé. Sans cela, la
+  // RH voyait « 12 » et atterrissait sur une liste de 300, d'où le signalement
+  // « filtre non fonctionnel ».
+  const toDayParam = (value?: string | null) => (value ? String(value).slice(0, 10) : null);
+  const periodeDebutParam = toDayParam(alerts?.periode?.dateDebut);
+  const periodeFinParam = toDayParam(alerts?.periode?.dateFin);
+
+  const buildLink = (path: string, params: Record<string, string | null>) => {
+    const search = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) search.set(key, value);
+    });
+    const query = search.toString();
+    return query ? `${path}?${query}` : path;
+  };
+
+  // Le backend /collaborateurs accepte sansFormation + dateDebut/dateFin
+  // (sessions individuelles ET collectives, sessions sans date incluses).
+  const lienSansFormation = buildLink('/collaborateurs', {
+    filter: 'sansFormation',
+    dateDebut: periodeDebutParam,
+    dateFin: periodeFinParam,
+  });
+  // Le critère « +30 jours » n'est pas exprimable dans la liste des sessions :
+  // le lien filtre statut + période, l'écart est annoncé dans le sous-titre.
+  const lienSessionsLongues = buildLink('/sessions', {
+    status: 'en_cours',
+    dateDebut: periodeDebutParam,
+    dateFin: periodeFinParam,
+  });
+  // Les nouvelles inscriptions se comptent sur la DATE D'IMPORT (individuelles)
+  // / de création (collectives), pas sur la date de session : d'où les
+  // paramètres dédiés dateImportDebut / dateImportFin.
+  const lienNouvellesInscriptions = buildLink('/sessions', {
+    status: 'inscrit',
+    dateImportDebut: periodeDebutParam,
+    dateImportFin: periodeFinParam,
+  });
+  // « Date de fin passée et statut non terminé » n'est pas exprimable dans la
+  // liste : on ne porte que la période, l'écart est annoncé dans le sous-titre.
+  const lienSessionsACloturer = buildLink('/sessions', {
+    dateDebut: periodeDebutParam,
+    dateFin: periodeFinParam,
+  });
+  // La page /kpi/conformite initialise désormais sa période depuis l'URL, avec
+  // exactement la grammaire qu'elle envoie elle-même à l'API :
+  //   periode=annee&date=YYYY | periode=mois&date=YYYY-MM
+  //   periode=plage&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD (les DEUX bornes)
+  // On lui transmet donc la période affichée ici, pour qu'elle ouvre sur le
+  // même périmètre que le chiffre cliqué.
+  const lienConformite =
+    periode === 'plage'
+      ? periodeDebutParam && periodeFinParam
+        ? buildLink('/kpi/conformite', {
+            periode: 'plage',
+            startDate: periodeDebutParam,
+            endDate: periodeFinParam,
+          })
+        : '/kpi/conformite'
+      : buildLink('/kpi/conformite', { periode, date });
 
   if (loading) {
     return (
@@ -561,12 +662,14 @@ export default function DashboardPage() {
                       color="orange"
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/collaborateurs?filter=sansFormation')}
+                      onClick={() => router.push(lienSansFormation)}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{collaborateursSansFormation} collaborateurs sans formation</Text>
-                          <Text size="xs" c="dimmed">Cliquez pour voir la liste</Text>
+                          <Text size="xs" c="dimmed">
+                            Aucune session {periodeTexte} — individuelles et collectives, sessions sans date incluses. Cliquez pour voir la liste filtrée.
+                          </Text>
                         </div>
                         <Badge size="lg" color="orange" variant="filled">
                           {collaborateursSansFormation}
@@ -581,12 +684,14 @@ export default function DashboardPage() {
                       color="yellow"
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/sessions?status=en_cours')}
+                      onClick={() => router.push(lienSessionsLongues)}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{sessionsLongues} sessions en cours depuis +30 jours</Text>
-                          <Text size="xs" c="dimmed">Cliquez pour voir les sessions en retard</Text>
+                          <Text size="xs" c="dimmed">
+                            Statut « en cours » et démarrées depuis plus de 30 jours, {periodeTexte}. Le clic ouvre TOUTES les sessions en cours de la période : le critère « +30 jours » n'existe pas dans la liste, elle en affichera donc davantage.
+                          </Text>
                         </div>
                         <Badge size="lg" color="yellow" variant="filled">
                           {sessionsLongues}
@@ -601,13 +706,17 @@ export default function DashboardPage() {
                       color={conformiteColor}
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/kpi/conformite')}
+                      onClick={() => router.push(lienConformite)}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{nonConformes} collaborateurs non conformes aux formations obligatoires</Text>
                           <Text size="xs" c="dimmed">
-                            Taux de conformité : {tauxConformite} % ({conformite?.collaborateursConformes ?? 0}/{conformite?.collaborateursCibles ?? 0}) — cliquez pour voir le détail
+                            Taux de conformité {periodeTexte} : {formatPercent(tauxConformite)} ({conformite?.collaborateursConformes ?? 0}/{conformite?.collaborateursCibles ?? 0}
+                            {(conformite?.collaborateursEnConge ?? 0) > 0
+                              ? `, ${conformite?.collaborateursEnConge} en congé longue durée exclu(s)`
+                              : ''}
+                            ). Cliquez pour le détail sur la même période.
                           </Text>
                         </div>
                         <Badge size="lg" color={conformiteColor} variant="filled">
@@ -623,13 +732,13 @@ export default function DashboardPage() {
                       color="red"
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/sessions')}
+                      onClick={() => router.push(lienSessionsACloturer)}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{sessionsACloturer} sessions à clôturer</Text>
                           <Text size="xs" c="dimmed">
-                            Date de fin passée mais statut non terminé — {sessionsNonCloturees?.individuelles ?? 0} individuelle(s), {sessionsNonCloturees?.collectives ?? 0} collective(s)
+                            Date de fin passée, statut ni terminé ni annulé, {periodeTexte} — {sessionsNonCloturees?.individuelles ?? 0} individuelle(s), {sessionsNonCloturees?.collectives ?? 0} collective(s). Le clic ouvre TOUTES les sessions de la période : ce critère n'existe pas dans la liste, elle en affichera donc davantage.
                           </Text>
                         </div>
                         <Badge size="lg" color="red" variant="filled">
@@ -645,13 +754,13 @@ export default function DashboardPage() {
                       color="green"
                       variant="light"
                       styles={{ root: { cursor: 'pointer' } }}
-                      onClick={() => router.push('/sessions?status=inscrit')}
+                      onClick={() => router.push(lienNouvellesInscriptions)}
                     >
                       <Group justify="space-between">
                         <div>
                           <Text fw={500} size="sm">{nouvellesInscriptions} nouvelles inscriptions</Text>
                           <Text size="xs" c="dimmed">
-                            {nouvellesInscriptionsIndividuelles} individuelle(s), {nouvellesInscriptionsCollectives} collective(s) sur la période
+                            Statut « inscrit », enregistrées {periodeTexte} (date d'import pour les individuelles, date de création pour les collectives) — {nouvellesInscriptionsIndividuelles} individuelle(s), {nouvellesInscriptionsCollectives} collective(s).
                           </Text>
                         </div>
                         <Badge size="lg" color="green" variant="filled">

@@ -19,6 +19,7 @@ import {
   Divider,
   Text,
   SegmentedControl,
+  Tooltip,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { notifications } from '@mantine/notifications';
@@ -35,8 +36,8 @@ import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
 import { collaborateursService, commonService, managersService, departementsService } from '@/lib/services';
+import type { CollaborateurAvecConge } from '@/lib/services/collaborateurs.service';
 import { formatDateOnly } from '@/lib/utils/date.utils';
-import { Collaborateur } from '@/lib/types';
 
 interface Props {
   params: {
@@ -49,7 +50,7 @@ export default function CollaborateurEditPage({ params }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [collaborateur, setCollaborateur] = useState<Collaborateur | null>(null);
+  const [collaborateur, setCollaborateur] = useState<CollaborateurAvecConge | null>(null);
   const [allDepartements, setAllDepartements] = useState<any[]>([]); // Tous les départements/équipes
   const [departements, setDepartements] = useState<any[]>([]); // Liste filtrée
   const [managers, setManagers] = useState<any[]>([]);
@@ -70,6 +71,9 @@ export default function CollaborateurEditPage({ params }: Props) {
       contratId: '',
       typeUtilisateur: 'Collaborateur',
       actif: true,
+      // Congé longue durée : le collaborateur reste dans l'effectif mais sort
+      // du suivi des formations obligatoires (champ séparé de `actif`)
+      enCongeLongueDuree: false,
       // Mantine 8 : DateInput emet une chaine 'YYYY-MM-DD', plus un objet Date
       dateInactivation: null as Date | string | null,
       dateEmbauche: null as Date | string | null,
@@ -153,6 +157,9 @@ export default function CollaborateurEditPage({ params }: Props) {
           contratId: collabData.contratId ? collabData.contratId.toString() : '',
           typeUtilisateur: collabData.typeUtilisateur || 'Collaborateur',
           actif: collabData.actif !== false,
+          // Le backend remet ce champ à false lors d'une désactivation :
+          // le formulaire reflète donc toujours l'état réel après rechargement
+          enCongeLongueDuree: collabData.enCongeLongueDuree === true,
           // Mantine 8 attend une chaine 'YYYY-MM-DD' en valeur de DateInput
           dateInactivation: formatDateOnly(collabData.dateInactivation as any) ?? null,
           dateEmbauche: formatDateOnly((collabData as any).dateEmbauche) ?? null,
@@ -212,6 +219,8 @@ export default function CollaborateurEditPage({ params }: Props) {
         contratId: values.contratId ? parseInt(values.contratId) : undefined,
         typeUtilisateur: values.typeUtilisateur || undefined,
         actif: values.actif,
+        // Un collaborateur inactif ne peut pas être en congé longue durée
+        enCongeLongueDuree: values.actif ? values.enCongeLongueDuree : false,
         dateInactivation: formatDateOnly(values.dateInactivation) ?? null,
         dateEmbauche: formatDateOnly(values.dateEmbauche) ?? null,
       };
@@ -464,12 +473,41 @@ export default function CollaborateurEditPage({ params }: Props) {
                 <IdentificationCard size={20} />
                 <Text fw={600}>Statut</Text>
               </Group>
-              <Switch
-                label={form.values.actif ? 'Collaborateur actif' : 'Collaborateur inactif'}
-                checked={form.values.actif}
-                {...form.getInputProps('actif')}
-                size="md"
-              />
+              <Stack gap="md">
+                <Switch
+                  label={form.values.actif ? 'Collaborateur actif' : 'Collaborateur inactif'}
+                  checked={form.values.actif}
+                  {...form.getInputProps('actif')}
+                  onChange={(event) => {
+                    const actif = event.currentTarget.checked;
+                    form.setFieldValue('actif', actif);
+                    // Le backend remet enCongeLongueDuree à false quand actif passe à false
+                    if (!actif) {
+                      form.setFieldValue('enCongeLongueDuree', false);
+                    }
+                  }}
+                  size="md"
+                />
+
+                <Tooltip
+                  label="Indisponible : un collaborateur inactif ne peut pas être en congé longue durée."
+                  multiline
+                  w={260}
+                  withArrow
+                  disabled={form.values.actif}
+                >
+                  <div style={{ display: 'inline-block' }}>
+                    <Switch
+                      label="En congé longue durée"
+                      checked={form.values.enCongeLongueDuree}
+                      {...form.getInputProps('enCongeLongueDuree')}
+                      size="md"
+                      disabled={!form.values.actif}
+                      description="Congé parental, maternité, maladie longue… Le collaborateur reste dans l'effectif mais sort du suivi des formations obligatoires."
+                    />
+                  </div>
+                </Tooltip>
+              </Stack>
             </div>
 
             {/* Section Inactivation - visible seulement si inactif ou si date définie */}

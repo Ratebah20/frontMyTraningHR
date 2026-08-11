@@ -44,9 +44,9 @@ import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
 import { IdentificationCard } from '@phosphor-icons/react/dist/ssr/IdentificationCard';
 import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
-import { sessionsService, collaborateursService } from '@/lib/services';
+import { sessionsService, collaborateursService, commonService, formationsService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
-import { SessionFormationResponse, CollectiveSession } from '@/lib/types';
+import { SessionFormationResponse, CollectiveSession, OrganismeFormation } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDateOnly } from '@/lib/utils/date.utils';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
@@ -82,6 +82,9 @@ interface FormValues {
   dateDebut: string;
   dateFin: string;
   anneeBudgetaire?: number;
+  // null = aucun organisme rattaché (et, pour une session individuelle,
+  // détachement explicite au moment de l'enregistrement)
+  organismeId?: number | null;
 
   // Champs individuels
   dureeHeures?: number;
@@ -107,6 +110,14 @@ export default function EditSessionPage({ params }: Props) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<any | null>(null); // Can be individual or collective
+
+  // Organisme de formation : la liste des organismes actifs alimente le Select,
+  // et l'organisme « normal » de la formation sert à signaler une divergence.
+  const [organismes, setOrganismes] = useState<OrganismeFormation[]>([]);
+  const [loadingOrganismes, setLoadingOrganismes] = useState(true);
+  const [formationOrganisme, setFormationOrganisme] = useState<
+    { id: number; nom: string } | null
+  >(null);
 
   // Remplacement du collaborateur (sessions individuelles)
   const [showReplaceModal, setShowReplaceModal] = useState(false);
@@ -144,6 +155,25 @@ export default function EditSessionPage({ params }: Props) {
     }, 300);
     return () => clearTimeout(handle);
   }, [replacementSearch, session?.collaborateur?.id]);
+
+  // Charger les organismes de formation actifs (le backend ne renvoie que
+  // les organismes actifs sur /common/organismes).
+  useEffect(() => {
+    const loadOrganismes = async () => {
+      setLoadingOrganismes(true);
+      try {
+        const data = await commonService.getOrganismesFormation();
+        setOrganismes((data || []) as OrganismeFormation[]);
+      } catch (error) {
+        console.error('Erreur lors du chargement des organismes:', error);
+        setOrganismes([]);
+      } finally {
+        setLoadingOrganismes(false);
+      }
+    };
+
+    loadOrganismes();
+  }, []);
 
   const handleReplaceCollaborateur = async () => {
     if (!replacementId) return;
@@ -184,6 +214,7 @@ export default function EditSessionPage({ params }: Props) {
       dateDebut: '',
       dateFin: '',
       anneeBudgetaire: undefined,
+      organismeId: null,
       // Individuels
       dureeHeures: undefined,
       tarifHT: undefined,
@@ -254,6 +285,12 @@ export default function EditSessionPage({ params }: Props) {
         // Normaliser le statut pour l'envoi au backend
         const normalizedStatus = normalizeStatusForBackend(sessionData.statut);
 
+        // Organisme rattaché à la session : la lecture renvoie l'objet
+        // `organisme` (avec son id) côté individuel, et `organismeId` côté
+        // collectif. null = aucun organisme rattaché.
+        const organismeIdActuel =
+          (sessionData as any).organisme?.id ?? (sessionData as any).organismeId ?? null;
+
         // Mettre à jour le formulaire selon le type de session
         if (sessionData.type === 'collective') {
           // Session collective
@@ -266,6 +303,7 @@ export default function EditSessionPage({ params }: Props) {
               ? formatDateOnly(new Date(sessionData.dateFin))
               : '',
             anneeBudgetaire: sessionData.anneeBudgetaire || undefined,
+            organismeId: organismeIdActuel,
             // Champs collectifs
             titre: sessionData.titre || '',
             lieu: sessionData.lieu || '',
@@ -297,6 +335,7 @@ export default function EditSessionPage({ params }: Props) {
             anneeBudgetaire: sessionData.anneeBudgetaire !== null && sessionData.anneeBudgetaire !== undefined
               ? sessionData.anneeBudgetaire
               : undefined,
+            organismeId: organismeIdActuel,
             commentaire: sessionData.commentaire || '',
             // Champs collectifs (vides)
             titre: '',
@@ -310,6 +349,27 @@ export default function EditSessionPage({ params }: Props) {
             formateurContact: '',
             lienVisio: '',
           });
+        }
+
+        // Organisme « normal » de la formation : sert uniquement à avertir la RH
+        // d'une divergence. try/catch dédié : un échec ici ne doit surtout pas
+        // faire sortir de la page d'édition (le catch global fait router.back()).
+        const formationId = (sessionData as any).formation?.id ?? (sessionData as any).formationId;
+        if (formationId) {
+          try {
+            const formation = await formationsService.getFormation(formationId);
+            setFormationOrganisme(
+              formation?.organismeId
+                ? {
+                    id: formation.organismeId,
+                    nom: formation.organisme?.nomOrganisme || 'un autre organisme',
+                  }
+                : null
+            );
+          } catch (error) {
+            console.error("Erreur lors du chargement de l'organisme de la formation:", error);
+            setFormationOrganisme(null);
+          }
         }
       } catch (error) {
         console.error('Erreur lors du chargement de la session:', error);
@@ -380,6 +440,10 @@ export default function EditSessionPage({ params }: Props) {
           formateurNom: values.formateurNom || undefined,
           formateurContact: values.formateurContact || undefined,
           lienVisio: values.lienVisio || undefined,
+          // Côté collectif, le détachement par `null` n'est pas fiable
+          // (conversion de type héritée) : on n'envoie le champ que lorsqu'un
+          // organisme est réellement sélectionné, sinon on le laisse inchangé.
+          organismeId: values.organismeId ?? undefined,
         };
 
         // Supprimer les valeurs undefined
@@ -401,6 +465,11 @@ export default function EditSessionPage({ params }: Props) {
           tarifTTC: values.tarifTTC || undefined,
           anneeBudgetaire: values.anneeBudgetaire,
           commentaire: values.commentaire || undefined,
+          // Le champ vidé doit DÉTACHER l'organisme : on envoie explicitement
+          // `null` (et surtout pas `undefined`, que le backend interprète comme
+          // « champ absent, ne rien changer » et que la boucle ci-dessous
+          // supprimerait du payload).
+          organismeId: values.organismeId ?? null,
         };
 
         // Supprimer les valeurs undefined
@@ -424,7 +493,12 @@ export default function EditSessionPage({ params }: Props) {
       const typeParam = session.type === 'collective' ? '?type=collective' : '';
       router.push(`/sessions/${params.id}${typeParam}`);
     } catch (error: any) {
-      const errorMessage = error.response?.data?.message || 'Erreur lors de la mise à jour';
+      // `error.message` : le service des sessions collectives passe par fetch et
+      // relaie le message du backend dans une Error simple (pas de `response`).
+      // C'est ce qui permet d'afficher tel quel « Organisme X introuvable ou
+      // inactif » quel que soit le type de session.
+      const errorMessage =
+        error.response?.data?.message || error.message || 'Erreur lors de la mise à jour';
 
       notifications.show({
         title: 'Erreur',
@@ -526,6 +600,41 @@ export default function EditSessionPage({ params }: Props) {
 
     return transitions;
   };
+
+  // ---- Organisme de la session (champ modifiable) ----
+
+  const selectedOrganismeId = form.values.organismeId ?? null;
+
+  // Options du Select : les organismes actifs. Si la session pointe vers un
+  // organisme désactivé (cas fréquent sur les sessions historiques), il ne
+  // figure pas dans la liste : on l'ajoute explicitement, sinon Mantine
+  // afficherait un champ vide et la RH croirait l'organisme perdu.
+  const organismeOptions = organismes.map((o) => ({
+    value: o.id.toString(),
+    label: o.nomOrganisme,
+  }));
+
+  const organismeSessionId = session.organisme?.id ?? session.organismeId ?? null;
+  if (
+    organismeSessionId &&
+    !organismeOptions.some((o) => o.value === organismeSessionId.toString())
+  ) {
+    organismeOptions.unshift({
+      value: organismeSessionId.toString(),
+      label: `${session.organisme?.nom || session.organisme?.nomOrganisme || 'Organisme'} (inactif)`,
+    });
+  }
+
+  // Avertissement de divergence (même logique que la page de création) :
+  // l'organisme choisi n'est pas celui qui dispense habituellement la formation.
+  const nomOrganismeSelectionne =
+    organismeOptions.find((o) => o.value === String(selectedOrganismeId))?.label ||
+    'un autre organisme';
+
+  const organismeWarning =
+    formationOrganisme && selectedOrganismeId && selectedOrganismeId !== formationOrganisme.id
+      ? `⚠️ Vous avez sélectionné "${nomOrganismeSelectionne}" alors que la formation est normalement dispensée par "${formationOrganisme.nom}".`
+      : null;
 
   return (
     <Container size="lg">
@@ -661,28 +770,8 @@ export default function EditSessionPage({ params }: Props) {
                   )}
                 </div>
 
-                {/* Organisme */}
-                {session.organisme && (
-                  <>
-                    <Divider />
-                    <div>
-                      <Group gap="xs" mb={4}>
-                        <Building size={16} color="#868E96" />
-                        <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                          Organisme
-                        </Text>
-                      </Group>
-                      <Text size="sm" fw={500}>
-                        {session.organisme.nom}
-                      </Text>
-                      {session.organisme.type && (
-                        <Text size="xs" c="dimmed" mt={2}>
-                          Type: {session.organisme.type}
-                        </Text>
-                      )}
-                    </div>
-                  </>
-                )}
+                {/* L'organisme n'est plus affiché ici : il est devenu un champ
+                    modifiable du formulaire (colonne de droite). */}
               </Stack>
             </Paper>
 
@@ -754,6 +843,61 @@ export default function EditSessionPage({ params }: Props) {
                       />
                     </Grid.Col>
                   </Grid>
+                </Stack>
+              </Paper>
+
+              {/* Organisme de formation (modifiable) */}
+              <Paper shadow="xs" p="lg" radius="md" withBorder>
+                <Group align="center" mb="md">
+                  <Building size={20} />
+                  <Text fw={600}>Organisme de formation</Text>
+                </Group>
+
+                <Stack gap="md">
+                  {organismeWarning && (
+                    <Alert color="blue" title="Information" icon={<Warning size={20} />}>
+                      {organismeWarning}
+                    </Alert>
+                  )}
+
+                  <Select
+                    label="Organisme"
+                    placeholder={
+                      loadingOrganismes
+                        ? 'Chargement des organismes...'
+                        : organismeOptions.length === 0
+                          ? 'Aucun organisme disponible'
+                          : 'Sélectionner un organisme'
+                    }
+                    description={
+                      session.type === 'individuelle'
+                        ? 'Videz le champ pour détacher l\'organisme de la session'
+                        : 'Le détachement n\'est pas disponible sur une session collective : sélectionnez un autre organisme'
+                    }
+                    searchable
+                    // Le détachement (`null`) n'est fiable que côté individuel.
+                    // allowDeselect doit suivre clearable : sans ça, recliquer
+                    // l'option déjà sélectionnée viderait quand même le champ
+                    // sur une session collective, où le détachement n'aboutit
+                    // pas (l'organisme réapparaîtrait après rechargement).
+                    clearable={session.type === 'individuelle'}
+                    allowDeselect={session.type === 'individuelle'}
+                    disabled={loadingOrganismes || organismeOptions.length === 0}
+                    data={organismeOptions}
+                    nothingFoundMessage="Aucun organisme trouvé"
+                    value={selectedOrganismeId !== null ? String(selectedOrganismeId) : null}
+                    onChange={(value) =>
+                      form.setFieldValue('organismeId', value ? parseInt(value, 10) : null)
+                    }
+                    leftSection={<Building size={16} />}
+                  />
+
+                  {!loadingOrganismes && organismeOptions.length === 0 && (
+                    <Text size="xs" c="dimmed">
+                      Aucun organisme actif n&apos;est disponible. Activez ou créez un organisme
+                      depuis la page Organismes pour pouvoir en rattacher un à cette session.
+                    </Text>
+                  )}
                 </Stack>
               </Paper>
 

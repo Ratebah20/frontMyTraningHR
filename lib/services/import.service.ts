@@ -3,7 +3,36 @@ import type { EffectifReconciliation } from '../types/effectif.types';
 import type {
   ConfirmRhImportRequest,
   RhPreview,
+  RhPreviewStats,
+  RhReactivation,
 } from '../types/import-rh.types';
+
+/**
+ * Champs ajoutés par le backend sur l'aperçu d'import RH, déclarés ici (et non
+ * dans lib/types/import-rh.types.ts) pour rester dans le périmètre.
+ *
+ * Enjeu : l'import OLU a longtemps créé les collaborateurs inconnus en inactif
+ * (fiches « stub » à compléter par l'import RH). Ces fiches remontent dans les
+ * réactivations sans être des départs — les décocher laisserait des arrivants
+ * récents inactifs.
+ *
+ * Optionnels volontairement : un RhPreview « nu » reste assignable.
+ */
+export interface RhReactivationEtendue extends RhReactivation {
+  /** 'OLU' | 'SUIVI' | absent */
+  sourceImport?: string;
+  /** true = fiche incomplète à compléter, PAS un départ */
+  ficheIncompleteOlu?: boolean;
+}
+
+export interface RhPreviewStatsEtendues extends RhPreviewStats {
+  nbFichesIncompletesOlu?: number;
+}
+
+export interface RhPreviewEtendu extends Omit<RhPreview, 'stats' | 'reactivations'> {
+  stats: RhPreviewStatsEtendues;
+  reactivations: RhReactivationEtendue[];
+}
 
 export interface ImportHistory {
   id: number;
@@ -106,7 +135,7 @@ export const importService = {
   },
 
   // Preview de l'import RH : simule l'import sans rien ecrire
-  async previewCollaborateurs(file: File): Promise<RhPreview> {
+  async previewCollaborateurs(file: File): Promise<RhPreviewEtendu> {
     const formData = new FormData();
     formData.append('file', file);
 

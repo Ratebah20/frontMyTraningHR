@@ -71,6 +71,7 @@ export default function EditFormationPage() {
       actif: true,
       estCertifiante: false,
       estObligatoire: false,
+      estSecurite: false,
       obligatoireType: 'annuelle',
       obligatoireAnnee: undefined,
     },
@@ -244,6 +245,7 @@ export default function EditFormationPage() {
         actif: data.actif !== false,
         estCertifiante: data.estCertifiante || false,
         estObligatoire: data.estObligatoire || false,
+        estSecurite: data.estSecurite || false,
         obligatoireType: data.obligatoireType || 'annuelle',
         obligatoireAnnee: data.obligatoireAnnee ?? undefined,
       });
@@ -563,6 +565,14 @@ export default function EditFormationPage() {
                 description="Cette formation est obligatoire pour certains collaborateurs"
                 checked={form.values.estObligatoire}
                 {...form.getInputProps('estObligatoire', { type: 'checkbox' })}
+                size="md"
+              />
+
+              <Switch
+                label="Formation sécurité (SST)"
+                description="Sécurité au travail : premiers secours, travail en hauteur, EPI, incendie. Suivie sur son propre périmètre dans les KPI de conformité."
+                checked={form.values.estSecurite}
+                {...form.getInputProps('estSecurite', { type: 'checkbox' })}
                 size="md"
               />
 

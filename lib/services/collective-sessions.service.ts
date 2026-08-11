@@ -35,6 +35,20 @@ function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Re
 
 
 /**
+ * Filtres de sessions collectives + période d'ENREGISTREMENT.
+ *
+ * `dateImportDebut` / `dateImportFin` (`YYYY-MM-DD`, borne haute incluse)
+ * bornent `dateCreation` côté backend — l'équivalent collectif de la date
+ * d'import des sessions individuelles. Distinct de `dateDebut` / `dateFin`, qui
+ * portent sur les dates de la session. Déclaré ici et non dans
+ * `lib/types/index.ts` (hors périmètre).
+ */
+export interface CollectiveSessionFiltersAvecImport extends CollectiveSessionFilters {
+  dateImportDebut?: string;
+  dateImportFin?: string;
+}
+
+/**
  * Service pour gérer les sessions collectives via l'API
  */
 export class CollectiveSessionsService {
@@ -62,10 +76,12 @@ export class CollectiveSessionsService {
   }
 
   /**
-   * Lister toutes les sessions collectives avec filtres
+   * Lister toutes les sessions collectives avec filtres.
+   * Toutes les clés non vides sont sérialisées telles quelles dans la query :
+   * `dateImportDebut` / `dateImportFin` arrivent donc bien jusqu'au backend.
    */
   static async findAll(
-    filters?: CollectiveSessionFilters,
+    filters?: CollectiveSessionFiltersAvecImport,
   ): Promise<{ data: CollectiveSession[]; meta: SessionPaginationMeta }> {
     const params = new URLSearchParams();
 

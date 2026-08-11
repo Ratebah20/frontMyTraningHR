@@ -30,13 +30,16 @@ export const formationsService = {
     return response.data;
   },
 
-  // Créer une nouvelle formation
+  // Créer une nouvelle formation.
+  // `estSecurite` (formation de sécurité au travail / SST) est accepté au même
+  // titre que `estObligatoire` / `estCertifiante` : il pilote le périmètre
+  // `type=securite` de la page de conformité.
   async createFormation(data: CreateFormationDto): Promise<Formation> {
     const response = await api.post('/formations', data);
     return response.data;
   },
 
-  // Mettre à jour une formation
+  // Mettre à jour une formation (accepte également `estSecurite`)
   async updateFormation(id: number, data: UpdateFormationDto): Promise<Formation> {
     const response = await api.put(`/formations/${id}`, data);
     return response.data;

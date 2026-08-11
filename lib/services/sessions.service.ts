@@ -10,6 +10,19 @@ import {
   GroupedSessionPaginatedResponse
 } from '../types';
 
+/**
+ * Filtres de sessions + période d'ENREGISTREMENT.
+ *
+ * `dateImportDebut` / `dateImportFin` (`YYYY-MM-DD`, borne haute incluse)
+ * bornent le champ `dateImport` des sessions individuelles — à ne pas confondre
+ * avec `dateDebut` / `dateFin`, qui portent sur les dates de la session
+ * elle-même. Déclaré ici et non dans `lib/types/index.ts` (hors périmètre).
+ */
+export interface SessionFiltersAvecImport extends SessionFilters {
+  dateImportDebut?: string;
+  dateImportFin?: string;
+}
+
 export const sessionsService = {
   // Récupérer les statistiques globales
   async getGlobalStats(): Promise<{
@@ -97,8 +110,10 @@ export const sessionsService = {
     return response.data;
   },
 
-  // Récupérer les sessions groupées par formation
-  async getGroupedSessions(filters?: SessionFilters): Promise<GroupedSessionPaginatedResponse> {
+  // Récupérer les sessions groupées par formation.
+  // Les clés sont transmises telles quelles à l'API (aucun filtrage ici) :
+  // `dateImportDebut` / `dateImportFin` arrivent donc bien jusqu'au backend.
+  async getGroupedSessions(filters?: SessionFiltersAvecImport): Promise<GroupedSessionPaginatedResponse> {
     const response = await api.get('/sessions/grouped', { params: filters });
     return response.data;
   },

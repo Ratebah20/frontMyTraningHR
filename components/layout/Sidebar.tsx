@@ -168,7 +168,9 @@ const navigationItems: NavigationItem[] = [
     color: 'red',
     badge: 3,
     subItems: [
-      { label: 'Obligatoires', href: '/kpi/conformite' },
+      // Libellé volontairement générique : la page couvre désormais les
+      // obligatoires annuelles, l'onboarding ET la sécurité au travail (SST).
+      { label: 'Conformité', href: '/kpi/conformite' },
       { label: 'Formations', href: '/kpi/formations' },
       { label: 'Collaborateurs', href: '/kpi/collaborateurs' },
       { label: 'Objectifs L&D', href: '/kpi/objectifs-ld' },

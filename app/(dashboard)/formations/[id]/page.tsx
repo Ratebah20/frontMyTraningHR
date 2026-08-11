@@ -48,6 +48,7 @@ import { UserCheck } from '@phosphor-icons/react/dist/ssr/UserCheck';
 import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
 import { Timer } from '@phosphor-icons/react/dist/ssr/Timer';
 import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { formationsService, sessionsService } from '@/lib/services';
 import { Formation, SessionFormation } from '@/lib/types';
 import { useApi, usePagination } from '@/hooks/useApi';
@@ -431,6 +432,17 @@ export default function FormationDetailPage({ params }: Props) {
                   variant="light"
                 >
                   {formation.estObligatoire ? 'Oui' : 'Non'}
+                </Badge>
+              </Group>
+
+              <Group gap="xs">
+                <ShieldCheck size={20} weight="duotone" />
+                <Text fw={500}>Formation sécurité (SST):</Text>
+                <Badge
+                  color={formation.estSecurite ? 'red' : 'gray'}
+                  variant="light"
+                >
+                  {formation.estSecurite ? 'Oui' : 'Non'}
                 </Badge>
               </Group>
 

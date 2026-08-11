@@ -163,6 +163,10 @@ export interface Formation {
   actif: boolean;
   estCertifiante: boolean;
   estObligatoire: boolean;
+  // Formation de sécurité au travail (SST) : premiers secours, travail en
+  // hauteur, EPI, incendie. Indépendant de `estObligatoire` — une SST se suit
+  // sur son propre périmètre (`type=securite` sur les KPI de conformité).
+  estSecurite: boolean;
   obligatoireType?: 'annuelle' | 'onboarding' | null;
   obligatoireAnnee?: number | null;
   categorie?: CategorieFormation;
@@ -282,6 +286,8 @@ export interface CreateFormationDto {
   actif?: boolean;
   estCertifiante?: boolean;
   estObligatoire?: boolean;
+  // Sécurité au travail (SST) : périmètre de suivi distinct des obligatoires
+  estSecurite?: boolean;
   obligatoireType?: 'annuelle' | 'onboarding' | null;
   obligatoireAnnee?: number | null;
 }
@@ -295,6 +301,8 @@ export interface UpdateFormationDto {
   actif?: boolean;
   estCertifiante?: boolean;
   estObligatoire?: boolean;
+  // Sécurité au travail (SST) : périmètre de suivi distinct des obligatoires
+  estSecurite?: boolean;
   obligatoireType?: 'annuelle' | 'onboarding' | null;
   obligatoireAnnee?: number | null;
 }

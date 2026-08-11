@@ -61,6 +61,7 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
       actif: true,
       estCertifiante: false,
       estObligatoire: false,
+      estSecurite: false,
     },
     validate: {
       nomFormation: (value) => {
@@ -514,6 +515,14 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
                 description="Cette formation est obligatoire pour certains collaborateurs"
                 checked={form.values.estObligatoire}
                 {...form.getInputProps('estObligatoire', { type: 'checkbox' })}
+                size="md"
+              />
+
+              <Switch
+                label="Formation sécurité (SST)"
+                description="Sécurité au travail : premiers secours, travail en hauteur, EPI, incendie. Suivie sur son propre périmètre dans les KPI de conformité."
+                checked={form.values.estSecurite}
+                {...form.getInputProps('estSecurite', { type: 'checkbox' })}
                 size="md"
               />
             </Stack>

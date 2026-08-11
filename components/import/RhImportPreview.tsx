@@ -24,10 +24,10 @@ import { UserMinus } from '@phosphor-icons/react/dist/ssr/UserMinus';
 import { ArrowCounterClockwise } from '@phosphor-icons/react/dist/ssr/ArrowCounterClockwise';
 import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { ArrowRight } from '@phosphor-icons/react/dist/ssr/ArrowRight';
-import type { RhPreview } from '@/lib/types/import-rh.types';
+import type { RhPreviewEtendu } from '@/lib/services/import.service';
 
 interface Props {
-  preview: RhPreview;
+  preview: RhPreviewEtendu;
   isImporting: boolean;
   /** Lance l'import réel avec les réactivations décochées en exclusion */
   onConfirm: (reactivationsExclues: number[]) => void;
@@ -112,6 +112,23 @@ export function RhImportPreview({
     [preview.reactivations, reactivationsAcceptees],
   );
 
+  // Fiches créées par l'import OLU et jamais complétées : ce ne sont PAS des
+  // départs. Les décocher laisserait des arrivants récents en inactif.
+  const nbFichesIncompletes = useMemo(
+    () =>
+      preview.stats.nbFichesIncompletesOlu ??
+      preview.reactivations.filter((r) => r.ficheIncompleteOlu).length,
+    [preview.stats.nbFichesIncompletesOlu, preview.reactivations],
+  );
+
+  const exclusionsFichesIncompletes = useMemo(
+    () =>
+      preview.reactivations.filter(
+        (r) => r.ficheIncompleteOlu && !reactivationsAcceptees.has(r.collaborateurId),
+      ).length,
+    [preview.reactivations, reactivationsAcceptees],
+  );
+
   const toggleReactivation = (id: number) => {
     setReactivationsAcceptees((precedent) => {
       const suivant = new Set(precedent);
@@ -152,7 +169,8 @@ export function RhImportPreview({
         </Text>
       </Alert>
 
-      {preview.avertissements.map((message, index) => (
+      {/* Le backend peut renvoyer plusieurs avertissements distincts : tous affichés */}
+      {(preview.avertissements ?? []).map((message, index) => (
         <Alert key={index} icon={<Warning size={16} />} color="yellow" variant="light">
           {message}
         </Alert>
@@ -183,6 +201,15 @@ export function RhImportPreview({
             couleur="red"
           />
         </Grid.Col>
+        {nbFichesIncompletes > 0 && (
+          <Grid.Col span={{ base: 6, md: 3 }}>
+            <Tuile
+              libelle="Fiches à compléter"
+              valeur={nbFichesIncompletes}
+              couleur="cyan"
+            />
+          </Grid.Col>
+        )}
       </Grid>
 
       {aucunChangement && (
@@ -270,7 +297,41 @@ export function RhImportPreview({
                   déjà parties : <Text span fw={600}>décochez-les</Text> pour qu&apos;elles
                   restent inactives.
                 </Text>
+                {nbFichesIncompletes > 0 && (
+                  <Text size="sm" mt={6}>
+                    Attention : les lignes marquées{' '}
+                    <Text span fw={600}>Fiche à compléter</Text> ne sont pas des départs,
+                    ne les décochez pas.
+                  </Text>
+                )}
               </Alert>
+
+              {nbFichesIncompletes > 0 && (
+                <Alert icon={<Info size={16} />} color="cyan" variant="light">
+                  <Text size="sm" fw={600} mb={4}>
+                    {nbFichesIncompletes} fiche(s) incomplète(s) issue(s) de l&apos;import
+                    OLU
+                  </Text>
+                  <Text size="sm">
+                    Ces collaborateurs ont été créés automatiquement par un import OLU sans
+                    leurs informations RH : ce sont le plus souvent des{' '}
+                    <Text span fw={600}>arrivants récents</Text>, pas des départs. Le
+                    fichier RH complète leur fiche et les remet actifs.{' '}
+                    <Text span fw={600}>Laissez-les cochées</Text> : les décocher les
+                    laisserait inactifs et hors des statistiques.
+                  </Text>
+                </Alert>
+              )}
+
+              {exclusionsFichesIncompletes > 0 && (
+                <Alert icon={<Warning size={16} />} color="red" variant="light">
+                  <Text size="sm">
+                    Vous excluez {exclusionsFichesIncompletes} fiche(s) à compléter :
+                    ces arrivants resteront <Text span fw={600}>inactifs</Text> et leur
+                    fiche restera incomplète.
+                  </Text>
+                </Alert>
+              )}
 
               <Group justify="space-between">
                 <Button variant="subtle" size="xs" onClick={toutBasculer}>
@@ -303,6 +364,7 @@ export function RhImportPreview({
                         />
                       </Table.Th>
                       <Table.Th>Collaborateur</Table.Th>
+                      <Table.Th>Nature</Table.Th>
                       <Table.Th>Matricule</Table.Th>
                       <Table.Th>Désactivé le</Table.Th>
                       <Table.Th>Formations</Table.Th>
@@ -323,8 +385,41 @@ export function RhImportPreview({
                             {r.nomComplet}
                           </Text>
                           {!reactivationsAcceptees.has(r.collaborateurId) && (
+                            <Text
+                              size="xs"
+                              c={r.ficheIncompleteOlu ? 'red' : 'dimmed'}
+                              fw={r.ficheIncompleteOlu ? 600 : undefined}
+                            >
+                              {r.ficheIncompleteOlu
+                                ? 'restera inactif alors que sa fiche est incomplète'
+                                : 'restera inactif'}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {r.ficheIncompleteOlu ? (
+                            <Tooltip
+                              multiline
+                              w={280}
+                              label="Fiche créée par un import OLU et jamais complétée : ce n'est pas un départ. La laisser cochée complète ses informations RH et la remet active."
+                            >
+                              <Badge size="sm" variant="light" color="cyan">
+                                Fiche à compléter
+                              </Badge>
+                            </Tooltip>
+                          ) : r.dateInactivation ? (
+                            <Tooltip
+                              multiline
+                              w={280}
+                              label="Fiche désactivée à une date connue : vérifiez qu'il ne s'agit pas d'un départ réel avant de la réactiver."
+                            >
+                              <Badge size="sm" variant="light" color="orange">
+                                Départ enregistré
+                              </Badge>
+                            </Tooltip>
+                          ) : (
                             <Text size="xs" c="dimmed">
-                              restera inactif
+                              {r.sourceImport ? `Source ${r.sourceImport}` : '—'}
                             </Text>
                           )}
                         </Table.Td>

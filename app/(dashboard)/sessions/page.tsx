@@ -107,6 +107,22 @@ const statusLabels: Record<string, string> = {
   'annulé': 'Annulé',
 };
 
+/**
+ * Une borne de période d'enregistrement n'est acceptée qu'au format
+ * `YYYY-MM-DD` (celui produit par le tableau de bord). Toute autre valeur est
+ * ignorée silencieusement plutôt que transmise telle quelle au backend.
+ */
+const FORMAT_JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+const lireBorneJour = (valeur: string | null): string =>
+  valeur && FORMAT_JOUR.test(valeur) ? valeur : '';
+
+/** `2026-03-31` -> `31/03/2026` (affichage bannière) */
+const formaterJour = (valeur: string): string => {
+  const date = new Date(`${valeur}T00:00:00`);
+  return isNaN(date.getTime()) ? valeur : date.toLocaleDateString('fr-FR');
+};
+
 // Icônes par statut
 const statusIcons: Record<string, any> = {
   'inscrit': CalendarCheck,
@@ -230,6 +246,12 @@ export default function SessionsPage() {
   const typeFilter = searchParams.get('type') || '';
   const dateDebut = searchParams.get('dateDebut') || '';
   const dateFin = searchParams.get('dateFin') || '';
+  // Période d'ENREGISTREMENT (date d'import pour les sessions individuelles,
+  // date de création pour les collectives). À ne pas confondre avec les dates
+  // de session ci-dessus : le tableau de bord compte les « nouvelles
+  // inscriptions » sur cette date-là, d'où ces paramètres dédiés.
+  const dateImportDebut = lireBorneJour(searchParams.get('dateImportDebut'));
+  const dateImportFin = lireBorneJour(searchParams.get('dateImportFin'));
   const formationFilter = searchParams.get('formation') || '';
   const departmentFilter = searchParams.get('department') || '';
   const organismeFilter = searchParams.get('organisme') || '';
@@ -290,15 +312,38 @@ export default function SessionsPage() {
   const [searchInput, setSearchInput] = useState(search);
   const debouncedSearchInput = useDebounce(searchInput, 500);
 
+  // Dernière valeur de recherche que NOUS avons poussée dans l'URL.
+  //
+  // Sans cette référence, la frappe et l'URL se renvoyaient la balle : la
+  // navigation App Router étant asynchrone, l'URL arrivait avec du retard et
+  // réécrivait le champ avec une valeur déjà périmée (« Dup » alors que la RH
+  // avait fini de taper « Dupont »). Pire, l'input revenait alors exactement à
+  // la valeur de l'URL : la comparaison du debounce suivant ne voyait plus de
+  // différence et PLUS AUCUNE requête n'était relancée — la liste restait
+  // figée. On ne resynchronise donc le champ que si le changement d'URL vient
+  // réellement de l'extérieur (arrivée sur la page, retour navigateur, lien
+  // entrant avec ?search=), pas quand l'URL ne fait que refléter notre push.
+  const lastPushedSearchRef = useRef(search);
+
   // Synchroniser le debounced search avec l'URL
   useEffect(() => {
-    if (debouncedSearchInput !== search) {
+    if (debouncedSearchInput !== lastPushedSearchRef.current) {
+      // Mémorisé AVANT la navigation : elle est asynchrone, l'effet de
+      // resynchronisation ci-dessous se déclenchera bien après.
+      lastPushedSearchRef.current = debouncedSearchInput;
       setSearch(debouncedSearchInput);
     }
   }, [debouncedSearchInput]);
 
-  // Synchroniser l'input avec l'URL quand on revient sur la page
+  // Synchroniser l'input avec l'URL quand le changement vient de l'extérieur
   useEffect(() => {
+    // L'URL ne fait que refléter notre propre push : ne pas toucher au champ,
+    // l'utilisateur a peut-être continué à taper entre-temps.
+    if (search === lastPushedSearchRef.current) return;
+
+    // Changement externe : on aligne le champ ET la référence, sinon le
+    // prochain debounce repousserait inutilement la même valeur.
+    lastPushedSearchRef.current = search;
     setSearchInput(search);
   }, [search]);
 
@@ -368,6 +413,11 @@ export default function SessionsPage() {
         type: typeFilter || 'all', // 'individuelle', 'collective', or 'all'
         dateDebut: periodeDebut,
         dateFin: periodeFin,
+        // Période d'enregistrement : transmise telle quelle, sans le
+        // « miroir » appliqué ci-dessus aux dates de session. Les deux services
+        // (individuelles et collectives) relaient ces clés au backend.
+        dateImportDebut: dateImportDebut || undefined,
+        dateImportFin: dateImportFin || undefined,
         formationId: formationFilter ? parseInt(formationFilter) : undefined,
         departementId: departmentFilter ? parseInt(departmentFilter) : undefined,
         organismeId: organismeFilter ? parseInt(organismeFilter) : undefined,
@@ -432,7 +482,7 @@ export default function SessionsPage() {
     // La sélection porte sur des lignes qui viennent de disparaître : on la vide
     // à chaque changement de filtre ou de page.
     setSelectedIds(new Set());
-  }, [search, statusFilter, typeFilter, dateDebut, dateFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
+  }, [search, statusFilter, typeFilter, dateDebut, dateFin, dateImportDebut, dateImportFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
 
   const handleViewDetails = (session: any) => {
     // Validation: vérifier que les champs nécessaires existent
@@ -593,6 +643,15 @@ export default function SessionsPage() {
     const reste = total - noms.length;
     return reste > 0 ? `${noms.join(', ')} +${reste}` : noms.join(', ');
   };
+
+  // Période d'enregistrement active (venue du tableau de bord ou d'un lien)
+  const aPeriodeImport = Boolean(dateImportDebut || dateImportFin);
+  const libellePeriodeImport =
+    dateImportDebut && dateImportFin
+      ? `du ${formaterJour(dateImportDebut)} au ${formaterJour(dateImportFin)}`
+      : dateImportDebut
+        ? `à partir du ${formaterJour(dateImportDebut)}`
+        : `jusqu'au ${formaterJour(dateImportFin)}`;
 
   return (
     <Container size="xl">
@@ -850,6 +909,30 @@ export default function SessionsPage() {
           Affichage : {sessions.length} résultats sur cette page • {total} session(s) correspondant aux filtres (référence : {globalStats.total} sessions individuelles en base)
         </Text>
       </Paper>
+
+      {/* Période d'enregistrement (date d'import / de création).
+          Ce filtre n'a pas de champ dans le bloc ci-dessus : il arrive par
+          l'URL (lien du tableau de bord). Sans ce rappel, la RH ne pourrait pas
+          comprendre pourquoi la liste est plus courte que d'habitude. */}
+      {aPeriodeImport && (
+        <Alert
+          icon={<Clock size={16} />}
+          color="violet"
+          variant="light"
+          mb="xl"
+          withCloseButton
+          onClose={() => updateUrlParams({ dateImportDebut: null, dateImportFin: null })}
+        >
+          <Text fw={500} size="sm">
+            Liste restreinte aux sessions enregistrées {libellePeriodeImport}
+          </Text>
+          <Text size="xs" c="dimmed" mt={4}>
+            Date d&apos;import pour les sessions individuelles, date de création pour les
+            sessions collectives — indépendante des dates de session. Fermez cette bannière
+            pour lever la restriction.
+          </Text>
+        </Alert>
+      )}
 
       {/* Liste des sessions */}
       {isLoading ? (

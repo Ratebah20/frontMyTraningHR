@@ -45,6 +45,7 @@ import { XCircle } from '@phosphor-icons/react/dist/ssr/XCircle';
 import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
 import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
 import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
+import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
 import { List } from '@phosphor-icons/react/dist/ssr/List';
@@ -650,6 +651,11 @@ export default function FormationsPage() {
                         Certifiante
                       </Badge>
                     )}
+                    {formation.estSecurite && (
+                      <Badge leftSection={<ShieldCheck size={14} />} color="red" variant="light">
+                        Securite (SST)
+                      </Badge>
+                    )}
                   </Group>
                   <Menu withinPortal position="bottom-end" shadow="sm">
                     <Menu.Target>
@@ -837,6 +843,11 @@ export default function FormationsPage() {
                             {formation.estCertifiante && (
                               <Badge leftSection={<Certificate size={10} />} color="teal" variant="light" size="xs">
                                 Certifiante
+                              </Badge>
+                            )}
+                            {formation.estSecurite && (
+                              <Badge leftSection={<ShieldCheck size={10} />} color="red" variant="light" size="xs">
+                                Securite (SST)
                               </Badge>
                             )}
                           </Group>

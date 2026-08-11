@@ -1,12 +1,12 @@
 import {
   UnifiedSession,
   UnifiedSessionPaginatedResponse,
-  CollectiveSessionFilters,
-  SessionFilters,
   GlobalSessionStats,
 } from '../types';
-import { sessionsService } from './sessions.service';
-import CollectiveSessionsService from './collective-sessions.service';
+import { sessionsService, SessionFiltersAvecImport } from './sessions.service';
+import CollectiveSessionsService, {
+  CollectiveSessionFiltersAvecImport,
+} from './collective-sessions.service';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3002';
 
@@ -26,7 +26,7 @@ function authFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Re
 }
 
 
-export interface UnifiedSessionFilters extends SessionFilters {
+export interface UnifiedSessionFilters extends SessionFiltersAvecImport {
   type?: 'individuelle' | 'collective' | 'all';
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -60,7 +60,9 @@ export class SessionsUnifiedService {
 
     // Si on veut seulement les collectives
     if (type === 'collective') {
-      const response = await CollectiveSessionsService.findAll(filters as CollectiveSessionFilters);
+      const response = await CollectiveSessionsService.findAll(
+        filters as CollectiveSessionFiltersAvecImport,
+      );
       return {
         data: this.mapCollectivesToUnified(response.data),
         meta: response.meta,
@@ -405,7 +407,7 @@ export class SessionsUnifiedService {
             ...cleanFilters,
             page,
             limit,
-          } as CollectiveSessionFilters),
+          } as CollectiveSessionFiltersAvecImport),
         neededItems,
       ),
     ]);

@@ -43,7 +43,8 @@ import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight'
 import { Envelope } from '@phosphor-icons/react/dist/ssr/Envelope';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { collaborateursService } from '@/lib/services';
-import { Collaborateur, SessionFormation } from '@/lib/types';
+import type { CollaborateurAvecConge } from '@/lib/services/collaborateurs.service';
+import { SessionFormation } from '@/lib/types';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
 import { ChangeEquipeModal } from '@/components/collaborateurs/ChangeEquipeModal';
@@ -56,7 +57,7 @@ interface Props {
 
 export default function CollaborateurDetailPage({ params }: Props) {
   const router = useRouter();
-  const [collaborateur, setCollaborateur] = useState<Collaborateur | null>(null);
+  const [collaborateur, setCollaborateur] = useState<CollaborateurAvecConge | null>(null);
   const [formations, setFormations] = useState<SessionFormation[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -342,12 +343,30 @@ export default function CollaborateurDetailPage({ params }: Props) {
                 </Group>
               )}
 
-              <Badge
-                color={collaborateur.actif ? 'green' : 'red'}
-                variant="light"
-              >
-                {collaborateur.actif ? 'Actif' : 'Inactif'}
-              </Badge>
+              {/*
+                Trois états : Inactif (rouge), Actif (vert), et Actif + En congé
+                (vert + bleu). Un collaborateur en congé longue durée reste actif :
+                les deux badges se complètent au lieu de se contredire.
+              */}
+              <Group gap="xs">
+                <Badge
+                  color={collaborateur.actif ? 'green' : 'red'}
+                  variant="light"
+                >
+                  {collaborateur.actif ? 'Actif' : 'Inactif'}
+                </Badge>
+                {collaborateur.actif && collaborateur.enCongeLongueDuree && (
+                  <Tooltip
+                    multiline
+                    w={260}
+                    label="Congé longue durée (parental, maternité, maladie longue…) : le collaborateur reste dans l'effectif mais sort du suivi des formations obligatoires."
+                  >
+                    <Badge color="blue" variant="light">
+                      En congé
+                    </Badge>
+                  </Tooltip>
+                )}
+              </Group>
             </Group>
           </div>
         </Group>

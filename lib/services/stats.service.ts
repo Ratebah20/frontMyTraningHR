@@ -8,11 +8,58 @@ import {
   DetailedKPIsResponse,
   BilanAnnuelResponse,
   DashboardAlertsResponse,
+  DashboardAlertesBloc,
+  ConformiteObligatoiresAlerte,
   LdObjectivesKpisResponse,
   LdObjectiveTarget,
   LdObjectiveGlobalTarget,
   ObjectifCategorieRow
 } from '../types';
+
+// ==================== DASHBOARD : CHAMPS AJOUTÉS CÔTÉ BACKEND ====================
+// Ces types affinent localement les réponses `/stats/dashboard-alerts` et
+// `/stats/dashboard-summary` avec les champs ajoutés récemment, sans modifier
+// `lib/types` (partagé avec d'autres écrans).
+
+/** `conformiteObligatoires` porte désormais le nombre de collaborateurs exclus
+ *  du calcul parce qu'ils sont en congé longue durée (taux auditable). */
+export type ConformiteObligatoiresAlerteEnrichie = ConformiteObligatoiresAlerte & {
+  collaborateursEnConge: number;
+};
+
+/** Réponse `/stats/dashboard-alerts`.
+ *  `periode.dateDebut` / `periode.dateFin` bornent TOUS les compteurs du bloc
+ *  `alertes` : ce sont ces bornes qu'il faut reporter dans les liens de
+ *  navigation pour que la liste d'arrivée corresponde au badge affiché. */
+export type DashboardAlertsResponseEnrichie = Omit<DashboardAlertsResponse, 'alertes'> & {
+  alertes: Omit<DashboardAlertesBloc, 'conformiteObligatoires'> & {
+    conformiteObligatoires: ConformiteObligatoiresAlerteEnrichie;
+  };
+};
+
+/** Réponse `/stats/dashboard-summary` (champs consommés par le tableau de bord).
+ *  ATTENTION : `tauxObligatoires` vaut `null` quand la population cible est
+ *  vide — il ne faut donc jamais afficher « 0 % » ni « 100 % » dans ce cas. */
+export interface DashboardSummaryResponse {
+  totalCollaborateurs: number;
+  collaborateursActifs: number;
+  tauxBudget: number;
+  budgetUtilise: number;
+  budgetPrevu: number;
+  sessionsEnCours: number;
+  sessionsPlanifiees: number;
+  sessionsTerminees: number;
+  heuresFormationPeriode: number;
+  nombreDepartements: number;
+  collaborateursFormesParGenre?: { hommes: number; femmes: number };
+  nombreFormationsObligatoires: number;
+  collaborateursConformesObligatoires: number;
+  collaborateursCiblesObligatoires: number;
+  /** null = aucune population cible / aucune formation obligatoire. Une décimale. */
+  tauxObligatoires: number | null;
+  /** Collaborateurs en congé longue durée exclus du calcul de conformité. */
+  collaborateursEnCongeObligatoires: number;
+}
 
 export const statsService = {
   // Récupérer les statistiques globales
@@ -35,7 +82,7 @@ export const statsService = {
     date?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<any> {
+  ): Promise<DashboardSummaryResponse> {
     const params: any = {};
     if (periode) params.periode = periode;
     if (periode === 'plage') {
@@ -68,7 +115,9 @@ export const statsService = {
   },
 
   // Récupérer les alertes et notifications du dashboard.
-  // Toutes les alertes sont désormais bornées à la période sélectionnée.
+  // Toutes les alertes sont désormais bornées à la période sélectionnée, et la
+  // réponse renvoie ces bornes dans `periode` : c'est la seule source fiable
+  // pour construire des liens dont la liste d'arrivée correspond au badge.
   // `formationsSansSession` a été REMPLACÉ par `conformiteObligatoires`,
   // et `sessionsNonCloturees` a été ajouté.
   async getDashboardAlerts(
@@ -76,7 +125,7 @@ export const statsService = {
     date?: string,
     startDate?: string,
     endDate?: string
-  ): Promise<DashboardAlertsResponse> {
+  ): Promise<DashboardAlertsResponseEnrichie> {
     const params: any = {};
     if (periode) params.periode = periode;
     if (periode === 'plage') {
@@ -168,12 +217,23 @@ export const statsService = {
   //   directeur: { id, nomComplet, email } | null
   //   peutEtreRelance: boolean   (directeur présent ET email non vide)
   // Type exporté : `ConformiteParDepartement` dans lib/types.
+  //
+  // `parDepartement` fait un ROLLUP des équipes sur leur département parent :
+  // il n'y a plus une ligne par équipe. En revanche, `formations[].formes[]` et
+  // `formations[].nonFormes[]` portent le nom BRUT du rattachement du
+  // collaborateur (donc éventuellement une équipe) : tout regroupement
+  // nominatif par département doit rejouer le rollup côté client.
+  //
+  // `stats.collaborateursEnConge` : collaborateurs en congé longue durée,
+  // EXCLUS de `totalCollaborateursAFormer` (rend le dénominateur auditable).
   async getMandatoryTrainingsKPIs(
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
     startDate?: string,
     endDate?: string,
-    type?: 'annuelle' | 'onboarding',
+    // 'securite' = formations de sécurité au travail (SST), périmètre distinct
+    // des obligatoires annuelles / onboarding
+    type?: 'annuelle' | 'onboarding' | 'securite',
     // Restreint le calcul à une sélection de formations (carte "Scope" de la
     // page conformité). Omis => tout le périmètre obligatoire.
     formationIds?: number[]
@@ -197,13 +257,16 @@ export const statsService = {
   // Récupérer les formations obligatoires manquantes groupées par manager.
   // Les entrées `sansManager[]` portent désormais aussi `departementId`, ce qui
   // permet de les rattacher au département pour la relance du directeur.
+  // Les collaborateurs en congé longue durée n'y apparaissent plus (même règle
+  // de population que les KPI de conformité).
   async getMandatoryTrainingsByManager(
     periode?: 'annee' | 'mois' | 'plage',
     date?: string,
     startDate?: string,
     endDate?: string,
     departementId?: number,
-    type?: 'annuelle' | 'onboarding',
+    // 'securite' = formations de sécurité au travail (SST)
+    type?: 'annuelle' | 'onboarding' | 'securite',
     // Doit rester aligné sur getMandatoryTrainingsKPIs, sinon la liste par
     // manager contredit les chiffres du haut de page.
     formationIds?: number[]

@@ -1,11 +1,51 @@
 import api from '../api';
-import { 
-  Collaborateur, 
-  CollaborateurFilters, 
-  UpdateCollaborateurDto, 
+import {
+  Collaborateur,
+  CollaborateurFilters,
+  UpdateCollaborateurDto,
   PaginatedResponse,
-  SessionFormation 
+  SessionFormation
 } from '../types';
+
+/**
+ * Congé longue durée (parental, maternité, maladie longue…).
+ *
+ * Champ SÉPARÉ de `actif` : le collaborateur reste dans l'effectif et visible
+ * dans les listes, il est seulement exclu de la population cible des KPI de
+ * formations obligatoires. Un `actif = false` ne conviendrait pas : l'import RH
+ * remet `actif = true` à chaque passage pour toute personne présente dans le
+ * fichier d'effectif, et un salarié en congé y figure toujours.
+ *
+ * Règle backend : quand `actif` passe à `false`, `enCongeLongueDuree` est remis
+ * à `false` automatiquement (un ex-salarié n'est pas « en congé »).
+ *
+ * Types déclarés ici et non dans `lib/types/index.ts` (hors périmètre).
+ */
+export interface CollaborateurAvecConge extends Collaborateur {
+  enCongeLongueDuree?: boolean;
+}
+
+export interface CollaborateurFiltersAvecConge extends CollaborateurFilters {
+  /** `true` / `false` — omettre le filtre pour ne pas discriminer */
+  enCongeLongueDuree?: boolean | string;
+  /**
+   * `'true'` : ne garder que les collaborateurs sans aucune formation.
+   * S'accompagne éventuellement de `dateDebut` / `dateFin` (voir ci-dessous).
+   */
+  sansFormation?: boolean | string;
+  /**
+   * Bornes de période (`YYYY-MM-DD`) du filtre `sansFormation` : le backend ne
+   * retient alors que les personnes sans session individuelle NI participation
+   * collective sur la période (sessions sans date de début incluses).
+   * Sans `sansFormation`, ces bornes n'ont aucun effet côté backend.
+   */
+  dateDebut?: string;
+  dateFin?: string;
+}
+
+export interface UpdateCollaborateurAvecCongeDto extends UpdateCollaborateurDto {
+  enCongeLongueDuree?: boolean;
+}
 
 export const collaborateursService = {
   // Créer un nouveau collaborateur
@@ -21,21 +61,29 @@ export const collaborateursService = {
     contratId?: number;
     typeUtilisateur?: string;
     actif?: boolean;
+    enCongeLongueDuree?: boolean;
   }): Promise<any> {
     const response = await api.post('/collaborateurs', data);
     return response.data;
   },
 
   // Récupérer la liste des collaborateurs avec pagination et filtres
-  async getCollaborateurs(filters?: CollaborateurFilters): Promise<PaginatedResponse<Collaborateur>> {
+  async getCollaborateurs(
+    filters?: CollaborateurFiltersAvecConge,
+  ): Promise<PaginatedResponse<CollaborateurAvecConge>> {
     // Créer une copie des filtres pour éviter de modifier l'original
     const params: any = { ...filters };
-    
+
     // S'assurer que actif est envoyé comme string si défini
     if (params.actif !== undefined) {
       params.actif = String(params.actif);
     }
-    
+
+    // Idem pour le filtre congé longue durée ('true' / 'false')
+    if (params.enCongeLongueDuree !== undefined) {
+      params.enCongeLongueDuree = String(params.enCongeLongueDuree);
+    }
+
     const response = await api.get('/collaborateurs', { 
       params,
       // Forcer axios à ne pas filtrer les valeurs false
@@ -55,7 +103,7 @@ export const collaborateursService = {
   },
 
   // Récupérer un collaborateur par ID
-  async getCollaborateur(id: number): Promise<Collaborateur> {
+  async getCollaborateur(id: number): Promise<CollaborateurAvecConge> {
     const response = await api.get(`/collaborateurs/${id}`);
     return response.data;
   },
@@ -70,7 +118,7 @@ export const collaborateursService = {
   async searchCollaborateurs(
     query: string,
     options?: { includeInactive?: boolean; limit?: number }
-  ): Promise<Collaborateur[]> {
+  ): Promise<CollaborateurAvecConge[]> {
     const params: any = { q: query };
     if (options?.includeInactive) {
       params.includeInactive = 'true';
@@ -83,7 +131,10 @@ export const collaborateursService = {
   },
 
   // Mettre à jour un collaborateur
-  async updateCollaborateur(id: number, data: UpdateCollaborateurDto): Promise<Collaborateur> {
+  async updateCollaborateur(
+    id: number,
+    data: UpdateCollaborateurAvecCongeDto,
+  ): Promise<CollaborateurAvecConge> {
     const response = await api.put(`/collaborateurs/${id}`, data);
     return response.data;
   },

@@ -53,15 +53,32 @@ import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
+import type { CollaborateurAvecConge } from '@/lib/services/collaborateurs.service';
 import { Collaborateur, CollaborateurFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
+
+/**
+ * Une borne de période n'est acceptée qu'au format `YYYY-MM-DD` (celui produit
+ * par le tableau de bord). Toute autre valeur est ignorée silencieusement :
+ * mieux vaut une liste non bornée qu'une page en erreur.
+ */
+const FORMAT_JOUR = /^\d{4}-\d{2}-\d{2}$/;
+
+const lireBorneJour = (valeur: string | null): string =>
+  valeur && FORMAT_JOUR.test(valeur) ? valeur : '';
+
+/** `2026-03-31` -> `31/03/2026` (affichage bannière) */
+const formaterJour = (valeur: string): string => {
+  const date = new Date(`${valeur}T00:00:00`);
+  return isNaN(date.getTime()) ? valeur : date.toLocaleDateString('fr-FR');
+};
 
 export default function CollaborateursPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   // États
-  const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
+  const [collaborateurs, setCollaborateurs] = useState<CollaborateurAvecConge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [globalStats, setGlobalStats] = useState<any>(null);
@@ -84,9 +101,16 @@ export default function CollaborateursPage() {
   const [departmentFilter, setDepartmentFilter] = useState<string>('');
   // Par défaut, n'afficher que les collaborateurs actifs
   const [statusFilter, setStatusFilter] = useState<string>('actif');
+  // Congé longue durée : 'tous' (aucun filtre) | 'enConge' | 'horsConge'
+  const [congeFilter, setCongeFilter] = useState<string>('tous');
   const [missingFieldsFilter, setMissingFieldsFilter] = useState<string[]>([]);
   const [contratFilter, setContratFilter] = useState<string>('');
   const [sansFormation, setSansFormation] = useState(searchParams.get('filter') === 'sansFormation');
+  // Période transmise par le tableau de bord avec le filtre « sans formation ».
+  // Lue une seule fois au montage, comme `filter` : la page n'est pas pilotée
+  // par l'URL, l'utilisateur reprend la main ensuite.
+  const [periodeDebut, setPeriodeDebut] = useState(() => lireBorneJour(searchParams.get('dateDebut')));
+  const [periodeFin, setPeriodeFin] = useState(() => lireBorneJour(searchParams.get('dateFin')));
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
@@ -142,14 +166,31 @@ export default function CollaborateursPage() {
         filters.actif = 'all' as any;
       }
 
+      // Filtre congé longue durée (omis quand 'tous' pour ne pas discriminer)
+      if (congeFilter === 'enConge') {
+        filters.enCongeLongueDuree = 'true';
+      } else if (congeFilter === 'horsConge') {
+        filters.enCongeLongueDuree = 'false';
+      }
+
       // Filtre des informations manquantes
       if (missingFieldsFilter.length > 0) {
         filters.missingFields = missingFieldsFilter.join(',');
       }
 
-      // Filtre sans formation
+      // Filtre sans formation.
+      // Les bornes n'accompagnent QUE ce filtre : le backend les interprète
+      // comme « aucune formation sur cette période » (sessions individuelles
+      // ET participations collectives, sessions sans date incluses). Envoyées
+      // seules, elles n'auraient aucun sens sur /collaborateurs.
       if (sansFormation) {
         filters.sansFormation = 'true';
+        if (periodeDebut) {
+          filters.dateDebut = periodeDebut;
+        }
+        if (periodeFin) {
+          filters.dateFin = periodeFin;
+        }
       }
 
       const response = await collaborateursService.getCollaborateurs(filters);
@@ -220,12 +261,12 @@ export default function CollaborateursPage() {
   // Charger les collaborateurs au montage et quand les filtres changent
   useEffect(() => {
     loadCollaborateurs();
-  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter, sansFormation, page]);
+  }, [debouncedSearch, departmentFilter, statusFilter, congeFilter, missingFieldsFilter, contratFilter, sansFormation, periodeDebut, periodeFin, page]);
 
   // Réinitialiser la page quand les filtres changent
   useEffect(() => {
     setPage(1);
-  }, [debouncedSearch, departmentFilter, statusFilter, missingFieldsFilter, contratFilter, sansFormation]);
+  }, [debouncedSearch, departmentFilter, statusFilter, congeFilter, missingFieldsFilter, contratFilter, sansFormation, periodeDebut, periodeFin]);
 
   const handleViewDetails = (id: number) => {
     router.push(`/collaborateurs/${id}`);
@@ -266,6 +307,39 @@ export default function CollaborateursPage() {
   const handleRefresh = () => {
     loadCollaborateurs();
   };
+
+  // Retire UNIQUEMENT les paramètres demandés de l'URL, en conservant les
+  // autres : le filtre « sans formation » et sa période doivent pouvoir être
+  // retirés indépendamment l'un de l'autre. On repart de window.location.search
+  // (et non de searchParams) pour ne pas travailler sur un état périmé.
+  const retirerParamsUrl = (cles: string[]) => {
+    const params = new URLSearchParams(
+      typeof window !== 'undefined' ? window.location.search : searchParams.toString()
+    );
+    cles.forEach((cle) => params.delete(cle));
+    const query = params.toString();
+    router.replace(query ? `/collaborateurs?${query}` : '/collaborateurs', { scroll: false });
+  };
+
+  const retirerFiltreSansFormation = () => {
+    setSansFormation(false);
+    retirerParamsUrl(['filter']);
+  };
+
+  const retirerPeriodeSansFormation = () => {
+    setPeriodeDebut('');
+    setPeriodeFin('');
+    retirerParamsUrl(['dateDebut', 'dateFin']);
+  };
+
+  // Libellé de la période effectivement transmise à l'API
+  const aPeriodeSansFormation = Boolean(periodeDebut || periodeFin);
+  const libellePeriodeSansFormation =
+    periodeDebut && periodeFin
+      ? `du ${formaterJour(periodeDebut)} au ${formaterJour(periodeFin)}`
+      : periodeDebut
+        ? `à partir du ${formaterJour(periodeDebut)}`
+        : `jusqu'au ${formaterJour(periodeFin)}`;
 
   // Activer/Désactiver un collaborateur
   const handleToggleActif = async (collaborateur: Collaborateur) => {
@@ -494,13 +568,31 @@ export default function CollaborateursPage() {
         </Group>
       </Table.Td>
       <Table.Td>
-        <Badge
-          color={collaborateur.actif ? 'green' : 'red'}
-          variant="light"
-          size="sm"
-        >
-          {collaborateur.actif ? 'Actif' : 'Inactif'}
-        </Badge>
+        {/*
+          Le congé longue durée s'ajoute au statut actif (il ne le remplace pas) :
+          la personne reste dans l'effectif, elle sort seulement du suivi des
+          formations obligatoires.
+        */}
+        <Group gap={6}>
+          <Badge
+            color={collaborateur.actif ? 'green' : 'red'}
+            variant="light"
+            size="sm"
+          >
+            {collaborateur.actif ? 'Actif' : 'Inactif'}
+          </Badge>
+          {collaborateur.actif && collaborateur.enCongeLongueDuree && (
+            <Tooltip
+              multiline
+              w={260}
+              label="Congé longue durée : reste dans l'effectif, mais exclu du suivi des formations obligatoires."
+            >
+              <Badge color="blue" variant="light" size="sm">
+                En congé
+              </Badge>
+            </Tooltip>
+          )}
+        </Group>
       </Table.Td>
       <Table.Td>
         <Group gap="xs" justify="flex-end">
@@ -726,6 +818,19 @@ export default function CollaborateursPage() {
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Select
+              placeholder="Congé longue durée"
+              data={[
+                { value: 'tous', label: 'Congé : tous' },
+                { value: 'enConge', label: 'En congé longue durée' },
+                { value: 'horsConge', label: 'Hors congé longue durée' },
+              ]}
+              value={congeFilter}
+              onChange={(value) => setCongeFilter(value || 'tous')}
+              allowDeselect={false}
+            />
+          </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
+            <Select
               placeholder="Tous les contrats"
               data={typesContrats}
               value={contratFilter}
@@ -748,22 +853,64 @@ export default function CollaborateursPage() {
         </Grid>
       </Paper>
 
-      {/* Bannière filtre sans formation */}
-      {sansFormation && (
+      {/* Combinaison impossible : un inactif n'est jamais en congé longue durée */}
+      {congeFilter === 'enConge' && statusFilter === 'inactif' && (
+        <Alert icon={<Warning size={16} />} color="blue" variant="light" mb="xl">
+          <Text size="sm">
+            Un collaborateur inactif n&apos;est jamais en congé longue durée : cette
+            combinaison de filtres ne peut renvoyer aucun résultat. Choisissez le statut
+            « Actifs » ou « Tous ».
+          </Text>
+        </Alert>
+      )}
+
+      {/* Bannière filtre sans formation (+ période appliquée).
+          Le filtre et la période se retirent séparément : la croix ne retire
+          que le filtre, le bouton « Retirer la période » ne retire que les
+          bornes. */}
+      {(sansFormation || aPeriodeSansFormation) && (
         <Alert
           icon={<Warning size={16} />}
-          color="orange"
+          color={sansFormation ? 'orange' : 'gray'}
           variant="light"
           mb="xl"
-          withCloseButton
-          onClose={() => {
-            setSansFormation(false);
-            router.replace('/collaborateurs', { scroll: false });
-          }}
+          withCloseButton={sansFormation}
+          onClose={retirerFiltreSansFormation}
         >
-          <Text fw={500} size="sm">
-            Filtre actif : collaborateurs sans aucune formation
-          </Text>
+          <Stack gap={6}>
+            {sansFormation ? (
+              <Text fw={500} size="sm">
+                Filtre actif : collaborateurs sans aucune formation
+              </Text>
+            ) : (
+              <Text fw={500} size="sm">
+                Filtre « sans formation » retiré : la période ci-dessous n&apos;est plus appliquée.
+              </Text>
+            )}
+
+            {aPeriodeSansFormation ? (
+              <Group gap="xs" align="center">
+                <Text size="sm">
+                  {sansFormation
+                    ? `Période prise en compte : ${libellePeriodeSansFormation} (sessions individuelles et collectives, sessions sans date incluses).`
+                    : `Période conservée mais sans effet : ${libellePeriodeSansFormation}.`}
+                </Text>
+                <Button
+                  variant="subtle"
+                  color="gray"
+                  size="compact-xs"
+                  onClick={retirerPeriodeSansFormation}
+                >
+                  Retirer la période
+                </Button>
+              </Group>
+            ) : (
+              <Text size="xs" c="dimmed">
+                Aucune période : toutes les formations sont prises en compte, quelle que
+                soit leur date.
+              </Text>
+            )}
+          </Stack>
         </Alert>
       )}
 

@@ -10,10 +10,13 @@ import {
   Button,
   Switch,
   SegmentedControl,
+  Alert,
+  Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { Departement, CreateDepartementDto, UpdateDepartementDto } from '@/lib/types';
 import { collaborateursService } from '@/lib/services';
 import { ParentSelector } from './ParentSelector';
@@ -74,6 +77,19 @@ export function DepartementFormModal({
       type: (value) => {
         if (!value || (value !== 'DEPARTEMENT' && value !== 'EQUIPE')) {
           return 'Le type doit être DEPARTEMENT ou EQUIPE';
+        }
+        return null;
+      },
+      /*
+        Une équipe DOIT avoir un parent : le backend refuse désormais en 400 une
+        équipe sans rattachement valide. On bloque donc côté formulaire pour
+        expliquer plutôt que laisser tomber sur une erreur serveur.
+        Attention : « Aucun parent (niveau racine) » vaut `null` dans le
+        ParentSelector, il est bien rejeté par ce test.
+      */
+      parentId: (value, values) => {
+        if (values.type === 'EQUIPE' && (value === null || value === undefined)) {
+          return 'Une équipe doit être rattachée à un département parent';
         }
         return null;
       },
@@ -176,11 +192,13 @@ export function DepartementFormModal({
   // Pré-remplir le formulaire en mode édition ou avec des valeurs initiales
   useEffect(() => {
     if (departement && opened) {
-      // Mode édition
+      // Mode édition. `initialType` a priorité sur le type actuel : c'est ce
+      // qui permet d'ouvrir le formulaire déjà positionné sur « Équipe » quand
+      // on vient du parcours « transformer ce département en équipe ».
       form.setValues({
         nomDepartement: departement.nomDepartement,
         codeDepartement: departement.codeDepartement || '',
-        type: departement.type || 'DEPARTEMENT',
+        type: initialType || departement.type || 'DEPARTEMENT',
         parentId: departement.parentId || null,
         directeurId: (departement as any).directeurId
           ? String((departement as any).directeurId)
@@ -252,7 +270,13 @@ export function DepartementFormModal({
             <SegmentedControl
               fullWidth
               value={form.values.type}
-              onChange={(value) => form.setFieldValue('type', value)}
+              onChange={(value) => {
+                form.setFieldValue('type', value);
+                // L'obligation de parent dépend du type : sans ce nettoyage,
+                // l'erreur « une équipe doit être rattachée… » resterait
+                // affichée après un retour sur « Département ».
+                form.clearFieldError('parentId');
+              }}
               data={[
                 {
                   value: 'DEPARTEMENT',
@@ -286,14 +310,32 @@ export function DepartementFormModal({
             value={form.values.parentId}
             onChange={(value) => form.setFieldValue('parentId', value)}
             currentDepartementId={departement?.id}
-            error={form.errors.parentId}
+            error={form.errors.parentId as string | undefined}
             label="Département parent"
+            required={form.values.type === 'EQUIPE'}
             description={
               form.values.type === 'EQUIPE'
-                ? "Recommandé : sélectionnez le département auquel cette équipe appartient"
+                ? "Obligatoire : une équipe doit être rattachée à un département, sinon elle apparaît isolée dans les KPI (ses collaborateurs ne remontent à aucun département)."
                 : "Optionnel : sélectionnez un département parent pour créer une hiérarchie"
             }
           />
+
+          {/*
+            Cas d'usage réel : un département devenu équipe. Le passer en
+            « Équipe » avec un parent conserve les collaborateurs en place et
+            fait remonter leurs KPI au département parent — c'est l'alternative
+            à la suppression, impossible tant que des collaborateurs y sont
+            affectés.
+          */}
+          {form.values.type === 'EQUIPE' && departement?.type === 'DEPARTEMENT' && (
+            <Alert icon={<Info size={16} />} color="blue" variant="light">
+              <Text size="sm">
+                Vous transformez « {departement.nomDepartement} » en équipe. Les
+                collaborateurs affectés restent en place : leurs KPI remonteront
+                automatiquement au département parent choisi ci-dessus.
+              </Text>
+            </Alert>
+          )}
 
           <Select
             label="Directeur"

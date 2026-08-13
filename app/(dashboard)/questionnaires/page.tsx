@@ -27,6 +27,7 @@ import {
   Modal,
   SegmentedControl,
   Switch,
+  Anchor,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
@@ -44,6 +45,7 @@ import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
 import { Star } from '@phosphor-icons/react/dist/ssr/Star';
 import { Hourglass } from '@phosphor-icons/react/dist/ssr/Hourglass';
 import { Calendar } from '@phosphor-icons/react/dist/ssr/Calendar';
+import { ArrowUpRight } from '@phosphor-icons/react/dist/ssr/ArrowUpRight';
 import {
   getQuestionnaires,
   duplicateQuestionnaire,
@@ -59,6 +61,10 @@ const questionTypeConfig: Record<QuestionType, { label: string; color: string }>
   choix: { label: 'Choix', color: 'grape' },
   oui_non: { label: 'Oui / Non', color: 'teal' },
 };
+
+/** Lien raccourci pour l'affichage sur les cartes (l'URL complète reste en href) */
+const tronquerLien = (lien: string, max = 60): string =>
+  lien.length > max ? `${lien.slice(0, max)}…` : lien;
 
 export default function QuestionnairesPage() {
   const [questionnaires, setQuestionnaires] = useState<Questionnaire[]>([]);
@@ -108,8 +114,10 @@ export default function QuestionnairesPage() {
     () => ({
       total: questionnaires.length,
       actifs: questionnaires.filter((q) => q.actif).length,
-      chaud: questionnaires.filter((q) => q.type === 'chaud').length,
-      froid: questionnaires.filter((q) => q.type === 'froid').length,
+      // Un template porte SOIT un lien externe, SOIT des questions construites
+      // dans l'outil : la règle est garantie côté serveur.
+      avecLien: questionnaires.filter((q) => Boolean(q.lienUrl)).length,
+      avecQuestions: questionnaires.filter((q) => !q.lienUrl).length,
     }),
     [questionnaires],
   );
@@ -216,8 +224,9 @@ export default function QuestionnairesPage() {
               <Title order={1}>Questionnaires d'évaluation</Title>
             </Group>
             <Text size="lg" c="dimmed" mt="xs">
-              Modèles de questionnaires réutilisables, envoyés automatiquement aux
-              participants dès qu'une session passe au statut terminé
+              Modèles de liens réutilisables (SharePoint, Forms…) : c'est le lien
+              enregistré ici qui est envoyé au collaborateur quand une évaluation
+              est demandée
             </Text>
           </div>
           <Group>
@@ -263,11 +272,11 @@ export default function QuestionnairesPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    À chaud
+                    Lien externe
                   </Text>
-                  <Text size="xl" fw={700} c="orange">{stats.chaud}</Text>
+                  <Text size="xl" fw={700} c="teal">{stats.avecLien}</Text>
                 </div>
-                <Star size={24} color="#FD7E14" />
+                <ArrowUpRight size={24} color="#12B886" />
               </Group>
             </Paper>
           </Grid.Col>
@@ -276,11 +285,11 @@ export default function QuestionnairesPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    À froid
+                    Questions internes
                   </Text>
-                  <Text size="xl" fw={700} c="blue">{stats.froid}</Text>
+                  <Text size="xl" fw={700} c="grape">{stats.avecQuestions}</Text>
                 </div>
-                <Hourglass size={24} color="#228BE6" />
+                <ListChecks size={24} color="#BE4BDB" />
               </Group>
             </Paper>
           </Grid.Col>
@@ -367,6 +376,21 @@ export default function QuestionnairesPage() {
                     >
                       {questionnaire.actif ? 'Actif' : 'Inactif'}
                     </Badge>
+                    {/* Mode du questionnaire : le lien prime sur les questions */}
+                    <Badge
+                      size="sm"
+                      variant="filled"
+                      color={questionnaire.lienUrl ? 'teal' : 'grape'}
+                      leftSection={
+                        questionnaire.lienUrl ? (
+                          <ArrowUpRight size={12} />
+                        ) : (
+                          <ListChecks size={12} />
+                        )
+                      }
+                    >
+                      {questionnaire.lienUrl ? 'Lien externe' : 'Questions internes'}
+                    </Badge>
                   </Group>
 
                   {questionnaire.description && (
@@ -375,11 +399,30 @@ export default function QuestionnairesPage() {
                     </Text>
                   )}
 
+                  {questionnaire.lienUrl && (
+                    <Group gap={6} mb="xs" wrap="nowrap" align="center">
+                      <ArrowUpRight size={14} color="#12B886" />
+                      <Anchor
+                        href={questionnaire.lienUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        size="sm"
+                        lineClamp={1}
+                        title={questionnaire.lienUrl}
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        {tronquerLien(questionnaire.lienUrl)}
+                      </Anchor>
+                    </Group>
+                  )}
+
                   <Group gap="xs">
-                    <Badge variant="outline" size="sm">
-                      {questionnaire.nombreQuestions} question
-                      {questionnaire.nombreQuestions > 1 ? 's' : ''}
-                    </Badge>
+                    {questionnaire.nombreQuestions > 0 && (
+                      <Badge variant="outline" size="sm">
+                        {questionnaire.nombreQuestions} question
+                        {questionnaire.nombreQuestions > 1 ? 's' : ''}
+                      </Badge>
+                    )}
                     <Badge variant="outline" size="sm" color="grape">
                       {questionnaire.nombreSessionsLiees} session
                       {questionnaire.nombreSessionsLiees > 1 ? 's' : ''} liée
@@ -429,7 +472,15 @@ export default function QuestionnairesPage() {
 
               <Divider my="md" />
 
-              {/* Aperçu des questions */}
+              {/* Aperçu des questions : uniquement pour les questionnaires
+                  construits dans l'outil (ancien mode). */}
+              {questionnaire.questions.length === 0 ? (
+                <Text size="sm" c="dimmed">
+                  {questionnaire.lienUrl
+                    ? 'Questionnaire hébergé à l\'extérieur : les réponses sont collectées sur le site du lien, pas dans MyTrainingHQ.'
+                    : 'Ce questionnaire ne contient ni lien ni question : modifiez-le pour le rendre exploitable.'}
+                </Text>
+              ) : (
               <Accordion variant="contained">
                 <Accordion.Item value="questions">
                   <Accordion.Control>
@@ -490,6 +541,7 @@ export default function QuestionnairesPage() {
                   </Accordion.Panel>
                 </Accordion.Item>
               </Accordion>
+              )}
 
               {/* Métadonnées */}
               <Box mt="md" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
@@ -520,7 +572,7 @@ export default function QuestionnairesPage() {
               <Text size="sm" c="dimmed" ta="center">
                 {questionnaires.length > 0 && hasActiveFilters
                   ? 'Essayez de modifier vos critères de filtre'
-                  : 'Créez un premier questionnaire pour pouvoir l\'associer à vos sessions de formation'}
+                  : 'Créez un premier modèle en collant le lien du questionnaire (SharePoint, Forms…) à envoyer aux collaborateurs'}
               </Text>
               <Button
                 mt="sm"

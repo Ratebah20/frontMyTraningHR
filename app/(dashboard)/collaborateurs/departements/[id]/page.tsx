@@ -25,6 +25,7 @@ import {
   Checkbox,
   Affix,
   Transition,
+  Alert,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
@@ -259,6 +260,42 @@ export default function DepartementDetailPage() {
             </Group>
           </Group>
         </Paper>
+
+        {/*
+          Équipe sans parent : c'est exactement la configuration qui fausse les
+          KPI (l'équipe apparaît comme une ligne isolée, ses collaborateurs ne
+          remontent à aucun département). Le backend refuse désormais de créer
+          cette situation, mais les données existantes peuvent la contenir.
+        */}
+        {departement.type === 'EQUIPE' && !departement.parentId && !departement.parent && (
+          <Alert
+            icon={<Warning size={18} />}
+            color="orange"
+            variant="light"
+            title="Cette équipe n'est rattachée à aucun département"
+          >
+            <Stack gap="sm" align="flex-start">
+              <Text size="sm">
+                Une équipe doit être rattachée à un département : sans parent, elle
+                apparaît isolée dans les KPI et ses {departement.nombreCollaborateurs}{' '}
+                collaborateur(s) ne remontent à aucun département. Rattachez-la pour
+                rétablir le calcul.
+              </Text>
+              <Button
+                size="compact-sm"
+                variant="light"
+                color="orange"
+                leftSection={<PencilSimple size={16} />}
+                onClick={() => {
+                  setIsCreatingEquipe(false);
+                  setModalOpened(true);
+                }}
+              >
+                Rattacher à un département
+              </Button>
+            </Stack>
+          </Alert>
+        )}
 
         {/* Statistiques */}
         <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing="lg">

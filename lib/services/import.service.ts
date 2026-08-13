@@ -34,6 +34,53 @@ export interface RhPreviewEtendu extends Omit<RhPreview, 'stats' | 'reactivation
   reactivations: RhReactivationEtendue[];
 }
 
+/**
+ * Résolution des organismes non trouvés du preview OLU.
+ *
+ * Déclaré ici (et non dans `lib/types/import-preview.types.ts`) pour rester
+ * dans le périmètre, sur le même modèle que `RhReactivationEtendue` ci-dessus.
+ *
+ * Enjeu : la colonne « Fournisseur » du fichier OLU contient « Orange Campus
+ * Cyber », « Orange Campus Tech »… La résolution se fait par égalité stricte du
+ * nom, aucune ne retrouve l'organisme canonique « Orange Campus ». Sans
+ * l'action `MAPPER`, la RH ne pouvait que créer un doublon ou ignorer.
+ */
+export type ActionResolutionOrganismeEtendue = 'IGNORER' | 'CREER' | 'MAPPER';
+
+export interface ResolutionOrganismeEtendue {
+  /**
+   * ATTENTION : nom de champ historique. Il porte en réalité la CLÉ rendue par
+   * le preview, c'est-à-dire le nom du fournisseur. Ne pas le renommer, le
+   * backend l'attend sous ce nom.
+   */
+  emailFormateur: string;
+  action: ActionResolutionOrganismeEtendue;
+  /** Action CREER : nom personnalisé de l'organisme à créer */
+  nomOrganisme?: string;
+  /** Action MAPPER : identifiant de l'organisme existant choisi */
+  organismeCibleId?: number;
+  /** Action MAPPER : repli accepté par le backend si l'id est inconnu */
+  organismeCibleNom?: string;
+  /**
+   * Mémoriser le rattachement d'un import à l'autre.
+   * À envoyer EXPLICITEMENT : la valeur par défaut annoncée dans Swagger n'est
+   * pas appliquée en code, un champ omis n'est donc pas mémorisé.
+   */
+  memoriser?: boolean;
+}
+
+export interface SubmitOrganismeResolutionsResult {
+  success: boolean;
+  created: number;
+  mapped: number;
+}
+
+/** Organisme cible proposé au mapping (`GET /import/rules/entities/ORGANISME`) */
+export interface OrganismeCibleOption {
+  id: number;
+  nom: string;
+}
+
 export interface ImportHistory {
   id: number;
   type: 'INITIAL' | 'OLU' | 'COLLABORATEURS';
@@ -165,6 +212,29 @@ export const importService = {
   // Abandonne un preview et supprime le fichier cote serveur
   async cancelCollaborateursPreview(previewId: string): Promise<void> {
     await api.delete(`/import/rh-collaborateurs/preview/${previewId}`);
+  },
+
+  /**
+   * Soumet les résolutions des organismes non trouvés du preview OLU.
+   *
+   * Remplace `importPreviewService.submitOrganismeResolutions` : cette version
+   * transporte l'action MAPPER (`organismeCibleId`) et `memoriser`.
+   */
+  async submitOrganismeResolutions(
+    previewId: string,
+    resolutions: ResolutionOrganismeEtendue[],
+  ): Promise<SubmitOrganismeResolutionsResult> {
+    const response = await api.post('/import/olu/preview/resolve-organismes', {
+      previewId,
+      resolutions,
+    });
+    return response.data;
+  },
+
+  /** Organismes existants proposés comme cible de mapping */
+  async getOrganismesCibles(): Promise<OrganismeCibleOption[]> {
+    const response = await api.get('/import/rules/entities/ORGANISME');
+    return Array.isArray(response.data) ? response.data : [];
   },
 
   // Récupérer l'historique des imports

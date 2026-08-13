@@ -295,6 +295,27 @@ export default function EvaluationsSynthesePage() {
         </Stack>
       </Paper>
 
+      {/* Questionnaires à lien externe : leurs réponses ne remontent jamais ici.
+          Sans ce rappel, un taux de réponse à 0 % passerait pour un bug. */}
+      <Alert
+        color="blue"
+        variant="light"
+        icon={<Info size={16} />}
+        title="Questionnaires à lien externe"
+        mb="lg"
+      >
+        <Text size="sm">
+          Quand un questionnaire est un simple lien (SharePoint, Microsoft Forms…),
+          les réponses sont collectées sur l&apos;outil externe et{' '}
+          <strong>ne remontent jamais dans MyTrainingHQ</strong>. Ces campagnes
+          apparaissent donc dans les <strong>invitations envoyées</strong>, mais leurs
+          réponses restent à 0 et le taux de réponse affiché ci-dessous les concernant
+          n&apos;a pas de sens : consultez les résultats directement dans SharePoint ou
+          Forms. Seuls les questionnaires construits dans l&apos;outil alimentent les
+          moyennes et les graphiques.
+        </Text>
+      </Alert>
+
       {/* États */}
       {!formationId ? (
         <Paper shadow="sm" p="xl" radius="md" withBorder>
@@ -337,8 +358,13 @@ export default function EvaluationsSynthesePage() {
               cette période pour « {synthese.formation.nomFormation} ».
             </Text>
             <Text size="sm">
-              Élargissez la période, changez de type d&apos;évaluation, ou envoyez un
-              questionnaire depuis le détail d&apos;une session.
+              Élargissez la période, changez de type d&apos;évaluation, ou demandez une
+              évaluation depuis la page Sessions.
+            </Text>
+            <Text size="sm">
+              Si les invitations ont bien été envoyées avec un questionnaire à{' '}
+              <strong>lien externe</strong>, c&apos;est normal : les réponses sont
+              enregistrées sur SharePoint ou Forms, pas ici.
             </Text>
           </Stack>
         </Alert>

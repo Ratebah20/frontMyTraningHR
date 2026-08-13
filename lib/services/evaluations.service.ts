@@ -4,10 +4,20 @@ import type {
   SessionEvaluation,
   FormationEvaluationSynthese,
   FormationEvaluationSyntheseFilters,
+  SendGroupEvaluationsDto,
+  SendGroupEvaluationsResponse,
+  PreviewGroupEvaluationsResponse,
 } from '../types';
 
 // Types canoniques : définis dans lib/types, ré-exportés ici par commodité
-export type { SessionEvaluation, FormationEvaluationSynthese, FormationEvaluationSyntheseFilters };
+export type {
+  SessionEvaluation,
+  FormationEvaluationSynthese,
+  FormationEvaluationSyntheseFilters,
+  SendGroupEvaluationsDto,
+  SendGroupEvaluationsResponse,
+  PreviewGroupEvaluationsResponse,
+};
 
 export type EvaluationType = 'chaud' | 'froid';
 export type SessionType = 'individuelle' | 'collective';
@@ -64,6 +74,40 @@ export const evaluationsService = {
       type,
       evaluationType,
       ...(questionnaireTemplateId !== undefined ? { questionnaireTemplateId } : {}),
+    });
+    return response.data;
+  },
+
+  /**
+   * Prévisualisation d'un envoi sur un GROUPE de sessions individuelles.
+   * Lecture seule : aucun mail n'est envoyé, aucune évaluation n'est créée.
+   * Renvoie uniquement des compteurs (aucune adresse email).
+   */
+  async previewGroupEvaluations(
+    groupKey: string,
+    evaluationType: EvaluationType,
+  ): Promise<PreviewGroupEvaluationsResponse> {
+    const response = await api.get('/evaluations/send-group/preview', {
+      params: { groupKey, evaluationType },
+    });
+    return response.data;
+  },
+
+  /**
+   * Envoi effectif des évaluations à toutes les personnes du groupe.
+   * ⚠️ L'idempotence est APPLICATIVE (« déjà envoyée » vérifié à l'exécution),
+   * pas garantie par une contrainte de base : ne jamais laisser un double-clic
+   * déclencher deux appels.
+   */
+  async sendGroupEvaluations(
+    dto: SendGroupEvaluationsDto,
+  ): Promise<SendGroupEvaluationsResponse> {
+    const response = await api.post('/evaluations/send-group', {
+      groupKey: dto.groupKey,
+      evaluationType: dto.evaluationType,
+      ...(dto.questionnaireTemplateId !== undefined
+        ? { questionnaireTemplateId: dto.questionnaireTemplateId }
+        : {}),
     });
     return response.data;
   },

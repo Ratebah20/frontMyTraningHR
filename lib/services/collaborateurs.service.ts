@@ -47,6 +47,38 @@ export interface UpdateCollaborateurAvecCongeDto extends UpdateCollaborateurDto 
   enCongeLongueDuree?: boolean;
 }
 
+/**
+ * Bloc `stats` renvoyé par `GET /collaborateurs`, à côté de `data` et `meta`.
+ *
+ * ATTENTION au sens exact de chaque compteur, c'est la source du malentendu
+ * « le filtre sans formation ne fonctionne pas » : `total`, `totalActifs` et
+ * `totalInactifs` portent sur le FILTRE COURANT (hors dimension `actif`), pas
+ * sur l'effectif complet. Une tuile « Total » affichée sans mention du filtre
+ * laisse croire que le tableau, lui, n'est pas filtré.
+ *
+ * `totalFiltres` est le nombre de résultats du filtre courant, identique à
+ * `meta.total` : c'est le chiffre à confronter au tableau.
+ *
+ * Tous les champs sont optionnels : un backend plus ancien n'en renvoie aucun.
+ * Types déclarés ici et non dans `lib/types/index.ts` (hors périmètre).
+ */
+export interface CollaborateursStats {
+  /** Actifs + inactifs correspondant au filtre courant (hors dimension actif) */
+  total?: number;
+  /** Actifs correspondant au filtre courant */
+  totalActifs?: number;
+  /** Inactifs correspondant au filtre courant */
+  totalInactifs?: number;
+  totalDepartements?: number;
+  /** Nombre de résultats du filtre courant (= meta.total) */
+  totalFiltres?: number;
+}
+
+export interface CollaborateursPaginatedResponse
+  extends PaginatedResponse<CollaborateurAvecConge> {
+  stats?: CollaborateursStats;
+}
+
 export const collaborateursService = {
   // Créer un nouveau collaborateur
   async createCollaborateur(data: {
@@ -70,7 +102,7 @@ export const collaborateursService = {
   // Récupérer la liste des collaborateurs avec pagination et filtres
   async getCollaborateurs(
     filters?: CollaborateurFiltersAvecConge,
-  ): Promise<PaginatedResponse<CollaborateurAvecConge>> {
+  ): Promise<CollaborateursPaginatedResponse> {
     // Créer une copie des filtres pour éviter de modifier l'original
     const params: any = { ...filters };
 

@@ -27,6 +27,8 @@ import { GraduationCap } from '@phosphor-icons/react/dist/ssr/GraduationCap';
 import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { PaperPlaneTilt } from '@phosphor-icons/react/dist/ssr/PaperPlaneTilt';
+import { ArrowUpRight } from '@phosphor-icons/react/dist/ssr/ArrowUpRight';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import {
   evaluationsService,
   EvaluationContext,
@@ -64,6 +66,20 @@ export default function EvaluationPage({ params }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const questionnaire = context?.questionnaire || null;
+
+  /**
+   * CAMPAGNE PAR LIEN EXTERNE : le questionnaire est rattaché mais ne contient
+   * aucune question, seulement un lien (SharePoint, Forms…). Il n'y a alors
+   * rien à saisir ici — on renvoie vers le formulaire hébergé à l'extérieur.
+   *
+   * Les deux autres cas restent inchangés :
+   *  - `questionnaire === null`               -> formulaire historique câblé en dur
+   *  - `questionnaire.questions.length > 0`   -> formulaire dynamique
+   */
+  const lienExterne =
+    questionnaire && questionnaire.questions.length === 0 && questionnaire.lienUrl
+      ? questionnaire.lienUrl
+      : null;
 
   const setAnswer = (questionId: string, value: any) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -114,6 +130,9 @@ export default function EvaluationPage({ params }: Props) {
 
   const handleSubmit = async () => {
     if (!context) return;
+    // Rien à soumettre pour une campagne par lien externe : les réponses sont
+    // collectées par l'outil externe, jamais par MyTrainingHQ.
+    if (lienExterne) return;
     setFormError(null);
 
     let reponses: Record<string, any>;
@@ -268,6 +287,67 @@ export default function EvaluationPage({ params }: Props) {
 
   const isChaud = context.type === 'chaud';
 
+  /** En-tête commun aux trois cas (formation, type d'évaluation) */
+  const enTete = (
+    <Stack align="center" gap="xs">
+      <ThemeIcon size={60} radius="xl" variant="light" color={isChaud ? 'orange' : 'blue'}>
+        <GraduationCap size={35} weight="duotone" />
+      </ThemeIcon>
+      <Badge variant="light" color={isChaud ? 'orange' : 'blue'}>
+        {isChaud ? 'Évaluation à chaud' : 'Évaluation à froid'}
+      </Badge>
+      <Title order={2} ta="center">{context.formationNom}</Title>
+      <Text c="dimmed" size="sm" ta="center">
+        {isChaud
+          ? 'Votre avis sur la formation que vous venez de suivre'
+          : `Retour du manager sur la formation suivie par ${context.collaborateurNom}`}
+      </Text>
+    </Stack>
+  );
+
+  // CAS 3 — campagne par lien externe : page d'accueil, aucun formulaire local
+  if (lienExterne && questionnaire) {
+    return renderShell(
+      <Stack gap="lg">
+        {enTete}
+
+        <Divider />
+
+        <Stack gap="xs" align="center">
+          <Title order={4} ta="center">{questionnaire.nom}</Title>
+          {questionnaire.description && (
+            <Text size="sm" c="dimmed" ta="center">
+              {questionnaire.description}
+            </Text>
+          )}
+        </Stack>
+
+        <Alert icon={<Info size={16} />} color="blue" variant="light">
+          Ce questionnaire est hébergé à l&apos;extérieur de MyTrainingHQ. Le bouton
+          ci-dessous ouvre le formulaire dans un nouvel onglet : vos réponses y
+          sont enregistrées directement.
+        </Alert>
+
+        <Button
+          component="a"
+          href={lienExterne}
+          target="_blank"
+          rel="noopener noreferrer"
+          size="md"
+          fullWidth
+          rightSection={<ArrowUpRight size={16} />}
+        >
+          Répondre au questionnaire
+        </Button>
+
+        <Text size="xs" c="dimmed" ta="center" style={{ wordBreak: 'break-all' }}>
+          Si le bouton ne fonctionne pas, copiez cette adresse dans votre
+          navigateur : {lienExterne}
+        </Text>
+      </Stack>
+    );
+  }
+
   /** Rendu d'une question du questionnaire dynamique */
   const renderQuestion = (question: Question) => {
     const value = answers[question.id];
@@ -371,20 +451,7 @@ export default function EvaluationPage({ params }: Props) {
 
   return renderShell(
     <Stack gap="lg">
-      <Stack align="center" gap="xs">
-        <ThemeIcon size={60} radius="xl" variant="light" color={isChaud ? 'orange' : 'blue'}>
-          <GraduationCap size={35} weight="duotone" />
-        </ThemeIcon>
-        <Badge variant="light" color={isChaud ? 'orange' : 'blue'}>
-          {isChaud ? 'Évaluation à chaud' : 'Évaluation à froid'}
-        </Badge>
-        <Title order={2} ta="center">{context.formationNom}</Title>
-        <Text c="dimmed" size="sm" ta="center">
-          {isChaud
-            ? 'Votre avis sur la formation que vous venez de suivre'
-            : `Retour du manager sur la formation suivie par ${context.collaborateurNom}`}
-        </Text>
-      </Stack>
+      {enTete}
 
       <Divider />
 

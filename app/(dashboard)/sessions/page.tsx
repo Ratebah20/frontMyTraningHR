@@ -32,6 +32,7 @@ import {
   Modal,
   Table,
   Checkbox,
+  SegmentedControl,
 } from '@mantine/core';
 // import { DatePickerInput } from '@mantine/dates'; // Module non installé
 import { notifications } from '@mantine/notifications';
@@ -62,12 +63,25 @@ import { CalendarBlank } from '@phosphor-icons/react/dist/ssr/CalendarBlank';
 import { SortAscending } from '@phosphor-icons/react/dist/ssr/SortAscending';
 import { SortDescending } from '@phosphor-icons/react/dist/ssr/SortDescending';
 import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { PaperPlaneTilt } from '@phosphor-icons/react/dist/ssr/PaperPlaneTilt';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { sessionsService, formationsService, collaborateursService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
+import { evaluationsService } from '@/lib/services/evaluations.service';
+import { getQuestionnaires } from '@/lib/services/questionnaires.service';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
-import { SessionFormationResponse, SessionFilters, GroupedSession, UnifiedSession } from '@/lib/types';
+import {
+  SessionFormationResponse,
+  SessionFilters,
+  GroupedSession,
+  UnifiedSession,
+  Questionnaire,
+  EvaluationMoment,
+  PreviewGroupEvaluationsResponse,
+} from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 import { SessionTypeBadge } from '@/components/sessions/SessionTypeBadge';
 
@@ -228,6 +242,143 @@ export default function SessionsPage() {
       });
     } finally {
       setIsBatchDeleting(false);
+    }
+  };
+
+  // ---- Demander une évaluation sur un GROUPE de sessions individuelles ----
+  //
+  // ⚠️ Les DTO de sessions groupées FABRIQUENT des adresses email
+  // (`nom@company.com`, « Généré car chiffré » côté backend). On ne s'en sert
+  // JAMAIS pour dire qui recevra un mail : la seule vérité est la
+  // prévisualisation renvoyée par le backend, qui lit les vraies colonnes.
+  const [evalGroup, setEvalGroup] = useState<any | null>(null);
+  const [evalType, setEvalType] = useState<EvaluationMoment>('chaud');
+  const [evalTemplates, setEvalTemplates] = useState<Questionnaire[]>([]);
+  const [evalTemplatesLoading, setEvalTemplatesLoading] = useState(false);
+  const [evalQuestionnaireId, setEvalQuestionnaireId] = useState<string | null>(null);
+  const [evalPreview, setEvalPreview] = useState<PreviewGroupEvaluationsResponse | null>(null);
+  const [evalPreviewLoading, setEvalPreviewLoading] = useState(false);
+  const [evalError, setEvalError] = useState<string | null>(null);
+  const [isSendingEval, setIsSendingEval] = useState(false);
+
+  const openEvaluationModal = (session: any) => {
+    setEvalGroup(session);
+    setEvalType('chaud');
+    setEvalQuestionnaireId(null);
+    setEvalPreview(null);
+    setEvalError(null);
+    setIsSendingEval(false);
+  };
+
+  const closeEvaluationModal = () => {
+    if (isSendingEval) return;
+    setEvalGroup(null);
+    setEvalPreview(null);
+    setEvalError(null);
+  };
+
+  // Prévisualisation (lecture seule) : rejouée à chaque changement de type
+  useEffect(() => {
+    const groupKey = evalGroup?.groupKey;
+    if (!groupKey) return;
+
+    let annule = false;
+    setEvalPreviewLoading(true);
+    setEvalError(null);
+    setEvalPreview(null);
+
+    evaluationsService
+      .previewGroupEvaluations(groupKey, evalType)
+      .then((preview) => {
+        if (!annule) setEvalPreview(preview);
+      })
+      .catch((err: any) => {
+        if (annule) return;
+        const message = err.response?.data?.message || err.message;
+        setEvalError(
+          Array.isArray(message)
+            ? message.join(' — ')
+            : message || 'Impossible de prévisualiser cet envoi',
+        );
+      })
+      .finally(() => {
+        if (!annule) setEvalPreviewLoading(false);
+      });
+
+    return () => {
+      annule = true;
+    };
+  }, [evalGroup, evalType]);
+
+  // Questionnaires actifs du type sélectionné (même règle que /sessions/new)
+  useEffect(() => {
+    if (!evalGroup) return;
+
+    let annule = false;
+    setEvalQuestionnaireId(null);
+    setEvalTemplatesLoading(true);
+
+    getQuestionnaires({ type: evalType })
+      .then((list) => {
+        if (!annule) setEvalTemplates((list || []).filter((q) => q.actif));
+      })
+      .catch(() => {
+        if (!annule) setEvalTemplates([]);
+      })
+      .finally(() => {
+        if (!annule) setEvalTemplatesLoading(false);
+      });
+
+    return () => {
+      annule = true;
+    };
+  }, [evalGroup, evalType]);
+
+  const handleSendGroupEvaluations = async () => {
+    if (!evalGroup?.groupKey || !evalQuestionnaireId) return;
+
+    setIsSendingEval(true);
+    try {
+      const result = await evaluationsService.sendGroupEvaluations({
+        groupKey: evalGroup.groupKey,
+        evaluationType: evalType,
+        questionnaireTemplateId: parseInt(evalQuestionnaireId, 10),
+      });
+
+      const details = [
+        `${result.envoyes} envoyée(s)`,
+        result.dejaEnvoyees > 0 ? `${result.dejaEnvoyees} déjà envoyée(s)` : null,
+        result.sansEmail > 0 ? `${result.sansEmail} sans adresse email` : null,
+        result.erreurs > 0 ? `${result.erreurs} en erreur` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ');
+
+      notifications.show({
+        title:
+          result.envoyes > 0
+            ? 'Demande d\'évaluation envoyée'
+            : 'Aucun nouvel envoi',
+        message: `${result.totalParticipants} participant(s) sur ${result.totalSessions} session(s) — ${details}`,
+        color: result.erreurs > 0 ? 'orange' : result.envoyes > 0 ? 'green' : 'blue',
+        icon: result.erreurs > 0 ? <Warning size={16} /> : <CheckCircle size={16} />,
+        autoClose: 8000,
+      });
+
+      setEvalGroup(null);
+      setEvalPreview(null);
+    } catch (err: any) {
+      const message = err.response?.data?.message || err.message;
+      notifications.show({
+        title: 'Erreur lors de l\'envoi',
+        message: Array.isArray(message)
+          ? message.join(' — ')
+          : message || 'Les évaluations n\'ont pas pu être envoyées',
+        color: 'red',
+        icon: <Warning size={16} />,
+      });
+    } finally {
+      setIsSendingEval(false);
     }
   };
 
@@ -597,6 +748,11 @@ export default function SessionsPage() {
     if (stats.annule === stats.total) return { color: 'red', label: 'Annulée', icon: CalendarX };
     return { color: 'gray', label: 'Non défini', icon: CalendarCheck };
   };
+
+  // L'envoi de groupe ne s'applique qu'aux sessions INDIVIDUELLES groupées :
+  // c'est la forme des sessions importées d'OLU, identifiées par leur groupKey.
+  const peutDemanderEvaluation = (session: any): boolean =>
+    session?.type !== 'collective' && Boolean(session?.groupKey);
 
   // Fonction pour obtenir le nombre de participants de manière standardisée
   const getParticipantCount = (session: any): number => {
@@ -1027,6 +1183,18 @@ export default function SessionsPage() {
                           >
                             Modifier{session.participants && session.participants.length > 1 ? ' les sessions' : ' la session'}
                           </Menu.Item>
+                          {peutDemanderEvaluation(session) && (
+                            <Menu.Item
+                              leftSection={<PaperPlaneTilt size={14} />}
+                              color="teal"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openEvaluationModal(session);
+                              }}
+                            >
+                              Demander une évaluation
+                            </Menu.Item>
+                          )}
                         </Menu.Dropdown>
                       </Menu>
                     </Group>
@@ -1404,6 +1572,21 @@ export default function SessionsPage() {
                                 <PencilSimple size={16} />
                               </ActionIcon>
                             </Tooltip>
+                            {peutDemanderEvaluation(session) && (
+                              <Tooltip label="Demander une évaluation aux participants">
+                                <ActionIcon
+                                  variant="light"
+                                  color="teal"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openEvaluationModal(session);
+                                  }}
+                                >
+                                  <PaperPlaneTilt size={16} />
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
                           </Group>
                         </Table.Td>
                       </Table.Tr>
@@ -1487,6 +1670,166 @@ export default function SessionsPage() {
               leftSection={<Trash size={16} />}
             >
               Confirmer la suppression
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      {/* Demande d'évaluation sur un groupe de sessions individuelles */}
+      <Modal
+        opened={Boolean(evalGroup)}
+        onClose={closeEvaluationModal}
+        title={
+          <Group gap="xs">
+            <PaperPlaneTilt size={20} />
+            <Text fw={600}>Demander une évaluation</Text>
+          </Group>
+        }
+        size="lg"
+        centered
+        closeOnClickOutside={!isSendingEval}
+        closeOnEscape={!isSendingEval}
+      >
+        <Stack gap="md">
+          <div>
+            <Text fw={600}>{evalGroup?.formationNom}</Text>
+            {(evalGroup?.dateDebut || evalGroup?.dateFin) && (
+              <Text size="sm" c="dimmed">
+                {evalGroup?.dateDebut
+                  ? `Du ${new Date(evalGroup.dateDebut).toLocaleDateString('fr-FR')}`
+                  : 'Date non définie'}
+                {evalGroup?.dateFin &&
+                  ` au ${new Date(evalGroup.dateFin).toLocaleDateString('fr-FR')}`}
+              </Text>
+            )}
+          </div>
+
+          <SegmentedControl
+            fullWidth
+            value={evalType}
+            onChange={(value) => setEvalType(value as EvaluationMoment)}
+            disabled={isSendingEval}
+            data={[
+              { value: 'chaud', label: 'À chaud (au collaborateur)' },
+              { value: 'froid', label: 'À froid (au manager)' },
+            ]}
+          />
+
+          {/* Prévisualisation : seule source de vérité sur les destinataires */}
+          {evalPreviewLoading ? (
+            <Group gap="xs">
+              <Loader size="sm" />
+              <Text size="sm" c="dimmed">Calcul des destinataires...</Text>
+            </Group>
+          ) : evalError ? (
+            <Alert color="red" variant="light" icon={<Warning size={16} />}>
+              {evalError}
+            </Alert>
+          ) : evalPreview ? (
+            <Paper withBorder p="md" radius="md">
+              <Grid>
+                <Grid.Col span={{ base: 6, sm: 3 }}>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Recevront le mail
+                  </Text>
+                  <Text size="xl" fw={700} c="teal">{evalPreview.destinataires}</Text>
+                </Grid.Col>
+                <Grid.Col span={{ base: 6, sm: 3 }}>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Déjà envoyées
+                  </Text>
+                  <Text size="xl" fw={700} c="blue">{evalPreview.dejaEnvoyees}</Text>
+                </Grid.Col>
+                <Grid.Col span={{ base: 6, sm: 3 }}>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Sans email
+                  </Text>
+                  <Text size="xl" fw={700} c="orange">{evalPreview.sansEmail}</Text>
+                </Grid.Col>
+                <Grid.Col span={{ base: 6, sm: 3 }}>
+                  <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                    Participants
+                  </Text>
+                  <Text size="xl" fw={700}>{evalPreview.totalParticipants}</Text>
+                </Grid.Col>
+              </Grid>
+              <Text size="xs" c="dimmed" mt="sm">
+                {evalPreview.totalSessions} session(s) individuelle(s) dans ce groupe.
+                {evalPreview.sansEmail > 0 &&
+                  ` ${evalPreview.sansEmail} personne(s) n'ont pas d'adresse email exploitable et seront ignorées.`}
+                {evalPreview.dejaEnvoyees > 0 &&
+                  ` ${evalPreview.dejaEnvoyees} évaluation(s) à ${evalType} ont déjà été envoyées : elles ne seront pas renvoyées.`}
+              </Text>
+            </Paper>
+          ) : null}
+
+          {/* Questionnaire : obligatoire, c'est lui qui porte le lien envoyé */}
+          {evalTemplatesLoading ? (
+            <Group gap="xs">
+              <Loader size="sm" />
+              <Text size="sm" c="dimmed">Chargement des questionnaires...</Text>
+            </Group>
+          ) : evalTemplates.length === 0 ? (
+            <Alert color="orange" variant="light" icon={<Warning size={16} />}>
+              Aucun questionnaire actif de type « à {evalType} ». Créez-en un depuis
+              la page Questionnaires (un lien SharePoint ou Forms suffit) avant de
+              lancer la demande.
+            </Alert>
+          ) : (
+            <Select
+              label="Questionnaire à envoyer"
+              placeholder="Sélectionner un questionnaire"
+              required
+              searchable
+              leftSection={<ClipboardText size={16} />}
+              disabled={isSendingEval}
+              data={evalTemplates.map((q) => ({
+                value: q.id.toString(),
+                label: q.nom,
+              }))}
+              value={evalQuestionnaireId}
+              onChange={setEvalQuestionnaireId}
+              description={(() => {
+                const choisi = evalTemplates.find(
+                  (q) => q.id.toString() === evalQuestionnaireId,
+                );
+                if (!choisi) return `Questionnaires actifs de type « à ${evalType} »`;
+                return choisi.lienUrl
+                  ? `Lien externe : ${choisi.lienUrl}`
+                  : `${choisi.nombreQuestions} question(s) posées dans l'outil`;
+              })()}
+            />
+          )}
+
+          <Alert color="blue" variant="light" icon={<Info size={16} />}>
+            Chaque participant reçoit un email personnel. L&apos;envoi n&apos;est pas
+            annulable : ne validez qu&apos;une fois.
+          </Alert>
+
+          <Group justify="flex-end">
+            <Button variant="default" onClick={closeEvaluationModal} disabled={isSendingEval}>
+              Annuler
+            </Button>
+            <Button
+              color="teal"
+              leftSection={<PaperPlaneTilt size={16} />}
+              loading={isSendingEval}
+              disabled={
+                isSendingEval ||
+                evalPreviewLoading ||
+                !evalPreview ||
+                evalPreview.destinataires === 0 ||
+                !evalQuestionnaireId
+              }
+              onClick={handleSendGroupEvaluations}
+            >
+              {evalPreviewLoading
+                ? 'Vérification en cours...'
+                : !evalPreview
+                  ? 'Envoi indisponible'
+                  : evalPreview.destinataires > 0
+                    ? `Envoyer à ${evalPreview.destinataires} personne(s)`
+                    : 'Aucun destinataire'}
             </Button>
           </Group>
         </Stack>

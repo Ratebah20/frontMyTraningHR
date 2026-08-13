@@ -53,7 +53,10 @@ import { DateInput } from '@mantine/dates';
 import 'dayjs/locale/fr';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { collaborateursService, commonService } from '@/lib/services';
-import type { CollaborateurAvecConge } from '@/lib/services/collaborateurs.service';
+import type {
+  CollaborateurAvecConge,
+  CollaborateursStats,
+} from '@/lib/services/collaborateurs.service';
 import { Collaborateur, CollaborateurFilters } from '@/lib/types';
 import { useDebounce } from '@/hooks/useApi';
 
@@ -81,7 +84,7 @@ export default function CollaborateursPage() {
   const [collaborateurs, setCollaborateurs] = useState<CollaborateurAvecConge[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [globalStats, setGlobalStats] = useState<any>(null);
+  const [globalStats, setGlobalStats] = useState<CollaborateursStats | null>(null);
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
   const [typesContrats, setTypesContrats] = useState<{ value: string; label: string }[]>([]);
 
@@ -201,10 +204,11 @@ export default function CollaborateursPage() {
         setTotal(totalCount);
         setTotalPages(response.meta?.totalPages || Math.ceil(totalCount / limit));
 
-        // Utiliser les stats globales du backend si disponibles
-        if ((response as any).stats) {
-          setGlobalStats((response as any).stats);
-        }
+        // Stats du backend : elles portent sur le FILTRE COURANT, pas sur
+        // l'effectif complet (voir CollaborateursStats). Elles sont remises à
+        // null quand le backend n'en renvoie pas, sinon les tuiles resteraient
+        // figées sur le résultat du filtre précédent.
+        setGlobalStats(response.stats ?? null);
       } else {
         setCollaborateurs([]);
         setTotal(0);
@@ -501,12 +505,35 @@ export default function CollaborateursPage() {
     return missing;
   };
 
+  /**
+   * Un filtre « de contenu » est-il actif ?
+   *
+   * Le statut (actif/inactif) est volontairement EXCLU de ce test : le backend
+   * calcule `total`, `totalActifs` et `totalInactifs` hors dimension `actif`,
+   * ces trois compteurs ne bougent donc pas quand on change le sélecteur de
+   * statut. `totalFiltres`, lui, tient compte de tout, statut compris.
+   */
+  const filtreActif = Boolean(
+    debouncedSearch.trim() ||
+    departmentFilter ||
+    contratFilter ||
+    congeFilter !== 'tous' ||
+    missingFieldsFilter.length > 0 ||
+    sansFormation
+  );
+
+  // Nombre de résultats du filtre courant : c'est le chiffre qui correspond au
+  // tableau affiché (`meta.total` en repli si le backend est plus ancien).
+  const totalFiltres = globalStats?.totalFiltres ?? total;
+
   // Utiliser les statistiques globales du backend ou calculer localement
   const stats = globalStats ? {
-    total: globalStats.total || (globalStats.totalActifs + globalStats.totalInactifs) || total,
-    actifs: globalStats.totalActifs || 0,
-    inactifs: globalStats.totalInactifs || 0,
-    departements: globalStats.totalDepartements || 0,
+    total:
+      globalStats.total ??
+      ((globalStats.totalActifs ?? 0) + (globalStats.totalInactifs ?? 0)),
+    actifs: globalStats.totalActifs ?? 0,
+    inactifs: globalStats.totalInactifs ?? 0,
+    departements: globalStats.totalDepartements ?? 0,
   } : {
     total: total,
     actifs: collaborateurs.filter(c => c.actif).length,
@@ -712,16 +739,53 @@ export default function CollaborateursPage() {
           </Group>
         </Flex>
 
-        {/* Statistiques rapides */}
+        {/*
+          Statistiques rapides.
+
+          Ces tuiles suivent le filtre courant : quand un filtre est actif,
+          elles sont explicitement libellées « du filtre » pour qu'on ne les
+          lise plus comme l'effectif complet au-dessus d'un tableau filtré.
+        */}
         <Grid mt="lg">
+          {filtreActif && (
+            <Grid.Col span={12}>
+              <Card withBorder p="md" radius="md" bg="orange.0">
+                <Group justify="space-between" align="center">
+                  <Group gap="sm" align="center">
+                    <ThemeIcon size="lg" radius="md" variant="light" color="orange">
+                      <FunnelSimple size={20} />
+                    </ThemeIcon>
+                    <div>
+                      <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
+                        Résultats du filtre
+                      </Text>
+                      <Text size="xl" fw={700} c="orange.8">
+                        {totalFiltres} collaborateur{totalFiltres > 1 ? 's' : ''}
+                      </Text>
+                    </div>
+                  </Group>
+                  <Text size="xs" c="dimmed" style={{ maxWidth: 480 }}>
+                    C&apos;est le nombre de lignes du tableau ci-dessous. Les tuiles
+                    suivantes portent elles aussi sur le filtre courant (hors
+                    sélecteur de statut) et non sur l&apos;effectif total.
+                  </Text>
+                </Group>
+              </Card>
+            </Grid.Col>
+          )}
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Card withBorder p="md" radius="md">
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Total
+                    {filtreActif ? 'Total du filtre' : 'Total'}
                   </Text>
                   <Text size="xl" fw={700}>{stats.total}</Text>
+                  {filtreActif && (
+                    <Text size="xs" c="dimmed">
+                      actifs + inactifs correspondant au filtre
+                    </Text>
+                  )}
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="blue">
                   <Users size={20} />
@@ -734,7 +798,7 @@ export default function CollaborateursPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Actifs
+                    {filtreActif ? 'Actifs du filtre' : 'Actifs'}
                   </Text>
                   <Text size="xl" fw={700} c="green">{stats.actifs}</Text>
                 </div>
@@ -749,7 +813,7 @@ export default function CollaborateursPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Inactifs
+                    {filtreActif ? 'Inactifs du filtre' : 'Inactifs'}
                   </Text>
                   <Text size="xl" fw={700} c="red">{stats.inactifs}</Text>
                 </div>
@@ -764,7 +828,7 @@ export default function CollaborateursPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    Départements
+                    {filtreActif ? 'Départements du filtre' : 'Départements'}
                   </Text>
                   <Text size="xl" fw={700}>{stats.departements}</Text>
                 </div>
@@ -880,11 +944,20 @@ export default function CollaborateursPage() {
           <Stack gap={6}>
             {sansFormation ? (
               <Text fw={500} size="sm">
-                Filtre actif : collaborateurs sans aucune formation
+                Filtre actif : collaborateurs sans aucune formation —{' '}
+                {isLoading
+                  ? 'calcul en cours…'
+                  : `${totalFiltres} collaborateur${totalFiltres > 1 ? 's' : ''} correspondant${totalFiltres > 1 ? 's' : ''}`}
               </Text>
             ) : (
               <Text fw={500} size="sm">
                 Filtre « sans formation » retiré : la période ci-dessous n&apos;est plus appliquée.
+              </Text>
+            )}
+
+            {sansFormation && (
+              <Text size="xs" c="dimmed">
+                Le tableau et les tuiles ci-dessus sont bien restreints à ce filtre.
               </Text>
             )}
 
@@ -905,10 +978,26 @@ export default function CollaborateursPage() {
                 </Button>
               </Group>
             ) : (
-              <Text size="xs" c="dimmed">
-                Aucune période : toutes les formations sont prises en compte, quelle que
-                soit leur date.
-              </Text>
+              /*
+                Seconde moitié du malentendu : sans bornes dans l'URL, le filtre
+                porte sur TOUT l'historique. Le compteur du tableau de bord, lui,
+                est borné à une période — les deux chiffres n'ont donc aucune
+                raison d'être égaux, et cet écart était lu comme un filtre en
+                panne.
+              */
+              <Stack gap={2}>
+                <Text size="sm">
+                  Aucune période n&apos;est appliquée : le filtre porte sur tout
+                  l&apos;historique, c&apos;est-à-dire les collaborateurs qui n&apos;ont
+                  jamais suivi aucune formation.
+                </Text>
+                <Text size="xs" c="dimmed">
+                  Ce n&apos;est pas le même calcul que le compteur du tableau de bord,
+                  qui est borné à une période : un collaborateur formé il y a trois ans
+                  compte comme « sans formation » sur la période du tableau de bord,
+                  mais pas ici.
+                </Text>
+              </Stack>
             )}
           </Stack>
         </Alert>

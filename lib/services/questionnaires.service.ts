@@ -10,6 +10,12 @@ import type {
 /**
  * Service pour gérer les questionnaires d'évaluation réutilisables.
  * Endpoints backend : @Controller('questionnaires')
+ *
+ * MODE PRINCIPAL : le template porte un `lienUrl` (SharePoint, Forms…) et
+ * l'outil se contente de relayer ce lien au collaborateur. Les `questions`
+ * construites dans l'outil sont l'ancien mode, conservé pour l'existant.
+ * Règle serveur : un template doit avoir SOIT un lien, SOIT au moins une
+ * question (sinon 400).
  */
 
 export interface GetQuestionnairesParams {
@@ -50,7 +56,9 @@ export const createQuestionnaire = async (
 };
 
 // Mettre à jour un questionnaire.
-// ATTENTION : `questions` absent du body = questions inchangées côté backend.
+// ATTENTION : `questions` absent du body = questions inchangées côté backend
+// (envoyer `[]` pour les effacer). Idem pour `lienUrl` : absent = inchangé,
+// `null` ou chaîne vide = efface le lien.
 export const updateQuestionnaire = async (
   id: number,
   data: UpdateQuestionnaireDto,

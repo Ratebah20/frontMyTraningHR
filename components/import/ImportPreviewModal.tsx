@@ -37,9 +37,10 @@ import type {
   ResolutionConflict,
   ResolutionCollaborateur,
   CollaborateurInactif,
-  ResolutionOrganisme,
   ResolutionCategorie,
 } from '@/lib/types/import-preview.types';
+import type { ResolutionOrganismeEtendue } from '@/lib/services/import.service';
+import { importService } from '@/lib/services/import.service';
 import { importPreviewService } from '@/lib/services/import-preview.service';
 import { ConflictResolutionList } from './ConflictResolutionList';
 import { CollaborateurConflictList } from './CollaborateurConflictList';
@@ -66,9 +67,9 @@ export function ImportPreviewModal({
   const [collabResolutions, setCollabResolutions] = useState<Map<string, ResolutionCollaborateur>>(
     new Map(),
   );
-  const [organismeResolutions, setOrganismeResolutions] = useState<Map<string, ResolutionOrganisme>>(
-    new Map(),
-  );
+  const [organismeResolutions, setOrganismeResolutions] = useState<
+    Map<string, ResolutionOrganismeEtendue>
+  >(new Map());
   const [categorieResolutions, setCategorieResolutions] = useState<Map<string, ResolutionCategorie>>(
     new Map(),
   );
@@ -169,9 +170,11 @@ export function ImportPreviewModal({
         );
       }
 
-      // Soumettre les résolutions organismes si elles existent
+      // Soumettre les résolutions organismes si elles existent.
+      // Passe par importService : c'est la version qui transporte l'action
+      // MAPPER (rattachement à un organisme existant) et `memoriser`.
       if (organismeResolutions.size > 0) {
-        await importPreviewService.submitOrganismeResolutions(
+        await importService.submitOrganismeResolutions(
           previewData.previewId,
           Array.from(organismeResolutions.values()),
         );

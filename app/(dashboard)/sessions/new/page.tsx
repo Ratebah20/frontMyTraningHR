@@ -1056,7 +1056,7 @@ export default function NewSessionPage() {
               {/* Questionnaire d'évaluation à chaud : rattaché à la session dès sa création */}
               <Checkbox
                 label="Envoyer un questionnaire d'évaluation à chaud"
-                description="Le questionnaire sera envoyé automatiquement aux participants dès que la session passera au statut terminé"
+                description="Le lien du questionnaire sera envoyé automatiquement aux participants dès que la session passera au statut terminé"
                 checked={sendQuestionnaire}
                 onChange={(event) => {
                   const checked = event.currentTarget.checked;
@@ -1079,7 +1079,8 @@ export default function NewSessionPage() {
                         <Anchor href="/questionnaires" fw={600}>
                           Questionnaires
                         </Anchor>
-                        , ou décochez cette option pour créer la session.
+                        {' '}(un lien SharePoint ou Forms suffit), ou décochez cette option
+                        pour créer la session.
                       </Text>
                     </Alert>
                   ) : (
@@ -1095,11 +1096,17 @@ export default function NewSessionPage() {
                       value={questionnaireId}
                       onChange={setQuestionnaireId}
                       leftSection={<ClipboardText size={16} />}
-                      description={
-                        questionnaireId
-                          ? `${questionnaires.find(q => q.id.toString() === questionnaireId)?.nombreQuestions ?? 0} question(s)`
-                          : 'Questionnaires actifs de type « à chaud »'
-                      }
+                      description={(() => {
+                        const choisi = questionnaires.find(
+                          q => q.id.toString() === questionnaireId,
+                        );
+                        if (!choisi) return 'Questionnaires actifs de type « à chaud »';
+                        // Un template « lien externe » n'a aucune question :
+                        // afficher « 0 question(s) » passerait pour un bug.
+                        return choisi.lienUrl
+                          ? `Lien externe : ${choisi.lienUrl}`
+                          : `${choisi.nombreQuestions} question(s)`;
+                      })()}
                     />
                   )}
                 </Box>

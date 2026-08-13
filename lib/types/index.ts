@@ -782,11 +782,21 @@ export interface Question {
   ordre: number;
 }
 
+/** Longueur max du lien externe, alignée sur la colonne backend NVarChar(1000) */
+export const MAX_LONGUEUR_LIEN_URL = 1000;
+
 export interface Questionnaire {
   id: number;
   nom: string;
   description: string | null;
   type: QuestionnaireType;
+  /**
+   * Lien externe vers le formulaire réel (SharePoint, Microsoft Forms…).
+   * C'est le MODE PRINCIPAL : la RH héberge le questionnaire où elle veut et
+   * l'outil ne fait que relayer ce lien au collaborateur.
+   * null = questionnaire construit dans l'outil (mode historique).
+   */
+  lienUrl: string | null;
   /** Déjà trié par ordre croissant côté serveur */
   questions: Question[];
   actif: boolean;
@@ -802,6 +812,11 @@ export interface QuestionnaireLight {
   id: number;
   nom: string;
   description: string | null;
+  /**
+   * Lien externe : quand il est renseigné ET que `questions` est vide, la page
+   * publique n'affiche pas de formulaire mais renvoie vers ce lien.
+   */
+  lienUrl: string | null;
   questions: Question[];
 }
 
@@ -809,7 +824,13 @@ export interface CreateQuestionnaireDto {
   nom: string;
   description?: string | null;
   type?: QuestionnaireType;
-  questions: Question[];
+  /** URL absolue http(s), ≤ 1000 caractères. null / '' = pas de lien */
+  lienUrl?: string | null;
+  /**
+   * FACULTATIF depuis le passage aux templates de lien.
+   * Règle serveur : au moins un lien OU au moins une question.
+   */
+  questions?: Question[];
   actif?: boolean;
 }
 
@@ -817,7 +838,9 @@ export interface UpdateQuestionnaireDto {
   nom?: string;
   description?: string | null;
   type?: QuestionnaireType;
-  /** Champ absent = questions inchangées côté backend */
+  /** Champ absent = lien inchangé, null ou '' = efface le lien */
+  lienUrl?: string | null;
+  /** Champ absent = questions inchangées côté backend, [] = les efface */
   questions?: Question[];
   actif?: boolean;
 }
@@ -1581,4 +1604,55 @@ export interface FormationEvaluationSyntheseFilters {
   dateDebut?: string;
   /** Format YYYY-MM-DD */
   dateFin?: string;
+}
+
+// ---------- Envoi d'évaluations sur un GROUPE de sessions individuelles ----------
+// Une session importée d'OLU est une session individuelle (une ligne par
+// collaborateur) : « les personnes ayant assisté à la semaine de l'IA » forment
+// un groupe identifié par le `groupKey` déjà utilisé par la page /sessions.
+
+/** Corps de `POST /evaluations/send-group` */
+export interface SendGroupEvaluationsDto {
+  groupKey: string;
+  evaluationType: EvaluationMoment;
+  /** Absent = le questionnaire rattaché à chaque session est repris */
+  questionnaireTemplateId?: number;
+}
+
+/**
+ * Réponse de `GET /evaluations/send-group/preview` : UNIQUEMENT des compteurs.
+ *
+ * ⚠️ C'est la seule source de vérité sur « qui a une adresse email ». Les DTO de
+ * sessions groupées FABRIQUENT des adresses (`nom@company.com`, générées parce
+ * que la colonne est chiffrée) : elles ne doivent jamais être affichées ni
+ * comptées.
+ */
+export interface PreviewGroupEvaluationsResponse {
+  groupKey: string;
+  evaluationType: EvaluationMoment;
+  formationId: number;
+  formationNom: string;
+  /** ISO ou null */
+  dateDebut: string | null;
+  dateFin: string | null;
+  totalSessions: number;
+  totalParticipants: number;
+  /** Personnes qui recevront effectivement un mail */
+  destinataires: number;
+  dejaEnvoyees: number;
+  sansEmail: number;
+}
+
+/** Réponse de `POST /evaluations/send-group` */
+export interface SendGroupEvaluationsResponse {
+  success: boolean;
+  message: string;
+  groupKey: string;
+  evaluationType: EvaluationMoment;
+  totalSessions: number;
+  totalParticipants: number;
+  envoyes: number;
+  erreurs: number;
+  sansEmail: number;
+  dejaEnvoyees: number;
 }

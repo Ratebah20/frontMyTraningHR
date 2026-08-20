@@ -22,7 +22,8 @@ import {
   Grid,
   ThemeIcon,
   Tabs,
-  Loader
+  Loader,
+  MultiSelect
 } from '@mantine/core';
 import { CaretLeft } from '@phosphor-icons/react/dist/ssr/CaretLeft';
 import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
@@ -34,23 +35,52 @@ import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
 import { User } from '@phosphor-icons/react/dist/ssr/User';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, parseISO, isWeekend } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, startOfWeek, endOfWeek, parseISO, isWeekend, isValid } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 import { sessionsService } from '@/lib/services';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { SessionFormationResponse, GroupedSession, UnifiedSession } from '@/lib/types';
 import { notifications } from '@mantine/notifications';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+import { OPTIONS_INFOS_MANQUANTES } from '@/lib/constants/infos-manquantes';
 
 export default function SessionsCalendarPage() {
   const router = useRouter();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Mois affiché et filtres persistés dans l'URL : le calendrier mène au
+  // détail d'une session, et le retour navigateur ramenait jusqu'ici sur le
+  // mois courant, filtres vidés.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters(
+    '/sessions/calendar',
+    {
+      mois: format(new Date(), 'yyyy-MM'),
+      departement: '',
+      missingFields: '',
+    },
+  );
+
+  // Un `mois` saisi à la main dans l'URL peut être invalide : on retombe
+  // alors sur le mois courant plutôt que d'afficher une grille « Invalid Date ».
+  const currentDate = useMemo(() => {
+    const parsed = parseISO(`${urlFilters.mois}-01`);
+    return isValid(parsed) ? parsed : new Date();
+  }, [urlFilters.mois]);
+  const setCurrentDate = (date: Date) => setUrlFilter('mois', format(date, 'yyyy-MM'));
   const [sessions, setSessions] = useState<UnifiedSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSessions, setSelectedSessions] = useState<UnifiedSession[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
-  const [departmentFilter, setDepartmentFilter] = useState('');
+  const departmentFilter = urlFilters.departement;
+  const setDepartmentFilter = (value: string) => setUrlFilter('departement', value);
+
+  // Filtre « informations manquantes » : CSV dans l'URL, tableau dans l'UI,
+  // exactement comme sur /sessions — le backend l'accepte sur les deux
+  // endpoints interrogés ici (individuelles groupées et collectives).
+  const missingFieldsParam = urlFilters.missingFields;
+  const missingFieldsFilter = missingFieldsParam ? missingFieldsParam.split(',') : [];
+  const setMissingFieldsFilter = (values: string[]) =>
+    setUrlFilter('missingFields', values.join(','));
 
   // Calculer les dates de début et fin du mois avec semaines complètes
   const dateRange = useMemo(() => {
@@ -69,6 +99,7 @@ export default function SessionsCalendarPage() {
         dateFin: format(dateRange.end, 'yyyy-MM-dd'),
         limit: 100, // Maximum accepté par le backend
         type: 'all', // Charger les deux types de sessions
+        missingFields: missingFieldsParam || undefined,
       });
 
       if (response && response.data) {
@@ -101,7 +132,7 @@ export default function SessionsCalendarPage() {
 
   useEffect(() => {
     loadSessions();
-  }, [dateRange]);
+  }, [dateRange, missingFieldsParam]);
 
   // Générer les jours à afficher
   const days = useMemo(() => {
@@ -278,7 +309,7 @@ export default function SessionsCalendarPage() {
 
         {/* Contrôles de navigation */}
         <Grid gutter="md">
-          <Grid.Col span={{ base: 12, md: 6 }}>
+          <Grid.Col span={{ base: 12, md: 4 }}>
             <Group>
               <ActionIcon onClick={handlePrevious} variant="light" size="lg">
                 <CaretLeft size={20} />
@@ -302,7 +333,7 @@ export default function SessionsCalendarPage() {
             </Group>
           </Grid.Col>
           
-          <Grid.Col span={{ base: 12, md: 6 }}>
+          <Grid.Col span={{ base: 12, md: 4 }}>
             <Select
               placeholder="Filtrer par département"
               data={[{ value: '', label: 'Tous les départements' }, ...departments.map(d => ({ value: d, label: d }))]}
@@ -310,6 +341,19 @@ export default function SessionsCalendarPage() {
               onChange={(value) => setDepartmentFilter(value || '')}
               clearable
               leftSection={<Buildings size={16} />}
+            />
+          </Grid.Col>
+
+          <Grid.Col span={{ base: 12, md: 4 }}>
+            <MultiSelect
+              placeholder="Infos manquantes..."
+              aria-label="Filtrer les sessions auxquelles il manque des informations"
+              leftSection={<Warning size={16} />}
+              data={OPTIONS_INFOS_MANQUANTES}
+              value={missingFieldsFilter}
+              onChange={setMissingFieldsFilter}
+              clearable
+              searchable={false}
             />
           </Grid.Col>
         </Grid>
@@ -342,6 +386,20 @@ export default function SessionsCalendarPage() {
             <Paper withBorder p="xs" radius="md">
               <Text size="sm" c="blue">
                 Filtre: {departmentFilter}
+              </Text>
+            </Paper>
+          )}
+
+          {missingFieldsFilter.length > 0 && (
+            <Paper withBorder p="xs" radius="md">
+              <Text size="sm" c="orange">
+                Infos manquantes :{' '}
+                {missingFieldsFilter
+                  .map(
+                    (champ) =>
+                      OPTIONS_INFOS_MANQUANTES.find((o) => o.value === champ)?.label || champ,
+                  )
+                  .join(', ')}
               </Text>
             </Paper>
           )}

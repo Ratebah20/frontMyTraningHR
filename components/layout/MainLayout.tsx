@@ -122,7 +122,8 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
         footer={{ height: 60 }}
         padding="md"
       >
-        <AppShell.Header>
+        {/* no-print : le chrome applicatif (barre du haut) n'a pas de sens sur papier */}
+        <AppShell.Header className="no-print">
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -315,11 +316,13 @@ export function MainLayout({ children, user: propsUser }: MainLayoutProps) {
           )}
         </AppShell.Header>
 
-        <AppShell.Navbar>
+        {/* no-print : la navigation laterale n'a pas de sens sur papier */}
+        <AppShell.Navbar className="no-print">
           <Sidebar collapsed={sidebarCollapsed} onCollapse={setSidebarCollapsed} />
         </AppShell.Navbar>
 
-        <AppShell.Footer>
+        {/* no-print : pied de page applicatif (version, etat de synchro) */}
+        <AppShell.Footer className="no-print">
           <div style={{ padding: '1rem' }}>
             <Flex justify="space-between">
               <Text size="sm" c="dimmed">

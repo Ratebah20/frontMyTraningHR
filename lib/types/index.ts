@@ -191,7 +191,8 @@ export interface SessionFormationResponse {
     id: number;
     nom: string;
     prenom: string;
-    email: string;
+    /** Vraie adresse déchiffrée côté API, `null` si la fiche n'en porte pas. */
+    email: string | null;
     departement: string;
   };
   formation?: {
@@ -385,7 +386,8 @@ export interface GroupedSessionParticipant {
   collaborateurId: number;
   nom: string;
   prenom: string;
-  email: string;
+  /** Vraie adresse déchiffrée côté API, `null` si la fiche n'en porte pas. */
+  email: string | null;
   departement: string;
   matricule?: string;
   statut: string;
@@ -1655,10 +1657,11 @@ export interface SendGroupEvaluationsDto {
 /**
  * Réponse de `GET /evaluations/send-group/preview` : UNIQUEMENT des compteurs.
  *
- * ⚠️ C'est la seule source de vérité sur « qui a une adresse email ». Les DTO de
- * sessions groupées FABRIQUENT des adresses (`nom@company.com`, générées parce
- * que la colonne est chiffrée) : elles ne doivent jamais être affichées ni
- * comptées.
+ * ⚠️ Reste la source de vérité sur « combien de personnes recevront un mail ».
+ * Les DTO de sessions groupées ont cessé de FABRIQUER des adresses
+ * (`nom@company.com`) : ils remontent désormais la vraie colonne `email`
+ * déchiffrée, ou `null`. Les compteurs restent néanmoins calculés ici, côté
+ * serveur, car ils tiennent aussi compte des envois déjà effectués.
  */
 export interface PreviewGroupEvaluationsResponse {
   groupKey: string;

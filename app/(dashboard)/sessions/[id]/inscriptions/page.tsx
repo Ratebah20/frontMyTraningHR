@@ -140,11 +140,30 @@ export default function SessionInscriptionsPage({ params }: Props) {
     return () => clearTimeout(handle);
   }, [search]);
 
-  const handleSelectAll = () => {
-    const availableIds = filteredCollaborateurs
-      .filter(c => !existingParticipants.includes(c.id))
-      .map(c => c.id);
-    setSelectedCollaborateurs(availableIds);
+  /**
+   * Sélectionne les collaborateurs AFFICHÉS, et le dit.
+   *
+   * Ce bouton s'appelait « Tout sélectionner » alors qu'il n'a jamais porté
+   * que sur ce qui est à l'écran : la liste par défaut est plafonnée à 50
+   * fiches (sur ~276) et, dès qu'une recherche est active, elle est remplacée
+   * par ses résultats. Un clic inscrivait donc un lot qui ne correspondait pas
+   * à ce que la RH croyait sélectionner.
+   *
+   * La sélection est désormais CUMULATIVE : changer de recherche puis
+   * re-cliquer n'efface plus les personnes déjà cochées (l'ancien
+   * `setSelectedCollaborateurs(availableIds)` les perdait en silence).
+   */
+  const handleSelectAffiches = () => {
+    setSelectedCollaborateurs(prev =>
+      Array.from(new Set([...prev, ...idsAffichesSelectionnables]))
+    );
+  };
+
+  /** Décoche uniquement les lignes affichées (contrepartie de la case d'en-tête). */
+  const handleDeselectAffiches = () => {
+    setSelectedCollaborateurs(prev =>
+      prev.filter(id => !idsAffichesSelectionnables.includes(id))
+    );
   };
 
   const handleDeselectAll = () => {
@@ -203,6 +222,19 @@ export default function SessionInscriptionsPage({ params }: Props) {
 
   // Collaborateurs affichés : résultats de la recherche serveur, sinon liste par défaut
   const filteredCollaborateurs = searchResults ?? collaborateurs;
+  const rechercheActive = searchResults !== null;
+
+  // Lignes réellement sélectionnables parmi celles AFFICHÉES (les personnes
+  // déjà inscrites à la session sont exclues).
+  const idsAffichesSelectionnables = filteredCollaborateurs
+    .filter(c => !existingParticipants.includes(c.id))
+    .map(c => c.id);
+  const tousAffichesSelectionnes =
+    idsAffichesSelectionnables.length > 0 &&
+    idsAffichesSelectionnables.every(id => selectedCollaborateurs.includes(id));
+  const certainsAffichesSelectionnes =
+    !tousAffichesSelectionnes &&
+    idsAffichesSelectionnables.some(id => selectedCollaborateurs.includes(id));
 
   // Affichage pendant le chargement
   if (isLoading) {
@@ -292,9 +324,10 @@ export default function SessionInscriptionsPage({ params }: Props) {
               <Button
                 variant="subtle"
                 size="xs"
-                onClick={handleSelectAll}
+                onClick={handleSelectAffiches}
+                disabled={idsAffichesSelectionnables.length === 0}
               >
-                Tout sélectionner
+                {`Sélectionner les ${idsAffichesSelectionnables.length} ${rechercheActive ? 'résultats affichés' : 'collaborateurs affichés'}`}
               </Button>
               <Button
                 variant="subtle"
@@ -305,7 +338,9 @@ export default function SessionInscriptionsPage({ params }: Props) {
               </Button>
             </Group>
             <Text size="sm" c="dimmed">
-              {filteredCollaborateurs.length} collaborateurs trouvés
+              {rechercheActive
+                ? `${filteredCollaborateurs.length} résultat(s) pour « ${search.trim()} »`
+                : `${filteredCollaborateurs.length} collaborateurs affichés (liste partielle — utilisez la recherche)`}
             </Text>
           </Group>
 
@@ -315,10 +350,15 @@ export default function SessionInscriptionsPage({ params }: Props) {
             <Table.Thead>
               <Table.Tr>
                 <Table.Th style={{ width: 40 }}>
+                  {/* La case d'en-tête ne porte que sur les lignes AFFICHÉES :
+                      elle comparait auparavant le total sélectionné au nombre de
+                      lignes visibles, ce qui la faisait clignoter dès qu'une
+                      sélection venait d'une autre recherche. */}
                   <Checkbox
-                    checked={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length === filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length}
-                    indeterminate={selectedCollaborateurs.length > 0 && selectedCollaborateurs.length < filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length}
-                    onChange={() => selectedCollaborateurs.length === filteredCollaborateurs.filter(c => !existingParticipants.includes(c.id)).length ? handleDeselectAll() : handleSelectAll()}
+                    checked={tousAffichesSelectionnes}
+                    indeterminate={certainsAffichesSelectionnes}
+                    onChange={() => (tousAffichesSelectionnes ? handleDeselectAffiches() : handleSelectAffiches())}
+                    disabled={idsAffichesSelectionnables.length === 0}
                   />
                 </Table.Th>
                 <Table.Th>Collaborateur</Table.Th>

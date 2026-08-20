@@ -269,7 +269,7 @@ export default function DashboardPage() {
     },
     {
       title: "Collaborateurs formés",
-      value: summary.nombreDepartements || 0,
+      value: summary.collaborateursFormes || 0,
       subtitle: summary.collaborateursFormesParGenre
         ? `${summary.collaborateursFormesParGenre.hommes || 0}H / ${summary.collaborateursFormesParGenre.femmes || 0}F`
         : (periode === 'mois' ? 'Ce mois' : 'Cette année'),

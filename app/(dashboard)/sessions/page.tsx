@@ -74,6 +74,7 @@ import { evaluationsService } from '@/lib/services/evaluations.service';
 import { getQuestionnaires } from '@/lib/services/questionnaires.service';
 import { StatutUtils } from '@/lib/utils/statut.utils';
 import { formatDuration } from '@/lib/utils/duration.utils';
+import { OPTIONS_INFOS_MANQUANTES } from '@/lib/constants/infos-manquantes';
 import {
   SessionFormationResponse,
   SessionFilters,
@@ -1039,13 +1040,7 @@ export default function SessionsPage() {
               placeholder="Infos manquantes..."
               aria-label="Filtrer les sessions auxquelles il manque des informations"
               leftSection={<Warning size={16} />}
-              data={[
-                { value: 'duree', label: 'Durée' },
-                { value: 'organisme', label: 'Organisme' },
-                { value: 'type', label: 'Type' },
-                { value: 'dateFin', label: 'Date de fin' },
-                { value: 'categorie', label: 'Catégorie' },
-              ]}
+              data={OPTIONS_INFOS_MANQUANTES}
               value={missingFieldsFilter}
               onChange={setMissingFieldsFilter}
               clearable

@@ -44,6 +44,7 @@ import { DepartementFormModal } from '@/components/departements/DepartementFormM
 import { DepartementCard } from '@/components/departements/DepartementCard';
 import { HierarchyTree } from '@/components/departements/HierarchyTree';
 import { TypeBadge } from '@/components/departements/TypeBadge';
+import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 
 export default function DepartementsPage() {
   const router = useRouter();
@@ -62,9 +63,21 @@ export default function DepartementsPage() {
   // transformation en équipe quand des collaborateurs sont affectés)
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'tree'>('table');
-  const [typeFilter, setTypeFilter] = useState<'ALL' | 'DEPARTEMENT' | 'EQUIPE'>('ALL');
+  // Recherche et filtre de type persistés dans l'URL : la page mène au détail
+  // d'un département, le retour navigateur doit restituer la liste filtrée.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters(
+    '/collaborateurs/departements',
+    { search: '', type: 'ALL' },
+  );
+  const searchQuery = urlFilters.search;
+  const typeFilter = urlFilters.type as 'ALL' | 'DEPARTEMENT' | 'EQUIPE';
+  const setTypeFilter = (value: 'ALL' | 'DEPARTEMENT' | 'EQUIPE') =>
+    setUrlFilter('type', value);
+
+  const [searchInput, setSearchInput] = useUrlSearch(searchQuery, (value) =>
+    setUrlFilter('search', value),
+  );
   const [parentForNewEquipe, setParentForNewEquipe] = useState<HierarchyNode | null>(null);
   // Type imposé à l'ouverture du formulaire d'édition : sert au parcours
   // « transformer ce département en équipe », qui doit ouvrir le formulaire
@@ -294,8 +307,8 @@ export default function DepartementsPage() {
               <TextInput
                 placeholder="Rechercher un département ou une équipe..."
                 leftSection={<MagnifyingGlass size={18} />}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.currentTarget.value)}
                 style={{ flex: 1, maxWidth: 400 }}
               />
 

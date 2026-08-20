@@ -58,6 +58,7 @@ import {
   exportsService,
   departementsService,
 } from '@/lib/services'
+import type { ReminderPreviewResponse } from '@/lib/services'
 
 // ===== Interfaces =====
 
@@ -947,6 +948,109 @@ export default function ConformitePage() {
   })()
 
   const reminderRoleLabel = reminderTarget === 'directeurs' ? 'directeur' : 'manager'
+
+  // ===== Apercu REEL de la relance =====
+  // L'ancien apercu etait un texte fige, sans rapport avec le mail envoye.
+  // Il vient desormais de POST /notifications/mandatory-training-reminders/preview,
+  // qui rejoue le meme calcul de destinataires que l'envoi et renvoie le vrai
+  // corps HTML du message. Endpoint en LECTURE SEULE : il n'envoie rien.
+  const [reminderPreview, setReminderPreview] = useState<ReminderPreviewResponse | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [previewError, setPreviewError] = useState<string | null>(null)
+
+  // Cles stables : `effectiveManagerIds` / `effectiveDeptIds` sont reconstruits
+  // a chaque rendu, s'en servir comme dependances bouclerait.
+  const managerIdsKey = effectiveManagerIds.join(',')
+  const deptIdsKey = effectiveDeptIds.join(',')
+
+  useEffect(() => {
+    if (!showReminderModal) return
+
+    const managerIds = reminderTarget === 'managers' ? effectiveManagerIds : undefined
+    const departementIds = reminderTarget === 'directeurs' ? effectiveDeptIds : undefined
+
+    if ((managerIds?.length ?? 0) === 0 && (departementIds?.length ?? 0) === 0) {
+      setReminderPreview(null)
+      setPreviewError(null)
+      return
+    }
+
+    let annule = false
+    setPreviewLoading(true)
+    setPreviewError(null)
+
+    notificationsService
+      .previewMandatoryTrainingReminders({
+        managerIds,
+        departementIds,
+        periode,
+        date,
+        startDate: dateDebut ? dateDebut.toISOString().split('T')[0] : undefined,
+        endDate: dateFin ? dateFin.toISOString().split('T')[0] : undefined,
+        type: mandatoryType,
+      })
+      .then((apercu) => {
+        if (!annule) setReminderPreview(apercu)
+      })
+      .catch((error) => {
+        if (annule) return
+        console.error("Erreur lors du chargement de l'apercu de relance:", error)
+        setReminderPreview(null)
+        setPreviewError("Impossible de charger l'apercu du message. La liste ci-dessous reste celle de votre selection.")
+      })
+      .finally(() => {
+        if (!annule) setPreviewLoading(false)
+      })
+
+    return () => {
+      annule = true
+    }
+    // Recharge a l'ouverture ET a chaque changement de selection / periode / perimetre.
+  }, [
+    showReminderModal,
+    reminderTarget,
+    managerIdsKey,
+    deptIdsKey,
+    periode,
+    date,
+    urlFilters.startDate,
+    urlFilters.endDate,
+    mandatoryType,
+  ])
+
+  // Destinataires affiches dans la modale : ceux calcules par le BACKEND des
+  // que l'apercu est charge (ils portent la date du dernier rappel et les
+  // eventuels problemes), sinon la liste locale le temps du chargement.
+  const destinatairesModale: Array<{
+    key: string
+    nom: string
+    sousTitre?: string
+    count: number
+    dernierRappel: { dateEnvoi: string; statut: string } | null
+    probleme?: string
+  }> = reminderPreview
+    ? reminderPreview.destinataires.map((destinataire, index) => ({
+        key: `${destinataire.type}-${destinataire.id}-${index}`,
+        nom: destinataire.nom,
+        sousTitre: destinataire.departementNom ?? destinataire.email,
+        count: destinataire.collaborateursCount,
+        dernierRappel: destinataire.dernierRappel,
+        probleme: destinataire.probleme,
+      }))
+    : reminderRecipients.map((destinataire) => ({
+        ...destinataire,
+        dernierRappel: null,
+        probleme: undefined,
+      }))
+
+  const formatDernierRappel = (
+    dernierRappel: { dateEnvoi: string; statut: string } | null,
+  ): string => {
+    if (!dernierRappel) return 'jamais relance'
+    const date = new Date(dernierRappel.dateEnvoi)
+    if (isNaN(date.getTime())) return 'jamais relance'
+    return `derniere relance : ${date.toLocaleDateString('fr-FR')}`
+  }
 
   // ===== SMTP & Reminders =====
 
@@ -2319,34 +2423,63 @@ export default function ConformitePage() {
             </Alert>
 
             <Text fw={500}>
-              Vous allez envoyer un rappel a {reminderRecipients.length} {reminderRoleLabel}(s)
+              Vous allez envoyer un rappel a{' '}
+              {reminderPreview ? reminderPreview.totalDestinataires : reminderRecipients.length}{' '}
+              {reminderRoleLabel}(s)
             </Text>
 
-            {/* Message preview */}
+            {/* Un destinataire sans email ne recoit rien : le dire, plutot que
+                de l'ignorer en silence comme le faisait l'envoi. */}
+            {reminderPreview && reminderPreview.totalInjoignables > 0 && (
+              <Alert color="orange" variant="light" icon={<WarningCircle size={18} weight="fill" />}>
+                {reminderPreview.totalInjoignables} destinataire(s) ne recevront rien
+                (adresse email manquante ou departement sans directeur). Ils sont
+                signales dans la liste ci-dessous.
+              </Alert>
+            )}
+
+            {/* Apercu du message : le VRAI mail, construit par le backend avec
+                la meme methode que l'envoi. Le HTML vient de notre propre API. */}
             <Paper withBorder p="md">
-              <Text size="sm" fw={600} c="dimmed" mb="xs">Apercu du message :</Text>
+              <Group justify="space-between" gap="xs" wrap="nowrap">
+                <Text size="sm" fw={600} c="dimmed">Apercu du message :</Text>
+                {reminderPreview?.periode && (
+                  <Badge size="sm" variant="light">{reminderPreview.periode}</Badge>
+                )}
+              </Group>
+              {reminderPreview?.apercuObjet && (
+                <Text size="xs" c="dimmed" mt={4}>Objet : {reminderPreview.apercuObjet}</Text>
+              )}
               <Divider my="xs" />
-              {reminderTarget === 'directeurs' ? (
-                <Text size="sm" style={{ lineHeight: 1.6 }}>
-                  Bonjour [Nom du directeur],<br /><br />
-                  Certains collaborateurs de votre departement n'ont pas encore complete
-                  les {libellePerimetre} suivantes :<br />
-                  - [Liste des formations par collaborateur]<br /><br />
-                  Merci de vous assurer, avec les managers concernes, qu'ils completent
-                  ces formations dans les meilleurs delais.<br /><br />
-                  Cordialement,<br />
-                  L'equipe Formation
-                </Text>
+              {previewLoading ? (
+                <Group gap="xs" py="sm">
+                  <Loader size="xs" />
+                  <Text size="sm" c="dimmed">Chargement de l'apercu...</Text>
+                </Group>
+              ) : previewError ? (
+                <Alert color="orange" variant="light" icon={<WarningCircle size={18} weight="fill" />}>
+                  {previewError}
+                </Alert>
+              ) : reminderPreview?.apercuHtml ? (
+                <Stack gap="xs">
+                  <Text size="xs" c="dimmed">
+                    Message reel destine a {reminderPreview.destinataires[0]?.nom} ({libellePerimetre}).
+                    Chaque destinataire recoit le meme message avec sa propre liste.
+                  </Text>
+                  <Box
+                    style={{
+                      maxHeight: 320,
+                      overflowY: 'auto',
+                      border: '1px solid var(--mantine-color-default-border)',
+                      borderRadius: 8,
+                    }}
+                    dangerouslySetInnerHTML={{ __html: reminderPreview.apercuHtml }}
+                  />
+                </Stack>
               ) : (
-                <Text size="sm" style={{ lineHeight: 1.6 }}>
-                  Bonjour [Nom du manager],<br /><br />
-                  Certains membres de votre equipe n'ont pas encore complete
-                  les {libellePerimetre} suivantes :<br />
-                  - [Liste des formations par collaborateur]<br /><br />
-                  Merci de vous assurer qu'ils completent ces formations
-                  dans les meilleurs delais.<br /><br />
-                  Cordialement,<br />
-                  L'equipe Formation
+                <Text size="sm" c="dimmed" py="xs">
+                  Selectionnez au moins un destinataire joignable pour voir le message
+                  qui sera envoye.
                 </Text>
               )}
             </Paper>
@@ -2355,20 +2488,28 @@ export default function ConformitePage() {
             <Accordion>
               <Accordion.Item value="recipients">
                 <Accordion.Control>
-                  <Text size="sm">Voir les {reminderRecipients.length} destinataires</Text>
+                  <Text size="sm">Voir les {destinatairesModale.length} destinataires</Text>
                 </Accordion.Control>
                 <Accordion.Panel>
-                  <Box style={{ maxHeight: 200, overflowY: 'auto' }}>
-                    {reminderRecipients.length === 0 ? (
+                  <Box style={{ maxHeight: 240, overflowY: 'auto' }}>
+                    {destinatairesModale.length === 0 ? (
                       <Text size="sm" c="dimmed" py="xs">Aucun destinataire selectionne</Text>
                     ) : (
-                      reminderRecipients.map(r => (
-                        <Group key={r.key} justify="space-between" py="xs">
+                      destinatairesModale.map(r => (
+                        <Group key={r.key} justify="space-between" py="xs" align="flex-start" wrap="nowrap">
                           <Stack gap={0}>
                             <Text size="sm">{r.nom}</Text>
                             {r.sousTitre && <Text size="xs" c="dimmed">{r.sousTitre}</Text>}
+                            <Text size="xs" c={r.dernierRappel ? 'dimmed' : 'orange'}>
+                              {formatDernierRappel(r.dernierRappel)}
+                            </Text>
+                            {r.probleme && (
+                              <Text size="xs" c="red">{r.probleme}</Text>
+                            )}
                           </Stack>
-                          <Badge size="sm">{r.count} a former</Badge>
+                          <Badge size="sm" color={r.probleme ? 'red' : undefined}>
+                            {r.count} collaborateur(s)
+                          </Badge>
                         </Group>
                       ))
                     )}

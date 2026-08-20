@@ -10,7 +10,55 @@ export interface SendReminderDto {
   startDate?: string;
   endDate?: string;
   // Périmètre des obligatoires visées par le rappel (défaut backend : annuelle)
-  type?: 'annuelle' | 'onboarding';
+  type?: 'annuelle' | 'onboarding' | 'securite';
+}
+
+/** Un destinataire tel que renvoyé par la prévisualisation d'une relance. */
+export interface ReminderPreviewRecipient {
+  /** Id du manager, ou id du directeur pour une relance département (0 si inconnu) */
+  id: number;
+  nom: string;
+  email: string;
+  type: 'manager' | 'departement';
+  departementNom?: string;
+  collaborateursCount: number;
+  formationsCount: number;
+  collaborateurs: Array<{ nom: string; formations: string[] }>;
+  /** Dernier rappel tracé pour ce destinataire (null = jamais relancé) */
+  dernierRappel: { dateEnvoi: string; statut: string } | null;
+  /** Renseigné quand le destinataire ne recevra RIEN (pas d'email, pas de directeur) */
+  probleme?: string;
+}
+
+/**
+ * Aperçu d'une relance : mêmes destinataires que l'envoi, et VRAI corps HTML
+ * du mail. Aucun envoi, aucune écriture en base.
+ */
+export interface ReminderPreviewResponse {
+  periode: string;
+  type: 'annuelle' | 'onboarding' | 'securite';
+  totalDestinataires: number;
+  totalInjoignables: number;
+  destinataires: ReminderPreviewRecipient[];
+  apercuHtml: string | null;
+  apercuObjet: string | null;
+}
+
+/** Une ligne de l'historique des relances (table ReminderLog). */
+export interface ReminderHistoryEntry {
+  id: number;
+  managerId: number;
+  managerNom: string;
+  managerEmail: string;
+  collaborateurs: Array<{ nom: string; formations: string[] }>;
+  formations: Array<{ collaborateur: string; formation: string }>;
+  dateEnvoi: string;
+  statut: string;
+  erreurMessage: string | null;
+  envoyePar: string | null;
+  /** null pour les relances antérieures à la traçabilité */
+  type: string | null;
+  periode: string | null;
 }
 
 export interface ReminderResult {
@@ -88,12 +136,22 @@ export const notificationsService = {
     return response.data;
   },
 
+  /**
+   * Aperçu d'une relance : lecture seule côté backend (aucun mail, aucune
+   * écriture). Même DTO que l'envoi, donc mêmes destinataires.
+   */
+  async previewMandatoryTrainingReminders(dto: SendReminderDto): Promise<ReminderPreviewResponse> {
+    const response = await api.post('/notifications/mandatory-training-reminders/preview', dto);
+    return response.data;
+  },
+
   async getReminderHistory(params?: {
     managerId?: number;
     startDate?: string;
     endDate?: string;
+    type?: string;
     limit?: number;
-  }): Promise<any> {
+  }): Promise<ReminderHistoryEntry[]> {
     const response = await api.get('/notifications/reminder-history', { params });
     return response.data;
   },

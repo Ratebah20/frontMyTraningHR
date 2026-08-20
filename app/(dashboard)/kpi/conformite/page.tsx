@@ -151,7 +151,8 @@ type ReminderTarget = 'directeurs' | 'managers'
  * Ligne du détail par formation affiché au dépliage d'un département.
  * Le taux porté ici est un taux PAR FORMATION (« a suivi cette formation »),
  * à ne pas confondre avec le taux de conformité du département, qui exige
- * TOUTES les formations du périmètre.
+ * TOUTES les formations du périmètre — ou UNE SEULE en périmètre sécurité,
+ * où les formations sont des habilitations métier (voir `regleConformite`).
  */
 interface DetailFormationDepartement {
   formation: MandatoryTrainingsKPIs['formations'][0]
@@ -428,7 +429,6 @@ export default function ConformitePage() {
   // Manager view
   const [byManagerData, setByManagerData] = useState<MandatoryByManagerResponse | null>(null)
   const [byManagerLoading, setByManagerLoading] = useState(false)
-  const [selectedDept, setSelectedDept] = useState<string | null>(null)
   const [selectedManagers, setSelectedManagers] = useState<number[]>([])
 
   // Vue par organisation (département / équipe)
@@ -498,13 +498,6 @@ export default function ConformitePage() {
     if (derniereSelectionServie.current === signatureSelection(selectedFormationIds)) return
     fetchMandatoryData({ reinitialiserPerimetre: false })
   }, [selectedFormationIds, hasInitialized])
-
-  // Load manager data when dept filter changes
-  useEffect(() => {
-    if (mandatoryData) {
-      fetchByManagerData()
-    }
-  }, [selectedDept])
 
   // ===== Data Fetching =====
 
@@ -605,9 +598,13 @@ export default function ConformitePage() {
       const mandatoryPromise = statsService.getMandatoryTrainingsKPIs(
         periode, date, startDateStr, endDateStr, mandatoryType, idsDemandes
       )
+      // `departementId` reste volontairement absent : la page charge TOUTE
+      // l'organisation et découpe côté client (lignes dépliables, sélection de
+      // départements à relancer). L'état `selectedDept` qui l'alimentait n'était
+      // jamais renseigné — il masquait le fait que le filtre serveur était faux.
       const byManagerPromise = statsService.getMandatoryTrainingsByManager(
         periode, date, startDateStr, endDateStr,
-        selectedDept ? parseInt(selectedDept) : undefined,
+        undefined,
         mandatoryType,
         idsDemandes
       ).catch((managerError: unknown) => {
@@ -654,26 +651,6 @@ export default function ConformitePage() {
         setMandatoryLoading(false)
         setByManagerLoading(false)
       }
-    }
-  }
-
-  const fetchByManagerData = async () => {
-    setByManagerLoading(true)
-    try {
-      const startDateStr = dateDebut ? dateDebut.toISOString().split('T')[0] : undefined
-      const endDateStr = dateFin ? dateFin.toISOString().split('T')[0] : undefined
-
-      const response = await statsService.getMandatoryTrainingsByManager(
-        periode, date, startDateStr, endDateStr,
-        selectedDept ? parseInt(selectedDept) : undefined,
-        mandatoryType,
-        selectedFormationIds.length > 0 ? selectedFormationIds : undefined
-      )
-      setByManagerData(response)
-    } catch (error) {
-      console.error('Erreur lors du chargement des donnees par manager:', error)
-    } finally {
-      setByManagerLoading(false)
     }
   }
 
@@ -1153,6 +1130,15 @@ export default function ConformitePage() {
     ? 'Nouveaux arrivants de la periode'
     : 'Tout l\'effectif actif'
 
+  // RÈGLE DE CONFORMITÉ réellement appliquée par le backend, à afficher telle
+  // quelle : en périmètre sécurité, une SEULE formation du périmètre suffit.
+  // Les SST sont des habilitations métier (travail en hauteur, habilitation
+  // électrique, port du harnais...) : personne n'est censé les avoir toutes, et
+  // exiger l'ensemble figeait le taux affiché à 0 %.
+  const regleConformite = estSecurite
+    ? 'AU MOINS UNE formation du perimetre'
+    : 'TOUTES les formations du perimetre'
+
   // Nombre de collaborateurs sortis du dénominateur (congé longue durée).
   // Absent des réponses d'une API antérieure : traité comme 0.
   const collaborateursEnConge = mandatoryData?.stats?.collaborateursEnConge ?? 0
@@ -1257,6 +1243,14 @@ export default function ConformitePage() {
                   distinct des obligatoires annuelles : il porte sur les formations
                   marquées « Formation sécurité (SST) » (premiers secours, travail en
                   hauteur, EPI, incendie) et concerne <strong>tout l&apos;effectif actif</strong>.
+                </Text>
+                <Text size="sm" mt="xs">
+                  Ces formations sont des <strong>habilitations métier</strong> : personne
+                  n&apos;est censé les avoir toutes. Un collaborateur est donc compté
+                  <strong> conforme dès qu&apos;il a suivi au moins une formation du
+                  périmètre</strong>, et n&apos;est relancé que s&apos;il n&apos;en a
+                  suivi <strong>aucune</strong> — contrairement aux obligatoires
+                  annuelles, qui les exigent toutes.
                 </Text>
                 {mandatoryData?.stats?.totalFormations === 0 && (
                   <Text size="sm" mt="xs">
@@ -1433,7 +1427,7 @@ export default function ConformitePage() {
                 title="Taux de conformite"
                 value={mandatoryData.stats.tauxConformiteGlobal}
                 suffix="%"
-                subtitle={`${libellePopulation} ayant complete TOUTES les formations du perimetre`}
+                subtitle={`${libellePopulation} ayant complete ${regleConformite}`}
                 footer={
                   collaborateursEnConge > 0 ? (
                     <Tooltip
@@ -1463,7 +1457,11 @@ export default function ConformitePage() {
               <KPICard
                 title={estOnboarding ? 'Arrivants conformes' : 'Collaborateurs conformes'}
                 value={mandatoryData.stats.totalFormes}
-                subtitle={`sur ${mandatoryData.stats.totalCollaborateursAFormer}${estOnboarding ? ' arrivants' : ''}`}
+                subtitle={
+                  estSecurite
+                    ? `sur ${mandatoryData.stats.totalCollaborateursAFormer} - au moins une SST suivie`
+                    : `sur ${mandatoryData.stats.totalCollaborateursAFormer}${estOnboarding ? ' arrivants' : ''}`
+                }
                 icon={<Users size={22} weight="bold" />}
                 color="green"
                 delay={0.2}
@@ -1471,7 +1469,7 @@ export default function ConformitePage() {
               <KPICard
                 title={estOnboarding ? 'Arrivants non conformes' : 'Collaborateurs non conformes'}
                 value={mandatoryData.stats.totalNonFormes}
-                subtitle="A former"
+                subtitle={estSecurite ? 'Aucune SST suivie - a former' : 'A former'}
                 icon={<WarningCircle size={22} weight="bold" />}
                 color="pink"
                 delay={0.25}
@@ -1494,7 +1492,7 @@ export default function ConformitePage() {
                   <Text size="sm" c="dimmed">
                     Part de la population suivie ayant complete <strong>chaque</strong> formation
                     prise separement. A ne pas confondre avec le taux de conformite, qui exige
-                    d&apos;avoir complete TOUTES les formations du perimetre.
+                    d&apos;avoir complete {regleConformite}.
                   </Text>
                 </Stack>
 
@@ -1659,7 +1657,7 @@ export default function ConformitePage() {
                                   <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>
                                     <Tooltip
-                                      label="Part des collaborateurs du departement ayant complete TOUTES les formations du perimetre"
+                                      label={`Part des collaborateurs du departement ayant complete ${regleConformite}`}
                                       multiline
                                       w={260}
                                     >
@@ -1825,7 +1823,7 @@ export default function ConformitePage() {
                                                     formation. Le taux ci-dessous est un{' '}
                                                     <strong>taux par formation</strong> (a suivi CETTE formation) :
                                                     il differe du taux de conformite de la ligne, qui exige
-                                                    TOUTES les formations du perimetre.
+                                                    {' '}{regleConformite}.
                                                   </Text>
                                                   {effectifRattache !== row.totalCollaborateurs && (
                                                     <Alert
@@ -2007,7 +2005,17 @@ export default function ConformitePage() {
                                       <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
-                                      <Table.Th style={{ minWidth: 160 }}>Taux de conformite</Table.Th>
+                                      <Table.Th style={{ minWidth: 160 }}>
+                                        <Tooltip
+                                          label={`Part des collaborateurs de l'equipe ayant complete ${regleConformite}`}
+                                          multiline
+                                          w={260}
+                                        >
+                                          <Text size="sm" fw={700} style={{ cursor: 'help' }}>
+                                            Taux de conformite
+                                          </Text>
+                                        </Tooltip>
+                                      </Table.Th>
                                       <Table.Th style={{ minWidth: 220 }}>Actions</Table.Th>
                                     </Table.Tr>
                                   </Table.Thead>

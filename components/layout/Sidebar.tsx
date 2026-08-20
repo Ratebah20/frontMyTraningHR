@@ -171,6 +171,9 @@ const navigationItems: NavigationItem[] = [
       // Libellé volontairement générique : la page couvre désormais les
       // obligatoires annuelles, l'onboarding ET la sécurité au travail (SST).
       { label: 'Conformité', href: '/kpi/conformite' },
+      // Lecture de la table ReminderLog : qui a été relancé, quand, avec quel
+      // résultat. L'endpoint existait, aucune page ne l'affichait.
+      { label: 'Historique des relances', href: '/kpi/relances' },
       { label: 'Formations', href: '/kpi/formations' },
       { label: 'Collaborateurs', href: '/kpi/collaborateurs' },
       { label: 'Objectifs L&D', href: '/kpi/objectifs-ld' },

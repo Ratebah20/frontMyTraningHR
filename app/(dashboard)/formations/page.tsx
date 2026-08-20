@@ -28,7 +28,6 @@ import {
   ThemeIcon,
   Progress,
 } from '@mantine/core';
-import { DateInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { MagnifyingGlass } from '@phosphor-icons/react/dist/ssr/MagnifyingGlass';
 import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
@@ -52,10 +51,10 @@ import { List } from '@phosphor-icons/react/dist/ssr/List';
 import { SquaresFour } from '@phosphor-icons/react/dist/ssr/SquaresFour';
 import { Info } from '@phosphor-icons/react/dist/ssr/Info';
 import { Building } from '@phosphor-icons/react/dist/ssr/Building';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { formationsService, commonService } from '@/lib/services';
-import { Formation, FormationFilters } from '@/lib/types';
-import { useDebounce } from '@/hooks/useApi';
+import { Formation, FormationFilters, FormationsGlobalStats } from '@/lib/types';
+import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 import { formatDuration } from '@/lib/utils/duration.utils';
 
 // Fonction pour obtenir le nom de la catégorie
@@ -103,7 +102,6 @@ const typeColors: Record<string, string> = {
 
 export default function FormationsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   // États
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -117,91 +115,108 @@ export default function FormationsPage() {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingTypes, setLoadingTypes] = useState(true);
   
-  // États pour les statistiques globales
-  const [globalStats, setGlobalStats] = useState({
-    totalFormations: 0,
-    totalActives: 0,
-    totalInactives: 0,
-    totalCategories: 0
+  // Compteurs portant sur la TOTALITÉ de la population filtrée (endpoint
+  // /formations/stats). Ils remplacent les compteurs qui étaient dérivés des
+  // seules formations de la page courante et affichaient « sur cette page ».
+  const [stats, setStats] = useState<FormationsGlobalStats | null>(null);
+  // Compteurs du catalogue complet (sans aucun filtre), servant de référence
+  // « sur X au catalogue » quand un filtre restreint la liste.
+  const [catalogueStats, setCatalogueStats] = useState<FormationsGlobalStats | null>(null);
+
+  // Filtres et pagination : l'URL est la source de vérité, pour que le bouton
+  // retour du navigateur restitue la liste exactement telle qu'elle était.
+  const {
+    values: urlFilters,
+    setValue: setUrlFilter,
+    setValues: setUrlFilters,
+    page,
+    setPage,
+  } = useUrlFilters('/formations', {
+    search: '',
+    categorie: '',
+    type: '',
+    statut: '',
+    // Conserve le nom historique du paramètre : des liens entrants pointent
+    // déjà vers /formations?filter=sansSession depuis le dashboard.
+    filter: '',
   });
-  
-  // Filtres et pagination
-  const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>(''); // Changé de showInactive à statusFilter
-  const [createdAtDebut, setCreatedAtDebut] = useState<Date | null>(null);
-  const [createdAtFin, setCreatedAtFin] = useState<Date | null>(null);
-  const [sansSession, setSansSession] = useState(searchParams.get('filter') === 'sansSession');
-  const [page, setPage] = useState(1);
+
+  const search = urlFilters.search;
+  const categoryFilter = urlFilters.categorie;
+  const typeFilter = urlFilters.type;
+  const statusFilter = urlFilters.statut;
+  const sansSession = urlFilters.filter === 'sansSession';
+
+  const setCategoryFilter = (value: string) => setUrlFilter('categorie', value);
+  const setTypeFilter = (value: string) => setUrlFilter('type', value);
+  const setStatusFilter = (value: string) => setUrlFilter('statut', value);
+  const setSansSession = (value: boolean) =>
+    setUrlFilter('filter', value ? 'sansSession' : '');
+
+  // Champ de recherche : état local debouncé, poussé dans l'URL (voir le hook)
+  const [searchInput, setSearchInput] = useUrlSearch(search, (value) =>
+    setUrlFilter('search', value),
+  );
+
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(24); // Plus de cartes par page
 
-  const debouncedSearch = useDebounce(search, 500);
+  // La valeur de l'URL est déjà debouncée par useUrlSearch
+  const debouncedSearch = search;
+
+  // Filtres courants, hors pagination : partagés tels quels entre la liste et
+  // les compteurs globaux, pour que les deux portent sur la même population.
+  const buildCurrentFilters = () => {
+    const filters: any = {
+      search: debouncedSearch,
+      categorieId: categoryFilter ? parseInt(categoryFilter) : undefined,
+      typeFormation: typeFilter || undefined,
+    };
+
+    // Filtre sans session
+    if (sansSession) {
+      filters.sansSession = 'true';
+    }
+
+    // Nettoyer les valeurs undefined pour que axios les envoie correctement
+    const cleanFilters = Object.fromEntries(
+      Object.entries(filters).filter(([_, value]) => value !== undefined && value !== '')
+    );
+
+    // Gérer le filtre de statut comme pour les collaborateurs
+    if (statusFilter === 'actif') {
+      // Envoyer comme chaîne pour que axios le transmette correctement
+      cleanFilters.actif = 'true' as any;
+    } else if (statusFilter === 'inactif') {
+      // Envoyer comme chaîne pour que axios le transmette correctement
+      cleanFilters.actif = 'false' as any;
+    }
+    // Pour '' (tous), ne rien envoyer - le backend affichera les actifs par défaut
+
+    return cleanFilters;
+  };
 
   // Charger les formations
   const loadFormations = async () => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Construire les filtres selon le statusFilter
-      const filters: any = {
-        search: debouncedSearch,
-        categorieId: categoryFilter ? parseInt(categoryFilter) : undefined,
-        typeFormation: typeFilter || undefined,
-        createdAtDebut: createdAtDebut ? (createdAtDebut instanceof Date ? createdAtDebut.toISOString().split('T')[0] : createdAtDebut) : undefined,
-        createdAtFin: createdAtFin ? (createdAtFin instanceof Date ? createdAtFin.toISOString().split('T')[0] : createdAtFin) : undefined,
+      const cleanFilters: FormationFilters = {
+        ...buildCurrentFilters(),
         page,
         limit,
         sortBy: 'nomFormation',
         order: 'asc',
       };
 
-      // Filtre sans session
-      if (sansSession) {
-        filters.sansSession = 'true';
-      }
-
-      // Nettoyer les valeurs undefined pour que axios les envoie correctement
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([_, value]) => value !== undefined)
-      );
-
-      // Gérer le filtre de statut comme pour les collaborateurs
-      if (statusFilter === 'actif') {
-        // Envoyer comme chaîne pour que axios le transmette correctement
-        cleanFilters.actif = 'true' as any;
-      } else if (statusFilter === 'inactif') {
-        // Envoyer comme chaîne pour que axios le transmette correctement
-        cleanFilters.actif = 'false' as any;
-      }
-      // Pour '' (tous), ne rien envoyer - le backend affichera les actifs par défaut
-      // Si on veut vraiment tous (actifs + inactifs), il faudrait un filtre explicite
-
       const response = await formationsService.getFormations(cleanFilters);
-      
+
       if (response.data) {
         setFormations(response.data);
         setTotal(response.meta?.total || (response as any).total || 0);
         setTotalPages(response.meta?.totalPages || Math.ceil((response.meta?.total || (response as any).total || 0) / limit));
-        
-        // Si c'est le premier chargement sans filtre, utiliser ces stats pour les globales
-        if (statusFilter === '' && !categoryFilter && !typeFilter && !debouncedSearch && !createdAtDebut && !createdAtFin && page === 1) {
-          // Puisque sans filtre on récupère tout, on peut utiliser le total de la méta
-          const totalFromMeta = response.meta?.total || (response as any).total || response.data.length;
-          // Et toutes les formations visibles sont actives (car par défaut on ne voit que les actives)
-          const activesCount = totalFromMeta; // Car par défaut, on ne montre que les actives
-
-
-          setGlobalStats(prev => ({
-            ...prev,
-            totalFormations: totalFromMeta,
-            totalActives: activesCount,
-            totalInactives: 0 // On ne connaît pas le nombre d'inactives sans les récupérer
-          }));
-        }
       } else {
         setFormations([]);
         setTotal(0);
@@ -216,15 +231,29 @@ export default function FormationsPage() {
     }
   };
 
+  // Compteurs KPI sur la population filtrée complète (toutes pages confondues).
+  const loadStats = async () => {
+    try {
+      setStats(await formationsService.getFormationsStats(buildCurrentFilters()));
+    } catch (err) {
+      console.error('Erreur lors du chargement des statistiques de formations:', err);
+      setStats(null);
+    }
+  };
+
   // Charger les formations au montage et quand les filtres changent
   useEffect(() => {
     loadFormations();
-  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin, sansSession, page]);
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, sansSession, page]);
 
-  // Réinitialiser la page quand les filtres changent
+  // Les compteurs ne dépendent pas de la page : on ne les recharge que si un
+  // filtre change réellement.
   useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, createdAtDebut, createdAtFin, sansSession]);
+    loadStats();
+  }, [debouncedSearch, categoryFilter, typeFilter, statusFilter, sansSession]);
+
+  // Le retour en page 1 lors d'un changement de filtre est assuré par
+  // useUrlFilters : plus besoin d'un effet dédié.
 
   const handleViewDetails = (id: number) => {
     router.push(`/formations/${id}`);
@@ -260,40 +289,19 @@ export default function FormationsPage() {
 
   const handleRefresh = () => {
     loadFormations();
-    loadGlobalStats();
+    loadStats();
+    loadCatalogueStats();
   };
 
-  // Charger les statistiques globales
-  const loadGlobalStats = async () => {
+  // Compteurs du catalogue complet, indépendants des filtres courants.
+  // Sert uniquement de référence « sur X au catalogue ».
+  const loadCatalogueStats = async () => {
     try {
-      // Actives (défaut) et inactives en parallèle
-      const [activeResponse, inactiveResponse] = await Promise.all([
-        formationsService.getFormations({
-          limit: 1,
-          page: 1
-          // Sans paramètre, on récupère seulement les actives
-        }),
-        formationsService.getFormations({
-          limit: 1,
-          page: 1,
-          actif: 'false' as any // Récupérer seulement les inactives
-        }),
-      ]);
-
-      const totalActives = activeResponse.meta?.total || 0;
-      const totalInactives = inactiveResponse.meta?.total || 0;
-      const totalAll = totalActives + totalInactives;
-      
-      
-      setGlobalStats(prev => ({
-        totalFormations: totalAll,
-        totalActives: totalActives,
-        totalInactives: totalInactives,
-        totalCategories: prev.totalCategories // Garder le nombre de catégories
-      }));
-      
+      setCatalogueStats(
+        await formationsService.getFormationsStats({ includeInactive: 'true' } as any)
+      );
     } catch (error) {
-      console.error('Erreur lors du chargement des statistiques:', error);
+      console.error('Erreur lors du chargement des statistiques du catalogue:', error);
     }
   };
 
@@ -311,12 +319,6 @@ export default function FormationsPage() {
           { value: '', label: 'Toutes les catégories' },
           ...categoriesList
         ]);
-        
-        // Mettre à jour les stats avec le bon nombre de catégories
-        setGlobalStats(prev => ({
-          ...prev,
-          totalCategories: categoriesList.length
-        }));
       }
     } catch (error) {
       console.error('Erreur lors du chargement des catégories:', error);
@@ -352,16 +354,13 @@ export default function FormationsPage() {
   useEffect(() => {
     loadCategories();
     loadTypesFormation();
-    loadGlobalStats();
+    loadCatalogueStats();
   }, []);
 
   // Indique si un filtre actif restreint la liste (pour adapter les cartes de stats)
   // Note : reprend exactement la condition historique (statusFilter volontairement exclu)
-  const isFiltered = Boolean(categoryFilter || typeFilter || debouncedSearch || createdAtDebut || createdAtFin);
+  const isFiltered = Boolean(categoryFilter || typeFilter || debouncedSearch || sansSession);
 
-  // Compteurs dérivés des formations déjà chargées (page courante), sans appel API supplémentaire
-  const obligatoiresCount = formations.filter((f) => f.estObligatoire).length;
-  const certifiantesCount = formations.filter((f) => f.estCertifiante).length;
 
   return (
     <Container size="xl">
@@ -395,7 +394,6 @@ export default function FormationsPage() {
                   handleRefresh();
                   loadCategories();
                   loadTypesFormation();
-                  loadGlobalStats();
                 }}
               >
                 <ArrowsClockwise size={20} />
@@ -420,9 +418,11 @@ export default function FormationsPage() {
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     {isFiltered ? 'Résultats filtrés' : 'Total Formations'}
                   </Text>
-                  <Text size="xl" fw={700}>{total}</Text>
+                  <Text size="xl" fw={700}>{stats?.total ?? total}</Text>
                   <Text size="xs" c="dimmed">
-                    {isFiltered ? `sur ${globalStats.totalFormations} au catalogue` : 'au catalogue'}
+                    {isFiltered && catalogueStats
+                      ? `sur ${catalogueStats.total} au catalogue`
+                      : 'au catalogue'}
                   </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="blue">
@@ -436,20 +436,18 @@ export default function FormationsPage() {
               <Group justify="space-between">
                 <div>
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
-                    {isFiltered ? 'Résultats' : 'Formations Actives'}
+                    Formations Actives
                   </Text>
                   <Text size="xl" fw={700} c="green">
-                    {isFiltered ? total : globalStats.totalActives}
+                    {stats?.actives ?? 0}
                   </Text>
-                  {!isFiltered && (
-                    <Progress
-                      value={(globalStats.totalActives / (globalStats.totalFormations || 1)) * 100}
-                      size="xs"
-                      radius="xl"
-                      mt={4}
-                      color="green"
-                    />
-                  )}
+                  <Progress
+                    value={((stats?.actives ?? 0) / (stats?.total || 1)) * 100}
+                    size="xs"
+                    radius="xl"
+                    mt={4}
+                    color="green"
+                  />
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="green">
                   <CheckCircle size={20} />
@@ -464,9 +462,9 @@ export default function FormationsPage() {
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Obligatoires
                   </Text>
-                  <Text size="xl" fw={700} c="orange">{obligatoiresCount}</Text>
+                  <Text size="xl" fw={700} c="orange">{stats?.obligatoires ?? 0}</Text>
                   <Text size="xs" c="dimmed">
-                    sur cette page
+                    {isFiltered ? 'sur les résultats filtrés' : 'au catalogue'}
                   </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="orange">
@@ -482,9 +480,9 @@ export default function FormationsPage() {
                   <Text size="xs" c="dimmed" tt="uppercase" fw={700}>
                     Certifiantes
                   </Text>
-                  <Text size="xl" fw={700} c="teal">{certifiantesCount}</Text>
+                  <Text size="xl" fw={700} c="teal">{stats?.certifiantes ?? 0}</Text>
                   <Text size="xs" c="dimmed">
-                    sur cette page
+                    {isFiltered ? 'sur les résultats filtrés' : 'au catalogue'}
                   </Text>
                 </div>
                 <ThemeIcon size="lg" radius="md" variant="light" color="teal">
@@ -508,8 +506,8 @@ export default function FormationsPage() {
               aria-label="Rechercher une formation"
               placeholder="Rechercher par nom ou code..."
               leftSection={<MagnifyingGlass size={16} />}
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.currentTarget.value)}
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 2 }}>
@@ -551,31 +549,9 @@ export default function FormationsPage() {
               onChange={(value) => setStatusFilter(value || '')}
             />
           </Grid.Col>
-          <Grid.Col span={{ base: 12, sm: 2 }}>
-            <Group grow gap="xs">
-              <DateInput
-                aria-label="Date de création (début)"
-                placeholder="Début"
-                leftSection={<Calendar size={16} />}
-                value={createdAtDebut}
-                onChange={(value) => setCreatedAtDebut(typeof value === 'string' ? new Date(value) : value)}
-                clearable
-                valueFormat="DD/MM/YYYY"
-              />
-              <DateInput
-                aria-label="Date de création (fin)"
-                placeholder="Fin"
-                leftSection={<Calendar size={16} />}
-                value={createdAtFin}
-                onChange={(value) => setCreatedAtFin(typeof value === 'string' ? new Date(value) : value)}
-                clearable
-                valueFormat="DD/MM/YYYY"
-              />
-            </Group>
-          </Grid.Col>
         </Grid>
         <Text size="sm" c="dimmed" mt="md">
-          Affichage : {formations.length} résultat{formations.length > 1 ? 's' : ''} sur cette page • Total : {isFiltered ? total : globalStats.totalFormations} formation{(isFiltered ? total : globalStats.totalFormations) > 1 ? 's' : ''}
+          Affichage : {formations.length} résultat{formations.length > 1 ? 's' : ''} sur cette page • Total : {total} formation{total > 1 ? 's' : ''}
         </Text>
       </Paper>
 

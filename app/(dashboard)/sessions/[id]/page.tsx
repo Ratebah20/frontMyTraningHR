@@ -27,6 +27,7 @@ import {
   Flex,
   Modal,
   Menu,
+  Select,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
@@ -69,7 +70,7 @@ import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
 import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
 import { sessionsService, notificationsService } from '@/lib/services';
 import { evaluationsService } from '@/lib/services/evaluations.service';
-import { getQuestionnaire } from '@/lib/services/questionnaires.service';
+import { getQuestionnaire, getQuestionnaires } from '@/lib/services/questionnaires.service';
 import { SessionsUnifiedService } from '@/lib/services/sessions-unified.service';
 import { CollectiveSessionsService } from '@/lib/services/collective-sessions.service';
 import { SessionFormationResponse, UnifiedSession, CollectiveSession } from '@/lib/types';
@@ -124,6 +125,17 @@ export default function SessionDetailPage({ params }: Props) {
   // États pour l'envoi des évaluations (chaud/froid)
   const [evalModalType, setEvalModalType] = useState<'chaud' | 'froid' | null>(null);
   const [isSendingEval, setIsSendingEval] = useState(false);
+
+  // Questionnaire retenu pour l'envoi.
+  //
+  // Sans ce choix, la modale n'était qu'une confirmation : le backend retombait
+  // silencieusement sur le questionnaire rattaché à la session, et pour une
+  // session importée d'OLU — qui n'en a jamais — sur le formulaire générique
+  // câblé en dur dans la page publique. La RH ne pouvait donc pas décider quel
+  // questionnaire partait.
+  const [evalQuestionnaireId, setEvalQuestionnaireId] = useState<string | null>(null);
+  const [evalTemplates, setEvalTemplates] = useState<any[]>([]);
+  const [evalTemplatesLoading, setEvalTemplatesLoading] = useState(false);
 
   // Questionnaire d'évaluation à chaud rattaché à la session.
   // La session peut renvoyer soit l'objet complet, soit seulement l'identifiant :
@@ -207,6 +219,37 @@ export default function SessionDetailPage({ params }: Props) {
     }
   };
 
+  // Questionnaires actifs du type sélectionné (même règle que /sessions/new)
+  useEffect(() => {
+    if (!evalModalType) return;
+
+    let annule = false;
+    setEvalTemplatesLoading(true);
+
+    getQuestionnaires({ type: evalModalType })
+      .then((list) => {
+        if (annule) return;
+        const actifs = (list || []).filter((q: any) => q.actif);
+        setEvalTemplates(actifs);
+        // Pré-sélection du questionnaire déjà rattaché à la session, s'il fait
+        // partie des choix proposés : c'est celui que le backend aurait retenu.
+        const rattache =
+          sessionQuestionnaire &&
+          actifs.find((q: any) => q.id === sessionQuestionnaire.id);
+        setEvalQuestionnaireId(rattache ? String(rattache.id) : null);
+      })
+      .catch(() => {
+        if (!annule) setEvalTemplates([]);
+      })
+      .finally(() => {
+        if (!annule) setEvalTemplatesLoading(false);
+      });
+
+    return () => {
+      annule = true;
+    };
+  }, [evalModalType, sessionQuestionnaire]);
+
   // Handler pour envoyer les évaluations (à chaud ou à froid)
   const handleSendEvaluations = async () => {
     if (!session || !evalModalType) return;
@@ -214,7 +257,12 @@ export default function SessionDetailPage({ params }: Props) {
     setIsSendingEval(true);
     try {
       const type = session.type === 'collective' ? 'collective' : 'individuelle';
-      const result = await evaluationsService.sendEvaluations(session.id, type, evalModalType);
+      const result = await evaluationsService.sendEvaluations(
+        session.id,
+        type,
+        evalModalType,
+        evalQuestionnaireId ? Number(evalQuestionnaireId) : undefined,
+      );
 
       const details: string[] = [];
       if (result.envoyes > 0) details.push(`${result.envoyes} envoyée(s)`);
@@ -585,6 +633,36 @@ export default function SessionDetailPage({ params }: Props) {
               : `${recipientCount} participant(s) concerné(s). Chaque participant recevra un lien personnel vers le questionnaire.`}
           </Alert>
 
+          <Select
+            label="Questionnaire à envoyer"
+            description={
+              sessionQuestionnaire
+                ? `Questionnaire rattaché à la session : ${sessionQuestionnaire.nom}`
+                : "Cette session n'a pas de questionnaire rattaché : choisissez celui à envoyer."
+            }
+            placeholder={
+              evalTemplatesLoading ? 'Chargement...' : 'Choisir un questionnaire'
+            }
+            data={evalTemplates.map((q: any) => ({
+              value: String(q.id),
+              label: q.nom,
+            }))}
+            value={evalQuestionnaireId}
+            onChange={setEvalQuestionnaireId}
+            disabled={evalTemplatesLoading}
+            searchable
+            nothingFoundMessage="Aucun questionnaire actif de ce type"
+            required
+          />
+
+          {!evalTemplatesLoading && evalTemplates.length === 0 && (
+            <Alert color="orange" variant="light" icon={<Warning size={16} />}>
+              Aucun questionnaire {evalModalType === 'froid' ? 'à froid' : 'à chaud'} actif
+              n&apos;est disponible. Créez-en un depuis la page Questionnaires avant
+              d&apos;envoyer.
+            </Alert>
+          )}
+
           <Text size="xs" c="dimmed">
             Les évaluations déjà envoyées pour cette session ne seront pas renvoyées.
           </Text>
@@ -598,7 +676,7 @@ export default function SessionDetailPage({ params }: Props) {
               leftSection={<ClipboardText size={16} />}
               loading={isSendingEval}
               onClick={handleSendEvaluations}
-              disabled={recipientCount === 0}
+              disabled={recipientCount === 0 || !evalQuestionnaireId}
             >
               Envoyer
             </Button>

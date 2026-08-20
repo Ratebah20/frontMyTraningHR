@@ -36,6 +36,12 @@ import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise'
 import { formationsService, commonService, organismesService } from '@/lib/services';
 import { CreateFormationDto } from '@/lib/types';
 import { generateFormationCode } from '@/lib/utils/formation';
+import {
+  ObligationPeriodeFields,
+  ObligatoirePortee,
+  anneeAPersister,
+  validerObligation,
+} from '@/components/formations/ObligationPeriodeFields';
 
 export default function NewFormationPage() {
   const router = useRouter();
@@ -49,6 +55,12 @@ export default function NewFormationPage() {
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
   const [loadingUnites, setLoadingUnites] = useState(true);
   
+  // Portee de l'obligation : choix explicite entre une annee datee et une
+  // obligation indefinie. Tenu hors du formulaire Mantine, qui est type sur le
+  // DTO ; seule `obligatoireAnnee` (null = indefinie) part en base.
+  const [obligatoirePortee, setObligatoirePortee] = useState<ObligatoirePortee>('annee');
+  const [obligationError, setObligationError] = useState<string | null>(null);
+
   const form = useForm<CreateFormationDto & { tarifHT?: number }>({
     initialValues: {
       codeFormation: '',
@@ -226,6 +238,19 @@ export default function NewFormationPage() {
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
     
+    const erreurObligation = validerObligation({
+      estObligatoire: values.estObligatoire,
+      obligatoireType: values.obligatoireType,
+      obligatoirePortee,
+      obligatoireAnnee: values.obligatoireAnnee,
+    });
+    if (erreurObligation) {
+      setObligationError(erreurObligation);
+      setIsSubmitting(false);
+      return;
+    }
+    setObligationError(null);
+
     try {
       // Préparer les données pour l'envoi
       const obligatoireType = values.estObligatoire ? (values.obligatoireType || 'annuelle') : null;
@@ -235,8 +260,8 @@ export default function NewFormationPage() {
         organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
         obligatoireType,
         obligatoireAnnee:
-          obligatoireType === 'annuelle' && values.obligatoireAnnee
-            ? Number(values.obligatoireAnnee)
+          obligatoireType === 'annuelle'
+            ? anneeAPersister(obligatoirePortee, values.obligatoireAnnee)
             : null,
       };
 
@@ -527,32 +552,26 @@ export default function NewFormationPage() {
               />
 
               {form.values.estObligatoire && (
-                <Grid gutter="md">
-                  <Grid.Col span={{ base: 12, md: 6 }}>
-                    <Select
-                      label="Type d'obligation"
-                      description="Annuelle (à suivre chaque année ciblée) ou Onboarding (à l'arrivée)"
-                      data={[
-                        { value: 'annuelle', label: 'Annuelle' },
-                        { value: 'onboarding', label: 'Onboarding' },
-                      ]}
-                      allowDeselect={false}
-                      {...form.getInputProps('obligatoireType')}
-                    />
-                  </Grid.Col>
-                  {form.values.obligatoireType !== 'onboarding' && (
-                    <Grid.Col span={{ base: 12, md: 6 }}>
-                      <NumberInput
-                        label="Année"
-                        placeholder="Toutes les années"
-                        description="Année d'application (optionnel)"
-                        min={2000}
-                        max={2100}
-                        {...form.getInputProps('obligatoireAnnee')}
-                      />
-                    </Grid.Col>
-                  )}
-                </Grid>
+                <ObligationPeriodeFields
+                  obligatoireType={form.values.obligatoireType}
+                  portee={obligatoirePortee}
+                  annee={form.values.obligatoireAnnee}
+                  onTypeChange={(value) =>
+                    form.setFieldValue('obligatoireType', value as 'annuelle' | 'onboarding')
+                  }
+                  onPorteeChange={(value) => {
+                    setObligatoirePortee(value);
+                    setObligationError(null);
+                  }}
+                  onAnneeChange={(value) => {
+                    form.setFieldValue(
+                      'obligatoireAnnee',
+                      value === '' || value === null ? null : Number(value),
+                    );
+                    setObligationError(null);
+                  }}
+                  anneeError={obligationError}
+                />
               )}
             </Stack>
           </Card>

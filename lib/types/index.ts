@@ -497,6 +497,21 @@ export interface FormationFilters {
   limit?: number;
   sortBy?: string;
   order?: 'asc' | 'desc';
+  sansSession?: string;
+}
+
+/**
+ * Compteurs renvoyés par GET /formations/stats : ils portent sur la TOTALITÉ
+ * de la population filtrée, contrairement aux compteurs dérivés de la page
+ * courante qu'ils remplacent.
+ */
+export interface FormationsGlobalStats {
+  total: number;
+  actives: number;
+  inactives: number;
+  obligatoires: number;
+  certifiantes: number;
+  securite: number;
 }
 
 export interface SessionFilters {
@@ -510,6 +525,11 @@ export interface SessionFilters {
   limit?: number;
   sortBy?: string;
   order?: 'asc' | 'desc';
+  /**
+   * Filtre « informations manquantes » : liste CSV parmi
+   * duree, organisme, type, dateFin, categorie. Les critères sont combinés en OU.
+   */
+  missingFields?: string;
 }
 
 // Enums pour les statuts
@@ -764,6 +784,17 @@ export interface TodoTemplate {
   dateCreation: string;
   dateModification: string;
 }
+
+export interface CreateTodoTemplateDto {
+  nom: string;
+  description?: string;
+  // Chaîne vide / null = template universel, applicable à tous les types.
+  typeFormation?: string | null;
+  items: TodoTemplateItem[];
+  actif?: boolean;
+}
+
+export type UpdateTodoTemplateDto = Partial<CreateTodoTemplateDto>;
 
 // ==================== QUESTIONNAIRES D'ÉVALUATION ====================
 // Même esprit que TodoTemplate : des modèles réutilisables créés par la RH.
@@ -1157,6 +1188,8 @@ export interface CollectiveSessionFilters {
   limit?: number;
   sortBy?: string;
   order?: 'asc' | 'desc';
+  /** Voir SessionFilters.missingFields — même sémantique côté collectif. */
+  missingFields?: string;
 }
 
 // Statistiques d'une session

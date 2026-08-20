@@ -58,7 +58,7 @@ import type {
   CollaborateursStats,
 } from '@/lib/services/collaborateurs.service';
 import { Collaborateur, CollaborateurFilters } from '@/lib/types';
-import { useDebounce } from '@/hooks/useApi';
+import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 
 /**
  * Une borne de période n'est acceptée qu'au format `YYYY-MM-DD` (celui produit
@@ -99,27 +99,61 @@ export default function CollaborateursPage() {
   const [dateInactivation, setDateInactivation] = useState<Date | null>(new Date());
   const [isDeactivating, setIsDeactivating] = useState(false);
 
-  // Filtres et pagination
-  const [search, setSearch] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('');
-  // Par défaut, n'afficher que les collaborateurs actifs
-  const [statusFilter, setStatusFilter] = useState<string>('actif');
-  // Congé longue durée : 'tous' (aucun filtre) | 'enConge' | 'horsConge'
-  const [congeFilter, setCongeFilter] = useState<string>('tous');
-  const [missingFieldsFilter, setMissingFieldsFilter] = useState<string[]>([]);
-  const [contratFilter, setContratFilter] = useState<string>('');
-  const [sansFormation, setSansFormation] = useState(searchParams.get('filter') === 'sansFormation');
-  // Période transmise par le tableau de bord avec le filtre « sans formation ».
-  // Lue une seule fois au montage, comme `filter` : la page n'est pas pilotée
-  // par l'URL, l'utilisateur reprend la main ensuite.
-  const [periodeDebut, setPeriodeDebut] = useState(() => lireBorneJour(searchParams.get('dateDebut')));
-  const [periodeFin, setPeriodeFin] = useState(() => lireBorneJour(searchParams.get('dateFin')));
-  const [page, setPage] = useState(1);
+  // Filtres et pagination : l'URL est désormais la source de vérité.
+  //
+  // Auparavant les filtres vivaient en useState et `filter` / `dateDebut` /
+  // `dateFin` n'étaient lus qu'au montage : revenir sur la liste depuis une
+  // fiche collaborateur repartait de zéro, page 1, filtres vidés.
+  const {
+    values: urlFilters,
+    setValue: setUrlFilter,
+    setValues: setUrlFilters,
+    page,
+    setPage,
+  } = useUrlFilters('/collaborateurs', {
+    search: '',
+    departement: '',
+    // Par défaut, n'afficher que les collaborateurs actifs
+    statut: 'actif',
+    // Congé longue durée : 'tous' (aucun filtre) | 'enConge' | 'horsConge'
+    conge: 'tous',
+    missingFields: '',
+    contrat: '',
+    // Paramètres posés par le tableau de bord
+    filter: '',
+    dateDebut: '',
+    dateFin: '',
+  });
+
+  const search = urlFilters.search;
+  const departmentFilter = urlFilters.departement;
+  const statusFilter = urlFilters.statut;
+  const congeFilter = urlFilters.conge;
+  const missingFieldsFilter = urlFilters.missingFields
+    ? urlFilters.missingFields.split(',')
+    : [];
+  const contratFilter = urlFilters.contrat;
+  const sansFormation = urlFilters.filter === 'sansFormation';
+  const periodeDebut = lireBorneJour(urlFilters.dateDebut || null);
+  const periodeFin = lireBorneJour(urlFilters.dateFin || null);
+
+  const setDepartmentFilter = (value: string) => setUrlFilter('departement', value);
+  const setStatusFilter = (value: string) => setUrlFilter('statut', value);
+  const setCongeFilter = (value: string) => setUrlFilter('conge', value);
+  const setMissingFieldsFilter = (values: string[]) =>
+    setUrlFilter('missingFields', values.join(','));
+  const setContratFilter = (value: string) => setUrlFilter('contrat', value);
+
+  const [searchInput, setSearchInput] = useUrlSearch(search, (value) =>
+    setUrlFilter('search', value),
+  );
+
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [limit] = useState(20);
-  
-  const debouncedSearch = useDebounce(search, 500);
+
+  // Déjà debouncée par useUrlSearch avant d'atteindre l'URL
+  const debouncedSearch = search;
 
   // Options pour le filtre des informations manquantes
   const missingFieldsOptions = [
@@ -262,15 +296,20 @@ export default function CollaborateursPage() {
     loadTypesContrats();
   }, []);
 
-  // Charger les collaborateurs au montage et quand les filtres changent
+  // Charger les collaborateurs au montage et quand les filtres changent.
+  //
+  // On dépend de la CHAÎNE `missingFields` et non du tableau dérivé : celui-ci
+  // est reconstruit par `.split(',')` à chaque rendu, une nouvelle identité à
+  // chaque fois, ce qui relancerait la requête en boucle.
   useEffect(() => {
     loadCollaborateurs();
-  }, [debouncedSearch, departmentFilter, statusFilter, congeFilter, missingFieldsFilter, contratFilter, sansFormation, periodeDebut, periodeFin, page]);
+  }, [debouncedSearch, departmentFilter, statusFilter, congeFilter, urlFilters.missingFields, contratFilter, sansFormation, periodeDebut, periodeFin, page]);
 
-  // Réinitialiser la page quand les filtres changent
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedSearch, departmentFilter, statusFilter, congeFilter, missingFieldsFilter, contratFilter, sansFormation, periodeDebut, periodeFin]);
+  // Le retour en page 1 lors d'un changement de filtre est assuré par
+  // useUrlFilters. L'effet dédié qui existait ici a été retiré : les filtres
+  // vivant maintenant dans l'URL, il aurait poussé une entrée d'historique
+  // supplémentaire à chaque changement — et bouclé, sa liste de dépendances
+  // contenant un tableau reconstruit à chaque rendu.
 
   const handleViewDetails = (id: number) => {
     router.push(`/collaborateurs/${id}`);
@@ -317,22 +356,16 @@ export default function CollaborateursPage() {
   // retirés indépendamment l'un de l'autre. On repart de window.location.search
   // (et non de searchParams) pour ne pas travailler sur un état périmé.
   const retirerParamsUrl = (cles: string[]) => {
-    const params = new URLSearchParams(
-      typeof window !== 'undefined' ? window.location.search : searchParams.toString()
-    );
-    cles.forEach((cle) => params.delete(cle));
-    const query = params.toString();
-    router.replace(query ? `/collaborateurs?${query}` : '/collaborateurs', { scroll: false });
+    setUrlFilters(Object.fromEntries(cles.map((cle) => [cle, null])) as any);
   };
 
+  // Les filtres vivant désormais dans l'URL, les retirer de l'URL suffit :
+  // il n'y a plus d'état local à remettre à zéro en parallèle.
   const retirerFiltreSansFormation = () => {
-    setSansFormation(false);
     retirerParamsUrl(['filter']);
   };
 
   const retirerPeriodeSansFormation = () => {
-    setPeriodeDebut('');
-    setPeriodeFin('');
     retirerParamsUrl(['dateDebut', 'dateFin']);
   };
 
@@ -853,8 +886,8 @@ export default function CollaborateursPage() {
               label=" "
               placeholder="Rechercher par nom, prénom, matricule..."
               leftSection={<MagnifyingGlass size={16} />}
-              value={search}
-              onChange={(event) => setSearch(event.currentTarget.value)}
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.currentTarget.value)}
             />
           </Grid.Col>
           <Grid.Col span={{ base: 12, sm: 3 }}>

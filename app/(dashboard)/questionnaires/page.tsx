@@ -1,5 +1,7 @@
 'use client';
 
+import { useUrlFilters } from '@/hooks/useUrlFilters';
+
 import { useState, useEffect, useMemo } from 'react';
 import {
   Container,
@@ -71,9 +73,16 @@ export default function QuestionnairesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filtres (appliqués côté client pour garder des statistiques complètes)
-  const [typeFilter, setTypeFilter] = useState<'tous' | 'chaud' | 'froid'>('tous');
-  const [showInactifs, setShowInactifs] = useState(false);
+  // Filtres (appliqués côté client pour garder des statistiques complètes),
+  // persistés dans l'URL pour survivre au bouton retour du navigateur.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters('/questionnaires', {
+    type: 'tous',
+    inactifs: '',
+  });
+  const typeFilter = urlFilters.type as 'tous' | 'chaud' | 'froid';
+  const setTypeFilter = (value: 'tous' | 'chaud' | 'froid') => setUrlFilter('type', value);
+  const showInactifs = urlFilters.inactifs === '1';
+  const setShowInactifs = (value: boolean) => setUrlFilter('inactifs', value ? '1' : '');
 
   // Éditeur
   const [formOpened, setFormOpened] = useState(false);

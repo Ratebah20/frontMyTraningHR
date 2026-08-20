@@ -21,6 +21,8 @@ import {
   ThemeIcon,
   Divider,
   Tabs,
+  Modal,
+  Select,
 } from '@mantine/core';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
 import { BookOpen } from '@phosphor-icons/react/dist/ssr/BookOpen';
@@ -37,6 +39,11 @@ import { Certificate } from '@phosphor-icons/react/dist/ssr/Certificate';
 import { CalendarX } from '@phosphor-icons/react/dist/ssr/CalendarX';
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning';
 import { ListChecks } from '@phosphor-icons/react/dist/ssr/ListChecks';
+import { ClipboardText } from '@phosphor-icons/react/dist/ssr/ClipboardText';
+import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
+import { Info } from '@phosphor-icons/react/dist/ssr/Info';
+import { evaluationsService } from '@/lib/services/evaluations.service';
+import { getQuestionnaires } from '@/lib/services/questionnaires.service';
 import { CurrencyDollar } from '@phosphor-icons/react/dist/ssr/CurrencyDollar';
 import { notifications } from '@mantine/notifications';
 import { sessionsService } from '@/lib/services';
@@ -173,8 +180,168 @@ export default function GroupedSessionDetailPage({ params }: Props) {
     );
   }
 
+  // Envoi d'une demande d'évaluation sur le groupe.
+  //
+  // Cette page est celle où l'on atterrit depuis une session importée d'OLU ;
+  // elle n'offrait jusqu'ici aucun moyen de lancer une évaluation, ce qui
+  // obligeait à repasser par la liste des sessions.
+  const [evalType, setEvalType] = useState<'chaud' | 'froid' | null>(null);
+  const [evalQuestionnaireId, setEvalQuestionnaireId] = useState<string | null>(null);
+  const [evalTemplates, setEvalTemplates] = useState<any[]>([]);
+  const [evalTemplatesLoading, setEvalTemplatesLoading] = useState(false);
+  const [evalPreview, setEvalPreview] = useState<any>(null);
+  const [isSendingEval, setIsSendingEval] = useState(false);
+
+  useEffect(() => {
+    if (!evalType || !session?.groupKey) return;
+
+    let annule = false;
+    setEvalTemplatesLoading(true);
+    setEvalQuestionnaireId(null);
+    setEvalPreview(null);
+
+    evaluationsService
+      .previewGroupEvaluations(session.groupKey, evalType)
+      .then((preview) => {
+        if (!annule) setEvalPreview(preview);
+      })
+      .catch(() => {
+        if (!annule) setEvalPreview(null);
+      });
+
+    getQuestionnaires({ type: evalType })
+      .then((list) => {
+        if (!annule) setEvalTemplates((list || []).filter((q: any) => q.actif));
+      })
+      .catch(() => {
+        if (!annule) setEvalTemplates([]);
+      })
+      .finally(() => {
+        if (!annule) setEvalTemplatesLoading(false);
+      });
+
+    return () => {
+      annule = true;
+    };
+  }, [evalType, session?.groupKey]);
+
+  const handleSendGroupEvaluations = async () => {
+    if (!session?.groupKey || !evalType || !evalQuestionnaireId) return;
+
+    setIsSendingEval(true);
+    try {
+      const result = await evaluationsService.sendGroupEvaluations({
+        groupKey: session.groupKey,
+        evaluationType: evalType,
+        questionnaireTemplateId: parseInt(evalQuestionnaireId, 10),
+      });
+
+      const details = [
+        `${result.envoyes} envoyée(s)`,
+        result.dejaEnvoyees > 0 ? `${result.dejaEnvoyees} déjà envoyée(s)` : null,
+        result.sansEmail > 0 ? `${result.sansEmail} sans adresse email` : null,
+        result.erreurs > 0 ? `${result.erreurs} en erreur` : null,
+      ]
+        .filter(Boolean)
+        .join(' • ');
+
+      notifications.show({
+        title: result.envoyes > 0 ? "Demande d'évaluation envoyée" : 'Aucun nouvel envoi',
+        message: `${result.totalParticipants} participant(s) sur ${result.totalSessions} session(s) — ${details}`,
+        color: result.erreurs > 0 ? 'orange' : result.envoyes > 0 ? 'green' : 'blue',
+        icon: result.erreurs > 0 ? <Warning size={16} /> : <CheckCircle size={16} />,
+        autoClose: 8000,
+      });
+
+      setEvalType(null);
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message;
+      notifications.show({
+        title: "Erreur lors de l'envoi",
+        message: Array.isArray(message) ? message.join(', ') : message || 'Erreur inconnue',
+        color: 'red',
+        icon: <Warning size={16} />,
+      });
+    } finally {
+      setIsSendingEval(false);
+    }
+  };
+
   return (
     <Container size="xl">
+      {/* Modale d'envoi d'une demande d'évaluation sur le groupe */}
+      <Modal
+        opened={evalType !== null}
+        onClose={() => setEvalType(null)}
+        title={
+          <Group gap="xs">
+            <ClipboardText size={20} />
+            {evalType === 'froid' ? 'Évaluation à froid' : 'Évaluation à chaud'}
+          </Group>
+        }
+        centered
+        size="md"
+      >
+        <Stack>
+          <Select
+            label="Type d'évaluation"
+            data={[
+              { value: 'chaud', label: 'À chaud (participants)' },
+              { value: 'froid', label: 'À froid (managers)' },
+            ]}
+            value={evalType}
+            onChange={(value) => setEvalType((value as 'chaud' | 'froid') || 'chaud')}
+            allowDeselect={false}
+          />
+
+          <Select
+            label="Questionnaire à envoyer"
+            description="Le questionnaire est choisi explicitement : aucun envoi n'est fait sans cette sélection."
+            placeholder={evalTemplatesLoading ? 'Chargement...' : 'Choisir un questionnaire'}
+            data={evalTemplates.map((q: any) => ({ value: String(q.id), label: q.nom }))}
+            value={evalQuestionnaireId}
+            onChange={setEvalQuestionnaireId}
+            disabled={evalTemplatesLoading}
+            searchable
+            nothingFoundMessage="Aucun questionnaire actif de ce type"
+            required
+          />
+
+          {!evalTemplatesLoading && evalTemplates.length === 0 && (
+            <Alert color="orange" variant="light" icon={<Warning size={16} />}>
+              Aucun questionnaire {evalType === 'froid' ? 'à froid' : 'à chaud'} actif
+              n&apos;est disponible. Créez-en un depuis la page Questionnaires.
+            </Alert>
+          )}
+
+          {evalPreview && (
+            <Alert color="blue" variant="light" icon={<Info size={16} />}>
+              {evalPreview.totalParticipants} participant(s) sur{' '}
+              {evalPreview.totalSessions} session(s).
+              {evalPreview.dejaEnvoyees > 0 &&
+                ` ${evalPreview.dejaEnvoyees} évaluation(s) déjà envoyée(s), qui ne seront pas renvoyées.`}
+              {evalPreview.sansEmail > 0 &&
+                ` ${evalPreview.sansEmail} participant(s) sans adresse email.`}
+            </Alert>
+          )}
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={() => setEvalType(null)}>
+              Annuler
+            </Button>
+            <Button
+              color="orange"
+              leftSection={<ClipboardText size={16} />}
+              loading={isSendingEval}
+              onClick={handleSendGroupEvaluations}
+              disabled={!evalQuestionnaireId}
+            >
+              Envoyer
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
       {/* Header */}
       <Group mb="xl">
         <Button
@@ -209,6 +376,14 @@ export default function GroupedSessionDetailPage({ params }: Props) {
 
           <Group gap="sm">
             <DocumentGenerator session={session} sessionType="grouped" variant="button" />
+            <Button
+              variant="light"
+              color="orange"
+              leftSection={<ClipboardText size={16} />}
+              onClick={() => setEvalType('chaud')}
+            >
+              Demander une évaluation
+            </Button>
             <Button
               variant="light"
               onClick={() => router.push(`/formations/${session.formationId}`)}

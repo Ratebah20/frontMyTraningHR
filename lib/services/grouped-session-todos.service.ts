@@ -6,6 +6,8 @@ import type {
   ReorderTodosDto,
   TodoTemplate,
   TodoStats,
+  CreateTodoTemplateDto,
+  UpdateTodoTemplateDto,
 } from '../types';
 
 /**
@@ -77,6 +79,35 @@ export const getTodoTemplates = async (typeFormation?: string): Promise<TodoTemp
   return response.data;
 };
 
+// Récupérer un template par son id
+export const getTodoTemplate = async (id: number): Promise<TodoTemplate> => {
+  const response = await api.get(`/todo-templates/${id}`);
+  return response.data;
+};
+
+// Créer un template
+export const createTodoTemplate = async (
+  data: CreateTodoTemplateDto
+): Promise<TodoTemplate> => {
+  const response = await api.post('/todo-templates', data);
+  return response.data;
+};
+
+// Modifier un template
+export const updateTodoTemplate = async (
+  id: number,
+  data: UpdateTodoTemplateDto
+): Promise<TodoTemplate> => {
+  const response = await api.put(`/todo-templates/${id}`, data);
+  return response.data;
+};
+
+// Désactiver un template (suppression logique côté backend)
+export const deleteTodoTemplate = async (id: number): Promise<{ message: string }> => {
+  const response = await api.delete(`/todo-templates/${id}`);
+  return response.data;
+};
+
 // Créer des todos à partir d'un template
 export const createTodosFromTemplate = async (
   groupKey: string,
@@ -96,5 +127,9 @@ export default {
   deleteGroupedSessionTodo,
   reorderGroupedSessionTodos,
   getTodoTemplates,
+  getTodoTemplate,
+  createTodoTemplate,
+  updateTodoTemplate,
+  deleteTodoTemplate,
   createTodosFromTemplate,
 };

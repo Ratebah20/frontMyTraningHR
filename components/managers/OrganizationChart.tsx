@@ -43,7 +43,11 @@ interface NodeCardProps {
 
 function NodeCard({ node, level, onNodeClick, onEditManager }: NodeCardProps) {
   const router = useRouter();
-  const [expanded, setExpanded] = useState(level < 2); // Auto-expand premier et deuxième niveau
+  // Seul le niveau 0 est déplié par défaut : l'organigramme s'ouvre donc sur le
+  // CEO et ses directeurs, et rien de plus. Au-delà, la vue devenait illisible
+  // dès quelques dizaines de collaborateurs. Les niveaux inférieurs restent
+  // accessibles d'un clic sur le chevron.
+  const [expanded, setExpanded] = useState(level < 1);
 
   const hasChildren = node.children && node.children.length > 0;
 

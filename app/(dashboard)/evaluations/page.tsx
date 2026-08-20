@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useUrlFilters } from '@/hooks/useUrlFilters';
 import {
   Alert,
   Badge,
@@ -122,13 +123,44 @@ export default function EvaluationsSynthesePage() {
 
   const [formations, setFormations] = useState<FormationOption[]>([]);
   const [formationsError, setFormationsError] = useState<string | null>(null);
-  const [formationId, setFormationId] = useState<string | null>(null);
+  // Filtres persistés dans l'URL : cette page renvoie vers le détail des
+  // réponses, le retour navigateur doit restituer la synthèse consultée.
+  const {
+    values: urlFilters,
+    setValue: setUrlFilter,
+    setValues: setUrlFilters,
+  } = useUrlFilters('/evaluations', {
+    formation: '',
+    type: 'chaud',
+    periode: 'annee',
+    date: String(new Date().getFullYear()),
+    dateDebut: '',
+    dateFin: '',
+  });
 
-  const [evaluationType, setEvaluationType] = useState<EvaluationMoment>('chaud');
-  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee');
-  const [date, setDate] = useState<string>(String(new Date().getFullYear()));
-  const [dateDebut, setDateDebut] = useState<Date | null>(null);
-  const [dateFin, setDateFin] = useState<Date | null>(null);
+  const formationId = urlFilters.formation || null;
+  const setFormationId = (value: string | null) => setUrlFilter('formation', value || '');
+  const evaluationType = urlFilters.type as EvaluationMoment;
+  const setEvaluationType = (value: EvaluationMoment) => setUrlFilter('type', value);
+  const periode = urlFilters.periode as 'annee' | 'mois' | 'plage';
+  const date = urlFilters.date;
+
+  // Période et date sont écrites ENSEMBLE : deux mises à jour successives dans
+  // le même tick repartiraient toutes deux de `window.location.search`, que la
+  // navigation App Router n'a pas encore rafraîchi — la seconde écraserait la
+  // première. Même piège que celui documenté sur /sessions.
+  const setPeriodeEtDate = (value: 'annee' | 'mois' | 'plage', nouvelleDate: string) =>
+    setUrlFilters({ periode: value, date: nouvelleDate });
+
+  // Bornes de la période « plage » : stockées en ISO court dans l'URL, exposées
+  // en Date au PeriodSelector qui les attend sous cette forme.
+  const dateDebut = urlFilters.dateDebut ? new Date(urlFilters.dateDebut) : null;
+  const dateFin = urlFilters.dateFin ? new Date(urlFilters.dateFin) : null;
+  const setPlage = (debut: Date | null, fin: Date | null) =>
+    setUrlFilters({
+      dateDebut: debut ? toIsoDay(debut) : null,
+      dateFin: fin ? toIsoDay(fin) : null,
+    });
 
   const [synthese, setSynthese] = useState<FormationEvaluationSynthese | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -208,7 +240,9 @@ export default function EvaluationsSynthesePage() {
         setIsLoading(false);
       }
     }
-  }, [formationId, evaluationType, periode, date, dateDebut, dateFin]);
+    // Dépend des CHAÎNES de l'URL et non des objets Date, reconstruits à chaque
+    // rendu : sinon la requête repartirait en boucle.
+  }, [formationId, evaluationType, periode, date, urlFilters.dateDebut, urlFilters.dateFin]);
 
   useEffect(() => {
     loadSynthese();
@@ -282,8 +316,8 @@ export default function EvaluationsSynthesePage() {
               date={date}
               dateDebut={dateDebut}
               dateFin={dateFin}
-              onChange={(p, d) => { setPeriode(p); setDate(d); }}
-              onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
+              onChange={(p, d) => setPeriodeEtDate(p, d)}
+              onDateRangeChange={(debut, fin) => setPlage(debut, fin)}
             />
           </Group>
 

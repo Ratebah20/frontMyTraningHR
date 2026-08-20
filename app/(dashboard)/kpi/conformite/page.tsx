@@ -48,6 +48,7 @@ import { Info } from '@phosphor-icons/react/dist/ssr/Info'
 import { UserList } from '@phosphor-icons/react/dist/ssr/UserList'
 import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple'
 import { useSearchParams } from 'next/navigation'
+import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -110,12 +111,24 @@ interface MandatoryTrainingsKPIs {
   }>
 }
 
-/** Ligne aplatie de la vue « Par équipe » (tous départements confondus) */
+/**
+ * Ligne aplatie de la vue « Par équipe » (tous départements confondus).
+ *
+ * Porte désormais les mêmes indicateurs que la vue par département — effectif,
+ * conformes, taux, joignabilité du responsable — que le backend calcule sur la
+ * population cible complète et non sur les seuls non-formés.
+ */
 interface OrgManagerRow {
   id: number
   nomComplet: string
   departementId: number
   departement: string
+  totalCollaborateurs: number
+  formes: number
+  nonFormes: number
+  tauxConformite: number
+  email: string | null
+  peutEtreRelance: boolean
   collaborateursNonFormes: Array<{
     id: number
     nomComplet: string
@@ -164,7 +177,20 @@ interface MandatoryByManagerResponse {
       nomComplet: string
       /** Certaines réponses exposent `nom` au lieu de `nomComplet` */
       nom?: string
+      /**
+       * ATTENTION : historiquement incrémenté dans la seule boucle des
+       * non-formés, ce champ vaut `collaborateursNonFormes.length` et NON
+       * l'effectif de l'équipe. Utiliser `totalCollaborateurs`.
+       */
       totalSubordonnes: number
+      /** Effectif de l'équipe sur la population cible (dénominateur du taux) */
+      totalCollaborateurs?: number
+      formes?: number
+      nonFormes?: number
+      tauxConformite?: number
+      /** null si le responsable n'a pas d'adresse renseignée */
+      email?: string | null
+      peutEtreRelance?: boolean
       collaborateursNonFormes: Array<{
         id: number
         nomComplet: string
@@ -272,6 +298,22 @@ const parseJourUtc = (valeur: string | null): Date | null => {
   return isNaN(date.getTime()) ? null : date
 }
 
+/**
+ * Date -> `YYYY-MM-DD`, écrit dans l'URL.
+ *
+ * Sérialise les composantes LOCALES et non `toISOString()` : le PeriodSelector
+ * renvoie un minuit local, dont la conversion UTC reviendrait la veille en
+ * UTC+1/+2 — l'utilisateur choisirait le 1er et relirait le 31. Le résultat est
+ * ensuite relu par `parseJourUtc`, qui en refait un minuit UTC : l'aller-retour
+ * est stable, et `toISOString().split('T')[0]` continue de rendre le bon jour
+ * au moment d'appeler le backend.
+ */
+const ecrireJour = (date: Date): string => {
+  const mois = String(date.getMonth() + 1).padStart(2, '0')
+  const jour = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${mois}-${jour}`
+}
+
 const lirePeriodeDepuisUrl = (params: { get: (cle: string) => string | null }): PeriodeEtat => {
   const defaut = periodeParDefaut()
   const periode = params.get('periode')
@@ -305,20 +347,59 @@ const lirePeriodeDepuisUrl = (params: { get: (cle: string) => string | null }): 
 export default function ConformitePage() {
   const searchParams = useSearchParams()
 
-  // Initialisation AU MONTAGE uniquement (initialiseurs paresseux) : la page
-  // n'est pas pilotée par l'URL, l'utilisateur reprend la main avec le
-  // PeriodSelector et rien ne réécrit la barre d'adresse (aucune boucle de
-  // navigation possible).
-  const [periodeInitiale] = useState<PeriodeEtat>(() => lirePeriodeDepuisUrl(searchParams))
+  // La période est désormais lue ET réécrite dans l'URL (elle n'était
+  // qu'initialisée au montage) : le bouton retour restitue la période, le type
+  // d'obligation et la vue consultés, et une page filtrée devient partageable.
+  const { values: urlFilters, setValues: setUrlFilters } = useUrlFilters(
+    '/kpi/conformite',
+    {
+      periode: '',
+      date: '',
+      startDate: '',
+      endDate: '',
+      type: 'annuelle',
+      orgView: 'departement',
+    },
+  )
 
-  // Period selector state
-  const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>(periodeInitiale.periode)
-  const [date, setDate] = useState<string>(periodeInitiale.date)
-  const [dateDebut, setDateDebut] = useState<Date | null>(periodeInitiale.dateDebut)
-  const [dateFin, setDateFin] = useState<Date | null>(periodeInitiale.dateFin)
+  // Le parseur historique valide les formats et sert de repli quand l'URL est
+  // incohérente (lien entrant bricolé, borne manquante).
+  const periodeUrl = lirePeriodeDepuisUrl({
+    get: (cle: string) => (urlFilters as Record<string, string>)[cle] || null,
+  })
+
+  // La période AFFICHÉE ne passe volontairement pas par ce parseur.
+  //
+  // Il retombe sur « année » dès que la paire (periode, date) est incomplète —
+  // ce qui est justement l'état transitoire quand on bascule sur « plage » :
+  // les bornes ne sont pas encore saisies. Piloter l'affichage avec lui
+  // empêcherait purement et simplement de quitter le mode « année ».
+  // Le chargement, lui, reste protégé : `fetchMandatoryData` ignore une plage
+  // dont les deux bornes ne sont pas renseignées.
+  const periode = (['annee', 'mois', 'plage'].includes(urlFilters.periode)
+    ? urlFilters.periode
+    : periodeUrl.periode) as 'annee' | 'mois' | 'plage'
+  const date = urlFilters.date || periodeUrl.date
+  const dateDebut = periodeUrl.dateDebut
+  const dateFin = periodeUrl.dateFin
+
+  // Période et date sont écrites ENSEMBLE.
+  //
+  // Deux `setUrlFilters` successifs dans le même tick repartiraient tous deux
+  // de `window.location.search`, que la navigation App Router n'a pas encore
+  // mise à jour : le second écraserait le premier. C'est le même piège que
+  // celui documenté sur /sessions, ici décliné à deux paramètres liés.
+  const setPeriodeEtDate = (value: 'annee' | 'mois' | 'plage', nouvelleDate: string) =>
+    setUrlFilters({ periode: value, date: nouvelleDate })
+  const setPlage = (debut: Date | null, fin: Date | null) =>
+    setUrlFilters({
+      startDate: debut ? ecrireJour(debut) : null,
+      endDate: fin ? ecrireJour(fin) : null,
+    })
 
   // Type d'obligation affiché (annuelle par défaut)
-  const [mandatoryType, setMandatoryType] = useState<MandatoryType>('annuelle')
+  const mandatoryType = urlFilters.type as MandatoryType
+  const setMandatoryType = (value: MandatoryType) => setUrlFilters({ type: value })
 
   // Mandatory trainings data
   const [mandatoryData, setMandatoryData] = useState<MandatoryTrainingsKPIs | null>(null)
@@ -351,7 +432,8 @@ export default function ConformitePage() {
   const [selectedManagers, setSelectedManagers] = useState<number[]>([])
 
   // Vue par organisation (département / équipe)
-  const [orgView, setOrgView] = useState<'departement' | 'equipe'>('departement')
+  const orgView = urlFilters.orgView as 'departement' | 'equipe'
+  const setOrgView = (value: 'departement' | 'equipe') => setUrlFilters({ orgView: value })
   // Départements sélectionnés pour une relance de leur DIRECTEUR
   const [selectedDeptIds, setSelectedDeptIds] = useState<number[]>([])
   // Départements dépliés : révèlent le détail par formation de la ligne
@@ -390,7 +472,9 @@ export default function ConformitePage() {
   // à (re)construire la liste des formations du périmètre.
   useEffect(() => {
     fetchMandatoryData({ reinitialiserPerimetre: true })
-  }, [periode, date, dateDebut, dateFin, mandatoryType])
+    // Dépend des CHAÎNES de l'URL : `dateDebut` / `dateFin` sont des objets Date
+    // reconstruits à chaque rendu, s'en servir relancerait la requête en boucle.
+  }, [periode, date, urlFilters.startDate, urlFilters.endDate, mandatoryType])
 
   // Recharger quand la SÉLECTION de formations change.
   // C'est ce câblage qui manquait : la carte "Scope" ne pilotait rien, cocher
@@ -682,6 +766,43 @@ export default function ConformitePage() {
       }
     })
 
+  /**
+   * Détail par formation d'une ÉQUIPE, pendant de
+   * detailParFormationDuDepartement pour la vue par manager.
+   *
+   * Se déduit entièrement des données déjà chargées : pour une formation
+   * donnée, les membres de l'équipe qui ne figurent pas dans la liste des
+   * manquants l'ont nécessairement suivie. D'où
+   * `formes = totalCollaborateurs - nonFormes`, sans appel supplémentaire.
+   */
+  const detailParFormationDeLEquipe = (
+    row: OrgManagerRow
+  ): DetailFormationDepartement[] =>
+    (mandatoryData?.formations ?? []).map((formation) => {
+      const nonFormes = row.collaborateursNonFormes.filter((c) =>
+        (c.formationsManquantes ?? []).some((f) => f.id === formation.id)
+      ).length
+      const total = row.totalCollaborateurs
+      const formes = Math.max(0, total - nonFormes)
+      return {
+        formation,
+        formes,
+        nonFormes,
+        total,
+        taux: total > 0 ? Math.round((formes / total) * 1000) / 10 : 0,
+      }
+    })
+
+  const [expandedManagerIds, setExpandedManagerIds] = useState<number[]>([])
+
+  const toggleExpandedManager = (managerId: number) => {
+    setExpandedManagerIds((prev) =>
+      prev.includes(managerId)
+        ? prev.filter((id) => id !== managerId)
+        : [...prev, managerId]
+    )
+  }
+
   const toggleExpandedDept = (departementId: number) => {
     setExpandedDeptIds((prev) =>
       prev.includes(departementId)
@@ -733,12 +854,21 @@ export default function ConformitePage() {
       ;(d.managers ?? []).forEach((m) => {
         if (seen.has(m.id)) return
         seen.add(m.id)
+        const nonFormes = m.collaborateursNonFormes ?? []
         rows.push({
           id: m.id,
           nomComplet: m.nomComplet || m.nom || `Manager #${m.id}`,
           departementId: d.id,
           departement: d.nom,
-          collaborateursNonFormes: m.collaborateursNonFormes ?? [],
+          // Replis défensifs : une réponse d'API antérieure à l'enrichissement
+          // ne porte pas ces champs, la vue reste alors lisible.
+          totalCollaborateurs: m.totalCollaborateurs ?? nonFormes.length,
+          formes: m.formes ?? 0,
+          nonFormes: m.nonFormes ?? nonFormes.length,
+          tauxConformite: m.tauxConformite ?? 0,
+          email: m.email ?? null,
+          peutEtreRelance: m.peutEtreRelance ?? false,
+          collaborateursNonFormes: nonFormes,
         })
       })
     })
@@ -1079,8 +1209,8 @@ export default function ConformitePage() {
               date={date}
               dateDebut={dateDebut}
               dateFin={dateFin}
-              onChange={(p, d) => { setPeriode(p); setDate(d) }}
-              onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin) }}
+              onChange={(p, d) => setPeriodeEtDate(p, d)}
+              onDateRangeChange={(debut, fin) => setPlage(debut, fin)}
             />
             <Group>
               <SegmentedControl
@@ -1870,15 +2000,31 @@ export default function ConformitePage() {
                                   <Table.Thead>
                                     <Table.Tr>
                                       <Table.Th style={{ width: 40 }}></Table.Th>
-                                      <Table.Th style={{ minWidth: 180 }}>Manager</Table.Th>
-                                      <Table.Th style={{ minWidth: 160 }}>Departement</Table.Th>
-                                      <Table.Th style={{ textAlign: 'center' }}>Non formes</Table.Th>
+                                      <Table.Th style={{ width: 40 }}></Table.Th>
+                                      <Table.Th style={{ minWidth: 180 }}>Equipe</Table.Th>
+                                      <Table.Th style={{ minWidth: 160 }}>Responsable</Table.Th>
+                                      <Table.Th style={{ minWidth: 140 }}>Departement</Table.Th>
+                                      <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
+                                      <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
+                                      <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
+                                      <Table.Th style={{ minWidth: 160 }}>Taux de conformite</Table.Th>
                                       <Table.Th style={{ minWidth: 220 }}>Actions</Table.Th>
                                     </Table.Tr>
                                   </Table.Thead>
                                   <Table.Tbody>
-                                    {managerRows.map((row) => (
-                                      <Table.Tr key={row.id}>
+                                    {managerRows.map((row) => {
+                                      const couleurTauxEquipe = getCoverageColor(row.tauxConformite)
+                                      const deplieEquipe = expandedManagerIds.includes(row.id)
+                                      const relancableEquipe = row.peutEtreRelance && emailConfigured
+                                      const raisonBlocageEquipe = !row.peutEtreRelance
+                                        ? "Ce responsable n'a pas d'adresse email renseignee"
+                                        : !emailConfigured
+                                          ? "L'envoi d'emails n'est pas configure"
+                                          : `Relancer ${row.nomComplet}`
+
+                                      return (
+                                      <Fragment key={row.id}>
+                                      <Table.Tr>
                                         <Table.Td>
                                           <Checkbox
                                             size="xs"
@@ -1887,19 +2033,66 @@ export default function ConformitePage() {
                                           />
                                         </Table.Td>
                                         <Table.Td>
+                                          <Tooltip
+                                            label={
+                                              deplieEquipe
+                                                ? 'Masquer le detail par formation'
+                                                : 'Voir le detail par formation'
+                                            }
+                                          >
+                                            <ActionIcon
+                                              variant="subtle"
+                                              color="gray"
+                                              size="sm"
+                                              aria-label={
+                                                deplieEquipe
+                                                  ? `Masquer le detail de ${row.nomComplet}`
+                                                  : `Voir le detail de ${row.nomComplet}`
+                                              }
+                                              onClick={() => toggleExpandedManager(row.id)}
+                                            >
+                                              {deplieEquipe ? <CaretDown size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />}
+                                            </ActionIcon>
+                                          </Tooltip>
+                                        </Table.Td>
+                                        <Table.Td>
                                           <Text size="sm" fw={600}>{row.nomComplet}</Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                          <Stack gap={2}>
+                                            <Text size="sm">{row.nomComplet}</Text>
+                                            {!row.peutEtreRelance && (
+                                              <Badge color="orange" variant="light" size="sm">
+                                                Email manquant
+                                              </Badge>
+                                            )}
+                                          </Stack>
                                         </Table.Td>
                                         <Table.Td>
                                           <Text size="sm" c="dimmed">{row.departement}</Text>
                                         </Table.Td>
                                         <Table.Td style={{ textAlign: 'center' }}>
-                                          <Badge
-                                            variant="light"
-                                            color={row.collaborateursNonFormes.length > 0 ? 'red' : 'green'}
-                                            size="sm"
-                                          >
-                                            {row.collaborateursNonFormes.length}
-                                          </Badge>
+                                          <Text size="sm">{row.totalCollaborateurs}</Text>
+                                        </Table.Td>
+                                        <Table.Td style={{ textAlign: 'center' }}>
+                                          <Text size="sm" c="green" fw={600}>{row.formes}</Text>
+                                        </Table.Td>
+                                        <Table.Td style={{ textAlign: 'center' }}>
+                                          <Text size="sm" c="red" fw={600}>{row.nonFormes}</Text>
+                                        </Table.Td>
+                                        <Table.Td>
+                                          <Group gap="xs" wrap="nowrap">
+                                            <Progress
+                                              value={row.tauxConformite}
+                                              color={couleurTauxEquipe}
+                                              size="sm"
+                                              radius="md"
+                                              style={{ flex: 1, minWidth: 70 }}
+                                            />
+                                            <Text size="sm" fw={700} c={couleurTauxEquipe === 'yellow' ? 'yellow.7' : couleurTauxEquipe}>
+                                              {row.tauxConformite}%
+                                            </Text>
+                                          </Group>
                                         </Table.Td>
                                         <Table.Td>
                                           <Group gap="xs" wrap="nowrap">
@@ -1912,19 +2105,13 @@ export default function ConformitePage() {
                                             >
                                               Details
                                             </Button>
-                                            <Tooltip
-                                              label={
-                                                emailConfigured
-                                                  ? `Relancer ${row.nomComplet}`
-                                                  : "L'envoi d'emails n'est pas configure"
-                                              }
-                                            >
+                                            <Tooltip label={raisonBlocageEquipe} multiline w={240}>
                                               <Box>
                                                 <Button
                                                   variant="light"
                                                   size="xs"
                                                   leftSection={<EnvelopeSimple size={14} weight="bold" />}
-                                                  disabled={!emailConfigured}
+                                                  disabled={!relancableEquipe}
                                                   onClick={() => {
                                                     setSelectedManagers([row.id])
                                                     openReminderModal('managers')
@@ -1937,7 +2124,63 @@ export default function ConformitePage() {
                                           </Group>
                                         </Table.Td>
                                       </Table.Tr>
-                                    ))}
+
+                                      {deplieEquipe && (
+                                        <Table.Tr>
+                                          <Table.Td colSpan={10} style={{ padding: 0 }}>
+                                            <Box p="md" bg="var(--mantine-color-gray-0)">
+                                              <Text size="xs" fw={700} tt="uppercase" c="dimmed" mb="xs">
+                                                Detail par formation
+                                              </Text>
+                                              <Table striped withTableBorder>
+                                                <Table.Thead>
+                                                  <Table.Tr>
+                                                    <Table.Th>Formation</Table.Th>
+                                                    <Table.Th style={{ textAlign: 'center' }}>Formes</Table.Th>
+                                                    <Table.Th style={{ textAlign: 'center' }}>A former</Table.Th>
+                                                    <Table.Th style={{ minWidth: 160 }}>Taux</Table.Th>
+                                                  </Table.Tr>
+                                                </Table.Thead>
+                                                <Table.Tbody>
+                                                  {detailParFormationDeLEquipe(row).map((detail) => {
+                                                    const couleurDetail = getCoverageColor(detail.taux)
+                                                    return (
+                                                      <Table.Tr key={detail.formation.id}>
+                                                        <Table.Td>
+                                                          <Text size="sm">{detail.formation.nomFormation}</Text>
+                                                        </Table.Td>
+                                                        <Table.Td style={{ textAlign: 'center' }}>
+                                                          <Text size="sm" c="green" fw={600}>{detail.formes}</Text>
+                                                        </Table.Td>
+                                                        <Table.Td style={{ textAlign: 'center' }}>
+                                                          <Text size="sm" c="red" fw={600}>{detail.nonFormes}</Text>
+                                                        </Table.Td>
+                                                        <Table.Td>
+                                                          <Group gap="xs" wrap="nowrap">
+                                                            <Progress
+                                                              value={detail.taux}
+                                                              color={couleurDetail}
+                                                              size="sm"
+                                                              radius="md"
+                                                              style={{ flex: 1, minWidth: 60 }}
+                                                            />
+                                                            <Text size="sm" fw={700} c={couleurDetail === 'yellow' ? 'yellow.7' : couleurDetail}>
+                                                              {detail.taux}%
+                                                            </Text>
+                                                          </Group>
+                                                        </Table.Td>
+                                                      </Table.Tr>
+                                                    )
+                                                  })}
+                                                </Table.Tbody>
+                                              </Table>
+                                            </Box>
+                                          </Table.Td>
+                                        </Table.Tr>
+                                      )}
+                                      </Fragment>
+                                      )
+                                    })}
                                   </Table.Tbody>
                                 </Table>
                               </Table.ScrollContainer>

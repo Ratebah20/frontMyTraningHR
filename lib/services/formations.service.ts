@@ -6,13 +6,22 @@ import {
   UpdateFormationDto, 
   PaginatedResponse,
   SessionFormation,
-  FormationStats 
+  FormationStats,
+  FormationsGlobalStats
 } from '../types';
 
 export const formationsService = {
   // Récupérer la liste des formations avec pagination et filtres
   async getFormations(filters?: FormationFilters): Promise<PaginatedResponse<Formation>> {
     const response = await api.get('/formations', { params: filters });
+    return response.data;
+  },
+
+  // Compteurs globaux sur la population filtrée (et non sur la page courante).
+  // Accepte les mêmes filtres que getFormations ; page/limit/tri sont ignorés
+  // côté backend.
+  async getFormationsStats(filters?: FormationFilters): Promise<FormationsGlobalStats> {
+    const response = await api.get('/formations/stats', { params: filters });
     return response.data;
   },
 

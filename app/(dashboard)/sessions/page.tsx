@@ -15,6 +15,7 @@ import {
   ActionIcon,
   Menu,
   Select,
+  MultiSelect,
   TextInput,
   Pagination,
   Loader,
@@ -406,6 +407,9 @@ export default function SessionsPage() {
   const formationFilter = searchParams.get('formation') || '';
   const departmentFilter = searchParams.get('department') || '';
   const organismeFilter = searchParams.get('organisme') || '';
+  // Filtre « informations manquantes » : CSV dans l'URL, tableau dans l'UI.
+  const missingFieldsParam = searchParams.get('missingFields') || '';
+  const missingFieldsFilter = missingFieldsParam ? missingFieldsParam.split(',') : [];
   const page = parseInt(searchParams.get('page') || '1', 10);
   const sortBy = searchParams.get('sortBy') || 'dateDebut';
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
@@ -452,6 +456,8 @@ export default function SessionsPage() {
   const setFormationFilter = (value: string) => updateUrlParams({ formation: value });
   const setDepartmentFilter = (value: string) => updateUrlParams({ department: value });
   const setOrganismeFilter = (value: string) => updateUrlParams({ organisme: value });
+  const setMissingFieldsFilter = (values: string[]) =>
+    updateUrlParams({ missingFields: values.length > 0 ? values.join(',') : null });
   const setSortBy = (value: string) => updateUrlParams({ sortBy: value });
   const setSortOrder = (value: 'asc' | 'desc') => updateUrlParams({ sortOrder: value });
 
@@ -572,6 +578,7 @@ export default function SessionsPage() {
         formationId: formationFilter ? parseInt(formationFilter) : undefined,
         departementId: departmentFilter ? parseInt(departmentFilter) : undefined,
         organismeId: organismeFilter ? parseInt(organismeFilter) : undefined,
+        missingFields: missingFieldsParam || undefined,
         page,
         limit,
         sortBy,
@@ -633,7 +640,7 @@ export default function SessionsPage() {
     // La sélection porte sur des lignes qui viennent de disparaître : on la vide
     // à chaque changement de filtre ou de page.
     setSelectedIds(new Set());
-  }, [search, statusFilter, typeFilter, dateDebut, dateFin, dateImportDebut, dateImportFin, formationFilter, departmentFilter, organismeFilter, page, sortBy, sortOrder]);
+  }, [search, statusFilter, typeFilter, dateDebut, dateFin, dateImportDebut, dateImportFin, formationFilter, departmentFilter, organismeFilter, missingFieldsParam, page, sortBy, sortOrder]);
 
   const handleViewDetails = (session: any) => {
     // Validation: vérifier que les champs nécessaires existent
@@ -1027,10 +1034,30 @@ export default function SessionsPage() {
               />
             </Group>
           </Grid.Col>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
+            <MultiSelect
+              placeholder="Infos manquantes..."
+              aria-label="Filtrer les sessions auxquelles il manque des informations"
+              leftSection={<Warning size={16} />}
+              data={[
+                { value: 'duree', label: 'Durée' },
+                { value: 'organisme', label: 'Organisme' },
+                { value: 'type', label: 'Type' },
+                { value: 'dateFin', label: 'Date de fin' },
+                { value: 'categorie', label: 'Catégorie' },
+              ]}
+              value={missingFieldsFilter}
+              onChange={setMissingFieldsFilter}
+              clearable
+              searchable={false}
+            />
+          </Grid.Col>
         </Grid>
 
         <Text size="xs" c="dimmed" mt="xs">
           Dates : période « du / au ». Une seule date renseignée affiche les sessions de ce jour-là.
+          {missingFieldsFilter.length > 0 &&
+            " • Infos manquantes : une session remonte dès qu'il lui manque l'un des champs cochés."}
         </Text>
 
         {/* Tri */}

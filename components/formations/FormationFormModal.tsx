@@ -30,6 +30,12 @@ import { CurrencyEur } from '@phosphor-icons/react/dist/ssr/CurrencyEur';
 import { formationsService, commonService, organismesService } from '@/lib/services';
 import { CreateFormationDto, Formation } from '@/lib/types';
 import { generateFormationCode } from '@/lib/utils/formation';
+import {
+  ObligationPeriodeFields,
+  ObligatoirePortee,
+  anneeAPersister,
+  validerObligation,
+} from '@/components/formations/ObligationPeriodeFields';
 
 interface FormationFormModalProps {
   opened: boolean;
@@ -48,6 +54,12 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
   const [unitesDuree, setUnitesDuree] = useState<string[]>([]);
   const [loadingUnites, setLoadingUnites] = useState(true);
 
+  // Portee de l'obligation : choix explicite entre une annee datee et une
+  // obligation indefinie. Tenu hors du formulaire Mantine, qui est type sur le
+  // DTO ; seule `obligatoireAnnee` (null = indefinie) part en base.
+  const [obligatoirePortee, setObligatoirePortee] = useState<ObligatoirePortee>('annee');
+  const [obligationError, setObligationError] = useState<string | null>(null);
+
   const form = useForm<CreateFormationDto & { tarifHT?: number }>({
     initialValues: {
       codeFormation: '',
@@ -62,6 +74,12 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
       estCertifiante: false,
       estObligatoire: false,
       estSecurite: false,
+      // Ce formulaire ne gerait ni le type ni la portee de l'obligation : toute
+      // formation creee ici partait obligatoire ET indefinie sans que personne
+      // ne l'ait choisi. Les champs sont desormais alignes sur les deux autres
+      // formulaires de formation.
+      obligatoireType: 'annuelle',
+      obligatoireAnnee: undefined,
     },
     validate: {
       nomFormation: (value) => {
@@ -217,11 +235,32 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
   const handleSubmit = async (values: typeof form.values) => {
     setIsSubmitting(true);
 
+    const erreurObligation = validerObligation({
+      estObligatoire: values.estObligatoire,
+      obligatoireType: values.obligatoireType,
+      obligatoirePortee,
+      obligatoireAnnee: values.obligatoireAnnee,
+    });
+    if (erreurObligation) {
+      setObligationError(erreurObligation);
+      setIsSubmitting(false);
+      return;
+    }
+    setObligationError(null);
+
     try {
+      const obligatoireType = values.estObligatoire
+        ? values.obligatoireType || 'annuelle'
+        : null;
       const formData: any = {
         ...values,
         categorieId: values.categorieId ? parseInt(values.categorieId) : undefined,
         organismeId: values.organismeId ? parseInt(values.organismeId) : undefined,
+        obligatoireType,
+        obligatoireAnnee:
+          obligatoireType === 'annuelle'
+            ? anneeAPersister(obligatoirePortee, values.obligatoireAnnee)
+            : null,
       };
 
       const formation = await formationsService.createFormation(formData);
@@ -525,6 +564,29 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
                 {...form.getInputProps('estSecurite', { type: 'checkbox' })}
                 size="md"
               />
+
+              {form.values.estObligatoire && (
+                <ObligationPeriodeFields
+                  obligatoireType={form.values.obligatoireType}
+                  portee={obligatoirePortee}
+                  annee={form.values.obligatoireAnnee}
+                  onTypeChange={(value) =>
+                    form.setFieldValue('obligatoireType', value as 'annuelle' | 'onboarding')
+                  }
+                  onPorteeChange={(value) => {
+                    setObligatoirePortee(value);
+                    setObligationError(null);
+                  }}
+                  onAnneeChange={(value) => {
+                    form.setFieldValue(
+                      'obligatoireAnnee',
+                      value === '' || value === null ? null : Number(value),
+                    );
+                    setObligationError(null);
+                  }}
+                  anneeError={obligationError}
+                />
+              )}
             </Stack>
           </Card>
 

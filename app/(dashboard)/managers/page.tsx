@@ -49,6 +49,7 @@ import { ManagerStatsCard } from '@/components/managers/ManagerStatsCard';
 import { AssignTeamModal } from '@/components/managers/AssignTeamModal';
 import { notifications } from '@mantine/notifications';
 import { useRouter } from 'next/navigation';
+import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 
 export default function ManagersPage() {
   const router = useRouter();
@@ -56,10 +57,30 @@ export default function ManagersPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [managersData, setManagersData] = useState<ManagerListResponse | null>(null);
   const [hierarchy, setHierarchy] = useState<OrganizationHierarchy | null>(null);
-  const [activeTab, setActiveTab] = useState<string | null>('overview');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  // Onglet, mode d'affichage et filtres persistés dans l'URL : sans cela, un
+  // aller-retour vers la fiche d'un manager ramenait sur l'onglet par défaut,
+  // recherche et filtre de département perdus.
+  const {
+    values: urlFilters,
+    setValue: setUrlFilter,
+  } = useUrlFilters('/managers', {
+    tab: 'overview',
+    view: 'grid',
+    search: '',
+    departement: '',
+  });
+
+  const activeTab = urlFilters.tab;
+  const setActiveTab = (value: string | null) => setUrlFilter('tab', value || 'overview');
+  const viewMode = urlFilters.view as 'grid' | 'list';
+  const setViewMode = (value: 'grid' | 'list') => setUrlFilter('view', value);
+  const searchQuery = urlFilters.search;
+  const departmentFilter = urlFilters.departement;
+  const setDepartmentFilter = (value: string) => setUrlFilter('departement', value);
+
+  const [searchInput, setSearchInput] = useUrlSearch(searchQuery, (value) =>
+    setUrlFilter('search', value),
+  );
   const [departements, setDepartements] = useState<{ value: string; label: string }[]>([]);
   const [assignTeamModalOpened, setAssignTeamModalOpened] = useState(false);
 
@@ -114,17 +135,27 @@ export default function ManagersPage() {
     loadData(false);
   };
 
-  // Filtrer les managers selon les critères
-  const filteredManagers = managersData?.data.filter(manager => {
-    const matchesSearch = searchQuery === '' ||
-      manager.nomComplet.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (manager.matricule && manager.matricule.toLowerCase().includes(searchQuery.toLowerCase()));
+  // Filtrer les managers selon les critères, puis trier alphabétiquement.
+  //
+  // Le backend exclut déjà les inactifs et trie par nomComplet, mais son ORDER BY
+  // dépend de la collation SQL Server : le tri final est refait ici avec
+  // localeCompare('fr') pour que les accents se classent correctement (« Éric »
+  // entre « Erb » et « Ernest », et non rejeté en fin de liste). Le filtre sur
+  // `actif` est conservé en filet de sécurité côté client.
+  const filteredManagers = (managersData?.data || [])
+    .filter(manager => {
+      if (manager.actif === false) return false;
 
-    const matchesDepartment = departmentFilter === '' ||
-      (manager.departementId && manager.departementId === parseInt(departmentFilter));
+      const matchesSearch = searchQuery === '' ||
+        manager.nomComplet.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (manager.matricule && manager.matricule.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    return matchesSearch && matchesDepartment;
-  }) || [];
+      const matchesDepartment = departmentFilter === '' ||
+        (manager.departementId && manager.departementId === parseInt(departmentFilter));
+
+      return matchesSearch && matchesDepartment;
+    })
+    .sort((a, b) => (a.nomComplet || '').localeCompare(b.nomComplet || '', 'fr', { sensitivity: 'base' }));
 
   if (loading) {
     return (
@@ -286,8 +317,8 @@ export default function ManagersPage() {
                   <TextInput
                     placeholder="Rechercher par nom ou matricule..."
                     leftSection={<MagnifyingGlass size={16} />}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.currentTarget.value)}
                   />
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, sm: 6 }}>
@@ -480,7 +511,7 @@ export default function ManagersPage() {
                 </Grid>
 
                 {/* Organigramme */}
-                <OrganizationChart data={hierarchy.roots} />
+                <OrganizationChart data={hierarchy.roots} onRefresh={() => loadData(false)} />
               </>
             )}
           </Stack>

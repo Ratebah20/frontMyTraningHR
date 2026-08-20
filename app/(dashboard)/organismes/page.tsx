@@ -32,14 +32,28 @@ import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { ChartBar } from '@phosphor-icons/react/dist/ssr/ChartBar';
 import { Eye } from '@phosphor-icons/react/dist/ssr/Eye';
 import { useRouter } from 'next/navigation';
+import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 import { useOrganismes, useDeleteOrganisme } from '@/hooks/useOrganismes';
 import { OrganismeFormation } from '@/lib/types';
 import { modals } from '@mantine/modals';
 
 export default function OrganismesPage() {
   const router = useRouter();
-  const [includeInactive, setIncludeInactive] = useState(false);
-  const [search, setSearch] = useState('');
+  // Filtres dans l'URL : la page navigue vers le détail / l'édition d'un
+  // organisme, le retour navigateur doit restituer la liste telle quelle.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters('/organismes', {
+    search: '',
+    inactifs: '',
+  });
+
+  const includeInactive = urlFilters.inactifs === '1';
+  const setIncludeInactive = (value: boolean) =>
+    setUrlFilter('inactifs', value ? '1' : '');
+  const search = urlFilters.search;
+
+  const [searchInput, setSearchInput] = useUrlSearch(search, (value) =>
+    setUrlFilter('search', value),
+  );
 
   const { organismes, isLoading, error, refetch } = useOrganismes(includeInactive);
   const { deleteOrganisme, isLoading: isDeleting } = useDeleteOrganisme();
@@ -146,8 +160,8 @@ export default function OrganismesPage() {
           <TextInput
             placeholder="Rechercher un organisme..."
             leftSection={<MagnifyingGlass size={16} />}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.currentTarget.value)}
             style={{ flex: 1 }}
           />
           <Switch

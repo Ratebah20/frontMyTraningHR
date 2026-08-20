@@ -32,7 +32,17 @@ import { CheckCircle } from '@phosphor-icons/react/dist/ssr/CheckCircle';
 import { Circle } from '@phosphor-icons/react/dist/ssr/Circle';
 import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
 import { FunnelSimple } from '@phosphor-icons/react/dist/ssr/FunnelSimple';
-import { getTodoTemplates } from '@/lib/services/grouped-session-todos.service';
+import { modals } from '@mantine/modals';
+import { notifications } from '@mantine/notifications';
+import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
+import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
+import { Button, Tooltip } from '@mantine/core';
+import {
+  getTodoTemplates,
+  deleteTodoTemplate,
+} from '@/lib/services/grouped-session-todos.service';
+import { TodoTemplateFormModal } from '@/components/session-todos/TodoTemplateFormModal';
 import { TodoTemplate } from '@/lib/types';
 
 // Couleurs par type de formation
@@ -124,6 +134,51 @@ export default function TemplatesPage() {
     loadTemplates();
   };
 
+  // Modale de creation / modification
+  const [formModalOpened, setFormModalOpened] = useState(false);
+  const [templateEnEdition, setTemplateEnEdition] = useState<TodoTemplate | null>(null);
+
+  const handleCreate = () => {
+    setTemplateEnEdition(null);
+    setFormModalOpened(true);
+  };
+
+  const handleEdit = (template: TodoTemplate) => {
+    setTemplateEnEdition(template);
+    setFormModalOpened(true);
+  };
+
+  const handleDelete = (template: TodoTemplate) => {
+    modals.openConfirmModal({
+      title: 'Désactiver le template',
+      children: (
+        <Text size="sm">
+          Le template « {template.nom} » n&apos;apparaîtra plus dans la liste. Les tâches
+          déjà créées à partir de ce modèle ne sont pas touchées.
+        </Text>
+      ),
+      labels: { confirm: 'Désactiver', cancel: 'Annuler' },
+      confirmProps: { color: 'red' },
+      onConfirm: async () => {
+        try {
+          await deleteTodoTemplate(template.id);
+          notifications.show({
+            title: 'Succès',
+            message: 'Template désactivé',
+            color: 'green',
+          });
+          loadTemplates();
+        } catch (err: any) {
+          notifications.show({
+            title: 'Erreur',
+            message: err?.message || 'Erreur lors de la désactivation',
+            color: 'red',
+          });
+        }
+      },
+    });
+  };
+
   return (
     <Container size="xl">
       {/* En-tête */}
@@ -146,6 +201,9 @@ export default function TemplatesPage() {
             >
               <ArrowsClockwise size={20} />
             </ActionIcon>
+            <Button leftSection={<Plus size={16} />} onClick={handleCreate}>
+              Nouveau template
+            </Button>
           </Group>
         </Flex>
 
@@ -302,6 +360,24 @@ export default function TemplatesPage() {
                     </Badge>
                   </Group>
                 </div>
+                <Group gap={4}>
+                  <Tooltip label="Modifier">
+                    <ActionIcon variant="subtle" onClick={() => handleEdit(template)}>
+                      <PencilSimple size={18} />
+                    </ActionIcon>
+                  </Tooltip>
+                  {template.actif && (
+                    <Tooltip label="Désactiver">
+                      <ActionIcon
+                        variant="subtle"
+                        color="red"
+                        onClick={() => handleDelete(template)}
+                      >
+                        <Trash size={18} />
+                      </ActionIcon>
+                    </Tooltip>
+                  )}
+                </Group>
               </Group>
 
               <Divider my="md" />
@@ -397,10 +473,20 @@ export default function TemplatesPage() {
                   : 'Aucun template de tâches n\'est disponible pour le moment'
                 }
               </Text>
+              <Button leftSection={<Plus size={16} />} onClick={handleCreate} mt="sm">
+                Créer un template
+              </Button>
             </Stack>
           </Center>
         </Paper>
       )}
+
+      <TodoTemplateFormModal
+        opened={formModalOpened}
+        onClose={() => setFormModalOpened(false)}
+        template={templateEnEdition}
+        onSuccess={loadTemplates}
+      />
     </Container>
   );
 }

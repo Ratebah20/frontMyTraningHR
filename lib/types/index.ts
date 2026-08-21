@@ -493,6 +493,9 @@ export interface FormationFilters {
   typeFormation?: string;
   actif?: boolean;
   estObligatoire?: boolean;
+  // Formations de securite au travail (SST). Perimetre INDEPENDANT de
+  // `estObligatoire` : une SST n'est pas forcement marquee obligatoire.
+  estSecurite?: boolean;
   page?: number;
   limit?: number;
   sortBy?: string;

@@ -34,6 +34,7 @@ import {
   Table,
   Checkbox,
   SegmentedControl,
+  Switch,
 } from '@mantine/core';
 // import { DatePickerInput } from '@mantine/dates'; // Module non installé
 import { notifications } from '@mantine/notifications';
@@ -410,12 +411,23 @@ export default function SessionsPage() {
   // Filtre « informations manquantes » : CSV dans l'URL, tableau dans l'UI.
   const missingFieldsParam = searchParams.get('missingFields') || '';
   const missingFieldsFilter = missingFieldsParam ? missingFieldsParam.split(',') : [];
+  // Filtre « à clôturer » : date de fin passée et statut ni terminé ni annulé.
+  // Même critère que le badge du tableau de bord, qui pointe ici avec
+  // ?aCloturer=true. Seul « true » active le filtre : le paramètre est retiré
+  // de l'URL quand il est décoché (pas de aCloturer=false à interpréter).
+  const aCloturerParam = searchParams.get('aCloturer') === 'true';
   const page = parseInt(searchParams.get('page') || '1', 10);
   const sortBy = searchParams.get('sortBy') || 'dateDebut';
   const sortOrder = (searchParams.get('sortOrder') as 'asc' | 'desc') || 'desc';
 
   const [totalPages, setTotalPages] = useState(1);
+  // `total` compte des LIGNES : côté individuelles une ligne est un GROUPE
+  // (formation + dates) qui peut porter des dizaines de participants.
   const [total, setTotal] = useState(0);
+  // `totalSessions` compte des SESSIONS. C'est l'unité des compteurs du
+  // tableau de bord (badge « sessions à clôturer ») : les deux sont affichés
+  // côte à côte, sinon le même périmètre semble donner deux chiffres.
+  const [totalSessions, setTotalSessions] = useState(0);
   const [limit] = useState(20);
 
   // Fonction pour mettre à jour l'URL avec les nouveaux paramètres.
@@ -458,6 +470,8 @@ export default function SessionsPage() {
   const setOrganismeFilter = (value: string) => updateUrlParams({ organisme: value });
   const setMissingFieldsFilter = (values: string[]) =>
     updateUrlParams({ missingFields: values.length > 0 ? values.join(',') : null });
+  const setACloturerFilter = (actif: boolean) =>
+    updateUrlParams({ aCloturer: actif ? 'true' : null });
   const setSortBy = (value: string) => updateUrlParams({ sortBy: value });
   const setSortOrder = (value: 'asc' | 'desc') => updateUrlParams({ sortOrder: value });
 
@@ -579,6 +593,10 @@ export default function SessionsPage() {
         departementId: departmentFilter ? parseInt(departmentFilter) : undefined,
         organismeId: organismeFilter ? parseInt(organismeFilter) : undefined,
         missingFields: missingFieldsParam || undefined,
+        // Envoyé seulement quand il est actif : le backend traite l'absence
+        // comme « pas de filtre ». (Il sait aussi lire aCloturer=false, mais
+        // inutile de polluer l'URL et la requête.)
+        aCloturer: aCloturerParam || undefined,
         page,
         limit,
         sortBy,
@@ -598,10 +616,13 @@ export default function SessionsPage() {
       if (response && response.data) {
         setSessions(response.data);
         setTotal(response.meta?.totalItems || 0);
+        // Repli sur totalItems : une API plus ancienne ne renvoie pas le champ.
+        setTotalSessions(response.meta?.totalSessions ?? response.meta?.totalItems ?? 0);
         setTotalPages(response.meta?.totalPages || 1);
       } else {
         setSessions([]);
         setTotal(0);
+        setTotalSessions(0);
         setTotalPages(0);
       }
     } catch (err: any) {
@@ -610,6 +631,7 @@ export default function SessionsPage() {
       setError(err.message || 'Erreur lors du chargement des sessions');
       setSessions([]);
       setTotal(0);
+      setTotalSessions(0);
       setTotalPages(0);
     } finally {
       if (requestId === requestIdRef.current) {
@@ -640,7 +662,7 @@ export default function SessionsPage() {
     // La sélection porte sur des lignes qui viennent de disparaître : on la vide
     // à chaque changement de filtre ou de page.
     setSelectedIds(new Set());
-  }, [search, statusFilter, typeFilter, dateDebut, dateFin, dateImportDebut, dateImportFin, formationFilter, departmentFilter, organismeFilter, missingFieldsParam, page, sortBy, sortOrder]);
+  }, [search, statusFilter, typeFilter, dateDebut, dateFin, dateImportDebut, dateImportFin, formationFilter, departmentFilter, organismeFilter, missingFieldsParam, aCloturerParam, page, sortBy, sortOrder]);
 
   const handleViewDetails = (session: any) => {
     // Validation: vérifier que les champs nécessaires existent
@@ -1052,12 +1074,26 @@ export default function SessionsPage() {
               searchable={false}
             />
           </Grid.Col>
+          {/* Filtre « à clôturer » : visible et désactivable, y compris quand
+              on arrive depuis le badge du tableau de bord — sans quoi la liste
+              serait filtrée sans que rien ne le dise à l'écran. */}
+          <Grid.Col span={{ base: 12, sm: 3 }}>
+            <Switch
+              mt={6}
+              label="Uniquement à clôturer"
+              description="Date de fin passée, statut ni terminé ni annulé"
+              checked={aCloturerParam}
+              onChange={(event) => setACloturerFilter(event.currentTarget.checked)}
+            />
+          </Grid.Col>
         </Grid>
 
         <Text size="xs" c="dimmed" mt="xs">
           Dates : période « du / au ». Une seule date renseignée affiche les sessions de ce jour-là.
           {missingFieldsFilter.length > 0 &&
             " • Infos manquantes : une session remonte dès qu'il lui manque l'un des champs cochés."}
+          {aCloturerParam &&
+            " • À clôturer : même critère que le badge du tableau de bord ; il s'ajoute aux autres filtres."}
         </Text>
 
         {/* Tri */}
@@ -1089,7 +1125,9 @@ export default function SessionsPage() {
           </ActionIcon>
         </Group>
         <Text size="sm" c="dimmed" mt="md">
-          Affichage : {sessions.length} résultats sur cette page • {total} session(s) correspondant aux filtres (référence : {globalStats.total} sessions individuelles en base)
+          Affichage : {sessions.length} résultats sur cette page • {total} ligne(s) correspondant aux filtres
+          {totalSessions !== total && ` — soit ${totalSessions} session(s), les individuelles étant regroupées par formation et dates`}
+          {' '}(référence : {globalStats.total} sessions individuelles en base)
         </Text>
       </Paper>
 

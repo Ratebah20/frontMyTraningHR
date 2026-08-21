@@ -370,9 +370,13 @@ export default function DashboardPage() {
     dateImportDebut: periodeDebutParam,
     dateImportFin: periodeFinParam,
   });
-  // « Date de fin passée et statut non terminé » n'est pas exprimable dans la
-  // liste : on ne porte que la période, l'écart est annoncé dans le sous-titre.
+  // « Date de fin passée et statut ni terminé ni annulé » est desormais un
+  // filtre a part entiere de la liste (`aCloturer`), cable sur le MEME predicat
+  // que ce badge (backend : common/utils/sessions-a-cloturer.utils.ts).
+  // Avant, le lien ne portait que la periode : la RH cliquait sur « 300 » et
+  // tombait sur des milliers de sessions — le « filtre non fonctionnel » signale.
   const lienSessionsACloturer = buildLink('/sessions', {
+    aCloturer: 'true',
     dateDebut: periodeDebutParam,
     dateFin: periodeFinParam,
   });
@@ -738,7 +742,7 @@ export default function DashboardPage() {
                         <div>
                           <Text fw={500} size="sm">{sessionsACloturer} sessions à clôturer</Text>
                           <Text size="xs" c="dimmed">
-                            Date de fin passée, statut ni terminé ni annulé, {periodeTexte} — {sessionsNonCloturees?.individuelles ?? 0} individuelle(s), {sessionsNonCloturees?.collectives ?? 0} collective(s). Le clic ouvre TOUTES les sessions de la période : ce critère n'existe pas dans la liste, elle en affichera donc davantage.
+                            Date de fin passée, statut ni terminé ni annulé, {periodeTexte} — {sessionsNonCloturees?.individuelles ?? 0} individuelle(s), {sessionsNonCloturees?.collectives ?? 0} collective(s). Le clic ouvre la liste filtrée sur ce même critère ; elle compte en LIGNES (les individuelles y sont regroupées par formation et dates) et rappelle le total en sessions juste sous le tableau.
                           </Text>
                         </div>
                         <Badge size="lg" color="red" variant="filled">

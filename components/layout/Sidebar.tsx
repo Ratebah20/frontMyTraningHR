@@ -152,7 +152,7 @@ const navigationItems: NavigationItem[] = [
       { label: 'Saisie des budgets', href: '/budget' },
       { label: 'Tableau de bord', href: '/budget/dashboard' },
       { label: 'Analyses détaillées', href: '/budget/analytics' },
-      { label: 'Coûts estimés', href: '/budget/couts' },
+      { label: 'Suivi des coûts', href: '/budget/couts' },
     ]
   },
   { 

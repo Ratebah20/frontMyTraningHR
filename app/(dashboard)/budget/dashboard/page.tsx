@@ -46,7 +46,12 @@ import { ArrowUp } from '@phosphor-icons/react/dist/ssr/ArrowUp';
 import { ArrowDown } from '@phosphor-icons/react/dist/ssr/ArrowDown';
 import { Equals } from '@phosphor-icons/react/dist/ssr/Equals';
 import { ArrowsClockwise } from '@phosphor-icons/react/dist/ssr/ArrowsClockwise';
-import { budgetSimpleService, BudgetDashboard } from '@/lib/services/budget-simple.service';
+import {
+  budgetSimpleService,
+  BudgetConsommation,
+  AnalyseDepartement,
+  AnalyseCategorie,
+} from '@/lib/services/budget-simple.service';
 
 // Graphiques Recharts chargés en différé (ssr: false) pour alléger le bundle initial
 const BudgetEvolutionAreaChart = dynamic(
@@ -66,9 +71,9 @@ const COLORS = ['#4C6EF5', '#15AABF', '#82C91E', '#FAB005', '#FA5252', '#BE4BDB'
 
 export default function BudgetDashboardPage() {
   const [loading, setLoading] = useState(true);
-  const [consommationData, setConsommationData] = useState<any>(null);
-  const [departementData, setDepartementData] = useState<any[]>([]);
-  const [categorieData, setCategorieData] = useState<any[]>([]);
+  const [consommationData, setConsommationData] = useState<BudgetConsommation | null>(null);
+  const [departementData, setDepartementData] = useState<AnalyseDepartement[]>([]);
+  const [categorieData, setCategorieData] = useState<AnalyseCategorie[]>([]);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [viewType, setViewType] = useState<'trimestre' | 'semestre'>('trimestre');
   const [refreshing, setRefreshing] = useState(false);
@@ -83,7 +88,6 @@ export default function BudgetDashboardPage() {
       
       // Charger les données de consommation
       const consommation = await budgetSimpleService.getConsommation(parseInt(selectedYear));
-      console.log('Consommation data:', consommation);
       setConsommationData(consommation);
       
       // Charger les analyses par département et catégorie en parallèle
@@ -236,15 +240,19 @@ export default function BudgetDashboardPage() {
   }));
 
   const categoryChartData = repartitionCategories.map(cat => ({
-    name: cat.nomCategorie,
-    value: cat.budgetConsomme,
+    name: cat.categorieNom,
+    value: cat.totalConsomme,
     sessions: cat.nombreSessions,
   }));
 
   const departmentChartData = topDepartements.slice(0, 5).map(dept => ({
-    name: dept.nomDepartement,
-    budget: dept.budgetConsomme,
-    moyenne: dept.moyenneParCollaborateur,
+    name: dept.departementNom,
+    budget: dept.totalConsomme,
+    // Le backend renvoie un coût moyen par SESSION ; la moyenne par
+    // collaborateur se déduit du total et du nombre de collaborateurs.
+    moyenne: dept.nombreCollaborateurs > 0
+      ? Math.round(dept.totalConsomme / dept.nombreCollaborateurs)
+      : 0,
   }));
 
   return (
@@ -431,10 +439,10 @@ export default function BudgetDashboardPage() {
                     <Card key={dept.departementId} padding="sm" withBorder>
                       <Group justify="space-between" mb="xs">
                         <Badge color={COLORS[index]} variant="light">
-                          {dept.nomDepartement}
+                          {dept.departementNom}
                         </Badge>
                         <Text size="sm" fw={600}>
-                          {formatCurrency(dept.budgetConsomme)}
+                          {formatCurrency(dept.totalConsomme)}
                         </Text>
                       </Group>
                       <Group gap="xs">
@@ -446,7 +454,13 @@ export default function BudgetDashboardPage() {
                         </Badge>
                       </Group>
                       <Text size="xs" c="dimmed" mt="xs">
-                        Moyenne: {formatCurrency(dept.moyenneParCollaborateur)}/pers
+                        Moyenne:{' '}
+                        {formatCurrency(
+                          dept.nombreCollaborateurs > 0
+                            ? dept.totalConsomme / dept.nombreCollaborateurs
+                            : 0
+                        )}
+                        /pers
                       </Text>
                     </Card>
                   ))}
@@ -486,11 +500,11 @@ export default function BudgetDashboardPage() {
                         <Table.Td>
                           <Group gap="xs">
                             <Box w={12} h={12} bg={COLORS[index % COLORS.length]} style={{ borderRadius: 2 }} />
-                            <Text size="sm">{cat.nomCategorie}</Text>
+                            <Text size="sm">{cat.categorieNom}</Text>
                           </Group>
                         </Table.Td>
                         <Table.Td>
-                          <Text size="sm" fw={600}>{formatCurrency(cat.budgetConsomme)}</Text>
+                          <Text size="sm" fw={600}>{formatCurrency(cat.totalConsomme)}</Text>
                         </Table.Td>
                         <Table.Td>
                           <Badge variant="light" size="sm">{cat.nombreSessions}</Badge>

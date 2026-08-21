@@ -1424,9 +1424,23 @@ export default function SessionsPage() {
 
                         <Table.Td>
                           {session.organismeNom || session.organisme?.nomOrganisme ? (
-                            <Text size="sm" c="dimmed">
-                              {session.organismeNom || session.organisme?.nomOrganisme}
-                            </Text>
+                            <div>
+                              <Text size="sm" c="dimmed">
+                                {session.organismeNom || session.organisme?.nomOrganisme}
+                              </Text>
+                              {/*
+                                Sessions importées d'OL : beaucoup n'ont pas
+                                d'organisme propre, celui affiché vient alors de
+                                la formation. On le dit explicitement pour que la
+                                RH sache qu'elle peut le corriger si le
+                                prestataire réel de cette session diffère.
+                              */}
+                              {session.organismeHerite && (
+                                <Text size="10px" c="dimmed" fs="italic">
+                                  via la formation
+                                </Text>
+                              )}
+                            </div>
                           ) : (
                             <Text size="xs" c="dimmed" fs="italic">
                               Non défini

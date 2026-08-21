@@ -990,6 +990,13 @@ export default function SessionDetailPage({ params }: Props) {
                         <Stack gap="xs">
                           <Text size="sm">
                             <Text span c="dimmed" size="xs">Nom:</Text> {session.organisme?.nom || session.organisme?.nomOrganisme || session.organismeNom || 'Non défini'}
+                            {/* L'organisme peut venir de la formation faute
+                                d'organisme propre a la session (import OL) */}
+                            {session.organismeHerite && (
+                              <Badge ml="xs" size="xs" variant="light" color="gray">
+                                via la formation
+                              </Badge>
+                            )}
                           </Text>
                           {(session.organisme?.type || session.organisme?.typeOrganisme) && (
                             <Text size="sm">

@@ -288,8 +288,17 @@ export default function EditSessionPage({ params }: Props) {
         // Organisme rattaché à la session : la lecture renvoie l'objet
         // `organisme` (avec son id) côté individuel, et `organismeId` côté
         // collectif. null = aucun organisme rattaché.
-        const organismeIdActuel =
-          (sessionData as any).organisme?.id ?? (sessionData as any).organismeId ?? null;
+        //
+        // ATTENTION `organismeHerite` : depuis le repli d'affichage, `organisme`
+        // peut être celui de la FORMATION et non celui de la session. Le
+        // pré-remplir ici le matérialiserait en organisme de session à la
+        // première sauvegarde, sans décision de la RH. Le champ reste donc vide
+        // (un encart lui dit lequel serait hérité, et elle le choisit si elle
+        // veut vraiment le figer sur cette session).
+        const organismeHerite = (sessionData as any).organismeHerite === true;
+        const organismeIdActuel = organismeHerite
+          ? null
+          : ((sessionData as any).organisme?.id ?? (sessionData as any).organismeId ?? null);
 
         // Mettre à jour le formulaire selon le type de session
         if (sessionData.type === 'collective') {
@@ -614,7 +623,11 @@ export default function EditSessionPage({ params }: Props) {
     label: o.nomOrganisme,
   }));
 
-  const organismeSessionId = session.organisme?.id ?? session.organismeId ?? null;
+  // Un organisme hérité de la formation n'est pas « l'organisme de la session » :
+  // il ne doit pas être injecté dans les options comme un organisme désactivé.
+  const organismeSessionId = session.organismeHerite
+    ? null
+    : (session.organisme?.id ?? session.organismeId ?? null);
   if (
     organismeSessionId &&
     !organismeOptions.some((o) => o.value === organismeSessionId.toString())
@@ -854,6 +867,21 @@ export default function EditSessionPage({ params }: Props) {
                 </Group>
 
                 <Stack gap="md">
+                  {/*
+                    La session n'a pas d'organisme propre : la liste affiche
+                    celui de la formation, signalé « via la formation ». On le
+                    rappelle ici, sans pré-remplir le champ — le renseigner reste
+                    une décision explicite de la RH.
+                  */}
+                  {session.organismeHerite && formationOrganisme && (
+                    <Alert color="gray" title="Organisme hérité de la formation" icon={<Building size={20} />}>
+                      Cette session n&apos;a pas d&apos;organisme propre : elle affiche
+                      «&nbsp;{formationOrganisme.nom}&nbsp;», l&apos;organisme de la formation.
+                      Sélectionnez un organisme ci-dessous uniquement si le prestataire
+                      réel de cette session est différent, ou pour le figer sur la session.
+                    </Alert>
+                  )}
+
                   {organismeWarning && (
                     <Alert color="blue" title="Information" icon={<Warning size={20} />}>
                       {organismeWarning}

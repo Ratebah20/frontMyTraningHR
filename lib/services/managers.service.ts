@@ -17,10 +17,16 @@ export const managersService = {
   },
 
   /**
-   * Récupère l'équipe complète d'un manager (subordonnés directs et indirects)
+   * Récupère l'équipe complète d'un manager (subordonnés directs et indirects).
+   *
+   * Par défaut, seuls les membres encore dans les effectifs sont renvoyés (la
+   * fiche remontait les personnes parties). `includeInactive` permet de
+   * consulter l'historique.
    */
-  async getManagerTeam(managerId: number): Promise<TeamDetails> {
-    const response = await api.get(`/collaborateurs/managers/${managerId}/team`);
+  async getManagerTeam(managerId: number, includeInactive = false): Promise<TeamDetails> {
+    const response = await api.get(`/collaborateurs/managers/${managerId}/team`, {
+      params: includeInactive ? { includeInactive: 'true' } : undefined,
+    });
     return response.data;
   },
 

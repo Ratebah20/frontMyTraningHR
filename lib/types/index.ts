@@ -52,8 +52,17 @@ export interface Collaborateur {
   typeUtilisateur: string;
   dateCreation: string;
   dateModification: string;
+  /**
+   * Statut DÉRIVÉ renvoyé par le backend : une sortie programmée à une date
+   * future reste `true` jusqu'à cette date, une date de sortie dépassée vaut
+   * `false` même si le drapeau stocké est resté à true.
+   */
   actif: boolean;
+  /** Valeur brute du drapeau en base (diagnostic, renvoyée sur la fiche). */
+  actifEnBase?: boolean;
   dateInactivation?: string | null;
+  /** Date de sortie PROGRAMMÉE (strictement future), sinon null. */
+  sortieProgrammee?: string | null;
   dateEmbauche?: string | null;
   manager?: Collaborateur;
   departement?: Departement | string;
@@ -648,6 +657,8 @@ export interface TeamMember {
   level: number;
   nombreFormations: number;
   actif: boolean;
+  /** Date de sortie PROGRAMMÉE (strictement future), sinon null. */
+  sortieProgrammee?: string | null;
   subordonnes?: TeamMember[];
 }
 
@@ -662,10 +673,13 @@ export interface TeamDetails {
     };
   };
   membres: TeamMember[];
+  /** Les membres sortis des effectifs sont-ils inclus ? */
+  includeInactive?: boolean;
   stats: {
     nombreTotal: number;
     nombreDirects: number;
     nombreIndirects: number;
+    nombreInactifs?: number;
     formationsEnCours: number;
     formationsTerminees: number;
     totalHeures: number;

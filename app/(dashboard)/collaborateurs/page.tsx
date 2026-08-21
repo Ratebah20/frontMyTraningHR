@@ -462,6 +462,12 @@ export default function CollaborateursPage() {
     }
   };
 
+  // Une date STRICTEMENT future = sortie programmée : le collaborateur reste
+  // dans l'effectif jusque-là (état dérivé côté backend, cf. EffectifUtils).
+  const sortieDansLeFutur = Boolean(
+    dateInactivation && dateInactivation.getTime() > new Date().setHours(23, 59, 59, 999),
+  );
+
   // Ouvrir la modal de désactivation/modification date
   const handleOpenDeactivateModal = (collaborateur: Collaborateur) => {
     setCollaborateurToDeactivate(collaborateur);
@@ -641,6 +647,23 @@ export default function CollaborateursPage() {
           >
             {collaborateur.actif ? 'Actif' : 'Inactif'}
           </Badge>
+          {/*
+            Sortie PROGRAMMÉE : la personne est encore dans l'effectif (elle
+            compte donc dans les KPI) jusqu'à la date affichée, où elle en sort
+            toute seule — l'état est dérivé, il n'y a aucune tâche planifiée.
+          */}
+          {collaborateur.sortieProgrammee && (
+            <Tooltip
+              multiline
+              w={280}
+              label="Sortie programmée : le collaborateur reste dans l'effectif et dans les KPI jusqu'à cette date, puis en sort automatiquement."
+            >
+              <Badge color="orange" variant="light" size="sm">
+                Sortie prévue le{' '}
+                {new Date(collaborateur.sortieProgrammee).toLocaleDateString('fr-FR')}
+              </Badge>
+            </Tooltip>
+          )}
           {collaborateur.actif && collaborateur.enCongeLongueDuree && (
             <Tooltip
               multiline
@@ -711,7 +734,7 @@ export default function CollaborateursPage() {
                 color="orange"
                 onClick={() => handleOpenDeactivateModal(collaborateur)}
               >
-                {collaborateur.actif ? 'Désactiver avec date' : 'Modifier date inactivation'}
+                {collaborateur.actif ? 'Programmer une sortie' : 'Modifier la date de sortie'}
               </Menu.Item>
               <Menu.Divider />
               <Menu.Item
@@ -1179,21 +1202,21 @@ export default function CollaborateursPage() {
       <Modal
         opened={deactivateModalOpened}
         onClose={() => !isDeactivating && setDeactivateModalOpened(false)}
-        title={collaborateurToDeactivate?.actif ? "Désactiver le collaborateur" : "Modifier la date d'inactivation"}
+        title={collaborateurToDeactivate?.actif ? 'Programmer une sortie' : 'Modifier la date de sortie'}
         centered
       >
         <Stack gap="md">
           <Text>
             {collaborateurToDeactivate?.actif
-              ? "Vous allez désactiver le collaborateur "
-              : "Modifier la date d'inactivation de "}
+              ? 'Vous allez enregistrer la date de sortie de '
+              : 'Modifier la date de sortie de '}
             <Text span fw={600}>
               {collaborateurToDeactivate?.prenom} {collaborateurToDeactivate?.nom}
             </Text>
           </Text>
 
           <DateInput
-            label="Date d'inactivation"
+            label="Date de sortie"
             placeholder="Sélectionner une date"
             locale="fr"
             valueFormat="DD/MM/YYYY"
@@ -1203,14 +1226,33 @@ export default function CollaborateursPage() {
               setDateInactivation(dateValue);
             }}
             clearable
-            description="Date à laquelle le collaborateur est devenu inactif"
+            description="Date à laquelle le collaborateur quitte l'effectif"
             leftSection={<Calendar size={16} />}
           />
 
-          {collaborateurToDeactivate?.actif && (
+          {/*
+            Le statut est DÉRIVÉ de cette date : une date future = sortie
+            programmée (la personne reste active jusque-là), une date passée ou
+            du jour = sortie effective immédiate. Aucune tâche planifiée n'est
+            nécessaire, le basculement se fait au passage de la date.
+          */}
+          {sortieDansLeFutur ? (
+            <Alert icon={<Calendar size={20} />} color="blue" variant="light">
+              <Text size="sm">
+                Sortie <strong>programmée</strong> : {collaborateurToDeactivate?.prenom}{' '}
+                {collaborateurToDeactivate?.nom} <strong>reste actif</strong> et continue de
+                compter dans les effectifs et les KPI jusqu&apos;au{' '}
+                {dateInactivation?.toLocaleDateString('fr-FR')}. La sortie prendra effet toute
+                seule à cette date.
+              </Text>
+            </Alert>
+          ) : (
             <Alert icon={<Warning size={20} />} color="orange" variant="light">
               <Text size="sm">
-                Le collaborateur sera marqué comme inactif et ne sera plus comptabilisé dans les statistiques actives.
+                {dateInactivation
+                  ? 'Cette date est passée ou est celle du jour : la sortie prend effet immédiatement.'
+                  : 'Sans date, la sortie prend effet immédiatement.'}{' '}
+                Le collaborateur ne sera plus comptabilisé dans les statistiques actives.
               </Text>
             </Alert>
           )}
@@ -1230,7 +1272,7 @@ export default function CollaborateursPage() {
               loading={isDeactivating}
               leftSection={collaborateurToDeactivate?.actif ? <UserCircleMinus size={16} /> : <Calendar size={16} />}
             >
-              {collaborateurToDeactivate?.actif ? 'Désactiver' : 'Enregistrer'}
+              {sortieDansLeFutur ? 'Programmer la sortie' : 'Enregistrer'}
             </Button>
           </Group>
         </Stack>

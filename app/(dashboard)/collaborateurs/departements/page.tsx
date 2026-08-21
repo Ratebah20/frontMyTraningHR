@@ -44,6 +44,7 @@ import { DepartementFormModal } from '@/components/departements/DepartementFormM
 import { DepartementCard } from '@/components/departements/DepartementCard';
 import { HierarchyTree } from '@/components/departements/HierarchyTree';
 import { TypeBadge } from '@/components/departements/TypeBadge';
+import { DeleteDepartementModal } from '@/components/departements/DeleteDepartementModal';
 
 export default function DepartementsPage() {
   const router = useRouter();
@@ -57,10 +58,6 @@ export default function DepartementsPage() {
   const [editingDepartement, setEditingDepartement] = useState<Departement | null>(null);
   const [departementToDelete, setDepartementToDelete] = useState<DepartementDetail | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  // Message d'échec de suppression renvoyé par le backend (il suggère la
-  // transformation en équipe quand des collaborateurs sont affectés)
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid' | 'tree'>('table');
@@ -189,68 +186,19 @@ export default function DepartementsPage() {
   // Ouvrir le modal de suppression
   const openDeleteModal = (departement: DepartementDetail) => {
     setDepartementToDelete(departement);
-    setDeleteError(null);
     setDeleteModalOpened(true);
-  };
-
-  const closeDeleteModal = () => {
-    setDeleteModalOpened(false);
-    setDeleteError(null);
   };
 
   // Passer directement du refus de suppression à l'édition, pour transformer le
   // département en équipe rattachée à un parent (les collaborateurs restent en
   // place et leurs KPI remontent au département parent).
-  const transformerEnEquipe = () => {
-    if (!departementToDelete) return;
-    const cible = departementToDelete;
-    closeDeleteModal();
+  const transformerEnEquipe = (cible: DepartementDetail) => {
     // Ouvrir le formulaire d'édition DÉJÀ positionné sur « Équipe » : il ne
     // reste qu'à choisir le département parent, rendu obligatoire.
     setEditingDepartement(cible);
     setParentForNewEquipe(null);
     setTypeInitialEdition('EQUIPE');
     setModalOpened(true);
-  };
-
-  // Supprimer un département
-  const handleDelete = async () => {
-    if (!departementToDelete) return;
-
-    setIsDeleting(true);
-    setDeleteError(null);
-    try {
-      await departementsService.delete(departementToDelete.id);
-      notifications.show({
-        title: 'Succès',
-        message: 'Département supprimé avec succès',
-        color: 'green',
-        icon: <CheckCircle size={20} />,
-      });
-      setDeleteModalOpened(false);
-      setDepartementToDelete(null);
-      loadDepartements();
-    } catch (error: any) {
-      console.error('Erreur lors de la suppression:', error);
-      // NestJS renvoie parfois `message` sous forme de tableau (erreurs de
-      // validation) : on l'aplatit pour ne pas afficher « [object Object] ».
-      const brut = error.response?.data?.message;
-      const message = Array.isArray(brut)
-        ? brut.join(' ')
-        : brut || error.message || 'Une erreur est survenue';
-      // Le backend explique le refus (collaborateurs affectés, budget lié…) et
-      // suggère la transformation en équipe : on affiche SON message, dans la
-      // modale restée ouverte, plutôt qu'un texte générique.
-      setDeleteError(message);
-      notifications.show({
-        title: 'Suppression impossible',
-        message,
-        color: 'red',
-        icon: <Warning size={20} />,
-      });
-    } finally {
-      setIsDeleting(false);
-    }
   };
 
   return (
@@ -534,92 +482,18 @@ export default function DepartementsPage() {
         initialParentId={parentForNewEquipe ? parentForNewEquipe.id : undefined}
       />
 
-      {/* Modal de confirmation de suppression */}
-      <Modal
+      {/* Modal de confirmation de suppression (partagée avec la page détail) */}
+      <DeleteDepartementModal
         opened={deleteModalOpened}
-        onClose={() => !isDeleting && closeDeleteModal()}
-        title="Confirmer la suppression"
-        centered
-      >
-        <Stack gap="md">
-          <Text>
-            Êtes-vous sûr de vouloir supprimer le département{' '}
-            <Text span fw={600}>
-              {departementToDelete?.nomDepartement}
-            </Text>{' '}
-            ?
-          </Text>
+        onClose={() => setDeleteModalOpened(false)}
+        departement={departementToDelete}
+        onDeleted={() => {
+          setDepartementToDelete(null);
+          loadDepartements();
+        }}
+        onTransformerEnEquipe={transformerEnEquipe}
+      />
 
-          {/*
-            Un département peuplé n'est pas forcément à supprimer : s'il est
-            devenu une équipe, le bon geste est de le passer en type « Équipe »
-            avec un département parent. Les collaborateurs restent en place et
-            leurs KPI remontent au parent.
-          */}
-          {departementToDelete && departementToDelete.nombreCollaborateurs > 0 && (
-            <Paper p="sm" withBorder bg="yellow.0">
-              <Stack gap="xs">
-                <Group gap="xs" wrap="nowrap" align="flex-start">
-                  <Warning size={20} className="text-yellow-600" />
-                  <Text size="sm" c="yellow.8">
-                    Ce département contient {departementToDelete.nombreCollaborateurs}{' '}
-                    collaborateur(s) : la suppression sera refusée. S&apos;il est devenu
-                    une équipe, transformez-le en équipe rattachée à un département
-                    parent plutôt que de le supprimer — les collaborateurs restent en
-                    place et leurs KPI remontent au parent.
-                  </Text>
-                </Group>
-                {/* Bouton repris dans l'alerte d'échec : ne pas le doubler */}
-                {!deleteError && (
-                  <Group justify="flex-end">
-                    <Button
-                      size="compact-sm"
-                      variant="light"
-                      leftSection={<Users size={16} />}
-                      onClick={transformerEnEquipe}
-                    >
-                      Transformer en équipe
-                    </Button>
-                  </Group>
-                )}
-              </Stack>
-            </Paper>
-          )}
-
-          {/* Message exact renvoyé par le backend en cas de refus */}
-          {deleteError && (
-            <Alert
-              icon={<Warning size={18} />}
-              color="red"
-              variant="light"
-              title="Suppression refusée"
-            >
-              <Stack gap="xs">
-                <Text size="sm">{deleteError}</Text>
-                <Group justify="flex-end">
-                  <Button
-                    size="compact-sm"
-                    variant="light"
-                    leftSection={<Users size={16} />}
-                    onClick={transformerEnEquipe}
-                  >
-                    Transformer en équipe
-                  </Button>
-                </Group>
-              </Stack>
-            </Alert>
-          )}
-
-          <Group justify="flex-end" mt="md">
-            <Button variant="subtle" color="gray" onClick={closeDeleteModal} disabled={isDeleting}>
-              {deleteError ? 'Fermer' : 'Annuler'}
-            </Button>
-            <Button color="red" onClick={handleDelete} loading={isDeleting}>
-              Supprimer
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
     </Container>
   );
 }

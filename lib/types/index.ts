@@ -363,10 +363,22 @@ export interface PaginationMeta {
 export interface SessionPaginationMeta {
   currentPage: number;
   totalPages: number;
+  /**
+   * Nombre de LIGNES correspondant aux filtres. Pour les sessions
+   * individuelles, une ligne est un GROUPE (formation + dates), pas une
+   * session : d'où `totalSessions` ci-dessous.
+   */
   totalItems: number;
   itemsPerPage: number;
   hasNext: boolean;
   hasPrevious: boolean;
+  /**
+   * Nombre de SESSIONS derrière ces lignes (individuelles dégroupées +
+   * collectives). C'est l'unité des compteurs du tableau de bord, notamment le
+   * badge « sessions à clôturer » : sans lui, le badge et la liste ne
+   * pouvaient pas être rapprochés. Absent des réponses plus anciennes.
+   */
+  totalSessions?: number;
 }
 
 export interface PaginatedResponse<T> {
@@ -530,6 +542,12 @@ export interface SessionFilters {
    * duree, organisme, type, dateFin, categorie. Les critères sont combinés en OU.
    */
   missingFields?: string;
+  /**
+   * Filtre « sessions à clôturer » : date de fin passée (à défaut date de
+   * début) et statut ni terminé ni annulé. Critère exact du badge du tableau de
+   * bord ; s'ajoute en ET aux autres filtres.
+   */
+  aCloturer?: boolean;
 }
 
 // Enums pour les statuts
@@ -1190,6 +1208,8 @@ export interface CollectiveSessionFilters {
   order?: 'asc' | 'desc';
   /** Voir SessionFilters.missingFields — même sémantique côté collectif. */
   missingFields?: string;
+  /** Voir SessionFilters.aCloturer — même sémantique côté collectif. */
+  aCloturer?: boolean;
 }
 
 // Statistiques d'une session

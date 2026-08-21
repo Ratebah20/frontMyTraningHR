@@ -531,7 +531,10 @@ export class SessionsUnifiedService {
         // Champs additionnels pour compatibilité UI
         formationNom: group.formationNom,
         formationCode: group.formationCode,
+        organismeId: group.organismeId,
         organismeNom: group.organisme,
+        // Repli d'affichage : l'organisme peut venir de la formation
+        organismeHerite: group.organismeHerite,
         categorie: group.categorie,
         typeFormation: group.typeFormation,
         dureeHeures: group.dureeHeures,

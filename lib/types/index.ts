@@ -232,6 +232,13 @@ export interface SessionFormation {
   collaborateur?: Collaborateur;
   formation?: Formation;
   organisme?: OrganismeFormation;
+  /**
+   * true = l'organisme ci-dessus est celui de la FORMATION, repris faute
+   * d'organisme propre a la session (sessions importees d'OL). A signaler dans
+   * l'interface, et a ne JAMAIS pre-remplir dans un formulaire d'edition : une
+   * sauvegarde le materialiserait en organisme de session sans decision RH.
+   */
+  organismeHerite?: boolean;
 }
 
 export interface OrganismeFormation {
@@ -415,6 +422,8 @@ export interface GroupedSession {
   dateFin?: string;
   organisme?: string;
   organismeId?: number;
+  /** true = organisme herite de la formation (le groupe n'en porte pas) */
+  organismeHerite?: boolean;
   anneeBudgetaire?: number;
   stats: GroupedSessionStats;
   participants: GroupedSessionParticipant[];
@@ -1269,6 +1278,7 @@ export interface UnifiedSession {
   formationNom?: string; // Nom de la formation (dupliqué pour faciliter l'accès)
   formationCode?: string; // Code de la formation
   organismeNom?: string; // Nom de l'organisme (dupliqué pour faciliter l'accès)
+  organismeHerite?: boolean; // true = organisme repris de la formation (cf. SessionFormation)
   categorie?: string; // Catégorie de la formation
   typeFormation?: string; // Type de formation
   dureeHeures?: number; // Durée en heures

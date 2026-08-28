@@ -11,6 +11,7 @@ import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { Target } from '@phosphor-icons/react/dist/ssr/Target';
 import { Trophy } from '@phosphor-icons/react/dist/ssr/Trophy';
+import { EnvelopeSimple } from '@phosphor-icons/react/dist/ssr/EnvelopeSimple';
 import { useRouter } from 'next/navigation'
 
 export default function KPIMainPage() {
@@ -27,6 +28,18 @@ export default function KPIMainPage() {
         { label: 'Conformité', value: 'Matrice dept × formation' },
         { label: 'À relancer', value: 'Listes par manager' },
         { label: 'Actions', value: 'Rappels + export Excel' },
+      ]
+    },
+    {
+      title: 'Historique des relances',
+      description: 'Toutes les relances de formations obligatoires deja envoyees : destinataire, type de campagne, periode, statut et collaborateurs concernes',
+      href: '/kpi/relances',
+      icon: <EnvelopeSimple size={32} weight="bold" />,
+      color: 'red',
+      metrics: [
+        { label: 'Destinataires', value: 'Managers et directeurs' },
+        { label: 'Campagnes', value: 'Type + periode' },
+        { label: 'Resultat', value: 'Envoyee ou en erreur' },
       ]
     },
     {

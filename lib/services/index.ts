@@ -16,7 +16,14 @@ export type { ExportFilters, ExportType } from './exports.service';
 export { aiAssistantService } from './ai-assistant.service';
 export type { AIQueryRequest, AIResponse, AICapability, AICapabilitiesResponse, AIHealthResponse } from './ai-assistant.service';
 export { notificationsService } from './notifications.service';
-export type { SendReminderDto, SendRemindersResponse, EmailStatusResponse } from './notifications.service';
+export type {
+  SendReminderDto,
+  SendRemindersResponse,
+  EmailStatusResponse,
+  ReminderPreviewResponse,
+  ReminderPreviewRecipient,
+  ReminderHistoryEntry,
+} from './notifications.service';
 export { attachmentsService } from './attachments.service';
 export type { Attachment } from './attachments.service';
 export { managerAccountsService } from './manager-accounts.service';

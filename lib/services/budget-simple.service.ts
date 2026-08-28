@@ -5,7 +5,14 @@ export interface BudgetConsommation {
   annee: number;
   budgetTotal: number;
   budgetFormation: number;
+  /** Consommé HT — égal au `total` des vues couts-* */
   totalConsomme: number;
+  /** Part adossée à un tarif saisi sur la session */
+  coutReel: number;
+  /** Part issue du repli sur Formation.tarifHT (estimation) */
+  coutEstime: number;
+  /** Sessions terminées sans tarif, hors imports OLU */
+  sessionsSansTarif: number;
   totalRestant: number;
   pourcentageConsommation: number;
   nombreSessionsImputees: number;
@@ -19,16 +26,20 @@ export interface BudgetConsommation {
 }
 
 // Types pour l'analyse par département
+// Aligné sur AnalyseDepartementDto du backend : les anciens noms
+// (nomDepartement / budgetConsomme / moyenneParCollaborateur) n'ont jamais
+// existé dans la réponse et faisaient afficher « undefined » sur le dashboard.
 export interface AnalyseDepartement {
   departementId: number;
-  nomDepartement: string;
-  budgetConsomme: number;
+  departementNom: string;
+  totalConsomme: number;
   nombreSessions: number;
   nombreCollaborateurs: number;
-  moyenneParCollaborateur: number;
+  /** Coût moyen par SESSION (et non par collaborateur) */
+  coutMoyen: number;
   topFormations: {
-    formationId: number;
-    titreFormation: string;
+    /** Nom de la formation (le backend ne renvoie pas d'id ici) */
+    formation: string;
     nombreSessions: number;
     coutTotal: number;
   }[];
@@ -36,12 +47,13 @@ export interface AnalyseDepartement {
 }
 
 // Types pour l'analyse par catégorie
+// Aligné sur AnalyseCategorieDto du backend.
 export interface AnalyseCategorie {
   categorieId: number;
-  nomCategorie: string;
-  budgetConsomme: number;
+  categorieNom: string;
+  totalConsomme: number;
   nombreSessions: number;
-  nombreFormationsUniques: number;
+  coutMoyen: number;
   pourcentageDuTotal: number;
 }
 
@@ -124,6 +136,11 @@ export interface CoutsOrganismesResponse {
   annee: number;
   organismes: CoutOrganisme[];
   total: number;
+  /** Part du total adossée à un tarif saisi sur la session */
+  coutReel: number;
+  /** Part du total issue du repli sur Formation.tarifHT (estimation) */
+  coutEstime: number;
+  /** Sessions terminées sans tarif, hors imports OLU (e-learning interne) */
   sessionsSansTarif: number;
   budgetAnnuel: number | null;
 }
@@ -142,6 +159,11 @@ export interface CoutsFormationsResponse {
   annee: number;
   formations: CoutFormation[];
   total: number;
+  /** Part du total adossée à un tarif saisi sur la session */
+  coutReel: number;
+  /** Part du total issue du repli sur Formation.tarifHT (estimation) */
+  coutEstime: number;
+  /** Sessions terminées sans tarif, hors imports OLU (e-learning interne) */
   sessionsSansTarif: number;
   budgetAnnuel: number | null;
 }
@@ -157,23 +179,21 @@ export interface CoutPersonne {
 
 export interface CoutsPersonnesResponse {
   annee: number;
-  personnes: CoutPersonne[]; // Top 100 par coût décroissant
+  personnes: CoutPersonne[]; // Tous les collaborateurs, par coût décroissant
   total: number; // Total global (tous collaborateurs)
   nbCollaborateurs: number;
+  /** Part du total adossée à un tarif saisi sur la session */
+  coutReel: number;
+  /** Part du total issue du repli sur Formation.tarifHT (estimation) */
+  coutEstime: number;
+  /** Sessions terminées sans tarif, hors imports OLU (e-learning interne) */
   sessionsSansTarif: number;
   budgetAnnuel: number | null;
 }
 
-// Forme réelle renvoyée par GET /budget-simple/:annee/analyse-categorie
-// (l'interface historique AnalyseCategorie ci-dessus ne reflète pas le backend)
-export interface CoutCategorie {
-  categorieId: number;
-  categorieNom: string;
-  totalConsomme: number;
-  nombreSessions: number;
-  coutMoyen: number;
-  pourcentageDuTotal: number;
-}
+// GET /budget-simple/:annee/analyse-categorie — même forme que AnalyseCategorie,
+// alias conservé pour la page /budget/couts.
+export type CoutCategorie = AnalyseCategorie;
 
 // Types pour les tarifs
 export interface UpdateFormationTarif {

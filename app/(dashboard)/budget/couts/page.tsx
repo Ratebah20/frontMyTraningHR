@@ -112,11 +112,25 @@ export default function BudgetCoutsPage() {
     }).format(amount);
   };
 
-  const sessionsSansTarif =
-    coutsOrganismes?.sessionsSansTarif ??
-    coutsFormations?.sessionsSansTarif ??
-    coutsPersonnes?.sessionsSansTarif ??
-    0;
+  const formatCurrencyPrecis = (amount: number) =>
+    new Intl.NumberFormat('fr-FR', {
+      style: 'currency',
+      currency: 'EUR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
+
+  // Les trois vues renvoient désormais le MÊME total et la même couverture :
+  // on prend la première disponible.
+  const couverture = coutsOrganismes ?? coutsFormations ?? coutsPersonnes ?? null;
+  const sessionsSansTarif = couverture?.sessionsSansTarif ?? 0;
+  const coutTotal = couverture?.total ?? 0;
+  const coutEstime = couverture?.coutEstime ?? 0;
+
+  // Écart entre le total « toutes sessions » et la ventilation par catégorie,
+  // qui n'inclut que les sessions individuelles côté backend.
+  const totalCategories = (coutsCategories ?? []).reduce((s, c) => s + c.totalConsomme, 0);
+  const ecartCategories = Math.round((coutTotal - totalCategories) * 100) / 100;
 
   const budgetAnnuel =
     coutsOrganismes?.budgetAnnuel ??
@@ -137,9 +151,9 @@ export default function BudgetCoutsPage() {
       <Flex justify="space-between" align="center" mb="md">
         <div>
           <Group gap="sm">
-            <Title order={2}>Coûts de formation</Title>
-            <Badge color="orange" variant="light" leftSection={<CurrencyEur size={12} />}>
-              Coûts estimés (tarifs saisis)
+            <Title order={2}>Suivi des coûts</Title>
+            <Badge color="blue" variant="light" leftSection={<CurrencyEur size={12} />}>
+              Montants HT
             </Badge>
           </Group>
           <Text c="dimmed" size="sm">
@@ -162,28 +176,43 @@ export default function BudgetCoutsPage() {
         </Group>
       </Flex>
 
+      {/* Bandeau de couverture : ce que vaut la donnée affichée.
+          Le repli sur le tarif de la formation est une ESTIMATION — l'annoncer
+          évite de présenter une estimation comme un coût constaté à la Finance. */}
       <Alert icon={<Info size={20} />} color="blue" mb="xl">
-        <Text size="sm">
-          Coûts estimés à partir des tarifs des sessions/formations saisis — en attente de
-          l&apos;intégration Finance pour les coûts réels.
-        </Text>
-        {sessionsSansTarif > 0 && (
-          <Group justify="space-between" mt="xs">
+        <Group justify="space-between" wrap="nowrap" align="flex-start">
+          <div>
             <Text size="sm" fw={600}>
-              {sessionsSansTarif} session{sessionsSansTarif > 1 ? 's' : ''} terminée
-              {sessionsSansTarif > 1 ? 's' : ''} sans tarif : les coûts affichés sont sous-estimés.
+              {formatCurrencyPrecis(coutTotal)}
+              {coutEstime > 0 && ` dont ${formatCurrencyPrecis(coutEstime)} estimés`}
+              {sessionsSansTarif > 0 &&
+                ` · ${sessionsSansTarif} session${sessionsSansTarif > 1 ? 's' : ''} sans tarif`}
             </Text>
+            <Text size="xs" c="dimmed" mt={4}>
+              Coûts HT issus des tarifs saisis sur les sessions.
+              {coutEstime > 0 &&
+                ' La part « estimés » provient du tarif de référence de la formation, ' +
+                  'à défaut de tarif sur la session.'}
+              {sessionsSansTarif > 0
+                ? ' Les sessions sans tarif ne sont pas comptées : le total est sous-estimé.'
+                : ' Toutes les sessions concernées portent un tarif.'}
+              {' '}Les e-learning internes (import OLU), sans coût direct, sont exclus de ce
+              décompte.
+            </Text>
+          </div>
+          {sessionsSansTarif > 0 && (
             <Button
               component={Link}
               href="/budget/analytics#formations-sans-tarif"
               size="xs"
               variant="light"
               leftSection={<Warning size={14} />}
+              style={{ flexShrink: 0 }}
             >
               Compléter les tarifs manquants
             </Button>
-          </Group>
-        )}
+          )}
+        </Group>
       </Alert>
 
       <Tabs defaultValue="organismes">
@@ -327,7 +356,7 @@ export default function BudgetCoutsPage() {
               <Stack gap="sm">
                 {coutsPersonnes.nbCollaborateurs > coutsPersonnes.personnes.length && (
                   <Text size="xs" c="dimmed">
-                    Top {coutsPersonnes.personnes.length} collaborateurs sur{' '}
+                    {coutsPersonnes.personnes.length} collaborateurs affichés sur{' '}
                     {coutsPersonnes.nbCollaborateurs} — le total ci-dessous couvre l&apos;ensemble
                     des collaborateurs.
                   </Text>
@@ -385,7 +414,16 @@ export default function BudgetCoutsPage() {
                 Aucune session terminée avec coût pour {selectedYear}
               </Text>
             ) : (
-              <ScrollArea>
+              <Stack gap="sm">
+                {/* La ventilation par catégorie ne couvre que les sessions
+                    individuelles : sans ce rappel, ce total se lit comme une
+                    contradiction avec les trois autres onglets. */}
+                <Text size="xs" c="dimmed">
+                  Sessions individuelles uniquement — les sessions collectives
+                  {ecartCategories > 0 && ` (${formatCurrencyPrecis(ecartCategories)})`} ne sont
+                  pas ventilées par catégorie et n&apos;apparaissent pas dans ce total.
+                </Text>
+                <ScrollArea>
                 <Table striped highlightOnHover>
                   <Table.Thead>
                     <Table.Tr>
@@ -427,7 +465,8 @@ export default function BudgetCoutsPage() {
                     </Table.Tr>
                   </Table.Tfoot>
                 </Table>
-              </ScrollArea>
+                </ScrollArea>
+              </Stack>
             )}
           </Paper>
         </Tabs.Panel>

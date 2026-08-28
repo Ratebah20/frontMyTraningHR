@@ -32,6 +32,7 @@ import { ShieldCheck } from '@phosphor-icons/react/dist/ssr/ShieldCheck';
 import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple';
 import { formationsService, statsService, exportsService } from '@/lib/services';
 import { Formation } from '@/lib/types';
+import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 
 interface MandatoryKPIs {
   periode: { annee: number; mois?: number; libelle: string };
@@ -47,7 +48,17 @@ interface MandatoryKPIs {
 
 export default function FormationsObligatoiresPage() {
   const router = useRouter();
-  const [search, setSearch] = useState('');
+  // Recherche persistée dans l'URL : la page ouvre la fiche d'une formation,
+  // le retour navigateur doit rendre la liste telle qu'on l'avait filtrée.
+  const { values: urlFilters, setValue: setUrlFilter } = useUrlFilters(
+    '/formations/obligatoires',
+    { search: '' },
+  );
+  const search = urlFilters.search;
+
+  const [searchInput, setSearchInput] = useUrlSearch(search, (value) =>
+    setUrlFilter('search', value),
+  );
   const [formations, setFormations] = useState<Formation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -283,8 +294,8 @@ export default function FormationsObligatoiresPage() {
           <TextInput
             placeholder="Rechercher une formation..."
             leftSection={<MagnifyingGlass size={16} />}
-            value={search}
-            onChange={(e) => setSearch(e.currentTarget.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.currentTarget.value)}
           />
 
           <Card shadow="sm" p={0} radius="md" withBorder>

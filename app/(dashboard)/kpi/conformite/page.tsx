@@ -50,6 +50,8 @@ import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple'
 import { useSearchParams } from 'next/navigation'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { PeriodSelector } from '@/components/PeriodSelector'
+import { PrintButton } from '@/components/PrintButton'
+import { ExportTilesButton } from '@/components/ExportTilesButton'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   statsService,
@@ -416,6 +418,8 @@ export default function ConformitePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  // Bloc de tuiles KPI capture en PNG par ExportTilesButton
+  const tilesRef = useRef<HTMLDivElement>(null)
   const [hasInitialized, setHasInitialized] = useState(false)
 
   // Formation detail modal.
@@ -1247,6 +1251,27 @@ export default function ConformitePage() {
   // Absent des réponses d'une API antérieure : traité comme 0.
   const collaborateursEnConge = mandatoryData?.stats?.collaborateursEnConge ?? 0
 
+  // ===== Impression =====
+
+  // Période telle que la nomme l'API ; en repli, la valeur brute de l'URL.
+  const libellePeriodeImpression =
+    mandatoryData?.periode?.libelle ??
+    (periode === 'plage' && dateDebut && dateFin
+      ? `${dateDebut.toLocaleDateString('fr-FR')} - ${dateFin.toLocaleDateString('fr-FR')}`
+      : date)
+
+  // Sous-titre du document imprimé. Il doit décrire le périmètre RÉELLEMENT
+  // affiché (type d'obligation, période, formations cochées, vue org) : une
+  // fois la feuille détachée de l'application et transmise à un directeur,
+  // c'est la seule chose qui permet de savoir ce que les chiffres mesurent.
+  const sousTitreImpression = [
+    `Perimetre : ${titrePerimetre.toLowerCase()}`,
+    `Periode : ${libellePeriodeImpression}`,
+    `${selectedFormationIds.length}/${availableFormations.length} formation(s) suivie(s)`,
+    `Vue par ${orgView === 'departement' ? 'departement' : 'equipe'}`,
+    libellePopulation.toLowerCase(),
+  ].join(' - ')
+
   // ===== Loading State =====
 
   if (mandatoryLoading && !mandatoryData) {
@@ -1283,7 +1308,21 @@ export default function ConformitePage() {
                 </Text>
               </Stack>
               <Group gap="sm">
+                {/* Impression de la vue (papier / PDF) pour transmission aux
+                    managers et directeurs. Rend aussi l'en-tête du document. */}
+                <PrintButton
+                  title={`Conformite des formations - ${titrePerimetre}`}
+                  subtitle={sousTitreImpression}
+                />
+                {/* Capture PNG des tuiles KPI, pour coller dans une slide */}
+                <Box className="no-print">
+                  <ExportTilesButton
+                    containerRef={tilesRef}
+                    filename={`conformite_${mandatoryType}_${date}`}
+                  />
+                </Box>
                 <Button
+                  className="no-print"
                   leftSection={<DownloadSimple size={18} />}
                   variant="light"
                   onClick={handleExportExcel}
@@ -1291,9 +1330,13 @@ export default function ConformitePage() {
                 >
                   Exporter (Excel)
                 </Button>
-                <Badge color="green" variant="light" size="lg">Temps reel</Badge>
+                {/* « Temps reel » decrit l'ecran, pas un document fige */}
+                <Badge className="no-print" color="green" variant="light" size="lg">Temps reel</Badge>
               </Group>
             </Group>
+            {/* no-print : selecteurs interactifs ; la periode figure dans
+                l'en-tete du document imprime */}
+            <Box className="no-print">
             <PeriodSelector
               periode={periode}
               date={date}
@@ -1302,7 +1345,9 @@ export default function ConformitePage() {
               onChange={(p, d) => setPeriodeEtDate(p, d)}
               onDateRangeChange={(debut, fin) => setPlage(debut, fin)}
             />
-            <Group>
+            </Box>
+            {/* no-print : le perimetre choisi est rappele dans l'en-tete */}
+            <Group className="no-print">
               <SegmentedControl
                 value={mandatoryType}
                 onChange={(value) => {
@@ -1386,7 +1431,8 @@ export default function ConformitePage() {
                 </Title>
               </Group>
 
-              <Group gap="xs">
+              {/* no-print : boutons de selection du scope, sans objet sur papier */}
+              <Group className="no-print" gap="xs">
                 <Button
                   variant="light"
                   size="xs"
@@ -1418,9 +1464,9 @@ export default function ConformitePage() {
                 </Button>
               </Group>
 
-              {/* Search to add formations */}
+              {/* Search to add formations - no-print : zone de saisie */}
               {showSearch && (
-                <Stack gap="xs">
+                <Stack className="no-print" gap="xs">
                   <TextInput
                     ref={searchInputRef}
                     leftSection={<MagnifyingGlass size={16} />}
@@ -1512,6 +1558,7 @@ export default function ConformitePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.15 }}
           >
+            <div ref={tilesRef}>
             <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
               <KPICard
                 title={titrePerimetre}
@@ -1579,6 +1626,7 @@ export default function ConformitePage() {
                 delay={0.25}
               />
             </SimpleGrid>
+            </div>
           </motion.div>
         )}
 
@@ -1618,7 +1666,7 @@ export default function ConformitePage() {
                           </Text>
                         </Tooltip>
                       </Table.Th>
-                      <Table.Th>Actions</Table.Th>
+                      <Table.Th className="no-print">Actions</Table.Th>
                     </Table.Tr>
                   </Table.Thead>
                   <Table.Tbody>
@@ -1647,7 +1695,7 @@ export default function ConformitePage() {
                             {formation.tauxConformite}%
                           </Badge>
                         </Table.Td>
-                        <Table.Td>
+                        <Table.Td className="no-print">
                           <Button
                             variant="light"
                             size="xs"
@@ -1688,6 +1736,7 @@ export default function ConformitePage() {
                   </Stack>
                 </Group>
                 <SegmentedControl
+                  className="no-print"
                   value={orgView}
                   onChange={(value) => setOrgView(value as 'departement' | 'equipe')}
                   data={[
@@ -1723,7 +1772,8 @@ export default function ConformitePage() {
                         </Text>
                       ) : (
                         <>
-                          <Group justify="space-between">
+                          {/* no-print : selection et relance par email, sans objet sur papier */}
+                          <Group className="no-print" justify="space-between">
                             <Checkbox
                               size="xs"
                               label="Tout selectionner"
@@ -1752,7 +1802,7 @@ export default function ConformitePage() {
                             <Table striped highlightOnHover withTableBorder>
                               <Table.Thead>
                                 <Table.Tr>
-                                  <Table.Th style={{ width: 40 }}></Table.Th>
+                                  <Table.Th className="no-print" style={{ width: 40 }}></Table.Th>
                                   <Table.Th style={{ width: 40 }}></Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Departement</Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Directeur</Table.Th>
@@ -1770,7 +1820,7 @@ export default function ConformitePage() {
                                       </Text>
                                     </Tooltip>
                                   </Table.Th>
-                                  <Table.Th style={{ minWidth: 170 }}>Actions</Table.Th>
+                                  <Table.Th className="no-print" style={{ minWidth: 170 }}>Actions</Table.Th>
                                 </Table.Tr>
                               </Table.Thead>
                               <Table.Tbody>
@@ -1787,7 +1837,7 @@ export default function ConformitePage() {
                                   return (
                                     <Fragment key={row.departementId || `dept-${row.departement}`}>
                                     <Table.Tr>
-                                      <Table.Td>
+                                      <Table.Td className="no-print">
                                         {relancable ? (
                                           <Checkbox
                                             size="xs"
@@ -1867,7 +1917,7 @@ export default function ConformitePage() {
                                           </Text>
                                         </Group>
                                       </Table.Td>
-                                      <Table.Td>
+                                      <Table.Td className="no-print">
                                         <Tooltip
                                           label={
                                             !relancable
@@ -1953,7 +2003,7 @@ export default function ConformitePage() {
                                                         <Table.Th style={{ minWidth: 150 }}>
                                                           Taux par formation
                                                         </Table.Th>
-                                                        <Table.Th style={{ minWidth: 170 }}>Actions</Table.Th>
+                                                        <Table.Th className="no-print" style={{ minWidth: 170 }}>Actions</Table.Th>
                                                       </Table.Tr>
                                                     </Table.Thead>
                                                     <Table.Tbody>
@@ -2005,7 +2055,7 @@ export default function ConformitePage() {
                                                                 </Group>
                                                               )}
                                                             </Table.Td>
-                                                            <Table.Td>
+                                                            <Table.Td className="no-print">
                                                               <Button
                                                                 variant="subtle"
                                                                 size="xs"
@@ -2073,7 +2123,8 @@ export default function ConformitePage() {
                             </Text>
                           ) : (
                             <>
-                              <Group justify="space-between">
+                              {/* no-print : selection et relance par email */}
+                              <Group className="no-print" justify="space-between">
                                 <Checkbox
                                   size="xs"
                                   label="Tout selectionner"
@@ -2101,7 +2152,7 @@ export default function ConformitePage() {
                                 <Table striped highlightOnHover withTableBorder>
                                   <Table.Thead>
                                     <Table.Tr>
-                                      <Table.Th style={{ width: 40 }}></Table.Th>
+                                      <Table.Th className="no-print" style={{ width: 40 }}></Table.Th>
                                       <Table.Th style={{ width: 40 }}></Table.Th>
                                       <Table.Th style={{ minWidth: 180 }}>Equipe</Table.Th>
                                       <Table.Th style={{ minWidth: 160 }}>Responsable</Table.Th>
@@ -2120,7 +2171,7 @@ export default function ConformitePage() {
                                           </Text>
                                         </Tooltip>
                                       </Table.Th>
-                                      <Table.Th style={{ minWidth: 220 }}>Actions</Table.Th>
+                                      <Table.Th className="no-print" style={{ minWidth: 220 }}>Actions</Table.Th>
                                     </Table.Tr>
                                   </Table.Thead>
                                   <Table.Tbody>
@@ -2137,7 +2188,7 @@ export default function ConformitePage() {
                                       return (
                                       <Fragment key={row.id}>
                                       <Table.Tr>
-                                        <Table.Td>
+                                        <Table.Td className="no-print">
                                           <Checkbox
                                             size="xs"
                                             checked={effectiveManagerIds.includes(row.id)}
@@ -2206,7 +2257,7 @@ export default function ConformitePage() {
                                             </Text>
                                           </Group>
                                         </Table.Td>
-                                        <Table.Td>
+                                        <Table.Td className="no-print">
                                           <Group gap="xs" wrap="nowrap">
                                             <Button
                                               variant="subtle"

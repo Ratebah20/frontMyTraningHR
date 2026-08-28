@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import {
   Text,
@@ -45,6 +45,8 @@ import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { Buildings } from '@phosphor-icons/react/dist/ssr/Buildings';
 import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { PeriodSelector } from '@/components/PeriodSelector'
+import { PrintButton } from '@/components/PrintButton'
+import { ExportTilesButton } from '@/components/ExportTilesButton'
 import { motion } from 'framer-motion'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import api from '@/lib/api'
@@ -520,6 +522,8 @@ export default function FormationsKPIsPage() {
 
   // Tab state - read from URL parameter
   const [activeTab, setActiveTab] = useState<string>('overview')
+  // Bloc de tuiles KPI capturé en PNG par ExportTilesButton
+  const tilesRef = useRef<HTMLDivElement>(null)
 
   // Period selector state
   const [periode, setPeriode] = useState<'annee' | 'mois' | 'plage'>('annee')
@@ -668,6 +672,15 @@ export default function FormationsKPIsPage() {
     )
   }
 
+  // Libellé de la période, pour l'en-tête du document imprimé : une fois la
+  // feuille détachée de l'écran, c'est la seule indication du périmètre temporel.
+  const libellePeriodeImpression =
+    periode === 'plage' && dateDebut && dateFin
+      ? `${dateDebut.toLocaleDateString('fr-FR')} - ${dateFin.toLocaleDateString('fr-FR')}`
+      : periode === 'mois'
+        ? new Date(`${date}-01`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+        : `Annee ${date}`
+
   // Calculate derived metrics
   const tauxUtilisation = data.summary.formationsAvecSessions > 0
     ? Math.round((data.summary.formationsAvecSessions / data.summary.totalFormations) * 100)
@@ -688,14 +701,30 @@ export default function FormationsKPIsPage() {
               <Title order={1}>KPIs Formations</Title>
               <Text c="dimmed">Vue d'ensemble des indicateurs cles de performance</Text>
             </Stack>
-            <PeriodSelector
-              periode={periode}
-              date={date}
-              dateDebut={dateDebut}
-              dateFin={dateFin}
-              onChange={(p, d) => { setPeriode(p); setDate(d); }}
-              onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
-            />
+            <Group gap="sm" align="flex-start">
+              {/* Impression de la vue (papier / PDF) + en-tête du document */}
+              <PrintButton
+                title="KPIs Formations"
+                subtitle={`Periode : ${libellePeriodeImpression} - Onglet : ${activeTab === 'overview' ? "Vue d'ensemble" : 'Heures et activite'}`}
+              />
+              <div className="no-print">
+                <ExportTilesButton
+                  containerRef={tilesRef}
+                  filename={`kpi-formations_${date}`}
+                />
+              </div>
+              {/* no-print : sélecteurs de date, la période est rappelée en en-tête */}
+              <Box className="no-print">
+                <PeriodSelector
+                  periode={periode}
+                  date={date}
+                  dateDebut={dateDebut}
+                  dateFin={dateFin}
+                  onChange={(p, d) => { setPeriode(p); setDate(d); }}
+                  onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
+                />
+              </Box>
+            </Group>
           </Group>
         </motion.div>
 
@@ -705,7 +734,8 @@ export default function FormationsKPIsPage() {
           animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={reducedMotion ? { duration: 0 } : { delay: 0.65 }}
         >
-          <Tabs value={activeTab} onChange={handleTabChange} variant="pills" color="orange">
+          {/* no-print : navigation par onglets ; seul l'onglet actif est imprimé */}
+          <Tabs className="no-print" value={activeTab} onChange={handleTabChange} variant="pills" color="orange">
             <Tabs.List>
               <Tabs.Tab value="overview" leftSection={<ChartBar size={16} weight="bold" />}>
                 Vue d'ensemble
@@ -726,7 +756,7 @@ export default function FormationsKPIsPage() {
               initial={reducedMotion ? false : 'hidden'}
               animate={reducedMotion ? undefined : 'visible'}
             >
-              <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
+              <SimpleGrid ref={tilesRef} cols={{ base: 1, sm: 2, md: 3 }} spacing="md">
                 <KPICard
                   title="Formations actives"
                   value={data.summary.formationsActives}
@@ -823,8 +853,8 @@ export default function FormationsKPIsPage() {
 
                     {tauxContratData && (
                       <>
-                        {/* Filtres */}
-                        <Stack gap="sm">
+                        {/* Filtres - no-print : controles interactifs, sans objet sur papier */}
+                        <Stack className="no-print" gap="sm">
                           {/* Ligne 1: Granularite (annee/mois), Periode et Vue */}
                           <Group justify="space-between" wrap="wrap">
                             <Group gap="xs" wrap="wrap">

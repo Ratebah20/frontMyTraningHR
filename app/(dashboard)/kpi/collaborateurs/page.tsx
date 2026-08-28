@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
 import { UserCircle } from '@phosphor-icons/react/dist/ssr/UserCircle';
 import { Briefcase } from '@phosphor-icons/react/dist/ssr/Briefcase';
@@ -40,6 +40,8 @@ import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreferen
 import { statsService } from '@/lib/services'
 import { DetailedKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
+import { PrintButton } from '@/components/PrintButton'
+import { ExportTilesButton } from '@/components/ExportTilesButton'
 
 interface CollaborateursKPIs {
   summary: {
@@ -190,6 +192,8 @@ export default function CollaborateursKPIsPage() {
 
   const [includeInactifs, setIncludeInactifs] = useState(false)
 
+  // Bloc de tuiles KPI capturé en PNG par ExportTilesButton
+  const tilesRef = useRef<HTMLDivElement>(null)
   const [contratFilters, setContratFilters] = useState<number[]>([])
   const [typesContrats, setTypesContrats] = useState<{ id: number; typeContrat: string }[]>([])
 
@@ -298,10 +302,27 @@ export default function CollaborateursKPIsPage() {
           animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={reducedMotion ? { duration: 0 } : { duration: 0.5 }}
         >
-          <Stack gap={4}>
-            <Title order={1}>KPIs Collaborateurs</Title>
-            <Text c="dimmed">Statistiques détaillées par catégorie</Text>
-          </Stack>
+          <Group justify="space-between" align="flex-end" wrap="wrap">
+            <Stack gap={4}>
+              <Title order={1}>KPIs Collaborateurs</Title>
+              <Text c="dimmed">Statistiques détaillées par catégorie</Text>
+            </Stack>
+            <Group gap="sm">
+              {/* Impression de la vue (papier / PDF) + en-tête du document */}
+              <PrintButton
+                title="KPIs Collaborateurs"
+                subtitle={`Periode : ${detailedData?.periode.libelle ?? date}${
+                  contratFilters.length > 0 ? ` - ${contratFilters.length} type(s) de contrat filtre(s)` : ''
+                }${includeInactifs ? ' - inactifs inclus' : ' - collaborateurs actifs'}`}
+              />
+              <div className="no-print">
+                <ExportTilesButton
+                  containerRef={tilesRef}
+                  filename={`kpi-collaborateurs_${date}`}
+                />
+              </div>
+            </Group>
+          </Group>
         </motion.div>
 
         <motion.div
@@ -309,7 +330,9 @@ export default function CollaborateursKPIsPage() {
           animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
           transition={reducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.1 }}
         >
-          <Card withBorder p="lg" radius="md">
+          {/* no-print : barre de filtres interactive ; periode et filtres actifs
+              sont rappeles dans l'en-tete du document imprime */}
+          <Card className="no-print" withBorder p="lg" radius="md">
             <Stack gap="md">
               <PeriodSelector
                 periode={periode}
@@ -420,6 +443,7 @@ export default function CollaborateursKPIsPage() {
               </motion.div>
             )}
 
+            <div ref={tilesRef}>
             <SimpleGrid cols={{ base: 1, sm: 2 }}>
               <HeroCard
                 label="Heures - Hommes"
@@ -470,6 +494,7 @@ export default function CollaborateursKPIsPage() {
                 delay={0.6}
               />
             </SimpleGrid>
+            </div>
 
             <SimpleGrid cols={{ base: 1, md: 2 }}>
               <motion.div

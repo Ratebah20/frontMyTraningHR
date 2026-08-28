@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Title,
@@ -25,6 +25,7 @@ import {
   Collapse,
   Paper,
   Anchor,
+  Box,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -55,6 +56,8 @@ const LazyObjectifsRadarChart = dynamic(
   { ssr: false, loading: () => <div style={{ height: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0.5 }}>Chargement du graphique...</div> }
 );
 import { PeriodSelector } from '@/components/PeriodSelector';
+import { PrintButton } from '@/components/PrintButton';
+import { ExportTilesButton } from '@/components/ExportTilesButton';
 import { statsService } from '@/lib/services';
 
 interface CategoryKpi {
@@ -155,6 +158,9 @@ export default function ObjectifsLdPage() {
   const [date, setDate] = useState<string>(new Date().getFullYear().toString());
   const [dateDebut, setDateDebut] = useState<Date | null>(null);
   const [dateFin, setDateFin] = useState<Date | null>(null);
+
+  // Bloc de tuiles KPI capturé en PNG par ExportTilesButton
+  const tilesRef = useRef<HTMLDivElement>(null);
 
   // Modal state
   const [modalOpened, { open: openModal, close: closeModal }] = useDisclosure(false);
@@ -350,6 +356,15 @@ export default function ObjectifsLdPage() {
       completion: c.tauxCompletion,
     }));
 
+  // Libellé de la période, pour l'en-tête du document imprimé : détaché de
+  // l'écran, c'est la seule indication du périmètre temporel des chiffres.
+  const libellePeriodeImpression =
+    periode === 'plage' && dateDebut && dateFin
+      ? `${dateDebut.toLocaleDateString('fr-FR')} - ${dateFin.toLocaleDateString('fr-FR')}`
+      : periode === 'mois'
+        ? new Date(`${date}-01`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+        : `Annee ${date}`;
+
   return (
     <Container size="xl">
       <Stack gap="xl">
@@ -365,26 +380,42 @@ export default function ObjectifsLdPage() {
             </Text>
           </div>
           <Group gap="sm">
+            {/* Impression de la vue (papier / PDF) + en-tête du document */}
+            <PrintButton
+              title="Objectifs L&D"
+              subtitle={`Suivi des objectifs de formation par categorie - Periode : ${libellePeriodeImpression}`}
+            />
+            <div className="no-print">
+              <ExportTilesButton
+                containerRef={tilesRef}
+                filename={`objectifs-ld_${date}`}
+              />
+            </div>
+            {/* no-print : action d'edition, sans objet sur papier */}
             <Button
+              className="no-print"
               variant="light"
               leftSection={<PencilSimple size={16} />}
               onClick={handleOpenModal}
             >
               Modifier les objectifs
             </Button>
-            <PeriodSelector
-              periode={periode}
-              date={date}
-              dateDebut={dateDebut}
-              dateFin={dateFin}
-              onChange={(p, d) => { setPeriode(p); setDate(d); }}
-              onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
-            />
+            {/* no-print : selecteurs de date ; la periode est rappelee en en-tete */}
+            <Box className="no-print">
+              <PeriodSelector
+                periode={periode}
+                date={date}
+                dateDebut={dateDebut}
+                dateFin={dateFin}
+                onChange={(p, d) => { setPeriode(p); setDate(d); }}
+                onDateRangeChange={(debut, fin) => { setDateDebut(debut); setDateFin(fin); }}
+              />
+            </Box>
           </Group>
         </Group>
 
         {/* Global Summary Cards */}
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="lg">
+        <SimpleGrid ref={tilesRef} cols={{ base: 1, sm: 2, md: 3, lg: 5 }} spacing="lg">
           <Card shadow="sm" p="lg" radius="md" withBorder>
             <Group justify="space-between">
               <div>
@@ -581,8 +612,10 @@ export default function ObjectifsLdPage() {
                   >
                     {cat.evolution > 0 ? '+' : ''}{cat.evolution}%
                   </Badge>
+                  {/* no-print : action de retrait, sans objet sur papier */}
                   <Tooltip label="Retirer du suivi KPI" withArrow>
                     <ActionIcon
+                      className="no-print"
                       variant="subtle"
                       color="gray"
                       aria-label="Retirer du suivi KPI"

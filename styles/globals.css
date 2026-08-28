@@ -230,3 +230,167 @@
   }
 }
 
+/* ============================================================================
+   IMPRESSION DES VUES KPI
+   ----------------------------------------------------------------------------
+   Demande RH : « sortir une impression du site pour faire suivre les visuels
+   aux managers et directeurs » (ex. la vue des formations obligatoires par
+   departement de /kpi/conformite).
+
+   Le principe : depuis n'importe quelle page, Ctrl+P (ou le bouton
+   « Imprimer / PDF ») doit produire un document lisible ne contenant que le
+   contenu metier, sans le chrome de l'application.
+
+   Deux classes utilitaires sont posees dans le JSX :
+     - .no-print   : visible a l'ecran, retire du document imprime
+     - .print-only : invisible a l'ecran, ajoute au document imprime
+   ============================================================================ */
+
+/* Masquage a l'ecran. Cette regle vit volontairement HORS du bloc @media print :
+   c'est a l'ecran qu'il faut cacher l'element ; l'impression se contente de le
+   reafficher plus bas. */
+.print-only {
+  display: none;
+}
+
+@media print {
+  /* A4 paysage : la matrice de conformite par departement (une colonne par
+     indicateur, plus la colonne d'actions) deborde d'une A4 portrait. */
+  @page {
+    size: A4 landscape;
+    margin: 12mm 10mm;
+  }
+
+  /* --- 1. Neutralisation des animations ------------------------------------
+     Les sections des pages KPI sont des motion.div (framer-motion) montes avec
+     un style INLINE « opacity: 0 ; transform: translateY(20px) », que
+     l'animation d'entree ramene ensuite a 1 / none. Le navigateur imprime
+     l'etat courant du DOM : si l'impression part avant la fin des animations,
+     les sections sortent BLANCHES. Le !important d'une feuille de style est le
+     seul moyen de battre un style inline, d'ou ce reset global.
+     Il neutralise au passage l'animation « pageContentIn » posee en inline sur
+     le conteneur de contenu de AppShell.Main (components/layout/MainLayout).
+
+     Les SVG sont exclus a dessein : Recharts positionne ses groupes avec un
+     attribut transform="translate(...)" qu'une regle CSS `transform: none`
+     ecraserait — tout le graphique se replierait sur son origine. */
+  *:not(svg):not(svg *),
+  *:not(svg):not(svg *)::before,
+  *:not(svg):not(svg *)::after {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* --- 2. Couleurs ----------------------------------------------------------
+     Par defaut les navigateurs suppriment les aplats a l'impression pour
+     economiser l'encre : les badges vert / orange / rouge de conformite, les
+     pastilles des cartes KPI et les barres de progression sortiraient blancs,
+     donc illisibles. */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* --- 3. Chrome applicatif et controles interactifs ------------------------ */
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /* --- 4. Mise en page -------------------------------------------------------
+     AppShell reserve la place du header / navbar / footer via ces variables.
+     Ces zones portant .no-print, il faut remettre les decalages a zero : sinon
+     le contenu imprime reste pousse vers la droite (largeur de la navbar) et
+     vers le bas (hauteur du header), avec une bande vide sur chaque page. */
+  :root {
+    --app-shell-navbar-offset: 0px !important;
+    --app-shell-aside-offset: 0px !important;
+    --app-shell-header-offset: 0px !important;
+    --app-shell-footer-offset: 0px !important;
+    --app-shell-padding: 0px !important;
+  }
+
+  .mantine-AppShell-main {
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+
+  /* Les Container « xl » bornent la largeur pour le confort de lecture a
+     l'ecran ; sur le papier, c'est la marge @page qui joue ce role. On rend
+     donc toute la largeur de la feuille aux tableaux larges. */
+  .mantine-Container-root {
+    max-width: none !important;
+    padding-inline: 0 !important;
+  }
+
+  /* Les tableaux larges (vue par departement / par equipe) sont dans un
+     Table.ScrollContainer qui defile horizontalement a l'ecran. A
+     l'impression, `overflow: auto` COUPE simplement ce qui depasse : on libere
+     le debordement et la largeur minimale imposee. */
+  .mantine-TableScrollContainer-scrollContainer,
+  .mantine-ScrollArea-root,
+  .mantine-ScrollArea-viewport,
+  .mantine-ScrollArea-content {
+    overflow: visible !important;
+    max-width: none !important;
+  }
+
+  .mantine-TableScrollContainer-scrollContainerInner {
+    min-width: 0 !important;
+  }
+
+  /* Barres de defilement de la ScrollArea : purement ecran. */
+  .mantine-ScrollArea-scrollbar,
+  .mantine-ScrollArea-corner {
+    display: none !important;
+  }
+
+  /* --- 5. Sauts de page ------------------------------------------------------
+     On evite de couper en deux une carte KPI, une alerte, un graphique ou une
+     ligne de tableau. Le `:not(:has(table))` exclut les cartes qui englobent un
+     grand tableau : plus hautes qu'une page, elles seraient repoussees en bloc
+     sur la page suivante — ce qui laisserait une page a moitie vide avant d'etre
+     coupees quand meme. */
+  .mantine-Card-root:not(:has(table)),
+  .mantine-Paper-root:not(:has(table)),
+  .mantine-Alert-root,
+  .recharts-wrapper,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Repete l'en-tete d'un tableau qui s'etale sur plusieurs pages. */
+  thead {
+    display: table-header-group;
+  }
+
+  /* --- 6. En-tete d'impression (rendu par components/PrintButton) ------------
+     Identifie le document une fois detache de l'ecran : sur quel perimetre et
+     quelle periode il porte, et a quelle date il a ete edite. Il est rendu la
+     ou se trouve le bouton, c'est-a-dire dans le groupe d'actions en haut de
+     page : a l'impression il se retrouve donc en vis-a-vis du titre de la page,
+     d'ou la taille modeste (c'est un bloc d'identification, pas un second
+     titre). */
+  .print-header {
+    margin: 0;
+    max-width: 90mm;
+  }
+
+  .print-header__title {
+    margin: 0;
+    font-size: 11pt;
+    font-weight: 700;
+  }
+
+  .print-header__subtitle,
+  .print-header__date {
+    margin: 2px 0 0;
+    font-size: 8.5pt;
+  }
+}

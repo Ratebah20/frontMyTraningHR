@@ -25,6 +25,7 @@ import { ChalkboardTeacher } from '@phosphor-icons/react/dist/ssr/ChalkboardTeac
 import { Warning } from '@phosphor-icons/react/dist/ssr/Warning'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import { ExportTilesButton } from '@/components/ExportTilesButton'
+import { PrintButton } from '@/components/PrintButton'
 import { statsService } from '@/lib/services'
 import { BilanAnnuelResponse } from '@/lib/types'
 
@@ -194,10 +195,17 @@ export default function BilanAnnuelPage() {
               <Text c="dimmed">Chiffres clés de l&apos;année — comparaison avec l&apos;année précédente</Text>
             </Stack>
             <Group gap="sm">
+              {/* Impression de la vue (papier / PDF) + en-tête du document */}
+              <PrintButton
+                title={`Bilan annuel ${annee}`}
+                subtitle={`Chiffres clés de l'année ${annee} — comparaison avec ${Number(annee) - 1}`}
+              />
               <Badge variant="light" color="orange" size="lg">
                 Chiffres au {new Date().toLocaleDateString('fr-FR')}
               </Badge>
+              {/* no-print : sélecteur interactif, l'année figure dans le titre */}
               <Select
+                className="no-print"
                 data={yearOptions}
                 value={annee}
                 onChange={(value) => value && setAnnee(value)}
@@ -205,10 +213,12 @@ export default function BilanAnnuelPage() {
                 w={110}
                 aria-label="Année du bilan"
               />
-              <ExportTilesButton
-                containerRef={tilesRef}
-                filename={`bilan-annuel_${annee}`}
-              />
+              <div className="no-print">
+                <ExportTilesButton
+                  containerRef={tilesRef}
+                  filename={`bilan-annuel_${annee}`}
+                />
+              </div>
             </Group>
           </Group>
         </motion.div>

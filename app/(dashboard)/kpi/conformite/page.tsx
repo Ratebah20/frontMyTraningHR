@@ -969,6 +969,9 @@ export default function ConformitePage() {
         startDate: dateDebut ? dateDebut.toISOString().split('T')[0] : undefined,
         endDate: dateFin ? dateFin.toISOString().split('T')[0] : undefined,
         type: mandatoryType,
+        // Meme perimetre que les chiffres affiches au-dessus (`idsDemandes`) :
+        // l'apercu doit montrer le mail reellement envoye.
+        formationIds: selectedFormationIds,
       })
       .then((apercu) => {
         if (!annule) setReminderPreview(apercu)
@@ -1126,6 +1129,9 @@ export default function ConformitePage() {
         // Le backend accepte aussi 'securite' ; la signature du service reste
         // à élargir (fichier hors périmètre de cette refonte).
         type: mandatoryType as 'annuelle' | 'onboarding',
+        // Sans ce parametre, une formation decochee dans la carte « Scope »
+        // etait quand meme relancee : l'ecran filtrait ses chiffres, pas le mail.
+        formationIds: selectedFormationIds,
       })
 
       setShowReminderModal(false)

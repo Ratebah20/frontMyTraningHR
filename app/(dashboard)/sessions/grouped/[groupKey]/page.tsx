@@ -154,32 +154,6 @@ export default function GroupedSessionDetailPage({ params }: Props) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <Center h="100vh">
-        <Loader size="lg" variant="bars" />
-      </Center>
-    );
-  }
-
-  if (error || !session) {
-    return (
-      <Container size="xl">
-        <Alert icon={<Warning size={20} />} color="red" variant="light" mt="xl">
-          {error || 'Session non trouvée'}
-        </Alert>
-        <Group mt="xl">
-          <Button
-            leftSection={<ArrowLeft size={16} />}
-            onClick={() => router.back()}
-          >
-            Retour aux sessions
-          </Button>
-        </Group>
-      </Container>
-    );
-  }
-
   // Envoi d'une demande d'évaluation sur le groupe.
   //
   // Cette page est celle où l'on atterrit depuis une session importée d'OLU ;
@@ -224,6 +198,32 @@ export default function GroupedSessionDetailPage({ params }: Props) {
       annule = true;
     };
   }, [evalType, session?.groupKey]);
+
+  if (isLoading) {
+    return (
+      <Center h="100vh">
+        <Loader size="lg" variant="bars" />
+      </Center>
+    );
+  }
+
+  if (error || !session) {
+    return (
+      <Container size="xl">
+        <Alert icon={<Warning size={20} />} color="red" variant="light" mt="xl">
+          {error || 'Session non trouvée'}
+        </Alert>
+        <Group mt="xl">
+          <Button
+            leftSection={<ArrowLeft size={16} />}
+            onClick={() => router.back()}
+          >
+            Retour aux sessions
+          </Button>
+        </Group>
+      </Container>
+    );
+  }
 
   const handleSendGroupEvaluations = async () => {
     if (!session?.groupKey || !evalType || !evalQuestionnaireId) return;

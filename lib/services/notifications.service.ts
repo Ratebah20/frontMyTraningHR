@@ -11,6 +11,11 @@ export interface SendReminderDto {
   endDate?: string;
   // Périmètre des obligatoires visées par le rappel (défaut backend : annuelle)
   type?: 'annuelle' | 'onboarding' | 'securite';
+  // Formations retenues dans la carte « Scope » de l'écran. Doit être transmis
+  // pour que le mail liste EXACTEMENT ce que la page affiche : sans lui, une
+  // formation décochée était quand même relancée. Omis => toutes les
+  // obligatoires du périmètre ; tableau vide => refusé par le backend.
+  formationIds?: number[];
 }
 
 /** Un destinataire tel que renvoyé par la prévisualisation d'une relance. */

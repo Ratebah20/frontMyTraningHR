@@ -59,7 +59,9 @@ export const exportsService = {
     annee?: number,
     // Périmètre d'obligation : sans lui, l'export renvoyait toujours les
     // obligatoires annuelles, même depuis l'onglet Onboarding.
-    type?: 'annuelle' | 'onboarding',
+    // 'securite' = formations de sécurité au travail (SST), accepté par
+    // l'endpoint au même titre que les deux autres périmètres.
+    type?: 'annuelle' | 'onboarding' | 'securite',
   ): Promise<Blob> {
     const params = new URLSearchParams();
     if (annee) params.append('annee', String(annee));

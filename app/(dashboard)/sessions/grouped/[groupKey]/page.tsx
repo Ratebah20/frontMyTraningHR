@@ -613,7 +613,9 @@ export default function GroupedSessionDetailPage({ params }: Props) {
                               {participant.prenom} {participant.nom}
                             </Text>
                             <Text size="xs" c="dimmed">
-                              {participant.email}
+                              {/* Vraie adresse déchiffrée ou rien : l'API ne
+                                  fabrique plus de `prenom.nom@company.com`. */}
+                              {participant.email ?? 'Pas d’adresse email'}
                             </Text>
                           </div>
                         </Group>

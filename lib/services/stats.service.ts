@@ -50,7 +50,9 @@ export interface DashboardSummaryResponse {
   sessionsPlanifiees: number;
   sessionsTerminees: number;
   heuresFormationPeriode: number;
-  nombreDepartements: number;
+  /** Nombre de collaborateurs FORMÉS sur la période (le champ s'appelait
+   *  `nombreDepartements` : nom recyclé côté API, jamais un nombre de départements). */
+  collaborateursFormes: number;
   collaborateursFormesParGenre?: { hommes: number; femmes: number };
   nombreFormationsObligatoires: number;
   collaborateursConformesObligatoires: number;

@@ -22,6 +22,7 @@ import {
   Divider,
   Alert,
   SimpleGrid,
+  Switch,
 } from '@mantine/core';
 import { UsersFour } from '@phosphor-icons/react/dist/ssr/UsersFour';
 import { Users } from '@phosphor-icons/react/dist/ssr/Users';
@@ -49,17 +50,21 @@ export default function ManagerTeamPage({ params }: { params: { id: string } }) 
   const [teamData, setTeamData] = useState<TeamDetails | null>(null);
   const [selectorOpened, setSelectorOpened] = useState(false);
   const [selectedCollaborateur, setSelectedCollaborateur] = useState<{ id: number; nom: string; managerId?: number } | null>(null);
+  // La fiche listait TOUT l'historique des rattachements (les personnes parties
+  // comprises, sans jamais le dire). L'équipe actuelle est désormais la vue par
+  // défaut ; l'historique reste consultable via cet interrupteur.
+  const [includeInactive, setIncludeInactive] = useState(false);
 
   useEffect(() => {
     loadTeamData();
-  }, [managerId]);
+  }, [managerId, includeInactive]);
 
   const loadTeamData = async (showLoader = true) => {
     if (showLoader) setLoading(true);
     else setRefreshing(true);
 
     try {
-      const data = await managersService.getManagerTeam(managerId);
+      const data = await managersService.getManagerTeam(managerId, includeInactive);
       setTeamData(data);
     } catch (error) {
       console.error('Erreur lors du chargement de l\'équipe:', error);
@@ -150,9 +155,18 @@ export default function ManagerTeamPage({ params }: { params: { id: string } }) 
             </Group>
             <Text size="md" c="dimmed" mt="sm">
               Équipe de {teamData.stats.nombreTotal} collaborateur{teamData.stats.nombreTotal > 1 ? 's' : ''}
+              {includeInactive && (teamData.stats.nombreInactifs ?? 0) > 0
+                ? ` (dont ${teamData.stats.nombreInactifs} sorti(s) des effectifs)`
+                : ''}
             </Text>
           </div>
           <Group>
+            <Switch
+              size="sm"
+              checked={includeInactive}
+              onChange={(event) => setIncludeInactive(event.currentTarget.checked)}
+              label="Inclure les anciens collaborateurs"
+            />
             <Tooltip label="Rafraîchir">
               <ActionIcon variant="light" size="lg" onClick={handleRefresh} loading={refreshing}>
                 <ArrowsClockwise size={20} />
@@ -280,9 +294,17 @@ export default function ManagerTeamPage({ params }: { params: { id: string } }) 
                         </Badge>
                       </Table.Td>
                       <Table.Td>
-                        <Badge color={membre.actif ? 'green' : 'red'} variant="light">
-                          {membre.actif ? 'Actif' : 'Inactif'}
-                        </Badge>
+                        <Stack gap={2}>
+                          <Badge color={membre.actif ? 'green' : 'red'} variant="light">
+                            {membre.actif ? 'Actif' : 'Inactif'}
+                          </Badge>
+                          {membre.sortieProgrammee && (
+                            <Badge color="orange" variant="light" size="xs">
+                              Sortie prévue le{' '}
+                              {new Date(membre.sortieProgrammee).toLocaleDateString('fr-FR')}
+                            </Badge>
+                          )}
+                        </Stack>
                       </Table.Td>
                       <Table.Td>
                         <Group gap="xs" justify="flex-end">

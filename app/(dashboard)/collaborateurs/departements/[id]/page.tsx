@@ -26,6 +26,7 @@ import {
   Affix,
   Transition,
   Alert,
+  Switch,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
@@ -42,12 +43,14 @@ import { Plus } from '@phosphor-icons/react/dist/ssr/Plus';
 import { TreeStructure } from '@phosphor-icons/react/dist/ssr/TreeStructure';
 import { ArrowsLeftRight } from '@phosphor-icons/react/dist/ssr/ArrowsLeftRight';
 import { X } from '@phosphor-icons/react/dist/ssr/X';
+import { Trash } from '@phosphor-icons/react/dist/ssr/Trash';
 import { departementsService } from '@/lib/services';
 import { DepartementDetail, Collaborateur } from '@/lib/types';
 import { DepartementFormModal } from '@/components/departements/DepartementFormModal';
 import { DepartementBreadcrumb } from '@/components/departements/DepartementBreadcrumb';
 import { TypeBadge } from '@/components/departements/TypeBadge';
 import { ChangeEquipeModal } from '@/components/collaborateurs/ChangeEquipeModal';
+import { DeleteDepartementModal } from '@/components/departements/DeleteDepartementModal';
 
 export default function DepartementDetailPage() {
   const router = useRouter();
@@ -61,21 +64,45 @@ export default function DepartementDetailPage() {
   const [modalOpened, setModalOpened] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreatingEquipe, setIsCreatingEquipe] = useState(false);
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false);
+  // Type imposé à l'ouverture du formulaire : sert au parcours « transformer ce
+  // département en équipe », qui doit ouvrir le formulaire déjà positionné sur
+  // « Équipe » (sinon le bouton ne tient pas sa promesse).
+  const [typeInitialEdition, setTypeInitialEdition] = useState<'EQUIPE' | undefined>(undefined);
+  // Afficher les personnes sorties des effectifs.
+  //
+  // La page chargeait `getCollaborateurs(id, false)` : sur un département dont
+  // tous les rattachés sont partis (cas « Marketing devenu une équipe »), les
+  // cartes annonçaient « 4 collaborateurs / 0 actif » et la table était VIDE —
+  // impossible de sélectionner les 4 personnes pour les réaffecter, alors que
+  // la suppression restait bloquée à cause d'elles.
+  const [showInactive, setShowInactive] = useState(false);
 
   // États pour la sélection multiple et le changement d'équipe
   const [selectedCollaborateurs, setSelectedCollaborateurs] = useState<number[]>([]);
   const [changeEquipeModalOpened, setChangeEquipeModalOpened] = useState(false);
   const [collaborateursToMove, setCollaborateursToMove] = useState<{ id: number; nomComplet: string }[]>([]);
 
+  // `collaborateurs` porte TOUJOURS l'effectif complet (actifs + inactifs) :
+  // l'interrupteur ne fait que filtrer l'affichage, sans nouvel aller-retour.
+  const collaborateursAffiches = showInactive
+    ? collaborateurs
+    : collaborateurs.filter(c => c.actif);
+  const nombreInactifs = collaborateurs.filter(c => !c.actif).length;
+
   // Gestion de la sélection
-  const isAllSelected = collaborateurs.length > 0 && selectedCollaborateurs.length === collaborateurs.length;
-  const isSomeSelected = selectedCollaborateurs.length > 0 && selectedCollaborateurs.length < collaborateurs.length;
+  const isAllSelected =
+    collaborateursAffiches.length > 0 &&
+    selectedCollaborateurs.length === collaborateursAffiches.length;
+  const isSomeSelected =
+    selectedCollaborateurs.length > 0 &&
+    selectedCollaborateurs.length < collaborateursAffiches.length;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
       setSelectedCollaborateurs([]);
     } else {
-      setSelectedCollaborateurs(collaborateurs.map(c => c.id));
+      setSelectedCollaborateurs(collaborateursAffiches.map(c => c.id));
     }
   };
 
@@ -93,7 +120,7 @@ export default function DepartementDetailPage() {
 
   // Ouvrir la modale pour les collaborateurs sélectionnés
   const openChangeEquipeForSelected = () => {
-    const selected = collaborateurs
+    const selected = collaborateursAffiches
       .filter(c => selectedCollaborateurs.includes(c.id))
       .map(c => ({ id: c.id, nomComplet: c.nomComplet }));
     setCollaborateursToMove(selected);
@@ -106,16 +133,33 @@ export default function DepartementDetailPage() {
     loadData();
   };
 
+  // Transformer ce département en ÉQUIPE rattachée à un parent : les
+  // collaborateurs restent en place et leurs KPI remontent au département
+  // parent (cf. T41). Le formulaire s'ouvre déjà positionné sur « Équipe ».
+  const transformerEnEquipe = () => {
+    setIsCreatingEquipe(false);
+    setTypeInitialEdition('EQUIPE');
+    setModalOpened(true);
+  };
+
   // Charger les données
   const loadData = async () => {
     setIsLoading(true);
     try {
       const [deptData, collabsData] = await Promise.all([
         departementsService.getById(departementId),
-        departementsService.getCollaborateurs(departementId, false),
+        // includeInactive = true : la table doit pouvoir montrer les personnes
+        // parties, ce sont elles qui bloquent la suppression du département.
+        departementsService.getCollaborateurs(departementId, true),
       ]);
       setDepartement(deptData);
       setCollaborateurs(collabsData);
+      // Aucun actif mais des rattachés : on ouvre l'interrupteur d'office,
+      // sinon la RH tombe sur une table vide face à un compteur qui affiche 4.
+      const aDesActifs = collabsData.some(c => c.actif);
+      if (!aDesActifs && collabsData.length > 0) {
+        setShowInactive(true);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
       notifications.show({
@@ -159,6 +203,7 @@ export default function DepartementDetailPage() {
       }
       setModalOpened(false);
       setIsCreatingEquipe(false);
+      setTypeInitialEdition(undefined);
       loadData();
     } catch (error: any) {
       console.error('Erreur lors de la soumission:', error);
@@ -236,12 +281,18 @@ export default function DepartementDetailPage() {
               </div>
             </Group>
 
+            {/*
+              Ces deux actions n'existaient que sur la page LISTE : la RH, qui
+              travaille depuis la fiche du département, n'y trouvait aucun moyen
+              de le supprimer ni de le transformer en équipe.
+            */}
             <Group>
               <Button
                 leftSection={<PencilSimple size={18} />}
                 variant="light"
                 onClick={() => {
                   setIsCreatingEquipe(false);
+                  setTypeInitialEdition(undefined);
                   setModalOpened(true);
                 }}
               >
@@ -256,6 +307,24 @@ export default function DepartementDetailPage() {
                 }}
               >
                 Ajouter une équipe
+              </Button>
+              {departement.type === 'DEPARTEMENT' && (
+                <Button
+                  leftSection={<Users size={18} />}
+                  variant="light"
+                  color="orange"
+                  onClick={transformerEnEquipe}
+                >
+                  Transformer en équipe
+                </Button>
+              )}
+              <Button
+                leftSection={<Trash size={18} />}
+                variant="light"
+                color="red"
+                onClick={() => setDeleteModalOpened(true)}
+              >
+                Supprimer
               </Button>
             </Group>
           </Group>
@@ -422,16 +491,38 @@ export default function DepartementDetailPage() {
                 Collaborateurs du département
               </Group>
             </Title>
-            <Text c="dimmed" size="sm">
-              {collaborateurs.length} collaborateur(s)
-            </Text>
+            <Group gap="md">
+              {nombreInactifs > 0 && (
+                <Switch
+                  size="sm"
+                  checked={showInactive}
+                  onChange={(event) => {
+                    setShowInactive(event.currentTarget.checked);
+                    setSelectedCollaborateurs([]);
+                  }}
+                  label={`Afficher les inactifs (${nombreInactifs})`}
+                />
+              )}
+              <Text c="dimmed" size="sm">
+                {collaborateursAffiches.length} collaborateur(s)
+              </Text>
+            </Group>
           </Group>
 
-          {collaborateurs.length === 0 ? (
+          {collaborateursAffiches.length === 0 ? (
             <Center p="xl">
               <Stack align="center" gap="md">
                 <Users size={48} weight="thin" className="text-gray-400" />
-                <Text c="dimmed">Aucun collaborateur dans ce département</Text>
+                <Text c="dimmed">
+                  {nombreInactifs > 0
+                    ? `Aucun collaborateur actif — ${nombreInactifs} personne(s) sortie(s) des effectifs y sont encore rattachée(s).`
+                    : 'Aucun collaborateur dans ce département'}
+                </Text>
+                {nombreInactifs > 0 && !showInactive && (
+                  <Button variant="light" size="compact-sm" onClick={() => setShowInactive(true)}>
+                    Afficher les inactifs
+                  </Button>
+                )}
               </Stack>
             </Center>
           ) : (
@@ -455,7 +546,7 @@ export default function DepartementDetailPage() {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {collaborateurs.map((collab) => (
+                {collaborateursAffiches.map((collab) => (
                   <Table.Tr
                     key={collab.id}
                     bg={selectedCollaborateurs.includes(collab.id) ? 'var(--mantine-color-blue-light)' : undefined}
@@ -500,9 +591,17 @@ export default function DepartementDetailPage() {
                       </Badge>
                     </Table.Td>
                     <Table.Td>
-                      <Badge color={collab.actif ? 'green' : 'gray'} variant="light" size="sm">
-                        {collab.actif ? 'Actif' : 'Inactif'}
-                      </Badge>
+                      <Stack gap={2}>
+                        <Badge color={collab.actif ? 'green' : 'gray'} variant="light" size="sm">
+                          {collab.actif ? 'Actif' : 'Inactif'}
+                        </Badge>
+                        {collab.sortieProgrammee && (
+                          <Badge color="orange" variant="light" size="xs">
+                            Sortie prévue le{' '}
+                            {new Date(collab.sortieProgrammee).toLocaleDateString('fr-FR')}
+                          </Badge>
+                        )}
+                      </Stack>
                     </Table.Td>
                     <Table.Td>
                       <Group gap={4} wrap="nowrap">
@@ -551,12 +650,22 @@ export default function DepartementDetailPage() {
         onClose={() => {
           setModalOpened(false);
           setIsCreatingEquipe(false);
+          setTypeInitialEdition(undefined);
         }}
         onSubmit={handleSubmit}
         departement={isCreatingEquipe ? null : departement}
         isSubmitting={isSubmitting}
-        initialType={isCreatingEquipe ? 'EQUIPE' : undefined}
+        initialType={isCreatingEquipe ? 'EQUIPE' : typeInitialEdition}
         initialParentId={isCreatingEquipe ? departementId : undefined}
+      />
+
+      {/* Modal de suppression (partagée avec la page liste) */}
+      <DeleteDepartementModal
+        opened={deleteModalOpened}
+        onClose={() => setDeleteModalOpened(false)}
+        departement={departement}
+        onDeleted={() => router.push('/collaborateurs/departements')}
+        onTransformerEnEquipe={transformerEnEquipe}
       />
 
       {/* Modal de changement d'équipe */}

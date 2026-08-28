@@ -137,11 +137,14 @@ export default function ManagersPage() {
 
   // Filtrer les managers selon les critères, puis trier alphabétiquement.
   //
-  // Le backend exclut déjà les inactifs et trie par nomComplet, mais son ORDER BY
-  // dépend de la collation SQL Server : le tri final est refait ici avec
-  // localeCompare('fr') pour que les accents se classent correctement (« Éric »
-  // entre « Erb » et « Ernest », et non rejeté en fin de liste). Le filtre sur
-  // `actif` est conservé en filet de sécurité côté client.
+  // ATTENTION, l'explication précédente était FAUSSE : le désordre ne venait pas
+  // de la collation SQL Server. `nomComplet` est CHIFFRÉ en base et
+  // `prisma-field-encryption` SUPPRIME toute clause `orderBy` portant sur un
+  // champ chiffré — l'`orderBy` du backend était donc un no-op silencieux et la
+  // base renvoyait l'ordre d'insertion. Le backend trie désormais lui aussi en
+  // mémoire, après déchiffrement ; ce tri-ci reste utile car le filtrage local
+  // ne doit pas dépendre de l'ordre reçu. Le filtre sur `actif` est conservé en
+  // filet de sécurité côté client.
   const filteredManagers = (managersData?.data || [])
     .filter(manager => {
       if (manager.actif === false) return false;

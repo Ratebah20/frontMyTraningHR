@@ -65,7 +65,13 @@ export class SessionsUnifiedService {
       );
       return {
         data: this.mapCollectivesToUnified(response.data),
-        meta: response.meta,
+        meta: {
+          ...response.meta,
+          // Une ligne = une session collective : les deux unités coïncident ici.
+          // Renseigné quand même pour que la page affiche le même indicateur
+          // quel que soit le type sélectionné.
+          totalSessions: response.meta.totalItems,
+        },
         stats: {
           totalIndividuelles: 0,
           totalCollectives: response.meta.totalItems,
@@ -466,6 +472,13 @@ export class SessionsUnifiedService {
       Math.min(totalItems, MAX_ELEMENTS_FUSIONNABLES) / requestedLimit,
     );
 
+    // Unité « session » et non « ligne » : côté individuelles une ligne est un
+    // GROUPE (formation + dates) qui peut porter des dizaines de participants.
+    // C'est cette somme-là que le badge « sessions à clôturer » du tableau de
+    // bord affiche ; sans elle les deux chiffres ne se rapprochaient jamais.
+    const totalSessions =
+      (indivResponse.meta.totalSessions ?? totalIndividuelles) + totalCollectives;
+
     return {
       data: paginatedSessions,
       meta: {
@@ -475,6 +488,7 @@ export class SessionsUnifiedService {
         itemsPerPage: requestedLimit,
         hasNext: requestedPage < totalPages,
         hasPrevious: requestedPage > 1,
+        totalSessions,
       },
       stats: {
         totalIndividuelles,

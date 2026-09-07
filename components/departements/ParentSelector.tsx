@@ -59,8 +59,17 @@ export function ParentSelector({
     const result: Array<{ value: string; label: string; node: HierarchyNode }> = [];
 
     for (const node of nodes) {
-      // Exclure le département actuel et ses descendants
-      if (excludeId && (node.id === excludeId || isDescendantOf(node, excludeId))) {
+      // Exclure UNIQUEMENT le département édité : comme le `continue` précède
+      // la récursion sur les enfants, tout son sous-arbre (ses descendants,
+      // seuls parents interdits par le backend) est écarté avec lui.
+      //
+      // L'ancienne condition `|| isDescendantOf(node, excludeId)` faisait
+      // l'inverse de son nom : elle écartait tout nœud dont le sous-arbre
+      // CONTENAIT le département édité, c'est-à-dire chacun de ses ANCÊTRES,
+      // et avec eux (même `continue`) frères et cousins. Dès qu'une équipe
+      // était rattachée sous une racine, toute la branche disparaissait et la
+      // liste ne proposait plus rien.
+      if (excludeId && node.id === excludeId) {
         continue;
       }
 
@@ -78,20 +87,6 @@ export function ParentSelector({
     }
 
     return result;
-  };
-
-  const isDescendantOf = (node: HierarchyNode, parentId: number): boolean => {
-    if (!node.children || node.children.length === 0) {
-      return false;
-    }
-
-    for (const child of node.children) {
-      if (child.id === parentId || isDescendantOf(child, parentId)) {
-        return true;
-      }
-    }
-
-    return false;
   };
 
   const handleChange = (val: string | null) => {

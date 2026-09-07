@@ -73,6 +73,13 @@ import type { ReminderPreviewResponse } from '@/lib/services'
  */
 type MandatoryType = 'annuelle' | 'onboarding' | 'securite'
 
+interface SessionEngagee {
+  statut: 'en_cours' | 'inscrit'
+  dateDebut: string | null
+  dateFin: string | null
+  source: string
+}
+
 interface MandatoryTrainingsKPIs {
   periode: { annee: number; mois?: number; libelle: string }
   stats: {
@@ -95,9 +102,24 @@ interface MandatoryTrainingsKPIs {
     categorie: string
     collaborateursFormes: number
     collaborateursNonFormes: number
+    // Parmi les non formés : session déjà engagée / planifiée (optionnels :
+    // absents d'une réponse d'API antérieure)
+    collaborateursEnCours?: number
+    collaborateursInscrits?: number
     tauxConformite: number
-    formes: Array<{ id: number; nomComplet: string; departement: string; dateFormation: string }>
-    nonFormes: Array<{ id: number; nomComplet: string; departement: string }>
+    formes: Array<{ id: number; nomComplet: string; departement: string; dateFormation: string; source?: string }>
+    nonFormes: Array<{
+      id: number
+      nomComplet: string
+      departement: string
+      /**
+       * Session NON terminée (en cours ou inscrite) sur cette formation,
+       * remontée par les statuts du récapitulatif Orange Learning ou une
+       * saisie manuelle. Ne rend pas conforme : le collaborateur reste dans
+       * les non formés, mais la RH sait qu'il a déjà engagé la formation.
+       */
+      sessionEnCours?: SessionEngagee
+    }>
   }>
   parDepartement: Array<{
     departementId: number
@@ -122,10 +144,18 @@ interface MandatoryTrainingsKPIs {
  * population cible complète et non sur les seuls non-formés.
  */
 interface OrgManagerRow {
+  /** Clé de ligne : `${unité}_${manager}` — un manager réparti sur deux équipes donne deux lignes */
+  key: string
+  /** Manager (responsable) de l'équipe : cible de la relance */
   id: number
   nomComplet: string
+  /** Unité BRUTE de rattachement des collaborateurs : l'équipe */
   departementId: number
   departement: string
+  /** Département de rattachement (rollup backend), l'équipe elle-même si orpheline */
+  departementRattachement: string
+  /** Membres de l'équipe (formés compris). Absent d'une réponse d'API antérieure. */
+  collaborateurIds?: number[]
   totalCollaborateurs: number
   formes: number
   nonFormes: number
@@ -149,6 +179,20 @@ interface OrgManagerRow {
  * 'managers' et partait d'une sélection par NOM de département.
  */
 type ReminderTarget = 'directeurs' | 'managers'
+
+/**
+ * Périmètre de la modale nominative d'une formation.
+ * - `departement`      : libellé de département ROLLUPÉ (dépliage d'un département)
+ * - `collaborateurIds` : membres d'une équipe (dépliage d'une équipe) — filtre
+ *                        par identifiant, jamais par libellé (homonymes)
+ * - `unite`            : repli par libellé BRUT si l'API ne renvoie pas les membres
+ */
+interface FormationScope {
+  libelle: string
+  departement?: string
+  collaborateurIds?: number[]
+  unite?: string
+}
 
 /**
  * Ligne du détail par formation affiché au dépliage d'un département.
@@ -175,12 +219,16 @@ interface MandatoryByManagerResponse {
   departements: Array<{
     id: number
     nom: string
+    /** Département de rattachement (rollup) de l'unité brute. Optionnel : API antérieure. */
+    rattachement?: { id: number; nom: string }
     totalNonFormes: number
     managers: Array<{
       id: number
       nomComplet: string
       /** Certaines réponses exposent `nom` au lieu de `nomComplet` */
       nom?: string
+      /** Membres de l'équipe sur la population cible (formés compris). Optionnel : API antérieure. */
+      collaborateurIds?: number[]
       /**
        * ATTENTION : historiquement incrémenté dans la seule boucle des
        * non-formés, ce champ vaut `collaborateursNonFormes.length` et NON
@@ -423,12 +471,12 @@ export default function ConformitePage() {
   const [hasInitialized, setHasInitialized] = useState(false)
 
   // Formation detail modal.
-  // La même modale sert au tableau « Détail par formation » (vue globale) et au
-  // dépliage d'un département (`selectedFormationDept` renseigné) : c'est la
-  // liste nominative unique de la page, l'ancienne modale de la matrice ayant
-  // été supprimée.
+  // La même modale sert au tableau « Détail par formation » (vue globale), au
+  // dépliage d'un département et au dépliage d'une équipe
+  // (`selectedFormationScope` renseigné) : c'est la liste nominative unique de
+  // la page, l'ancienne modale de la matrice ayant été supprimée.
   const [selectedFormation, setSelectedFormation] = useState<MandatoryTrainingsKPIs['formations'][0] | null>(null)
-  const [selectedFormationDept, setSelectedFormationDept] = useState<string | null>(null)
+  const [selectedFormationScope, setSelectedFormationScope] = useState<FormationScope | null>(null)
   const [modalTab, setModalTab] = useState<'formes' | 'nonFormes'>('nonFormes')
 
   // Manager view
@@ -607,11 +655,14 @@ export default function ConformitePage() {
       // l'organisation et découpe côté client (lignes dépliables, sélection de
       // départements à relancer). L'état `selectedDept` qui l'alimentait n'était
       // jamais renseigné — il masquait le fait que le filtre serveur était faux.
+      // Dernier argument : lister AUSSI les équipes 100 % conformes, comme la
+      // vue par département liste les départements à 100 %.
       const byManagerPromise = statsService.getMandatoryTrainingsByManager(
         periode, date, startDateStr, endDateStr,
         undefined,
         mandatoryType,
-        idsDemandes
+        idsDemandes,
+        true
       ).catch((managerError: unknown) => {
         console.error('Erreur lors du chargement des donnees par manager:', managerError)
         return null
@@ -648,7 +699,11 @@ export default function ConformitePage() {
 
       setMandatoryLoading(false)
 
-      setByManagerData(await byManagerPromise)
+      // Même garde que `mandatoryResponse` : une réponse périmée appariée à
+      // des libellés frais donnait des chiffres incohérents intermittents.
+      const byManagerResponse = await byManagerPromise
+      if (requeteId !== requeteEnCours.current) return
+      setByManagerData(byManagerResponse)
     } catch (error) {
       console.error('Erreur lors du chargement des formations obligatoires:', error)
     } finally {
@@ -749,18 +804,36 @@ export default function ConformitePage() {
     })
 
   /**
-   * Détail par formation d'une ÉQUIPE, pendant de
-   * detailParFormationDuDepartement pour la vue par manager.
+   * Détail par formation d'une ÉQUIPE, pendant exact de
+   * detailParFormationDuDepartement pour la vue par équipe.
    *
-   * Se déduit entièrement des données déjà chargées : pour une formation
-   * donnée, les membres de l'équipe qui ne figurent pas dans la liste des
-   * manquants l'ont nécessairement suivie. D'où
-   * `formes = totalCollaborateurs - nonFormes`, sans appel supplémentaire.
+   * Filtre les listes nominatives de la réponse KPI sur les MEMBRES de
+   * l'équipe (`collaborateurIds`, par identifiant) : ce sont les mêmes
+   * personnes que celles listées par « Voir le detail », donc les compteurs
+   * et la modale ne peuvent pas diverger.
+   *
+   * Repli sans `collaborateurIds` (API antérieure) : `formes = total -
+   * nonFormes` déduit des manquantes. Ce repli sous-compte les non formés en
+   * périmètre sécurité (un collaborateur avec une seule habilitation est
+   * conforme et absent des manquantes).
    */
   const detailParFormationDeLEquipe = (
     row: OrgManagerRow
-  ): DetailFormationDepartement[] =>
-    (mandatoryData?.formations ?? []).map((formation) => {
+  ): DetailFormationDepartement[] => {
+    const membres = row.collaborateurIds ? new Set(row.collaborateurIds) : null
+    return (mandatoryData?.formations ?? []).map((formation) => {
+      if (membres) {
+        const formes = formation.formes.filter((c) => membres.has(c.id)).length
+        const nonFormes = formation.nonFormes.filter((c) => membres.has(c.id)).length
+        const total = formes + nonFormes
+        return {
+          formation,
+          formes,
+          nonFormes,
+          total,
+          taux: total > 0 ? Math.round((formes / total) * 1000) / 10 : 0,
+        }
+      }
       const nonFormes = row.collaborateursNonFormes.filter((c) =>
         (c.formationsManquantes ?? []).some((f) => f.id === formation.id)
       ).length
@@ -774,14 +847,17 @@ export default function ConformitePage() {
         taux: total > 0 ? Math.round((formes / total) * 1000) / 10 : 0,
       }
     })
+  }
 
-  const [expandedManagerIds, setExpandedManagerIds] = useState<number[]>([])
+  // Cles de lignes depliees (`${unite}_${manager}`) : un manager sur deux
+  // equipes a deux lignes qui se deplient independamment.
+  const [expandedManagerIds, setExpandedManagerIds] = useState<string[]>([])
 
-  const toggleExpandedManager = (managerId: number) => {
+  const toggleExpandedManager = (rowKey: string) => {
     setExpandedManagerIds((prev) =>
-      prev.includes(managerId)
-        ? prev.filter((id) => id !== managerId)
-        : [...prev, managerId]
+      prev.includes(rowKey)
+        ? prev.filter((key) => key !== rowKey)
+        : [...prev, rowKey]
     )
   }
 
@@ -794,54 +870,66 @@ export default function ConformitePage() {
   }
 
   // Ouvre la liste nominative d'une formation, éventuellement restreinte à un
-  // département (dépliage d'une ligne). `null` = toute la population cible.
+  // département ou une équipe (dépliage d'une ligne). `null` = toute la
+  // population cible.
   const openFormationDetail = (
     formation: MandatoryTrainingsKPIs['formations'][0],
-    departement: string | null = null
+    scope: FormationScope | null = null
   ) => {
     setSelectedFormation(formation)
-    setSelectedFormationDept(departement)
+    setSelectedFormationScope(scope)
     setModalTab('nonFormes')
   }
 
   const closeFormationDetail = () => {
     setSelectedFormation(null)
-    setSelectedFormationDept(null)
+    setSelectedFormationScope(null)
   }
 
-  // Listes nominatives affichées dans la modale, filtrées sur le département
+  // Appartenance d'un collaborateur au périmètre de la modale : par
+  // identifiant pour une équipe, par libellé rollupé pour un département.
+  const appartientAuScope = (c: { id: number; departement: string }): boolean => {
+    if (!selectedFormationScope) return true
+    if (selectedFormationScope.collaborateurIds) {
+      return selectedFormationScope.collaborateurIds.includes(c.id)
+    }
+    if (selectedFormationScope.unite) {
+      return c.departement === selectedFormationScope.unite
+    }
+    if (selectedFormationScope.departement) {
+      return departementDeRattachement(c.departement) === selectedFormationScope.departement
+    }
+    return true
+  }
+
+  // Listes nominatives affichées dans la modale, filtrées sur le périmètre
   // quand la modale a été ouverte depuis le dépliage d'une ligne.
   const formationModalFormes = selectedFormation
-    ? selectedFormationDept
-      ? selectedFormation.formes.filter(
-          (c) => departementDeRattachement(c.departement) === selectedFormationDept
-        )
-      : selectedFormation.formes
+    ? selectedFormation.formes.filter(appartientAuScope)
     : []
 
   const formationModalNonFormes = selectedFormation
-    ? selectedFormationDept
-      ? selectedFormation.nonFormes.filter(
-          (c) => departementDeRattachement(c.departement) === selectedFormationDept
-        )
-      : selectedFormation.nonFormes
+    ? selectedFormation.nonFormes.filter(appartientAuScope)
     : []
 
-  // Managers de tous les départements, dédoublonnés, triés par nombre de
-  // collaborateurs non formés décroissant.
+  // Une ligne par ÉQUIPE (unité brute × manager effectif), tous départements
+  // confondus. Un manager réparti sur deux unités donne deux lignes — c'est la
+  // sémantique de l'onglet ; l'ancienne déduplication par manager jetait la
+  // seconde ligne et ses collaborateurs avec.
+  // Tri du moins conforme au plus conforme, comme la vue par département.
   const managerRows: OrgManagerRow[] = (() => {
-    const seen = new Set<number>()
     const rows: OrgManagerRow[] = []
     ;(byManagerData?.departements ?? []).forEach((d) => {
       ;(d.managers ?? []).forEach((m) => {
-        if (seen.has(m.id)) return
-        seen.add(m.id)
         const nonFormes = m.collaborateursNonFormes ?? []
         rows.push({
+          key: `${d.id}_${m.id}`,
           id: m.id,
           nomComplet: m.nomComplet || m.nom || `Manager #${m.id}`,
           departementId: d.id,
           departement: d.nom,
+          departementRattachement: d.rattachement?.nom ?? d.nom,
+          collaborateurIds: m.collaborateurIds,
           // Replis défensifs : une réponse d'API antérieure à l'enrichissement
           // ne porte pas ces champs, la vue reste alors lisible.
           totalCollaborateurs: m.totalCollaborateurs ?? nonFormes.length,
@@ -855,9 +943,23 @@ export default function ConformitePage() {
       })
     })
     return rows.sort(
-      (a, b) => b.collaborateursNonFormes.length - a.collaborateursNonFormes.length
+      (a, b) =>
+        a.tauxConformite - b.tauxConformite ||
+        b.nonFormes - a.nonFormes ||
+        a.departement.localeCompare(b.departement, 'fr')
     )
   })()
+
+  // Une équipe n'est relançable que si son manager est joignable ET qu'il
+  // reste quelqu'un à relancer (le backend n'envoie pas de mail vide).
+  const isEquipeRelancable = (row: OrgManagerRow) =>
+    row.peutEtreRelance && row.nonFormes > 0
+
+  // Managers relançables, dédoublonnés : la relance cible le MANAGER, pas la
+  // ligne. Cocher une ligne coche donc toutes celles du même manager.
+  const relancableManagerIds = Array.from(
+    new Set(managerRows.filter(isEquipeRelancable).map((m) => m.id))
+  )
 
   const sansManagerRows = byManagerData?.sansManager ?? []
 
@@ -868,9 +970,9 @@ export default function ConformitePage() {
     .filter((d) => selectedDeptIds.includes(d.departementId))
     .map((d) => d.departementId)
 
-  const effectiveManagerIds = managerRows
-    .filter((m) => selectedManagers.includes(m.id))
-    .map((m) => m.id)
+  const effectiveManagerIds = relancableManagerIds.filter((id) =>
+    selectedManagers.includes(id)
+  )
 
   const toggleDeptId = (departementId: number) => {
     setSelectedDeptIds((prev) =>
@@ -889,10 +991,10 @@ export default function ConformitePage() {
   }
 
   const toggleSelectAllManagerRows = () => {
-    if (effectiveManagerIds.length === managerRows.length) {
+    if (effectiveManagerIds.length === relancableManagerIds.length) {
       setSelectedManagers([])
     } else {
-      setSelectedManagers(managerRows.map((m) => m.id))
+      setSelectedManagers(relancableManagerIds)
     }
   }
 
@@ -918,14 +1020,31 @@ export default function ConformitePage() {
           count: d.nonFormes,
         }))
     }
-    return managerRows
+    // Un destinataire par MANAGER : ses lignes d'équipes sont fusionnées
+    // (le mail liste tous ses collaborateurs non formés, toutes équipes
+    // confondues).
+    const parManager = new Map<number, { nom: string; equipes: string[]; count: number }>()
+    managerRows
       .filter((m) => effectiveManagerIds.includes(m.id))
-      .map((m) => ({
-        key: `mgr-${m.id}`,
-        nom: m.nomComplet,
-        sousTitre: m.departement,
-        count: m.collaborateursNonFormes.length,
-      }))
+      .forEach((m) => {
+        const existant = parManager.get(m.id)
+        if (existant) {
+          existant.equipes.push(m.departement)
+          existant.count += m.collaborateursNonFormes.length
+        } else {
+          parManager.set(m.id, {
+            nom: m.nomComplet,
+            equipes: [m.departement],
+            count: m.collaborateursNonFormes.length,
+          })
+        }
+      })
+    return Array.from(parManager.entries()).map(([id, m]) => ({
+      key: `mgr-${id}`,
+      nom: m.nom,
+      sousTitre: m.equipes.join(', '),
+      count: m.count,
+    }))
   })()
 
   const reminderRoleLabel = reminderTarget === 'directeurs' ? 'directeur' : 'manager'
@@ -1737,7 +1856,8 @@ export default function ConformitePage() {
                     <Title order={3}>Vue par organisation</Title>
                     <Text size="sm" c="dimmed">
                       Relancez le directeur d&apos;un departement ou le manager d&apos;une equipe.
-                      Depliez une ligne pour voir le detail formation par formation.
+                      Depliez une ligne pour voir le detail formation par formation, puis
+                      « Voir le detail » pour la liste nominative (formes et non formes).
                     </Text>
                   </Stack>
                 </Group>
@@ -1811,7 +1931,17 @@ export default function ConformitePage() {
                                   <Table.Th className="no-print" style={{ width: 40 }}></Table.Th>
                                   <Table.Th style={{ width: 40 }}></Table.Th>
                                   <Table.Th style={{ minWidth: 160 }}>Departement</Table.Th>
-                                  <Table.Th style={{ minWidth: 160 }}>Directeur</Table.Th>
+                                  <Table.Th style={{ minWidth: 160 }}>
+                                    <Tooltip
+                                      label="Directeur rattache au departement (population rollupee : ses equipes comprises). Il peut differer du manager direct affiche dans la vue par equipe."
+                                      multiline
+                                      w={280}
+                                    >
+                                      <Text size="sm" fw={700} style={{ cursor: 'help' }}>
+                                        Directeur
+                                      </Text>
+                                    </Tooltip>
+                                  </Table.Th>
                                   <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
                                   <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
                                   <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
@@ -2062,17 +2192,29 @@ export default function ConformitePage() {
                                                               )}
                                                             </Table.Td>
                                                             <Table.Td className="no-print">
-                                                              <Button
-                                                                variant="subtle"
-                                                                size="xs"
-                                                                leftSection={<Eye size={14} weight="bold" />}
-                                                                disabled={ligne.total === 0}
-                                                                onClick={() =>
-                                                                  openFormationDetail(ligne.formation, row.departement)
-                                                                }
+                                                              {/* La modale liste formes ET non formes : le
+                                                                  libelle ne doit pas promettre les seuls
+                                                                  non formes. */}
+                                                              <Tooltip
+                                                                label="Liste nominative : non formes et formes de cette formation"
+                                                                multiline
+                                                                w={240}
                                                               >
-                                                                Voir les non formes
-                                                              </Button>
+                                                                <Button
+                                                                  variant="subtle"
+                                                                  size="xs"
+                                                                  leftSection={<Eye size={14} weight="bold" />}
+                                                                  disabled={ligne.total === 0}
+                                                                  onClick={() =>
+                                                                    openFormationDetail(ligne.formation, {
+                                                                      libelle: row.departement,
+                                                                      departement: row.departement,
+                                                                    })
+                                                                  }
+                                                                >
+                                                                  Voir le detail
+                                                                </Button>
+                                                              </Tooltip>
                                                             </Table.Td>
                                                           </Table.Tr>
                                                         )
@@ -2125,7 +2267,7 @@ export default function ConformitePage() {
                         <>
                           {managerRows.length === 0 ? (
                             <Text size="sm" c="dimmed" ta="center" py="md">
-                              Aucun manager avec des collaborateurs non formes sur cette periode.
+                              Aucune equipe a afficher pour cette periode.
                             </Text>
                           ) : (
                             <>
@@ -2134,13 +2276,14 @@ export default function ConformitePage() {
                                 <Checkbox
                                   size="xs"
                                   label="Tout selectionner"
+                                  disabled={relancableManagerIds.length === 0}
                                   checked={
-                                    managerRows.length > 0 &&
-                                    effectiveManagerIds.length === managerRows.length
+                                    relancableManagerIds.length > 0 &&
+                                    effectiveManagerIds.length === relancableManagerIds.length
                                   }
                                   indeterminate={
                                     effectiveManagerIds.length > 0 &&
-                                    effectiveManagerIds.length < managerRows.length
+                                    effectiveManagerIds.length < relancableManagerIds.length
                                   }
                                   onChange={toggleSelectAllManagerRows}
                                 />
@@ -2154,14 +2297,28 @@ export default function ConformitePage() {
                                 </Button>
                               </Group>
 
-                              <Table.ScrollContainer minWidth={700}>
+                              {/* Meme structure que la vue par departement : l'unite
+                                  d'abord, puis la personne qui la gere, puis les
+                                  compteurs. La ligne se deplie sur le detail par
+                                  formation, avec la meme modale nominative. */}
+                              <Table.ScrollContainer minWidth={900}>
                                 <Table striped highlightOnHover withTableBorder>
                                   <Table.Thead>
                                     <Table.Tr>
                                       <Table.Th className="no-print" style={{ width: 40 }}></Table.Th>
                                       <Table.Th style={{ width: 40 }}></Table.Th>
-                                      <Table.Th style={{ minWidth: 180 }}>Equipe</Table.Th>
-                                      <Table.Th style={{ minWidth: 160 }}>Responsable</Table.Th>
+                                      <Table.Th style={{ minWidth: 160 }}>Equipe</Table.Th>
+                                      <Table.Th style={{ minWidth: 160 }}>
+                                        <Tooltip
+                                          label="Manager hierarchique direct des collaborateurs de l'equipe. Il peut differer du directeur du departement (vue par departement)."
+                                          multiline
+                                          w={280}
+                                        >
+                                          <Text size="sm" fw={700} style={{ cursor: 'help' }}>
+                                            Manager
+                                          </Text>
+                                        </Tooltip>
+                                      </Table.Th>
                                       <Table.Th style={{ minWidth: 140 }}>Departement</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
@@ -2183,23 +2340,36 @@ export default function ConformitePage() {
                                   <Table.Tbody>
                                     {managerRows.map((row) => {
                                       const couleurTauxEquipe = getCoverageColor(row.tauxConformite)
-                                      const deplieEquipe = expandedManagerIds.includes(row.id)
-                                      const relancableEquipe = row.peutEtreRelance && emailConfigured
+                                      const deplieEquipe = expandedManagerIds.includes(row.key)
+                                      const relancableEquipe = isEquipeRelancable(row)
                                       const raisonBlocageEquipe = !row.peutEtreRelance
-                                        ? "Ce responsable n'a pas d'adresse email renseignee"
-                                        : !emailConfigured
-                                          ? "L'envoi d'emails n'est pas configure"
-                                          : `Relancer ${row.nomComplet}`
+                                        ? "Ce manager n'a pas d'adresse email renseignee"
+                                        : row.nonFormes === 0
+                                          ? 'Toute l\'equipe est conforme : rien a relancer'
+                                          : !emailConfigured
+                                            ? "L'envoi d'emails n'est pas configure"
+                                            : `Relancer ${row.nomComplet}`
+                                      // L'unite brute est deja un departement (ou une equipe
+                                      // orpheline) : le rattachement est elle-meme.
+                                      const rattachementDirect = row.departementRattachement === row.departement
 
                                       return (
-                                      <Fragment key={row.id}>
+                                      <Fragment key={row.key}>
                                       <Table.Tr>
                                         <Table.Td className="no-print">
-                                          <Checkbox
-                                            size="xs"
-                                            checked={effectiveManagerIds.includes(row.id)}
-                                            onChange={() => toggleManager(row.id)}
-                                          />
+                                          {relancableEquipe ? (
+                                            <Checkbox
+                                              size="xs"
+                                              checked={effectiveManagerIds.includes(row.id)}
+                                              onChange={() => toggleManager(row.id)}
+                                            />
+                                          ) : (
+                                            <Tooltip label={raisonBlocageEquipe} multiline w={240}>
+                                              <Box>
+                                                <Checkbox size="xs" checked={false} disabled readOnly />
+                                              </Box>
+                                            </Tooltip>
+                                          )}
                                         </Table.Td>
                                         <Table.Td>
                                           <Tooltip
@@ -2215,17 +2385,17 @@ export default function ConformitePage() {
                                               size="sm"
                                               aria-label={
                                                 deplieEquipe
-                                                  ? `Masquer le detail de ${row.nomComplet}`
-                                                  : `Voir le detail de ${row.nomComplet}`
+                                                  ? `Masquer le detail de ${row.departement}`
+                                                  : `Voir le detail de ${row.departement}`
                                               }
-                                              onClick={() => toggleExpandedManager(row.id)}
+                                              onClick={() => toggleExpandedManager(row.key)}
                                             >
                                               {deplieEquipe ? <CaretDown size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />}
                                             </ActionIcon>
                                           </Tooltip>
                                         </Table.Td>
                                         <Table.Td>
-                                          <Text size="sm" fw={600}>{row.nomComplet}</Text>
+                                          <Text size="sm" fw={600}>{row.departement}</Text>
                                         </Table.Td>
                                         <Table.Td>
                                           <Stack gap={2}>
@@ -2238,7 +2408,9 @@ export default function ConformitePage() {
                                           </Stack>
                                         </Table.Td>
                                         <Table.Td>
-                                          <Text size="sm" c="dimmed">{row.departement}</Text>
+                                          <Text size="sm" c="dimmed">
+                                            {rattachementDirect ? 'Rattachement direct' : row.departementRattachement}
+                                          </Text>
                                         </Table.Td>
                                         <Table.Td style={{ textAlign: 'center' }}>
                                           <Text size="sm">{row.totalCollaborateurs}</Text>
@@ -2265,22 +2437,24 @@ export default function ConformitePage() {
                                         </Table.Td>
                                         <Table.Td className="no-print">
                                           <Group gap="xs" wrap="nowrap">
-                                            <Button
-                                              variant="subtle"
-                                              size="xs"
-                                              leftSection={<Eye size={14} weight="bold" />}
-                                              disabled={row.collaborateursNonFormes.length === 0}
-                                              onClick={() => setManagerDetail(row)}
-                                            >
-                                              Details
-                                            </Button>
+                                            <Tooltip label="Collaborateurs non formes de l'equipe et formations manquantes">
+                                              <Button
+                                                variant="subtle"
+                                                size="xs"
+                                                leftSection={<Eye size={14} weight="bold" />}
+                                                disabled={row.collaborateursNonFormes.length === 0}
+                                                onClick={() => setManagerDetail(row)}
+                                              >
+                                                Non formes
+                                              </Button>
+                                            </Tooltip>
                                             <Tooltip label={raisonBlocageEquipe} multiline w={240}>
                                               <Box>
                                                 <Button
                                                   variant="light"
                                                   size="xs"
                                                   leftSection={<EnvelopeSimple size={14} weight="bold" />}
-                                                  disabled={!relancableEquipe}
+                                                  disabled={!relancableEquipe || !emailConfigured}
                                                   onClick={() => {
                                                     setSelectedManagers([row.id])
                                                     openReminderModal('managers')
@@ -2294,55 +2468,124 @@ export default function ConformitePage() {
                                         </Table.Td>
                                       </Table.Tr>
 
+                                      {/* Detail par formation de l'equipe : meme tableau que
+                                          pour un departement, meme modale nominative. */}
                                       {deplieEquipe && (
                                         <Table.Tr>
                                           <Table.Td colSpan={10} style={{ padding: 0 }}>
-                                            <Box p="md" bg="var(--mantine-color-gray-0)">
-                                              <Text size="xs" fw={700} tt="uppercase" c="dimmed" mb="xs">
-                                                Detail par formation
-                                              </Text>
-                                              <Table striped withTableBorder>
-                                                <Table.Thead>
-                                                  <Table.Tr>
-                                                    <Table.Th>Formation</Table.Th>
-                                                    <Table.Th style={{ textAlign: 'center' }}>Formes</Table.Th>
-                                                    <Table.Th style={{ textAlign: 'center' }}>A former</Table.Th>
-                                                    <Table.Th style={{ minWidth: 160 }}>Taux</Table.Th>
-                                                  </Table.Tr>
-                                                </Table.Thead>
-                                                <Table.Tbody>
-                                                  {detailParFormationDeLEquipe(row).map((detail) => {
-                                                    const couleurDetail = getCoverageColor(detail.taux)
-                                                    return (
-                                                      <Table.Tr key={detail.formation.id}>
-                                                        <Table.Td>
-                                                          <Text size="sm">{detail.formation.nomFormation}</Text>
-                                                        </Table.Td>
-                                                        <Table.Td style={{ textAlign: 'center' }}>
-                                                          <Text size="sm" c="green" fw={600}>{detail.formes}</Text>
-                                                        </Table.Td>
-                                                        <Table.Td style={{ textAlign: 'center' }}>
-                                                          <Text size="sm" c="red" fw={600}>{detail.nonFormes}</Text>
-                                                        </Table.Td>
-                                                        <Table.Td>
-                                                          <Group gap="xs" wrap="nowrap">
-                                                            <Progress
-                                                              value={detail.taux}
-                                                              color={couleurDetail}
-                                                              size="sm"
-                                                              radius="md"
-                                                              style={{ flex: 1, minWidth: 60 }}
-                                                            />
-                                                            <Text size="sm" fw={700} c={couleurDetail === 'yellow' ? 'yellow.7' : couleurDetail}>
-                                                              {detail.taux}%
-                                                            </Text>
-                                                          </Group>
-                                                        </Table.Td>
-                                                      </Table.Tr>
-                                                    )
-                                                  })}
-                                                </Table.Tbody>
-                                              </Table>
+                                            <Box p="md" bg="var(--mantine-color-gray-light)">
+                                              {(() => {
+                                                const detail = detailParFormationDeLEquipe(row)
+                                                if (detail.length === 0) {
+                                                  return (
+                                                    <Text size="sm" c="dimmed" ta="center" py="sm">
+                                                      Aucune formation dans le perimetre selectionne.
+                                                    </Text>
+                                                  )
+                                                }
+                                                // Perimetre de la modale : les membres de l'equipe
+                                                // par identifiant, ou le libelle brut de l'unite en
+                                                // repli (API anterieure sans `collaborateurIds`).
+                                                const scopeEquipe: FormationScope = row.collaborateurIds
+                                                  ? { libelle: row.departement, collaborateurIds: row.collaborateurIds }
+                                                  : { libelle: row.departement, unite: row.departement }
+                                                return (
+                                                  <Stack gap="xs">
+                                                    <Text size="xs" c="dimmed">
+                                                      Detail de <strong>{row.departement}</strong> (manager :{' '}
+                                                      {row.nomComplet}) formation par formation. Le taux
+                                                      ci-dessous est un <strong>taux par formation</strong>{' '}
+                                                      (a suivi CETTE formation) : il differe du taux de
+                                                      conformite de la ligne, qui exige {regleConformite}.
+                                                    </Text>
+                                                    <Table withTableBorder highlightOnHover>
+                                                      <Table.Thead>
+                                                        <Table.Tr>
+                                                          <Table.Th style={{ minWidth: 200 }}>Formation</Table.Th>
+                                                          <Table.Th style={{ textAlign: 'center' }}>Formes</Table.Th>
+                                                          <Table.Th style={{ textAlign: 'center' }}>A former</Table.Th>
+                                                          <Table.Th style={{ minWidth: 150 }}>
+                                                            Taux par formation
+                                                          </Table.Th>
+                                                          <Table.Th className="no-print" style={{ minWidth: 170 }}>Actions</Table.Th>
+                                                        </Table.Tr>
+                                                      </Table.Thead>
+                                                      <Table.Tbody>
+                                                        {detail.map((ligne) => {
+                                                          const couleurLigne = getCoverageColor(ligne.taux)
+                                                          return (
+                                                            <Table.Tr key={ligne.formation.id}>
+                                                              <Table.Td>
+                                                                <Stack gap={2}>
+                                                                  <Text size="sm" fw={500}>
+                                                                    {ligne.formation.nomFormation}
+                                                                  </Text>
+                                                                  <Text size="xs" c="dimmed">
+                                                                    {ligne.formation.codeFormation}
+                                                                  </Text>
+                                                                </Stack>
+                                                              </Table.Td>
+                                                              <Table.Td style={{ textAlign: 'center' }}>
+                                                                <Text size="sm" c="green" fw={600}>
+                                                                  {ligne.formes}
+                                                                </Text>
+                                                              </Table.Td>
+                                                              <Table.Td style={{ textAlign: 'center' }}>
+                                                                <Text size="sm" c="red" fw={600}>
+                                                                  {ligne.nonFormes}
+                                                                </Text>
+                                                              </Table.Td>
+                                                              <Table.Td>
+                                                                {ligne.total === 0 ? (
+                                                                  <Text size="xs" c="dimmed">
+                                                                    Aucun collaborateur
+                                                                  </Text>
+                                                                ) : (
+                                                                  <Group gap="xs" wrap="nowrap">
+                                                                    <Progress
+                                                                      value={ligne.taux}
+                                                                      color={couleurLigne}
+                                                                      size="sm"
+                                                                      radius="md"
+                                                                      style={{ flex: 1, minWidth: 60 }}
+                                                                    />
+                                                                    <Text
+                                                                      size="sm"
+                                                                      fw={700}
+                                                                      c={couleurLigne === 'yellow' ? 'yellow.7' : couleurLigne}
+                                                                    >
+                                                                      {ligne.taux}%
+                                                                    </Text>
+                                                                  </Group>
+                                                                )}
+                                                              </Table.Td>
+                                                              <Table.Td className="no-print">
+                                                                <Tooltip
+                                                                  label="Liste nominative : non formes et formes de cette formation"
+                                                                  multiline
+                                                                  w={240}
+                                                                >
+                                                                  <Button
+                                                                    variant="subtle"
+                                                                    size="xs"
+                                                                    leftSection={<Eye size={14} weight="bold" />}
+                                                                    disabled={ligne.total === 0}
+                                                                    onClick={() =>
+                                                                      openFormationDetail(ligne.formation, scopeEquipe)
+                                                                    }
+                                                                  >
+                                                                    Voir le detail
+                                                                  </Button>
+                                                                </Tooltip>
+                                                              </Table.Td>
+                                                            </Table.Tr>
+                                                          )
+                                                        })}
+                                                      </Table.Tbody>
+                                                    </Table>
+                                                  </Stack>
+                                                )
+                                              })()}
                                             </Box>
                                           </Table.Td>
                                         </Table.Tr>
@@ -2422,9 +2665,9 @@ export default function ConformitePage() {
           title={
             managerDetail && (
               <Stack gap={2}>
-                <Title order={4}>{managerDetail.nomComplet}</Title>
+                <Title order={4}>{managerDetail.departement}</Title>
                 <Text size="xs" c="dimmed">
-                  {managerDetail.departement} — {managerDetail.collaborateursNonFormes.length} collaborateur(s) non forme(s)
+                  Manager : {managerDetail.nomComplet} — {managerDetail.collaborateursNonFormes.length} collaborateur(s) non forme(s)
                 </Text>
               </Stack>
             )
@@ -2613,7 +2856,7 @@ export default function ConformitePage() {
         {/* ===== FORMATION DETAIL MODAL =====
             Modale nominative UNIQUE de la page : elle sert au tableau « Detail
             par formation » (toute la population) comme au depliage d'un
-            departement (`selectedFormationDept` renseigne). */}
+            departement ou d'une equipe (`selectedFormationScope` renseigne). */}
         <Modal
           opened={!!selectedFormation}
           onClose={closeFormationDetail}
@@ -2624,9 +2867,9 @@ export default function ConformitePage() {
                 <Text size="xs" c="dimmed">
                   {selectedFormation.codeFormation} - {selectedFormation.categorie}
                 </Text>
-                {selectedFormationDept && (
+                {selectedFormationScope && (
                   <Badge variant="light" color="grape" size="sm">
-                    {selectedFormationDept}
+                    {selectedFormationScope.libelle}
                   </Badge>
                 )}
               </Stack>
@@ -2661,7 +2904,7 @@ export default function ConformitePage() {
                       </ThemeIcon>
                       <Text size="lg" fw={600}>Tous les collaborateurs sont formes !</Text>
                       <Text size="sm" c="dimmed">
-                        Aucun collaborateur {selectedFormationDept ? 'de ce departement ' : ''}
+                        Aucun collaborateur {selectedFormationScope ? `de ${selectedFormationScope.libelle} ` : ''}
                         n'est en attente de cette formation.
                       </Text>
                     </Stack>
@@ -2670,9 +2913,32 @@ export default function ConformitePage() {
                   <Stack gap="xs" style={{ maxHeight: 420, overflowY: 'auto' }}>
                     {formationModalNonFormes.map((collab) => (
                       <Paper key={collab.id} withBorder p="sm" radius="md">
-                        <Group justify="space-between">
-                          <Text size="sm" fw={500}>{collab.nomComplet}</Text>
-                          <Text size="xs" c="dimmed">{collab.departement}</Text>
+                        <Group justify="space-between" align="flex-start" wrap="nowrap">
+                          <Stack gap={2}>
+                            <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                            <Text size="xs" c="dimmed">{collab.departement}</Text>
+                          </Stack>
+                          {/* Session deja engagee / planifiee (statuts « En cours » /
+                              « Inscrit » du recapitulatif Orange Learning, ou saisie
+                              manuelle) : le collaborateur reste non forme, mais la RH
+                              sait qu'il n'est pas a relancer de zero. */}
+                          {collab.sessionEnCours && (
+                            <Tooltip
+                              label={`${collab.sessionEnCours.statut === 'en_cours' ? 'Formation en cours' : 'Inscrit a la formation'} — source : ${collab.sessionEnCours.source}${collab.sessionEnCours.dateDebut ? `, debut le ${new Date(collab.sessionEnCours.dateDebut).toLocaleDateString('fr-FR')}` : ''}`}
+                              multiline
+                              w={260}
+                            >
+                              <Badge
+                                variant="light"
+                                color={collab.sessionEnCours.statut === 'en_cours' ? 'blue' : 'gray'}
+                                size="sm"
+                              >
+                                {collab.sessionEnCours.statut === 'en_cours' ? 'En cours' : 'Inscrit'}
+                                {' · '}
+                                {collab.sessionEnCours.source}
+                              </Badge>
+                            </Tooltip>
+                          )}
                         </Group>
                       </Paper>
                     ))}
@@ -2689,7 +2955,7 @@ export default function ConformitePage() {
                       </ThemeIcon>
                       <Text size="lg" fw={600}>Aucun collaborateur forme</Text>
                       <Text size="sm" c="dimmed">
-                        Personne {selectedFormationDept ? 'de ce departement ' : ''}
+                        Personne {selectedFormationScope ? `de ${selectedFormationScope.libelle} ` : ''}
                         n'a encore suivi cette formation sur la periode.
                       </Text>
                     </Stack>

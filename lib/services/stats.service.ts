@@ -271,7 +271,10 @@ export const statsService = {
     type?: 'annuelle' | 'onboarding' | 'securite',
     // Doit rester aligné sur getMandatoryTrainingsKPIs, sinon la liste par
     // manager contredit les chiffres du haut de page.
-    formationIds?: number[]
+    formationIds?: number[],
+    // Lister aussi les équipes 100 % conformes (vue « Par équipe » alignée
+    // sur la vue par département, où les départements à 100 % apparaissent).
+    inclureEquipesConformes?: boolean
   ): Promise<any> {
     const params: any = {};
     if (periode) params.periode = periode;
@@ -286,6 +289,8 @@ export const statsService = {
     if (formationIds && formationIds.length > 0) {
       params.formationIds = formationIds.join(',');
     }
+    // Le backend compare strictement à 'true' : ne rien envoyer sinon
+    if (inclureEquipesConformes) params.inclureEquipesConformes = 'true';
     const response = await api.get('/stats/mandatory-trainings-by-manager', { params });
     return response.data;
   },

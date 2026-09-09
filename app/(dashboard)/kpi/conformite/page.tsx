@@ -107,11 +107,21 @@ interface MandatoryTrainingsKPIs {
     collaborateursEnCours?: number
     collaborateursInscrits?: number
     tauxConformite: number
-    formes: Array<{ id: number; nomComplet: string; departement: string; dateFormation: string; source?: string }>
+    formes: Array<{
+      id: number
+      nomComplet: string
+      departement: string
+      /** Département d'imputation (rollup + responsable remonté dans l'unité parente). Optionnel : API antérieure. */
+      departementRattachement?: string
+      dateFormation: string
+      source?: string
+    }>
     nonFormes: Array<{
       id: number
       nomComplet: string
       departement: string
+      /** Département d'imputation (rollup + responsable remonté dans l'unité parente). Optionnel : API antérieure. */
+      departementRattachement?: string
       /**
        * Session NON terminée (en cours ou inscrite) sur cette formation,
        * remontée par les statuts du récapitulatif Orange Learning ou une
@@ -217,6 +227,8 @@ interface MandatoryByManagerResponse {
   departements: Array<{
     id: number
     nom: string
+    /** 'DEPARTEMENT' ou 'EQUIPE'. Optionnel : API antérieure. */
+    type?: string
     /** Département de rattachement (rollup) de l'unité brute. Optionnel : API antérieure. */
     rattachement?: { id: number; nom: string }
     totalNonFormes: number
@@ -766,13 +778,18 @@ export default function ConformitePage() {
 
   /**
    * Libellé du département de rattachement d'un collaborateur.
-   * `formations[].formes/nonFormes[].departement` porte le libellé BRUT (une
-   * équipe le cas échéant) : on le remonte au département parent pour rester
-   * aligné sur les lignes de `parDepartement`.
+   * Le backend l'expose (`departementRattachement`) : rollup des équipes ET
+   * responsable d'unité remonté dans l'unité parente (le directeur IT compte
+   * dans Direction), exactement comme les lignes de `parDepartement`.
+   * Repli pour une API antérieure : rollup côté client du libellé BRUT.
    */
-  const departementDeRattachement = (libelle?: string | null): string => {
-    if (!libelle) return 'Non défini'
-    return rollupDepartements.get(libelle) ?? libelle
+  const departementDeRattachement = (c: {
+    departement?: string | null
+    departementRattachement?: string | null
+  }): string => {
+    if (c.departementRattachement) return c.departementRattachement
+    if (!c.departement) return 'Non défini'
+    return rollupDepartements.get(c.departement) ?? c.departement
   }
 
   /**
@@ -786,10 +803,10 @@ export default function ConformitePage() {
   ): DetailFormationDepartement[] =>
     (mandatoryData?.formations ?? []).map((formation) => {
       const formes = formation.formes.filter(
-        (c) => departementDeRattachement(c.departement) === departement
+        (c) => departementDeRattachement(c) === departement
       ).length
       const nonFormes = formation.nonFormes.filter(
-        (c) => departementDeRattachement(c.departement) === departement
+        (c) => departementDeRattachement(c) === departement
       ).length
       const total = formes + nonFormes
       return {
@@ -886,7 +903,11 @@ export default function ConformitePage() {
 
   // Appartenance d'un collaborateur au périmètre de la modale : par
   // identifiant pour une équipe, par libellé rollupé pour un département.
-  const appartientAuScope = (c: { id: number; departement: string }): boolean => {
+  const appartientAuScope = (c: {
+    id: number
+    departement: string
+    departementRattachement?: string
+  }): boolean => {
     if (!selectedFormationScope) return true
     if (selectedFormationScope.collaborateurIds) {
       return selectedFormationScope.collaborateurIds.includes(c.id)
@@ -895,7 +916,7 @@ export default function ConformitePage() {
       return c.departement === selectedFormationScope.unite
     }
     if (selectedFormationScope.departement) {
-      return departementDeRattachement(c.departement) === selectedFormationScope.departement
+      return departementDeRattachement(c) === selectedFormationScope.departement
     }
     return true
   }
@@ -914,10 +935,16 @@ export default function ConformitePage() {
   // confondus. Un manager réparti sur deux unités donne deux lignes — c'est la
   // sémantique de l'onglet ; l'ancienne déduplication par manager jetait la
   // seconde ligne et ses collaborateurs avec.
+  // Seules les unités de type EQUIPE sont des équipes : les collaborateurs
+  // rattachés directement à un DEPARTEMENT (Communication, HR, Finance…)
+  // relèvent de la vue par département et de la relance de son directeur.
+  // Une réponse d'API antérieure sans `type` garde toutes les unités.
   // Tri du moins conforme au plus conforme, comme la vue par département.
   const managerRows: OrgManagerRow[] = (() => {
     const rows: OrgManagerRow[] = []
-    ;(byManagerData?.departements ?? []).forEach((d) => {
+    ;(byManagerData?.departements ?? [])
+      .filter((d) => !d.type || d.type.toUpperCase() === 'EQUIPE')
+      .forEach((d) => {
       ;(d.managers ?? []).forEach((m) => {
         const nonFormes = m.collaborateursNonFormes ?? []
         rows.push({

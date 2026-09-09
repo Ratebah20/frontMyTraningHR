@@ -152,8 +152,6 @@ interface OrgManagerRow {
   /** Unité BRUTE de rattachement des collaborateurs : l'équipe */
   departementId: number
   departement: string
-  /** Département de rattachement (rollup backend), l'équipe elle-même si orpheline */
-  departementRattachement: string
   /** Membres de l'équipe (formés compris). Absent d'une réponse d'API antérieure. */
   collaborateurIds?: number[]
   totalCollaborateurs: number
@@ -928,7 +926,6 @@ export default function ConformitePage() {
           nomComplet: m.nomComplet || m.nom || `Manager #${m.id}`,
           departementId: d.id,
           departement: d.nom,
-          departementRattachement: d.rattachement?.nom ?? d.nom,
           collaborateurIds: m.collaborateurIds,
           // Replis défensifs : une réponse d'API antérieure à l'enrichissement
           // ne porte pas ces champs, la vue reste alors lisible.
@@ -2319,7 +2316,6 @@ export default function ConformitePage() {
                                           </Text>
                                         </Tooltip>
                                       </Table.Th>
-                                      <Table.Th style={{ minWidth: 140 }}>Departement</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Collaborateurs</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Conformes</Table.Th>
                                       <Table.Th style={{ textAlign: 'center' }}>Non conformes</Table.Th>
@@ -2349,10 +2345,6 @@ export default function ConformitePage() {
                                           : !emailConfigured
                                             ? "L'envoi d'emails n'est pas configure"
                                             : `Relancer ${row.nomComplet}`
-                                      // L'unite brute est deja un departement (ou une equipe
-                                      // orpheline) : le rattachement est elle-meme.
-                                      const rattachementDirect = row.departementRattachement === row.departement
-
                                       return (
                                       <Fragment key={row.key}>
                                       <Table.Tr>
@@ -2406,11 +2398,6 @@ export default function ConformitePage() {
                                               </Badge>
                                             )}
                                           </Stack>
-                                        </Table.Td>
-                                        <Table.Td>
-                                          <Text size="sm" c="dimmed">
-                                            {rattachementDirect ? 'Rattachement direct' : row.departementRattachement}
-                                          </Text>
                                         </Table.Td>
                                         <Table.Td style={{ textAlign: 'center' }}>
                                           <Text size="sm">{row.totalCollaborateurs}</Text>
@@ -2472,7 +2459,7 @@ export default function ConformitePage() {
                                           pour un departement, meme modale nominative. */}
                                       {deplieEquipe && (
                                         <Table.Tr>
-                                          <Table.Td colSpan={10} style={{ padding: 0 }}>
+                                          <Table.Td colSpan={9} style={{ padding: 0 }}>
                                             <Box p="md" bg="var(--mantine-color-gray-light)">
                                               {(() => {
                                                 const detail = detailParFormationDeLEquipe(row)

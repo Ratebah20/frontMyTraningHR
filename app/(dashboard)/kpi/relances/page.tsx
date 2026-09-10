@@ -39,8 +39,17 @@ import { WarningCircle } from '@phosphor-icons/react/dist/ssr/WarningCircle';
 import { ArrowClockwise } from '@phosphor-icons/react/dist/ssr/ArrowClockwise';
 import { CaretRight } from '@phosphor-icons/react/dist/ssr/CaretRight';
 import { CaretDown } from '@phosphor-icons/react/dist/ssr/CaretDown';
-import { notificationsService } from '@/lib/services';
+import { notificationsService, exportsService } from '@/lib/services';
 import type { ReminderHistoryEntry } from '@/lib/services';
+import { StickyActions } from '@/components/StickyActions';
+import { ExcelExportButton } from '@/components/ExcelExportButton';
+
+/** Nature du destinataire ; les relances anterieures a la colonne valent manager */
+const LIBELLES_DESTINATAIRE: Record<string, string> = {
+  manager: 'Manager',
+  departement: 'Directeur',
+  collaborateur: 'Collaborateur',
+};
 
 /** Libellés des périmètres de campagne, alignés sur /kpi/conformite. */
 const LIBELLES_TYPE: Record<string, string> = {
@@ -76,6 +85,8 @@ export default function HistoriqueRelancesPage() {
   // le statut côté client (la colonne n'est pas filtrable par l'API).
   const [filtreType, setFiltreType] = useState<string>('tous');
   const [filtreStatut, setFiltreStatut] = useState<string>('tous');
+  // Nature du destinataire (manager / directeur / collaborateur), appliquee cote serveur
+  const [filtreDestinataire, setFiltreDestinataire] = useState<string>('tous');
   // Mantine 8 : DatePickerInput rend des chaines 'YYYY-MM-DD', pas des Date.
   const [plage, setPlage] = useState<[string | null, string | null]>([null, null]);
 
@@ -88,6 +99,7 @@ export default function HistoriqueRelancesPage() {
       const [debut, fin] = plage;
       const data = await notificationsService.getReminderHistory({
         type: filtreType === 'tous' ? undefined : filtreType,
+        destinataireType: filtreDestinataire === 'tous' ? undefined : filtreDestinataire,
         startDate: debut ?? undefined,
         // Borne haute incluse : sans l'heure, une relance envoyée dans la
         // journée du dernier jour choisi serait exclue.
@@ -107,7 +119,7 @@ export default function HistoriqueRelancesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filtreType, plage]);
+  }, [filtreType, filtreDestinataire, plage]);
 
   useEffect(() => {
     chargerHistorique();
@@ -172,9 +184,38 @@ export default function HistoriqueRelancesPage() {
         </Button>
       </Group>
 
+      {/* Barre d'actions collante : l'export reste visible en defilant la page.
+          Il reprend les filtres serveur (campagne, destinataire, periode). */}
+      <StickyActions>
+        <ExcelExportButton
+          onExport={() =>
+            exportsService.exportRelances({
+              type: filtreType === 'tous' ? undefined : filtreType,
+              destinataireType: filtreDestinataire === 'tous' ? undefined : filtreDestinataire,
+              startDate: plage[0] ?? undefined,
+              endDate: plage[1] ?? undefined,
+            })
+          }
+          filename={`relances_${new Date().toISOString().split('T')[0]}.xlsx`}
+          label="Exporter l'historique (Excel)"
+        />
+      </StickyActions>
+
       {/* Filtres */}
       <Paper shadow="sm" p="lg" radius="md" withBorder mb="lg">
         <Group gap="md" align="flex-end" wrap="wrap">
+          <Select
+            label="Destinataire"
+            data={[
+              { value: 'tous', label: 'Tous les destinataires' },
+              { value: 'manager', label: LIBELLES_DESTINATAIRE.manager },
+              { value: 'departement', label: LIBELLES_DESTINATAIRE.departement },
+              { value: 'collaborateur', label: `${LIBELLES_DESTINATAIRE.collaborateur} (relance individuelle)` },
+            ]}
+            value={filtreDestinataire}
+            onChange={(valeur) => setFiltreDestinataire(valeur ?? 'tous')}
+            w={260}
+          />
           <Select
             label="Type de campagne"
             data={[
@@ -287,6 +328,7 @@ export default function HistoriqueRelancesPage() {
                   <Table.Th w={40} />
                   <Table.Th>Date d&apos;envoi</Table.Th>
                   <Table.Th>Destinataire</Table.Th>
+                  <Table.Th>Nature</Table.Th>
                   <Table.Th>Type de campagne</Table.Th>
                   <Table.Th>Période</Table.Th>
                   <Table.Th>Statut</Table.Th>
@@ -329,6 +371,21 @@ export default function HistoriqueRelancesPage() {
                               {relance.managerEmail || 'Aucune adresse'}
                             </Text>
                           </Stack>
+                        </Table.Td>
+                        <Table.Td>
+                          <Badge
+                            size="sm"
+                            variant="light"
+                            color={
+                              relance.destinataireType === 'collaborateur'
+                                ? 'blue'
+                                : relance.destinataireType === 'departement'
+                                  ? 'grape'
+                                  : 'gray'
+                            }
+                          >
+                            {LIBELLES_DESTINATAIRE[relance.destinataireType ?? 'manager'] ?? 'Manager'}
+                          </Badge>
                         </Table.Td>
                         <Table.Td>
                           {relance.type ? (
@@ -386,7 +443,7 @@ export default function HistoriqueRelancesPage() {
 
                       {depliee && (
                         <Table.Tr>
-                          <Table.Td colSpan={8} style={{ padding: 0 }}>
+                          <Table.Td colSpan={9} style={{ padding: 0 }}>
                             <Box p="md" bg="var(--mantine-color-default-hover)">
                               <Stack gap="sm">
                                 {relance.statut !== 'envoye' && relance.erreurMessage && (

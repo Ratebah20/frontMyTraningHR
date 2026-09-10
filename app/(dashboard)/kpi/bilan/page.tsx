@@ -26,6 +26,9 @@ import { Warning } from '@phosphor-icons/react/dist/ssr/Warning'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import { ExportTilesButton } from '@/components/ExportTilesButton'
 import { PrintButton } from '@/components/PrintButton'
+import { StickyActions } from '@/components/StickyActions'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
+import { exportsService } from '@/lib/services'
 import { statsService } from '@/lib/services'
 import { BilanAnnuelResponse } from '@/lib/types'
 
@@ -184,6 +187,24 @@ export default function BilanAnnuelPage() {
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
+        {/* Barre d'actions collante : reste visible en defilant la page */}
+        <StickyActions>
+          {/* Impression de la vue (papier / PDF) + en-tête du document */}
+          <PrintButton
+            title={`Bilan annuel ${annee}`}
+            subtitle={`Chiffres clés de l'année ${annee} — comparaison avec ${Number(annee) - 1}`}
+          />
+          <ExportTilesButton
+            containerRef={tilesRef}
+            filename={`bilan-annuel_${annee}`}
+          />
+          <ExcelExportButton
+            onExport={() => exportsService.exportBilanAnnuel(parseInt(annee, 10))}
+            filename={`bilan-annuel_${annee}.xlsx`}
+            disabled={loading || !data}
+          />
+        </StickyActions>
+
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: -20 }}
           animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
@@ -195,11 +216,6 @@ export default function BilanAnnuelPage() {
               <Text c="dimmed">Chiffres clés de l&apos;année — comparaison avec l&apos;année précédente</Text>
             </Stack>
             <Group gap="sm">
-              {/* Impression de la vue (papier / PDF) + en-tête du document */}
-              <PrintButton
-                title={`Bilan annuel ${annee}`}
-                subtitle={`Chiffres clés de l'année ${annee} — comparaison avec ${Number(annee) - 1}`}
-              />
               <Badge variant="light" color="orange" size="lg">
                 Chiffres au {new Date().toLocaleDateString('fr-FR')}
               </Badge>
@@ -213,12 +229,6 @@ export default function BilanAnnuelPage() {
                 w={110}
                 aria-label="Année du bilan"
               />
-              <div className="no-print">
-                <ExportTilesButton
-                  containerRef={tilesRef}
-                  filename={`bilan-annuel_${annee}`}
-                />
-              </div>
             </Group>
           </Group>
         </motion.div>

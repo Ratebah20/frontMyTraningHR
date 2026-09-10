@@ -42,6 +42,9 @@ import { DetailedKPIsResponse } from '@/lib/types'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { PrintButton } from '@/components/PrintButton'
 import { ExportTilesButton } from '@/components/ExportTilesButton'
+import { StickyActions } from '@/components/StickyActions'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
+import { exportsService } from '@/lib/services'
 
 interface CollaborateursKPIs {
   summary: {
@@ -297,6 +300,35 @@ export default function CollaborateursKPIsPage() {
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
+        {/* Barre d'actions collante : reste visible en defilant la page */}
+        <StickyActions>
+          {/* Impression de la vue (papier / PDF) + en-tête du document */}
+          <PrintButton
+            title="KPIs Collaborateurs"
+            subtitle={`Periode : ${detailedData?.periode.libelle ?? date}${
+              contratFilters.length > 0 ? ` - ${contratFilters.length} type(s) de contrat filtre(s)` : ''
+            }${includeInactifs ? ' - inactifs inclus' : ' - collaborateurs actifs'}`}
+          />
+          <ExportTilesButton
+            containerRef={tilesRef}
+            filename={`kpi-collaborateurs_${date}`}
+          />
+          {/* Meme perimetre que l'ecran : periode, inactifs, types de contrat */}
+          <ExcelExportButton
+            onExport={() =>
+              exportsService.exportKpiCollaborateurs({
+                periode,
+                date,
+                startDate: dateDebut ? dateDebut.toISOString().split('T')[0] : undefined,
+                endDate: dateFin ? dateFin.toISOString().split('T')[0] : undefined,
+                includeInactifs,
+                contratIds: contratFilters,
+              })
+            }
+            filename={`kpi-collaborateurs_${date}.xlsx`}
+          />
+        </StickyActions>
+
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: -20 }}
           animate={reducedMotion ? undefined : { opacity: 1, y: 0 }}
@@ -307,21 +339,6 @@ export default function CollaborateursKPIsPage() {
               <Title order={1}>KPIs Collaborateurs</Title>
               <Text c="dimmed">Statistiques détaillées par catégorie</Text>
             </Stack>
-            <Group gap="sm">
-              {/* Impression de la vue (papier / PDF) + en-tête du document */}
-              <PrintButton
-                title="KPIs Collaborateurs"
-                subtitle={`Periode : ${detailedData?.periode.libelle ?? date}${
-                  contratFilters.length > 0 ? ` - ${contratFilters.length} type(s) de contrat filtre(s)` : ''
-                }${includeInactifs ? ' - inactifs inclus' : ' - collaborateurs actifs'}`}
-              />
-              <div className="no-print">
-                <ExportTilesButton
-                  containerRef={tilesRef}
-                  filename={`kpi-collaborateurs_${date}`}
-                />
-              </div>
-            </Group>
           </Group>
         </motion.div>
 

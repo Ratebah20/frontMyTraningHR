@@ -178,6 +178,9 @@ export interface Formation {
   estSecurite: boolean;
   obligatoireType?: 'annuelle' | 'onboarding' | null;
   obligatoireAnnee?: number | null;
+  // Lien vers la formation (page Orange Learning, catalogue...) : mis derrière
+  // le nom de la formation dans les mails de relance. Optionnel : API antérieure.
+  lienUrl?: string | null;
   categorie?: CategorieFormation;
   organisme?: OrganismeFormation;
   sessions?: SessionFormation[];
@@ -307,6 +310,8 @@ export interface CreateFormationDto {
   estSecurite?: boolean;
   obligatoireType?: 'annuelle' | 'onboarding' | null;
   obligatoireAnnee?: number | null;
+  // URL absolue http(s) ; chaîne vide = aucun lien (normalisée en null par le backend)
+  lienUrl?: string | null;
 }
 
 export interface UpdateFormationDto {
@@ -322,6 +327,8 @@ export interface UpdateFormationDto {
   estSecurite?: boolean;
   obligatoireType?: 'annuelle' | 'onboarding' | null;
   obligatoireAnnee?: number | null;
+  // URL absolue http(s) ; chaîne vide = aucun lien (normalisée en null par le backend)
+  lienUrl?: string | null;
 }
 
 export interface CreateSessionDto {

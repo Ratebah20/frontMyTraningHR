@@ -261,9 +261,15 @@ export default function DashboardPage() {
 
     // Ligne 4 : Volumétrie (2 KPIs)
     {
-      title: "Heures formation",
+      // Heures SUIVIES (× participants) : le même chiffre que « heures de
+      // formation suivies » du bilan annuel, calculé par la même méthode
+      // backend. Les heures dispensées (une fois par session) sont rappelées
+      // en sous-titre pour ne plus lire deux totaux inexpliqués.
+      title: "Heures formation suivies",
       value: summary.heuresFormationPeriode || 0,
-      subtitle: periode === 'mois' ? 'Ce mois' : 'Cette année',
+      subtitle: summary.heuresFormationDispensees !== undefined
+        ? `${periode === 'mois' ? 'Ce mois' : 'Cette année'} · ${(summary.heuresFormationDispensees || 0).toLocaleString('fr-FR')} h dispensées`
+        : (periode === 'mois' ? 'Ce mois' : 'Cette année'),
       icon: Clock,
       color: "orange",
     },

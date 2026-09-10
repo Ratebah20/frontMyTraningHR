@@ -302,6 +302,16 @@
     display: block !important;
   }
 
+  /* Barre d'actions collante des pages KPI (components/StickyActions.tsx) :
+     ses boutons sont deja .no-print, mais elle contient aussi l'en-tete du
+     document imprime (.print-only). On la garde donc dans le flux et on
+     retire seulement son cadre. */
+  .sticky-actions {
+    position: static !important;
+    border: 0 !important;
+    padding: 0 !important;
+  }
+
   /* --- 4. Mise en page -------------------------------------------------------
      AppShell reserve la place du header / navbar / footer via ces variables.
      Ces zones portant .no-print, il faut remettre les decalages a zero : sinon

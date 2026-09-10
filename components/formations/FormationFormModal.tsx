@@ -74,6 +74,7 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
       estCertifiante: false,
       estObligatoire: false,
       estSecurite: false,
+      lienUrl: '',
       // Ce formulaire ne gerait ni le type ni la portee de l'obligation : toute
       // formation creee ici partait obligatoire ET indefinie sans que personne
       // ne l'ait choisi. Les champs sont desormais alignes sur les deux autres
@@ -462,6 +463,14 @@ export function FormationFormModal({ opened, onClose, onSuccess }: FormationForm
                   disabled={loadingTypes}
                   nothingFoundMessage="Tapez pour créer un nouveau type"
                   {...form.getInputProps('typeFormation')}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Lien vers la formation"
+                  description="Page Orange Learning, catalogue... Le nom de la formation devient cliquable dans les mails de relance. URL complete commencant par http(s)://"
+                  placeholder="https://..."
+                  {...form.getInputProps('lienUrl')}
                 />
               </Grid.Col>
             </Grid>

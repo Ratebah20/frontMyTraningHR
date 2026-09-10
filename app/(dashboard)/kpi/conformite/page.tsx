@@ -51,6 +51,7 @@ import { useSearchParams } from 'next/navigation'
 import { useUrlFilters } from '@/hooks/useUrlFilters'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { PrintButton } from '@/components/PrintButton'
+import { StickyActions } from '@/components/StickyActions'
 import { ExportTilesButton } from '@/components/ExportTilesButton'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -186,7 +187,7 @@ interface OrgManagerRow {
  * conformité) a été supprimée avec la matrice : elle faisait doublon avec
  * 'managers' et partait d'une sélection par NOM de département.
  */
-type ReminderTarget = 'directeurs' | 'managers'
+type ReminderTarget = 'directeurs' | 'managers' | 'collaborateurs'
 
 /**
  * Périmètre de la modale nominative d'une formation.
@@ -511,6 +512,11 @@ export default function ConformitePage() {
   // équipe). Sans ce rollup, le détail dépliable d'un département afficherait
   // 0 collaborateur dès que l'effectif est rattaché à des équipes.
   const [rollupDepartements, setRollupDepartements] = useState<Map<string, string>>(new Map())
+
+  // Relance INDIVIDUELLE : collaborateurs coches dans les listes nominatives
+  // (modale d'une formation, modale des non formes d'une equipe). Chacun
+  // recoit son propre mail, avant son manager.
+  const [selectedCollaborateurIds, setSelectedCollaborateurIds] = useState<number[]>([])
 
   // Reminder modal
   const [reminderTarget, setReminderTarget] = useState<ReminderTarget>('directeurs')
@@ -1022,9 +1028,65 @@ export default function ConformitePage() {
     }
   }
 
+  // Collaborateurs NON FORMES connus (toutes equipes + sans manager), par id :
+  // c'est la population relancable individuellement. Sert a intersecter la
+  // selection avec les donnees courantes (changement de periode / perimetre).
+  const nonFormesParId = (() => {
+    const map = new Map<number, { nom: string; equipe: string; nbFormations: number }>()
+    ;(byManagerData?.departements ?? []).forEach((d) => {
+      ;(d.managers ?? []).forEach((m) => {
+        ;(m.collaborateursNonFormes ?? []).forEach((c) => {
+          if (!map.has(c.id)) {
+            map.set(c.id, {
+              nom: c.nomComplet,
+              equipe: d.nom,
+              nbFormations: (c.formationsManquantes ?? []).length,
+            })
+          }
+        })
+      })
+    })
+    ;(byManagerData?.sansManager ?? []).forEach((c) => {
+      if (!map.has(c.id)) {
+        map.set(c.id, {
+          nom: c.nomComplet,
+          equipe: c.departement || 'Sans manager',
+          nbFormations: (c.formationsManquantes ?? []).length,
+        })
+      }
+    })
+    return map
+  })()
+
+  const effectiveCollaborateurIds = selectedCollaborateurIds.filter((id) => nonFormesParId.has(id))
+
+  const toggleCollaborateur = (collaborateurId: number) => {
+    setSelectedCollaborateurIds((prev) =>
+      prev.includes(collaborateurId)
+        ? prev.filter((id) => id !== collaborateurId)
+        : [...prev, collaborateurId]
+    )
+  }
+
+  // Coche / decoche d'un coup les collaborateurs d'une liste affichee
+  const toggleCollaborateurs = (ids: number[]) => {
+    const tousCoches = ids.every((id) => selectedCollaborateurIds.includes(id))
+    setSelectedCollaborateurIds((prev) =>
+      tousCoches ? prev.filter((id) => !ids.includes(id)) : Array.from(new Set([...prev, ...ids]))
+    )
+  }
+
   const openReminderModal = (target: ReminderTarget) => {
     setReminderTarget(target)
     setShowReminderModal(true)
+  }
+
+  // Ouvre la relance individuelle depuis une liste nominative : la modale
+  // d'origine est fermee pour ne pas empiler deux modales.
+  const openIndividualReminder = () => {
+    closeFormationDetail()
+    setManagerDetail(null)
+    openReminderModal('collaborateurs')
   }
 
   // Destinataires affichés dans la modale de confirmation, selon la cible
@@ -1043,6 +1105,19 @@ export default function ConformitePage() {
           sousTitre: d.departement,
           count: d.nonFormes,
         }))
+    }
+    if (reminderTarget === 'collaborateurs') {
+      return effectiveCollaborateurIds.map((id) => {
+        const info = nonFormesParId.get(id)
+        return {
+          key: `collab-${id}`,
+          nom: info?.nom ?? `Collaborateur #${id}`,
+          sousTitre: info?.equipe,
+          // Pour une relance individuelle, le compteur est le nombre de
+          // formations manquantes du collaborateur
+          count: info?.nbFormations ?? 0,
+        }
+      })
     }
     // Un destinataire par MANAGER : ses lignes d'équipes sont fusionnées
     // (le mail liste tous ses collaborateurs non formés, toutes équipes
@@ -1071,7 +1146,12 @@ export default function ConformitePage() {
     }))
   })()
 
-  const reminderRoleLabel = reminderTarget === 'directeurs' ? 'directeur' : 'manager'
+  const reminderRoleLabel =
+    reminderTarget === 'directeurs'
+      ? 'directeur'
+      : reminderTarget === 'collaborateurs'
+        ? 'collaborateur'
+        : 'manager'
 
   // ===== Apercu REEL de la relance =====
   // L'ancien apercu etait un texte fige, sans rapport avec le mail envoye.
@@ -1086,14 +1166,20 @@ export default function ConformitePage() {
   // a chaque rendu, s'en servir comme dependances bouclerait.
   const managerIdsKey = effectiveManagerIds.join(',')
   const deptIdsKey = effectiveDeptIds.join(',')
+  const collabIdsKey = effectiveCollaborateurIds.join(',')
 
   useEffect(() => {
     if (!showReminderModal) return
 
     const managerIds = reminderTarget === 'managers' ? effectiveManagerIds : undefined
     const departementIds = reminderTarget === 'directeurs' ? effectiveDeptIds : undefined
+    const collaborateurIds = reminderTarget === 'collaborateurs' ? effectiveCollaborateurIds : undefined
 
-    if ((managerIds?.length ?? 0) === 0 && (departementIds?.length ?? 0) === 0) {
+    if (
+      (managerIds?.length ?? 0) === 0 &&
+      (departementIds?.length ?? 0) === 0 &&
+      (collaborateurIds?.length ?? 0) === 0
+    ) {
       setReminderPreview(null)
       setPreviewError(null)
       return
@@ -1107,6 +1193,7 @@ export default function ConformitePage() {
       .previewMandatoryTrainingReminders({
         managerIds,
         departementIds,
+        collaborateurIds,
         periode,
         date,
         startDate: dateDebut ? dateDebut.toISOString().split('T')[0] : undefined,
@@ -1138,6 +1225,7 @@ export default function ConformitePage() {
     reminderTarget,
     managerIdsKey,
     deptIdsKey,
+    collabIdsKey,
     periode,
     date,
     urlFilters.startDate,
@@ -1155,14 +1243,29 @@ export default function ConformitePage() {
     count: number
     dernierRappel: { dateEnvoi: string; statut: string } | null
     probleme?: string
+    /** Collaborateurs du mail deja relances individuellement (relance manager / directeur) */
+    dejaRelancesIndividuellement?: Array<{ nom: string; date: string }>
   }> = reminderPreview
     ? reminderPreview.destinataires.map((destinataire, index) => ({
         key: `${destinataire.type}-${destinataire.id}-${index}`,
         nom: destinataire.nom,
         sousTitre: destinataire.departementNom ?? destinataire.email,
-        count: destinataire.collaborateursCount,
+        // Relance individuelle : le compteur est le nombre de formations
+        count:
+          destinataire.type === 'collaborateur'
+            ? destinataire.formationsCount
+            : destinataire.collaborateursCount,
         dernierRappel: destinataire.dernierRappel,
         probleme: destinataire.probleme,
+        dejaRelancesIndividuellement:
+          destinataire.type === 'collaborateur'
+            ? undefined
+            : destinataire.collaborateurs
+                .filter((c) => c.dernierRappelIndividuel)
+                .map((c) => ({
+                  nom: c.nom,
+                  date: new Date(c.dernierRappelIndividuel!.dateEnvoi).toLocaleDateString('fr-FR'),
+                })),
       }))
     : reminderRecipients.map((destinataire) => ({
         ...destinataire,
@@ -1243,8 +1346,13 @@ export default function ConformitePage() {
     // deux listes sont vides : on garde-fou côté client.
     const managerIds = reminderTarget === 'managers' ? effectiveManagerIds : undefined
     const departementIds = reminderTarget === 'directeurs' ? effectiveDeptIds : undefined
+    const collaborateurIds = reminderTarget === 'collaborateurs' ? effectiveCollaborateurIds : undefined
 
-    if ((managerIds?.length ?? 0) === 0 && (departementIds?.length ?? 0) === 0) {
+    if (
+      (managerIds?.length ?? 0) === 0 &&
+      (departementIds?.length ?? 0) === 0 &&
+      (collaborateurIds?.length ?? 0) === 0
+    ) {
       notifications.show({
         title: 'Aucun destinataire',
         message: 'Selectionnez au moins un destinataire avant d\'envoyer les rappels.',
@@ -1262,6 +1370,7 @@ export default function ConformitePage() {
       const result = await notificationsService.sendMandatoryTrainingReminders({
         managerIds,
         departementIds,
+        collaborateurIds,
         periode,
         date,
         startDate: startDateStr,
@@ -1281,7 +1390,7 @@ export default function ConformitePage() {
 
       const totalCible =
         result.totalDestinataires ??
-        (managerIds?.length ?? 0) + (departementIds?.length ?? 0)
+        (managerIds?.length ?? 0) + (departementIds?.length ?? 0) + (collaborateurIds?.length ?? 0)
       const echecs = (result.details ?? []).filter((d) => !d.success)
 
       // Detail des echecs, reutilise pour le succes partiel comme pour l'echec global
@@ -1318,6 +1427,7 @@ export default function ConformitePage() {
 
         // Envoi réussi : on vide la sélection concernée
         if (reminderTarget === 'directeurs') setSelectedDeptIds([])
+        else if (reminderTarget === 'collaborateurs') setSelectedCollaborateurIds([])
         else setSelectedManagers([])
       } else {
         notifications.show({
@@ -1442,6 +1552,30 @@ export default function ConformitePage() {
     <Container size="xl" py="md">
       <Stack gap="lg">
 
+        {/* ===== ACTIONS (barre collante : reste visible en defilant) ===== */}
+        <StickyActions>
+          {/* Impression de la vue (papier / PDF) pour transmission aux
+              managers et directeurs. Rend aussi l'en-tête du document. */}
+          <PrintButton
+            title={`Conformite des formations - ${titrePerimetre}`}
+            subtitle={sousTitreImpression}
+          />
+          {/* Capture PNG des tuiles KPI, pour coller dans une slide */}
+          <ExportTilesButton
+            containerRef={tilesRef}
+            filename={`conformite_${mandatoryType}_${date}`}
+          />
+          <Button
+            className="no-print"
+            leftSection={<DownloadSimple size={18} />}
+            variant="light"
+            onClick={handleExportExcel}
+            loading={exporting}
+          >
+            Exporter (Excel)
+          </Button>
+        </StickyActions>
+
         {/* ===== HEADER ===== */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1456,32 +1590,10 @@ export default function ConformitePage() {
                   Suivi des {libellePerimetre}
                 </Text>
               </Stack>
-              <Group gap="sm">
-                {/* Impression de la vue (papier / PDF) pour transmission aux
-                    managers et directeurs. Rend aussi l'en-tête du document. */}
-                <PrintButton
-                  title={`Conformite des formations - ${titrePerimetre}`}
-                  subtitle={sousTitreImpression}
-                />
-                {/* Capture PNG des tuiles KPI, pour coller dans une slide */}
-                <Box className="no-print">
-                  <ExportTilesButton
-                    containerRef={tilesRef}
-                    filename={`conformite_${mandatoryType}_${date}`}
-                  />
-                </Box>
-                <Button
-                  className="no-print"
-                  leftSection={<DownloadSimple size={18} />}
-                  variant="light"
-                  onClick={handleExportExcel}
-                  loading={exporting}
-                >
-                  Exporter (Excel)
-                </Button>
-                {/* « Temps reel » decrit l'ecran, pas un document fige */}
-                <Badge className="no-print" color="green" variant="light" size="lg">Temps reel</Badge>
-              </Group>
+              {/* « Temps reel » decrit l'ecran, pas un document fige. Les actions
+                  (impression, capture, export) sont dans la barre collante
+                  ci-dessous, visible meme apres avoir fait defiler la page. */}
+              <Badge className="no-print" color="green" variant="light" size="lg">Temps reel</Badge>
             </Group>
             {/* no-print : selecteurs interactifs ; la periode figure dans
                 l'en-tete du document imprime */}
@@ -2700,11 +2812,55 @@ export default function ConformitePage() {
                 </Stack>
               </Center>
             ) : (
+              <Stack gap="xs">
+                {/* no-print : relance individuelle des non formes de l'equipe */}
+                <Group justify="space-between" className="no-print">
+                  <Checkbox
+                    size="xs"
+                    label="Tout selectionner"
+                    checked={managerDetail.collaborateursNonFormes.every((c) => selectedCollaborateurIds.includes(c.id))}
+                    indeterminate={
+                      managerDetail.collaborateursNonFormes.some((c) => selectedCollaborateurIds.includes(c.id)) &&
+                      !managerDetail.collaborateursNonFormes.every((c) => selectedCollaborateurIds.includes(c.id))
+                    }
+                    onChange={() => toggleCollaborateurs(managerDetail.collaborateursNonFormes.map((c) => c.id))}
+                  />
+                  <Tooltip
+                    label={
+                      !emailConfigured
+                        ? "L'envoi d'emails n'est pas configure"
+                        : 'Chaque collaborateur coche recoit son propre mail, avant son manager'
+                    }
+                    multiline
+                    w={240}
+                  >
+                    <Box>
+                      <Button
+                        size="xs"
+                        variant="light"
+                        leftSection={<EnvelopeSimple size={14} weight="bold" />}
+                        disabled={!emailConfigured || effectiveCollaborateurIds.length === 0}
+                        onClick={openIndividualReminder}
+                      >
+                        Relancer les collaborateurs selectionnes ({effectiveCollaborateurIds.length})
+                      </Button>
+                    </Box>
+                  </Tooltip>
+                </Group>
               <Stack gap="xs" style={{ maxHeight: 420, overflowY: 'auto' }}>
                 {managerDetail.collaborateursNonFormes.map((collab) => (
                   <Paper key={collab.id} withBorder p="sm" radius="md">
                     <Stack gap={6}>
-                      <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                      <Group gap="xs" wrap="nowrap">
+                        <Checkbox
+                          size="xs"
+                          className="no-print"
+                          checked={selectedCollaborateurIds.includes(collab.id)}
+                          onChange={() => toggleCollaborateur(collab.id)}
+                          aria-label={`Relancer ${collab.nomComplet}`}
+                        />
+                        <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                      </Group>
                       <Group gap={4}>
                         {(collab.formationsManquantes ?? []).length === 0 ? (
                           <Text size="xs" c="dimmed">Aucune formation manquante detaillee</Text>
@@ -2720,6 +2876,7 @@ export default function ConformitePage() {
                   </Paper>
                 ))}
               </Stack>
+              </Stack>
             )
           )}
         </Modal>
@@ -2731,7 +2888,9 @@ export default function ConformitePage() {
           title={
             reminderTarget === 'directeurs'
               ? 'Envoyer des rappels aux directeurs'
-              : 'Envoyer des rappels aux managers'
+              : reminderTarget === 'collaborateurs'
+                ? 'Relancer individuellement les collaborateurs'
+                : 'Envoyer des rappels aux managers'
           }
           size="lg"
           centered
@@ -2740,8 +2899,20 @@ export default function ConformitePage() {
         >
           <Stack>
             <Alert color="blue" icon={<Info size={20} weight="bold" />} variant="light">
-              Les rappels seront envoyes par email aux {reminderRoleLabel}s selectionnes.
-              Assurez-vous que la configuration SMTP est en place.
+              {reminderTarget === 'collaborateurs' ? (
+                <>
+                  Chaque collaborateur recoit son propre mail, avec la liste de ses
+                  formations manquantes. Quand un lien est renseigne sur la formation,
+                  son nom est cliquable dans le mail. Relance a faire AVANT celle du
+                  manager : la date de cette relance apparaitra ensuite dans l&apos;apercu
+                  de la relance manager.
+                </>
+              ) : (
+                <>
+                  Les rappels seront envoyes par email aux {reminderRoleLabel}s selectionnes.
+                  Assurez-vous que la configuration SMTP est en place.
+                </>
+              )}
             </Alert>
 
             <Text fw={500}>
@@ -2828,9 +2999,25 @@ export default function ConformitePage() {
                             {r.probleme && (
                               <Text size="xs" c="red">{r.probleme}</Text>
                             )}
+                            {/* « Collaborateur d'abord, manager ensuite » : la RH voit
+                                qui a deja ete relance directement avant d'ecrire au
+                                manager. */}
+                            {r.dejaRelancesIndividuellement && r.dejaRelancesIndividuellement.length > 0 && (
+                              <Tooltip
+                                label={r.dejaRelancesIndividuellement
+                                  .map((c) => `${c.nom} (le ${c.date})`)
+                                  .join(', ')}
+                                multiline
+                                w={280}
+                              >
+                                <Text size="xs" c="blue" style={{ cursor: 'help' }}>
+                                  {r.dejaRelancesIndividuellement.length} collaborateur(s) deja relance(s) individuellement
+                                </Text>
+                              </Tooltip>
+                            )}
                           </Stack>
                           <Badge size="sm" color={r.probleme ? 'red' : undefined}>
-                            {r.count} collaborateur(s)
+                            {r.count} {reminderTarget === 'collaborateurs' ? 'formation(s)' : 'collaborateur(s)'}
                           </Badge>
                         </Group>
                       ))
@@ -2924,14 +3111,73 @@ export default function ConformitePage() {
                     </Stack>
                   </Center>
                 ) : (
+                  <Stack gap="xs">
+                    {/* no-print : relance individuelle. Seuls les collaborateurs
+                        connus de la vue par equipe (non conformes) sont
+                        relancables : en perimetre securite, un collaborateur non
+                        forme sur CETTE formation peut etre conforme par ailleurs. */}
+                    {(() => {
+                      const relancables = formationModalNonFormes
+                        .map((c) => c.id)
+                        .filter((id) => nonFormesParId.has(id))
+                      const tousCoches =
+                        relancables.length > 0 && relancables.every((id) => selectedCollaborateurIds.includes(id))
+                      return (
+                        <Group justify="space-between" className="no-print">
+                          <Checkbox
+                            size="xs"
+                            label="Tout selectionner"
+                            disabled={relancables.length === 0}
+                            checked={tousCoches}
+                            indeterminate={
+                              !tousCoches && relancables.some((id) => selectedCollaborateurIds.includes(id))
+                            }
+                            onChange={() => toggleCollaborateurs(relancables)}
+                          />
+                          <Tooltip
+                            label={
+                              !emailConfigured
+                                ? "L'envoi d'emails n'est pas configure"
+                                : 'Chaque collaborateur coche recoit son propre mail listant ses formations manquantes'
+                            }
+                            multiline
+                            w={240}
+                          >
+                            <Box>
+                              <Button
+                                size="xs"
+                                variant="light"
+                                leftSection={<EnvelopeSimple size={14} weight="bold" />}
+                                disabled={!emailConfigured || effectiveCollaborateurIds.length === 0}
+                                onClick={openIndividualReminder}
+                              >
+                                Relancer les collaborateurs selectionnes ({effectiveCollaborateurIds.length})
+                              </Button>
+                            </Box>
+                          </Tooltip>
+                        </Group>
+                      )
+                    })()}
                   <Stack gap="xs" style={{ maxHeight: 420, overflowY: 'auto' }}>
                     {formationModalNonFormes.map((collab) => (
                       <Paper key={collab.id} withBorder p="sm" radius="md">
                         <Group justify="space-between" align="flex-start" wrap="nowrap">
-                          <Stack gap={2}>
-                            <Text size="sm" fw={500}>{collab.nomComplet}</Text>
-                            <Text size="xs" c="dimmed">{collab.departement}</Text>
-                          </Stack>
+                          <Group gap="xs" wrap="nowrap" align="flex-start">
+                            {nonFormesParId.has(collab.id) && (
+                              <Checkbox
+                                size="xs"
+                                className="no-print"
+                                mt={2}
+                                checked={selectedCollaborateurIds.includes(collab.id)}
+                                onChange={() => toggleCollaborateur(collab.id)}
+                                aria-label={`Relancer ${collab.nomComplet}`}
+                              />
+                            )}
+                            <Stack gap={2}>
+                              <Text size="sm" fw={500}>{collab.nomComplet}</Text>
+                              <Text size="xs" c="dimmed">{collab.departement}</Text>
+                            </Stack>
+                          </Group>
                           {/* Session deja engagee / planifiee (statuts « En cours » /
                               « Inscrit » du recapitulatif Orange Learning, ou saisie
                               manuelle) : le collaborateur reste non forme, mais la RH
@@ -2956,6 +3202,7 @@ export default function ConformitePage() {
                         </Group>
                       </Paper>
                     ))}
+                  </Stack>
                   </Stack>
                 )}
               </Tabs.Panel>

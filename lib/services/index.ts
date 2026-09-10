@@ -22,6 +22,7 @@ export type {
   EmailStatusResponse,
   ReminderPreviewResponse,
   ReminderPreviewRecipient,
+  ReminderRecipientType,
   ReminderHistoryEntry,
 } from './notifications.service';
 export { attachmentsService } from './attachments.service';

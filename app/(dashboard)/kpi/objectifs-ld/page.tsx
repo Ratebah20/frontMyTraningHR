@@ -58,6 +58,9 @@ const LazyObjectifsRadarChart = dynamic(
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { PrintButton } from '@/components/PrintButton';
 import { ExportTilesButton } from '@/components/ExportTilesButton';
+import { StickyActions } from '@/components/StickyActions';
+import { ExcelExportButton } from '@/components/ExcelExportButton';
+import { exportsService } from '@/lib/services';
 import { statsService } from '@/lib/services';
 
 interface CategoryKpi {
@@ -368,6 +371,30 @@ export default function ObjectifsLdPage() {
   return (
     <Container size="xl">
       <Stack gap="xl">
+        {/* Barre d'actions collante : reste visible en defilant la page */}
+        <StickyActions>
+          {/* Impression de la vue (papier / PDF) + en-tête du document */}
+          <PrintButton
+            title="Objectifs L&D"
+            subtitle={`Suivi des objectifs de formation par categorie - Periode : ${libellePeriodeImpression}`}
+          />
+          <ExportTilesButton
+            containerRef={tilesRef}
+            filename={`objectifs-ld_${date}`}
+          />
+          <ExcelExportButton
+            onExport={() =>
+              exportsService.exportObjectifsLd({
+                periode,
+                date,
+                startDate: dateDebut ? dateDebut.toISOString().split('T')[0] : undefined,
+                endDate: dateFin ? dateFin.toISOString().split('T')[0] : undefined,
+              })
+            }
+            filename={`objectifs-ld_${date}.xlsx`}
+          />
+        </StickyActions>
+
         {/* Header */}
         <Group justify="space-between" align="flex-start">
           <div>
@@ -380,17 +407,6 @@ export default function ObjectifsLdPage() {
             </Text>
           </div>
           <Group gap="sm">
-            {/* Impression de la vue (papier / PDF) + en-tête du document */}
-            <PrintButton
-              title="Objectifs L&D"
-              subtitle={`Suivi des objectifs de formation par categorie - Periode : ${libellePeriodeImpression}`}
-            />
-            <div className="no-print">
-              <ExportTilesButton
-                containerRef={tilesRef}
-                filename={`objectifs-ld_${date}`}
-              />
-            </div>
             {/* no-print : action d'edition, sans objet sur papier */}
             <Button
               className="no-print"

@@ -85,6 +85,7 @@ export default function EditFormationPage() {
       estCertifiante: false,
       estObligatoire: false,
       estSecurite: false,
+      lienUrl: '',
       obligatoireType: 'annuelle',
       obligatoireAnnee: undefined,
     },
@@ -259,6 +260,7 @@ export default function EditFormationPage() {
         estCertifiante: data.estCertifiante || false,
         estObligatoire: data.estObligatoire || false,
         estSecurite: data.estSecurite || false,
+        lienUrl: data.lienUrl || '',
         obligatoireType: data.obligatoireType || 'annuelle',
         obligatoireAnnee: data.obligatoireAnnee ?? undefined,
       });
@@ -504,6 +506,14 @@ export default function EditFormationPage() {
                   disabled={loadingTypes}
                   nothingFoundMessage="Tapez pour créer un nouveau type"
                   {...form.getInputProps('typeFormation')}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Lien vers la formation"
+                  description="Page Orange Learning, catalogue... Le nom de la formation devient cliquable dans les mails de relance. URL complete commencant par http(s)://"
+                  placeholder="https://..."
+                  {...form.getInputProps('lienUrl')}
                 />
               </Grid.Col>
             </Grid>

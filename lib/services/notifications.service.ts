@@ -5,6 +5,9 @@ export interface SendReminderDto {
   managerIds?: number[];
   // Vue par DÉPARTEMENT : destinataires = directeurs des départements sélectionnés.
   departementIds?: number[];
+  // Relance INDIVIDUELLE : chaque collaborateur reçoit son propre mail avec ses
+  // formations manquantes (lien de la formation inclus quand il est renseigné).
+  collaborateurIds?: number[];
   periode: 'annee' | 'mois' | 'plage';
   date?: string;
   startDate?: string;
@@ -19,16 +22,23 @@ export interface SendReminderDto {
 }
 
 /** Un destinataire tel que renvoyé par la prévisualisation d'une relance. */
+export type ReminderRecipientType = 'manager' | 'departement' | 'collaborateur';
+
 export interface ReminderPreviewRecipient {
-  /** Id du manager, ou id du directeur pour une relance département (0 si inconnu) */
+  /** Id du manager, du directeur (relance département) ou du collaborateur (relance individuelle) */
   id: number;
   nom: string;
   email: string;
-  type: 'manager' | 'departement';
+  type: ReminderRecipientType;
   departementNom?: string;
   collaborateursCount: number;
   formationsCount: number;
-  collaborateurs: Array<{ nom: string; formations: string[] }>;
+  collaborateurs: Array<{
+    nom: string;
+    formations: string[];
+    /** Dernière relance INDIVIDUELLE de ce collaborateur (null = jamais relancé directement) */
+    dernierRappelIndividuel?: { dateEnvoi: string; statut: string } | null;
+  }>;
   /** Dernier rappel tracé pour ce destinataire (null = jamais relancé) */
   dernierRappel: { dateEnvoi: string; statut: string } | null;
   /** Renseigné quand le destinataire ne recevra RIEN (pas d'email, pas de directeur) */
@@ -64,6 +74,8 @@ export interface ReminderHistoryEntry {
   /** null pour les relances antérieures à la traçabilité */
   type: string | null;
   periode: string | null;
+  /** Nature du destinataire ; null = relance antérieure, à lire comme 'manager' */
+  destinataireType?: ReminderRecipientType | null;
 }
 
 export interface ReminderResult {
@@ -80,7 +92,7 @@ export interface ReminderResult {
   collaborateursCount: number;
   formationsCount: number;
   /** Absent = 'manager' (réponses des versions antérieures) */
-  type?: 'manager' | 'departement';
+  type?: ReminderRecipientType;
   departementId?: number;
   departementNom?: string;
 }
@@ -93,6 +105,8 @@ export interface SendRemindersResponse {
   totalManagers: number;
   /** Directeurs de département notifiés */
   totalDirecteurs: number;
+  /** Collaborateurs relancés individuellement (absent d'une API antérieure) */
+  totalCollaborateurs?: number;
   /** Managers + directeurs */
   totalDestinataires: number;
   envoyesAvecSucces: number;
@@ -155,6 +169,8 @@ export const notificationsService = {
     startDate?: string;
     endDate?: string;
     type?: string;
+    /** 'manager' | 'departement' | 'collaborateur' */
+    destinataireType?: string;
     limit?: number;
   }): Promise<ReminderHistoryEntry[]> {
     const response = await api.get('/notifications/reminder-history', { params });

@@ -47,6 +47,9 @@ import { Clock } from '@phosphor-icons/react/dist/ssr/Clock';
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { PrintButton } from '@/components/PrintButton'
 import { ExportTilesButton } from '@/components/ExportTilesButton'
+import { StickyActions } from '@/components/StickyActions'
+import { ExcelExportButton } from '@/components/ExcelExportButton'
+import { exportsService } from '@/lib/services'
 import { motion } from 'framer-motion'
 import { useReducedMotionPreference } from '@/lib/hooks/useReducedMotionPreference'
 import api from '@/lib/api'
@@ -690,6 +693,31 @@ export default function FormationsKPIsPage() {
   return (
     <Container size="xl" py="md">
       <Stack gap="lg">
+        {/* Barre d'actions collante : reste visible en defilant la page */}
+        <StickyActions>
+          {/* Impression de la vue (papier / PDF) + en-tête du document */}
+          <PrintButton
+            title="KPIs Formations"
+            subtitle={`Periode : ${libellePeriodeImpression} - Onglet : ${activeTab === 'overview' ? "Vue d'ensemble" : 'Heures et activite'}`}
+          />
+          <ExportTilesButton
+            containerRef={tilesRef}
+            filename={`kpi-formations_${date}`}
+          />
+          {/* Les KPI detailles de cette page sont ceux de /kpi/collaborateurs : meme classeur */}
+          <ExcelExportButton
+            onExport={() =>
+              exportsService.exportKpiCollaborateurs({
+                periode,
+                date,
+                startDate: dateDebut ? dateDebut.toISOString().split('T')[0] : undefined,
+                endDate: dateFin ? dateFin.toISOString().split('T')[0] : undefined,
+              })
+            }
+            filename={`kpi-formations_${date}.xlsx`}
+          />
+        </StickyActions>
+
         {/* Header */}
         <motion.div
           initial={reducedMotion ? false : { opacity: 0, y: -30 }}
@@ -702,17 +730,6 @@ export default function FormationsKPIsPage() {
               <Text c="dimmed">Vue d'ensemble des indicateurs cles de performance</Text>
             </Stack>
             <Group gap="sm" align="flex-start">
-              {/* Impression de la vue (papier / PDF) + en-tête du document */}
-              <PrintButton
-                title="KPIs Formations"
-                subtitle={`Periode : ${libellePeriodeImpression} - Onglet : ${activeTab === 'overview' ? "Vue d'ensemble" : 'Heures et activite'}`}
-              />
-              <div className="no-print">
-                <ExportTilesButton
-                  containerRef={tilesRef}
-                  filename={`kpi-formations_${date}`}
-                />
-              </div>
               {/* no-print : sélecteurs de date, la période est rappelée en en-tête */}
               <Box className="no-print">
                 <PeriodSelector

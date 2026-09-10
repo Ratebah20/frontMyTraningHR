@@ -76,6 +76,79 @@ export const exportsService = {
     return response.data;
   },
 
+  /**
+   * Exports Excel des pages KPI, sur le modèle de l'export des formations
+   * obligatoires : un classeur par page, une feuille par bloc de l'écran.
+   */
+  async exportBilanAnnuel(annee: number): Promise<Blob> {
+    const response = await api.get(`/export/bilan-annuel.xlsx?annee=${annee}`, { responseType: 'blob' });
+    return response.data;
+  },
+
+  async exportKpiCollaborateurs(filters: {
+    periode?: 'annee' | 'mois' | 'plage';
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+    includeInactifs?: boolean;
+    contratIds?: number[];
+  }): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (filters.periode) params.append('periode', filters.periode);
+    if (filters.periode === 'plage') {
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+    } else if (filters.date) {
+      params.append('date', filters.date);
+    }
+    if (filters.includeInactifs) params.append('includeInactifs', 'true');
+    if (filters.contratIds && filters.contratIds.length > 0) params.append('contratIds', filters.contratIds.join(','));
+    const queryString = params.toString();
+    const response = await api.get(`/export/kpi-collaborateurs.xlsx${queryString ? `?${queryString}` : ''}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  async exportObjectifsLd(filters: {
+    periode?: 'annee' | 'mois' | 'plage';
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (filters.periode) params.append('periode', filters.periode);
+    if (filters.periode === 'plage') {
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+    } else if (filters.date) {
+      params.append('date', filters.date);
+    }
+    const queryString = params.toString();
+    const response = await api.get(`/export/objectifs-ld.xlsx${queryString ? `?${queryString}` : ''}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  async exportRelances(filters: {
+    type?: string;
+    destinataireType?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (filters.type) params.append('type', filters.type);
+    if (filters.destinataireType) params.append('destinataireType', filters.destinataireType);
+    if (filters.startDate) params.append('startDate', filters.startDate);
+    if (filters.endDate) params.append('endDate', filters.endDate);
+    const queryString = params.toString();
+    const response = await api.get(`/export/relances.xlsx${queryString ? `?${queryString}` : ''}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
   downloadBlob(blob: Blob, filename: string): void {
     const url = window.URL.createObjectURL(blob);
     const link = document.createElement('a');

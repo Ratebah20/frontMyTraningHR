@@ -61,6 +61,7 @@ export function ExportTilesButton({ containerRef, filename, background }: Export
   return (
     <Tooltip label="Exporter en image (PNG)">
       <ActionIcon
+        className="no-print"
         variant="light"
         color="gray"
         size="lg"

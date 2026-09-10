@@ -75,6 +75,7 @@ export default function NewFormationPage() {
       estCertifiante: false,
       estObligatoire: false,
       estSecurite: false,
+      lienUrl: '',
       obligatoireType: 'annuelle',
       obligatoireAnnee: undefined,
     },
@@ -451,6 +452,14 @@ export default function NewFormationPage() {
                   disabled={loadingTypes}
                   nothingFoundMessage="Tapez pour créer un nouveau type"
                   {...form.getInputProps('typeFormation')}
+                />
+              </Grid.Col>
+              <Grid.Col span={12}>
+                <TextInput
+                  label="Lien vers la formation"
+                  description="Page Orange Learning, catalogue... Le nom de la formation devient cliquable dans les mails de relance. URL complete commencant par http(s)://"
+                  placeholder="https://..."
+                  {...form.getInputProps('lienUrl')}
                 />
               </Grid.Col>
             </Grid>

@@ -41,6 +41,7 @@ import { PencilSimple } from '@phosphor-icons/react/dist/ssr/PencilSimple';
 import { DownloadSimple } from '@phosphor-icons/react/dist/ssr/DownloadSimple';
 import { formationsService, statsService, exportsService } from '@/lib/services';
 import { PeriodSelector } from '@/components/PeriodSelector';
+import { StickyActions } from '@/components/StickyActions';
 import { useUrlFilters, useUrlSearch } from '@/hooks/useUrlFilters';
 import { Formation } from '@/lib/types';
 
@@ -846,6 +847,18 @@ export default function FormationsObligatoiresPage() {
   return (
     <Container size="xl">
       <Stack gap="xl">
+        {/* Barre d'actions collante : l'export reste visible en defilant la page */}
+        <StickyActions>
+          <Button
+            className="no-print"
+            leftSection={<DownloadSimple size={18} />}
+            variant="light"
+            onClick={handleExport}
+            loading={exporting}
+          >
+            Exporter le suivi (Excel)
+          </Button>
+        </StickyActions>
         <Group justify="space-between" align="flex-end" wrap="wrap">
           <div>
             <Title order={2}>Formations à obligation</Title>
@@ -854,14 +867,6 @@ export default function FormationsObligatoiresPage() {
               sécurité au travail
             </Text>
           </div>
-          <Button
-            leftSection={<DownloadSimple size={18} />}
-            variant="light"
-            onClick={handleExport}
-            loading={exporting}
-          >
-            Exporter le suivi (Excel)
-          </Button>
         </Group>
 
         <Paper p="md" radius="md" withBorder>

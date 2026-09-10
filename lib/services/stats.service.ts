@@ -49,7 +49,11 @@ export interface DashboardSummaryResponse {
   sessionsEnCours: number;
   sessionsPlanifiees: number;
   sessionsTerminees: number;
+  /** Heures SUIVIES sur la période (× participants) : le chiffre du bilan annuel */
   heuresFormationPeriode: number;
+  heuresFormationSuivies?: number;
+  /** Heures dispensées : chaque session collective comptée une fois */
+  heuresFormationDispensees?: number;
   /** Nombre de collaborateurs FORMÉS sur la période (le champ s'appelait
    *  `nombreDepartements` : nom recyclé côté API, jamais un nombre de départements). */
   collaborateursFormes: number;

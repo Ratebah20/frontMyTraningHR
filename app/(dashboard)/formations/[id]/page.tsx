@@ -26,6 +26,7 @@ import {
   List,
   Tooltip,
   Modal,
+  Anchor,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { ArrowLeft } from '@phosphor-icons/react/dist/ssr/ArrowLeft';
@@ -399,6 +400,16 @@ export default function FormationDetailPage({ params }: Props) {
                 </Group>
               )}
 
+              {formation.lienUrl && (
+                <Group gap="xs">
+                  <GraduationCap size={20} weight="duotone" />
+                  <Text fw={500}>Lien:</Text>
+                  <Anchor href={formation.lienUrl} target="_blank" rel="noopener noreferrer" size="sm" style={{ wordBreak: 'break-all' }}>
+                    {formation.lienUrl}
+                  </Anchor>
+                </Group>
+              )}
+
               <Group gap="xs">
                 <Clock size={20} weight="duotone" />
                 <Text fw={500}>Durée prévue:</Text>
@@ -587,11 +598,20 @@ export default function FormationDetailPage({ params }: Props) {
                       // Grouper les sessions récentes
                       const groupedSessions = new Map<string, any[]>();
 
+                      // La cle DOIT etre celle du backend
+                      // (`formationId_dateDebut_dateFin`, dates en YYYY-MM-DD,
+                      // 'null' sans date, cf. sessions.service findGroupedSessionByKey) :
+                      // c'est elle qui est poussee dans l'URL de la session groupee.
+                      // L'ancienne cle (dates ISO completes + organisme) etait
+                      // decoupee par le backend en formationId = 2026 -> « Session
+                      // non trouvee ». Une session collective garde sa propre carte.
+                      const jour = (valeur: string | null | undefined) =>
+                        valeur ? String(valeur).slice(0, 10) : 'null';
                       formation.sessionsRecentes?.forEach((session: any) => {
-                        const dateDebut = session.dateDebut || 'sans_date';
-                        const dateFin = session.dateFin || 'sans_date';
-                        const organisme = session.organisme || 'sans_organisme';
-                        const key = `${dateDebut}_${dateFin}_${organisme}`;
+                        const key =
+                          session.type === 'collective'
+                            ? `collective_${session.id}`
+                            : `${formation.id}_${jour(session.dateDebut)}_${jour(session.dateFin)}`;
 
                         if (!groupedSessions.has(key)) {
                           groupedSessions.set(key, []);
@@ -757,7 +777,7 @@ export default function FormationDetailPage({ params }: Props) {
                     {total > 0 && (
                       <Button
                         variant="subtle"
-                        onClick={() => router.push(`/formations/${params.id}/sessions`)}
+                        onClick={() => router.push(`/sessions?formation=${params.id}`)}
                       >
                         Voir toutes les sessions
                       </Button>
@@ -842,7 +862,7 @@ export default function FormationDetailPage({ params }: Props) {
                   fullWidth
                   variant="light"
                   leftSection={<Eye size={16} />}
-                  onClick={() => router.push(`/formations/${params.id}/sessions`)}
+                  onClick={() => router.push(`/sessions?formation=${params.id}`)}
                 >
                   Voir toutes les sessions
                 </Button>
